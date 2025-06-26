@@ -1,6 +1,2 @@
 # Ignore everything in symphony directory
-example-integrations/wfm/symphony/*
-
-# But keep margo-related items
-!example-integrations/wfm/symphony/*margo*
-!example-integrations/wfm/symphony/*margo*/**
+example-integrations/wfm/symphony/symphony-codebase

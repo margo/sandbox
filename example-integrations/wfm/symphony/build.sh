@@ -10,9 +10,10 @@ GOLANG_VERSION=${GOLANG_VERSION:-"1.24"}
 GOPATH=${GOPATH:-"/usr/local/go"}
 
 INSTALL_MAGE_TOOL=${INSTALL_MAGE_TOOL:-true}
+INSTALL_DOCKERBUILDX=${INSTALL_DOCKERBUILDX:-false}
 
 # Repository Configuration
-PULL_REPO_FROM_GIT=${PULL_REPO_FROM_GIT:-false}
+PULL_REPO_FROM_GIT=${PULL_REPO_FROM_GIT:-true}
 GIT_REPO_URL=${GIT_REPO_URL:-"https://github.com/eclipse-symphony/symphony.git"}
 GIT_BRANCH=${GIT_BRANCH:-"0.48.35"}
 PATH_TO_REPO_CODE_ON_DISK=${PATH_TO_REPO_CODE_ON_DISK:-"symphony-codebase"}
@@ -100,6 +101,25 @@ install_mage() {
     go install github.com/magefile/mage@latest
     export PATH=$PATH:$(go env GOPATH)/bin
     log_info "Mage installation completed"
+}
+
+install_dockerbuildx() {
+		if [ "$INSTALL_DOCKERBUILDX" != "true" ]; then
+				log_info "Skipping docker installation"
+				return 0
+		fi
+
+		log_info "Installing dockerbuildx..."
+
+    # Download buildx binary
+    BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep tag_name | cut -d '"' -f 4)
+    curl -L https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
+
+    # Make it executable
+    chmod +x ~/.docker/cli-plugins/docker-buildx
+
+    # Create the plugins directory if it doesn't exist
+    mkdir -p ~/.docker/cli-plugins
 }
 
 # =============================================================================
@@ -311,14 +331,17 @@ main() {
     # Set up error handling
     trap cleanup_on_exit EXIT
     
+		# uninstall_docker
+		
+		# Setup
+		install_dockerbuildx
+    install_golang
+    install_mage
+		
     # Validation
     validate_prerequisites
     validate_environment
-    
-    # Setup
-    install_golang
-    install_mage
-    
+
     # Repository setup
     setup_repository
     copy_custom_code

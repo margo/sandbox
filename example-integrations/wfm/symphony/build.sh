@@ -179,7 +179,29 @@ copy_custom_code() {
 setup_go_modules() {
     log_info "Setting up Go modules"
     
+    ###########################################################################
+    # change the go.mod file in the cli directory
     cd "$PATH_TO_REPO_CODE_ON_DISK/cli"
+
+    # Add replace directive for SDK
+    if ! grep -q "github.com/margo/dev-repo/sdk" go.mod; then
+        log_info "Adding SDK replace directive to go.mod"
+        echo "replace github.com/margo/dev-repo/sdk => $SDK_PATH" >> go.mod
+    else
+        log_info "SDK replace directive already exists in go.mod"
+    fi
+    
+    # Tidy and vendor modules
+    log_info "Running go mod tidy..."
+    go mod tidy
+    
+    log_info "Running go mod vendor..."
+    go mod vendor
+    cd -
+
+    ###########################################################################
+    # change the go.mod file in the api directory as well
+    cd "$PATH_TO_REPO_CODE_ON_DISK/api"
     
     # Add replace directive for SDK
     if ! grep -q "github.com/margo/dev-repo/sdk" go.mod; then
@@ -195,7 +217,6 @@ setup_go_modules() {
     
     log_info "Running go mod vendor..."
     go mod vendor
-    
     cd - > /dev/null
 }
 

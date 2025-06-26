@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"github.com/eclipse-symphony/symphony/api/pkg/apis/v1alpha1/managers/margo"
 	"github.com/eclipse-symphony/symphony/api/pkg/apis/v1alpha1/managers/solutions"
 	"github.com/eclipse-symphony/symphony/coa/pkg/apis/v1alpha2"
 	"github.com/eclipse-symphony/symphony/coa/pkg/apis/v1alpha2/managers"
@@ -10,6 +11,7 @@ import (
 	"github.com/eclipse-symphony/symphony/coa/pkg/apis/v1alpha2/providers/pubsub"
 	"github.com/eclipse-symphony/symphony/coa/pkg/apis/v1alpha2/vendors"
 	"github.com/eclipse-symphony/symphony/coa/pkg/logger"
+	margoModels "github.com/margo/dev-repo/sdk/pkg/models"
 	"github.com/valyala/fasthttp"
 )
 
@@ -17,7 +19,7 @@ var uLog = logger.NewLogger("coa.runtime")
 
 type MargoSouthboundVendor struct {
 	vendors.Vendor
-	MargoManager     *solutions.MargoManager
+	MargoManager     *margo.MargoManager
 	SolutionsManager *solutions.SolutionsManager
 }
 
@@ -35,12 +37,18 @@ func (e *MargoSouthboundVendor) Init(config vendors.VendorConfig, factories []ma
 		return err
 	}
 	for _, m := range e.Managers {
-		if c, ok := m.(*margo.MargoSouthboundVendor); ok {
+		switch c := m.(type) {
+		case *margo.MargoManager:
 			e.MargoManager = c
+		case *solutions.SolutionsManager:
+			e.SolutionsManager = c
 		}
 	}
 	if e.MargoManager == nil {
 		return v1alpha2.NewCOAError(nil, "margo manager is not supplied", v1alpha2.MissingConfig)
+	}
+	if e.SolutionsManager == nil {
+		return v1alpha2.NewCOAError(nil, "solutions manager is not supplied", v1alpha2.MissingConfig)
 	}
 	return nil
 }
@@ -90,7 +98,7 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 	defer span.End()
 	uLog.InfofCtx(pCtx, "V (MargoSouthboundVendor): onboardApplication, method: %s", request.Method)
 
-	margoSpec, err := margoModels.ParseApplication(request.Body)
+	margoSpec, err := margoModels.ParseApplicationFromBytes(request.Body)
 	coaErr := v1alpha2.NewCOAError(err, "Failed to parse the request", v1alpha2.BadRequest)
 	if err != nil {
 		return v1alpha2.COAResponse{
@@ -99,7 +107,8 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 		}
 	}
 
-	err = c.MargoManager.OnboardApplication(margoSpec)
+	appId, err := c.MargoManager.OnboardApplication(pCtx, margoSpec)
+	coaErr = v1alpha2.NewCOAError(err, "Failed to onboard the app", v1alpha2.InternalError)
 	if err != nil {
 		return v1alpha2.COAResponse{
 			State: v1alpha2.GetErrorState(coaErr),
@@ -107,7 +116,8 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 		}
 	}
 
-	symphonySolution, coaErr := c.MargoManager.ConvertToSolutionSpec(id, margoSpec)
+	symphonySolution, err := c.MargoManager.ConvertToSolution(pCtx, appId, margoSpec)
+	coaErr = v1alpha2.NewCOAError(err, "Failed to convert the margo spec to symphony solution", v1alpha2.InternalError)
 	if err != nil {
 		return v1alpha2.COAResponse{
 			State: v1alpha2.GetErrorState(coaErr),
@@ -115,9 +125,9 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 		}
 	}
 
-	err := c.SolutionsManager.UpsertState(ctx, id, solution)
+	err = c.SolutionsManager.UpsertState(pCtx, appId, symphonySolution)
 	if err != nil {
-		uLog.ErrorfCtx(ctx, "V (Solutions): onboardApplication failed - %s", err.Error())
+		uLog.ErrorfCtx(pCtx, "V (Solutions): onboardApplication failed - %s", err.Error())
 		return observ_utils.CloseSpanWithCOAResponse(span, v1alpha2.COAResponse{
 			State: v1alpha2.GetErrorState(err),
 			Body:  []byte(err.Error()),

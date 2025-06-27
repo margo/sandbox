@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main, githib-actions ]
 
-  
+  workflow_dispatch:
   # Trigger on pull request
   pull_request:
     branches: [ main ]
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH into VM and install Symphony
+      - name: Check and install Go and Rust
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ env.VM_HOST }}
@@ -31,27 +31,69 @@ jobs:
           password: ${{ env.VM_PASS }}
           port: 22
           script: |
-            # Install dependencies
-            sudo apt update -y
-            sudo apt install golang-go -y
+            # Install Go if not present
+            if ! command -v go &> /dev/null; then
+              sudo apt update -y
+              sudo apt install golang-go -y
+            else
+              echo "Go already installed."
+            fi
+            # Install Rust if not present
+            if ! command -v cargo &> /dev/null; then
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              source $HOME/.cargo/env
+            else
+              echo "Rust already installed."
+            fi
 
-            # Install Rust (non-interactive)
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - name: Clone or update Symphony repository
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.VM_HOST }}
+          username: ${{ env.VM_USER }}
+          password: ${{ env.VM_PASS }}
+          port: 22
+          script: |
+            if [ ! -d "$HOME/symphony/.git" ]; then
+              git clone https://github.com/eclipse-symphony/symphony.git
+            else
+              cd $HOME/symphony
+              git pull
+              echo "Symphony repo updated."
+            fi
+
+      - name: Build native Rust library
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.VM_HOST }}
+          username: ${{ env.VM_USER }}
+          password: ${{ env.VM_PASS }}
+          port: 22
+          script: |
             source $HOME/.cargo/env
-
-            # Clone Symphony repository
-            git clone https://github.com/eclipse-symphony/symphony.git
-
-            # Build native Rust library
             cd ~/symphony/api/pkg/apis/v1alpha1/providers/target/rust
             cargo build --release
 
-            # Set library path so Go can link against Rust lib
-            export LD_LIBRARY_PATH=$(pwd)/target/release
+      - name: Build symphony-api Go binary
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.VM_HOST }}
+          username: ${{ env.VM_USER }}
+          password: ${{ env.VM_PASS }}
+          port: 22
+          script: |
+            export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
             cd ~/symphony/api
-
-            # Build symphony-api Go binary
             go build -o symphony-api
 
-            # Run symphony-api
-            SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug
+      - name: Run symphony-api in background
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.VM_HOST }}
+          username: ${{ env.VM_USER }}
+          password: ${{ env.VM_PASS }}
+          port: 22
+          script: |
+            cd ~/symphony/api
+            nohup SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug > symphony-api.log 2>&1 &
+            echo "symphony-api started in background."

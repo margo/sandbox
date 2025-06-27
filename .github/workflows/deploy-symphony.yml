@@ -9,6 +9,7 @@ on:
   pull_request:
     branches: [ main ]
   
+    
 env:
   VM_HOST: "52.224.241.180"
   VM_USER: "azureuser "

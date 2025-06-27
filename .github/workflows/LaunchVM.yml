@@ -3,7 +3,7 @@ name: Azure VM SSH Login
 on:
   push:
     branches:
-      - dev  # This workflow will still be triggered on pushes to the `dev` branch
+      - TestAutomation  # This workflow will still be triggered on pushes to the `dev` branch
   workflow_dispatch:  # This allows manual triggering of the workflow
 jobs:
 

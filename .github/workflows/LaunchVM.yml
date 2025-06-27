@@ -28,7 +28,7 @@ jobs:
       - name: Add VM's SSH key to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H $AZURE_VM_IP >> ~/.ssh/known_hosts
+          ssh-keyscan -H $VM_HOST >> ~/.ssh/known_hosts
 
       - name: Log in to Azure VM using SSH
         run: |

@@ -4,15 +4,16 @@ on:
   # Trigger on push to main branch
   push:
     branches: [ main, githib-actions ]
+
   
   # Trigger on pull request
   pull_request:
     branches: [ main ]
   
-    
+
 env:
   VM_HOST: "52.224.241.180"
-  VM_USER: "azureuser "
+  VM_USER: "azureuser"
   VM_PASS: "Margo@123456"  
     
 

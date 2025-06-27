@@ -3,350 +3,53 @@ name: Deploy Symphony Application
 on:
   # Trigger on push to main branch
   push:
-    branches: [ main, develop ]
+    branches: [ main, githib-actions ]
   
   # Trigger on pull request
   pull_request:
     branches: [ main ]
   
-  # Manual trigger
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'staging'
-        type: choice
-        options:
-        - staging
-        - production
-      
-      deploy_version:
-        description: 'Version to deploy (leave empty for latest)'
-        required: false
-        type: string
-
 env:
-  GO_VERSION: '1.21'
-  RUST_VERSION: 'stable'
+  VM_HOST: "52.224.241.180"
+  VM_USER: "azureuser "
+  VM_PASS: "Margo@123456"  
+    
 
 jobs:
-  # Build and test job
-  build-and-test:
-    name: Build and Test
+  install_symphony:
+    name: Symphony Install via SSH
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-      
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Run tests
-        run: |
-          # Add your test commands here
-          echo "Running Go tests..."
-          # go test ./...
-          
-          echo "Running Rust tests..."
-          # cargo test
-      
-      - name: Build application
-        run: |
-          echo "Building Rust library..."
-          cd api/pkg/apis/v1alpha1/providers/target/rust
-          cargo build --release
-          
-          echo "Building Go application..."
-          cd ../../../../..
-          export LD_LIBRARY_PATH=$(pwd)/api/pkg/apis/v1alpha1/providers/target/rust/target/release
-          cd api
-          go build -o symphony-api
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: symphony-api-${{ github.sha }}
-          path: |
-            api/symphony-api
-            api/pkg/apis/v1alpha1/providers/target/rust/target/release/
-          retention-days: 30
 
-  # Security scanning job
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-      
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  # Deploy to staging
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build-and-test, security-scan]
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
-    environment: staging
-    
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: symphony-api-${{ github.sha }}
-          path: ./artifacts
-      
-      - name: Deploy to Staging VM
+      - name: SSH into VM and install Symphony
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ secrets.STAGING_VM_HOST }}
-          username: ${{ secrets.STAGING_VM_USER }}
-          key: ${{ secrets.STAGING_VM_SSH_KEY }}
-          port: ${{ secrets.STAGING_VM_PORT || 22 }}
+          host: ${{ env.VM_HOST }}
+          username: ${{ env.VM_USER }}
+          password: ${{ env.VM_PASS }}
+          port: 22
           script: |
-            # Create deployment directory
-            DEPLOY_DIR="/opt/symphony"
-            sudo mkdir -p $DEPLOY_DIR
-            sudo chown $USER:$USER $DEPLOY_DIR
-            
-            # Backup current deployment (if exists)
-            if [ -f "$DEPLOY_DIR/symphony-api" ]; then
-              sudo cp $DEPLOY_DIR/symphony-api $DEPLOY_DIR/symphony-api.backup.$(date +%Y%m%d_%H%M%S)
-            fi
-            
-            # Stop existing service (if running)
-            sudo systemctl stop symphony-api || true
-            
-            echo "Deployment to staging completed successfully"
-      
-      - name: Upload artifacts to VM
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.STAGING_VM_HOST }}
-          username: ${{ secrets.STAGING_VM_USER }}
-          key: ${{ secrets.STAGING_VM_SSH_KEY }}
-          port: ${{ secrets.STAGING_VM_PORT || 22 }}
-          source: "./artifacts/*"
-          target: "/opt/symphony/"
-          strip_components: 1
-      
-      - name: Start service on staging
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.STAGING_VM_HOST }}
-          username: ${{ secrets.STAGING_VM_USER }}
-          key: ${{ secrets.STAGING_VM_SSH_KEY }}
-          port: ${{ secrets.STAGING_VM_PORT || 22 }}
-          script: |
-            cd /opt/symphony
-            chmod +x symphony-api
-            
-            # Set up environment variables
-            export SYMPHONY_API_URL="http://localhost:8082/v1alpha2/"
-            export USE_SERVICE_ACCOUNT_TOKENS="false"
-            export LD_LIBRARY_PATH="/opt/symphony"
-            
-            # Start the service
-            sudo systemctl start symphony-api
-            sudo systemctl enable symphony-api
-            
-            # Verify deployment
-            sleep 10
-            if curl -f http://localhost:8082/health; then
-              echo "✅ Staging deployment successful"
-            else
-              echo "❌ Staging deployment failed"
-              exit 1
-            fi
+            # Install dependencies
+            sudo apt update -y
+            sudo apt install golang-go -y
 
-  # Deploy to production
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [build-and-test, security-scan, deploy-staging]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-    
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: symphony-api-${{ github.sha }}
-          path: ./artifacts
-      
-      - name: Deploy to Production VM
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.PROD_VM_HOST }}
-          username: ${{ secrets.PROD_VM_USER }}
-          key: ${{ secrets.PROD_VM_SSH_KEY }}
-          port: ${{ secrets.PROD_VM_PORT || 22 }}
-          script: |
-            # Production deployment with blue-green strategy
-            DEPLOY_DIR="/opt/symphony"
-            BLUE_DIR="$DEPLOY_DIR/blue"
-            GREEN_DIR="$DEPLOY_DIR/green"
-            CURRENT_LINK="$DEPLOY_DIR/current"
-            
-            # Determine which environment to deploy to
-            if [ -L "$CURRENT_LINK" ]; then
-              CURRENT_TARGET=$(readlink $CURRENT_LINK)
-              if [[ "$CURRENT_TARGET" == *"blue"* ]]; then
-                NEW_DIR=$GREEN_DIR
-                echo "Deploying to GREEN environment"
-              else
-                NEW_DIR=$BLUE_DIR
-                echo "Deploying to BLUE environment"
-              fi
-            else
-              NEW_DIR=$BLUE_DIR
-              echo "Initial deployment to BLUE environment"
-            fi
-            
-            # Prepare new deployment directory
-            sudo mkdir -p $NEW_DIR
-            sudo chown $USER:$USER $NEW_DIR
-      
-      - name: Upload artifacts to production
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.PROD_VM_HOST }}
-          username: ${{ secrets.PROD_VM_USER }}
-          key: ${{ secrets.PROD_VM_SSH_KEY }}
-          port: ${{ secrets.PROD_VM_PORT || 22 }}
-          source: "./artifacts/*"
-          target: "/tmp/symphony-deploy/"
-          strip_components: 1
-      
-      - name: Complete production deployment
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.PROD_VM_HOST }}
-          username: ${{ secrets.PROD_VM_USER }}
-          key: ${{ secrets.PROD_VM_SSH_KEY }}
-          port: ${{ secrets.PROD_VM_PORT || 22 }}
-          script: |
-            DEPLOY_DIR="/opt/symphony"
-            CURRENT_LINK="$DEPLOY_DIR/current"
-            
-            # Determine deployment directory
-            if [ -L "$CURRENT_LINK" ]; then
-              CURRENT_TARGET=$(readlink $CURRENT_LINK)
-              if [[ "$CURRENT_TARGET" == *"blue"* ]]; then
-                NEW_DIR="$DEPLOY_DIR/green"
-              else
-                NEW_DIR="$DEPLOY_DIR/blue"
-              fi
-            else
-              NEW_DIR="$DEPLOY_DIR/blue"
-            fi
-            
-            # Move artifacts to deployment directory
-            sudo cp -r /tmp/symphony-deploy/* $NEW_DIR/
-            sudo chmod +x $NEW_DIR/symphony-api
-            
-            # Health check on new deployment
-            cd $NEW_DIR
-            export SYMPHONY_API_URL="http://localhost:8083/v1alpha2/"
-            export USE_SERVICE_ACCOUNT_TOKENS="false"
-            export LD_LIBRARY_PATH="$NEW_DIR"
-            
-            # Start new instance on different port for testing
-            ./symphony-api -c ./symphony-api-no-k8s.json -l Debug &
-            NEW_PID=$!
-            
-            # Wait and test
-            sleep 15
-            if curl -f http://localhost:8083/health; then
-              echo "✅ New deployment health check passed"
-              
-              # Stop old instance
-              if [ -L "$CURRENT_LINK" ]; then
-                OLD_PID=$(pgrep -f "$(readlink $CURRENT_LINK)/symphony-api") || true
-                if [ ! -z "$OLD_PID" ]; then
-                  sudo kill $OLD_PID || true
-                fi
-              fi
-              
-              # Update symlink
-              sudo rm -f $CURRENT_LINK
-              sudo ln -sf $NEW_DIR $CURRENT_LINK
-              
-              # Kill test instance and start production instance
-              kill $NEW_PID || true
-              sudo systemctl restart symphony-api
-              
-              echo "✅ Production deployment completed successfully"
-            else
-              echo "❌ Production deployment failed health check"
-              kill $NEW_PID || true
-              exit 1
-            fi
-            
-            # Cleanup
-            rm -rf /tmp/symphony-deploy
+            # Install Rust (non-interactive)
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source $HOME/.cargo/env
 
-  # Notification job
-  notify:
-    name: Send Notifications
-    runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
-    if: always()
-    
-    steps:
-      - name: Notify on success
-        if: needs.deploy-production.result == 'success'
-        run: |
-          echo "🎉 Production deployment successful!"
-          # Add your notification logic here (Slack, email, etc.)
-      
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "❌ Deployment pipeline failed!"
-          # Add your failure notification logic here
+            # Clone Symphony repository
+            git clone https://github.com/eclipse-symphony/symphony.git
 
+            # Build native Rust library
+            cd ~/symphony/api/pkg/apis/v1alpha1/providers/target/rust
+            cargo build --release
+
+            # Set library path so Go can link against Rust lib
+            export LD_LIBRARY_PATH=$(pwd)/target/release
+            cd ~/symphony/api
+
+            # Build symphony-api Go binary
+            go build -o symphony-api
+
+            # Run symphony-api
+            SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug

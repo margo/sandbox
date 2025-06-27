@@ -12,6 +12,8 @@ GOPATH=${GOPATH:-"/usr/local/go"}
 INSTALL_MAGE_TOOL=${INSTALL_MAGE_TOOL:-true}
 INSTALL_DOCKERBUILDX=${INSTALL_DOCKERBUILDX:-false}
 
+# ./buildx build --no-cache --platform linux/amd64 -t mjlatest . -f Dockerfile
+
 # Repository Configuration
 PULL_REPO_FROM_GIT=${PULL_REPO_FROM_GIT:-true}
 GIT_REPO_URL=${GIT_REPO_URL:-"https://github.com/eclipse-symphony/symphony.git"}
@@ -349,6 +351,9 @@ main() {
     # Build process
     setup_go_modules
     build_components
+
+		# ./buildx build --no-cache --platform linux/amd64 -t mjlatest . -f api/Dockerfile
+		# docker run --rm -it -v ./api:/configs -e CONFIG=symphony-api-no-k8s.json mjlatest:latest
     
     log_info "Build process completed successfully!"
 }

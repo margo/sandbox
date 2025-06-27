@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -597,9 +598,18 @@ func (s *SelectValidationSchema) isValidOption(value interface{}) bool {
 // }
 
 // use only when the payload is smaller in size
-func ParseApplicationFromBytes(spec []byte) (ApplicationDescription, error) {
+func ParseApplicationYAMLFromBytes(spec []byte) (ApplicationDescription, error) {
 	description := ApplicationDescription{}
 	if err := yaml.Unmarshal(spec, &description); err != nil {
+		return description, err
+	}
+	return ApplicationDescription{}, nil
+}
+
+// use only when the payload is smaller in size
+func ParseApplicationJSONFromBytes(spec []byte) (ApplicationDescription, error) {
+	description := ApplicationDescription{}
+	if err := json.Unmarshal(spec, &description); err != nil {
 		return description, err
 	}
 	return ApplicationDescription{}, nil

@@ -354,9 +354,233 @@ main() {
 
 		# ./buildx build --no-cache --platform linux/amd64 -t mjlatest . -f api/Dockerfile
 		# docker run --rm -it -v ./api:/configs -e CONFIG=symphony-api-no-k8s.json margo1:latest
-    
+    # curl https://sh.rustup.rs -sSf | sh
+		
+		# cd api
+		# pushd .
+		# cd api/pkg/apis/v1alpha1/providers/target/rust
+		# cd ../api/pkg/apis/v1alpha1/providers/target/rust
+		# cargo build --release
+		# popd 
+		# go build -o symphony-api
+		# ls
+		# ./symphony-api 
+
     log_info "Build process completed successfully!"
 }
 
 # Execute main function
 main "$@"
+
+
+
+
+# curl --location 'http://10.139.2.248:8082/v1alpha2/margo/v1/applications' \
+# --header 'Content-Type: text/plain' \
+# --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWRtaW4iLCJpc3MiOiJzeW1waG9ueSIsInN1YiI6InN5bXBob255IiwiYXVkIjpbIioiXSwiZXhwIjoxNzUxMTEyNDI5LCJuYmYiOjE3NTEwMjYwMjksImlhdCI6MTc1MTAyNjAyOSwianRpIjoiMSJ9.8PN1QzIoynhH8DZjgx6l7pxuFCnfZ6cRk34ejS-vLOo' \
+# --data-raw '{
+
+#   "apiVersion": "margo.org/v1-alpha1",
+
+#   "kind": "ApplicationDescription",
+
+#   "metadata": {
+
+#     "id": "com-northstartida-hello-world",
+
+#     "name": "Hello World",
+
+#     "description": "A basic hello world application",
+
+#     "version": "1.0",
+
+#     "catalog": {
+
+#       "application": {
+
+#         "icon": "./resources/hw-logo.png",
+
+#         "tagline": "Northstar Industrial Application'\''s hello world application.",
+
+#         "descriptionFile": "./resources/description.md",
+
+#         "releaseNotes": "./resources/release-notes.md",
+
+#         "licenseFile": "./resources/license.pdf",
+
+#         "site": "http://www.northstar-ida.com",
+
+#         "tags": [
+
+#           "monitoring"
+
+#         ]
+
+#       },
+
+#       "author": [
+
+#         {
+
+#           "name": "Roger Wilkershank",
+
+#           "email": "rpwilkershank@northstar-ida.com"
+
+#         }
+
+#       ],
+
+#       "organization": [
+
+#         {
+
+#           "name": "Northstar Industrial Applications",
+
+#           "site": "http://northstar-ida.com"
+
+#         }
+
+#       ]
+
+#     }
+
+#   },
+
+#   "deploymentProfiles": [
+
+#     {
+
+#       "type": "helm.v3",
+
+#       "components": [
+
+#         {
+
+#           "name": "hello-world",
+
+#           "properties": {
+
+#             "repository": "oci://northstarida.azurecr.io/charts/hello-world",
+
+#             "revision": "1.0.1",
+
+#             "wait": true
+
+#           }
+
+#         }
+
+#       ]
+
+#     }
+
+#   ],
+
+#   "parameters": {
+
+#     "greeting": {
+
+#       "value": "Hello",
+
+#       "targets": [
+
+#         {
+
+#           "pointer": "global.config.appGreeting",
+
+#           "components": [
+
+#             "hello-world"
+
+#           ]
+
+#         }
+
+#       ]
+
+#     },
+
+#     "greetingAddressee": {
+
+#       "value": "World",
+
+#       "targets": [
+
+#         {
+
+#           "pointer": "global.config.appGreetingAddressee",
+
+#           "components": [
+
+#             "hello-world"
+
+#           ]
+
+#         }
+
+#       ]
+
+#     }
+
+#   },
+
+#   "configuration": {
+
+#     "sections": [
+
+#       {
+
+#         "name": "General Settings",
+
+#         "settings": [
+
+#           {
+
+#             "parameter": "greeting",
+
+#             "name": "Greeting",
+
+#             "description": "The greeting to use.",
+
+#             "schema": "requireText"
+
+#           },
+
+#           {
+
+#             "parameter": "greetingAddressee",
+
+#             "name": "Greeting Addressee",
+
+#             "description": "The person, or group, the greeting addresses.",
+
+#             "schema": "requireText"
+
+#           }
+
+#         ]
+
+#       }
+
+#     ],
+
+#     "schema": [
+
+#       {
+
+#         "name": "requireText",
+
+#         "dataType": "string",
+
+#         "maxLength": 45,
+
+#         "allowEmpty": false
+
+#       }
+
+#     ]
+
+#   }
+
+# }'
+ 

@@ -54,6 +54,24 @@ func (e *MargoNorthboundVendor) Init(config vendors.VendorConfig, factories []ma
 }
 
 func (o *MargoNorthboundVendor) GetEndpoints() []v1alpha2.Endpoint {
+	// curl --location 'http://172.19.59.148:8080/v1alpha2/margo/northbound/v1/applications' \
+	// --header 'Content-Type: application/json' \
+	// --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWRtaW4iLCJpc3MiOiJzeW1waG9ueSIsInN1YiI6InN5bXBob255IiwiYXVkIjpbIioiXSwiZXhwIjoxNzUxMTEyMjU4LCJuYmYiOjE3NTEwMjU4NTgsImlhdCI6MTc1MTAyNTg1OCwianRpIjoiMSJ9.XsgGnDmgL18kSzivJtt2_lem5huiL38mBnJcR3wKpzw'
+
+	// curl --location 'http://172.19.59.148:8082/v1alpha2/users/auth' \
+	// --header 'Content-Type: application/json' \
+	// --data '{
+	// 	"username": "admin",
+	// 	"password": ""
+	// }'
+
+	// curl --location 'http://172.19.59.148:8080/v1alpha2/users/auth' --header 'Content-Type: application/json' --data '{
+	// "username": "admin",
+	// "password": ""
+	// }'
+	// Response:
+	// {"accessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWRtaW4iLCJpc3MiOiJzeW1waG9ueSIsInN1YiI6InN5bXBob255IiwiYXVkIjpbIioiXSwiZXhwIjoxNzUxMTEyMDc3LCJuYmYiOjE3NTEwMjU2NzcsImlhdCI6MTc1MTAyNTY3NywianRpIjoiMSJ9.0coUqyzV_br9TrWGweDlAUF7RxsZZZlqri49zknPB9w", "tokenType": "Bearer", "username": "admin", "roles": null}
+
 	route := "margo/northbound/v1"
 	if o.Route != "" {
 		route = o.Route
@@ -91,7 +109,7 @@ func (c *MargoNorthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 	defer span.End()
 	margoLog.InfofCtx(pCtx, "V (MargoNorthboundVendor): onboardApplication, method: %s", request.Method)
 
-	margoSpec, err := margoModels.ParseApplicationFromBytes(request.Body)
+	margoSpec, err := margoModels.ParseApplicationJSONFromBytes(request.Body)
 	coaErr := v1alpha2.NewCOAError(err, "Failed to parse the request", v1alpha2.BadRequest)
 	if err != nil {
 		return v1alpha2.COAResponse{

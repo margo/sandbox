@@ -1,0 +1,35 @@
+name: Azure VM SSH Login
+on:
+  push:
+    branches:
+      - TestAutomation    # Trigger on push to the `dev` branch
+  workflow_dispatch:      # Make sure this is correctly defined
+
+jobs:
+  ssh-login:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up environment variables from .env file
+        run: |
+          echo "Loading .env variables..."
+          set -o allexport
+          source .env
+          set +o allexport
+
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
+
+      - name: Set up SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AZURE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $AZURE_VM_IP >> ~/.ssh/known_hosts
+
+      - name: Log in to Azure VM using SSH
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $AZURE_VM_USERNAME@$AZURE_VM_IP "echo 'Logged in successfully!'"

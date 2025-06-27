@@ -627,31 +627,14 @@
             }
           },
           {
-            "name": "solution-manager",
-            "type": "managers.symphony.solution",
+            "name": "solutions-manager",
+            "type": "managers.symphony.solutions",
             "properties": {
-              "providers.persistentstate": "mem-state",
-              "providers.config": "mock-config",
-              "providers.secret": "mock-secret",
-              "providers.keylock": "mem-keylock"
+              "providers.persistentstate": "k8s-state"
             },
             "providers": {
-              "mem-state": {
+              "k8s-state": {
                 "type": "providers.state.memory",
-                "config": {}
-              },
-              "mem-keylock": {
-                "type": "providers.keylock.memory",
-                "config": {
-                  "mode" : "Shared"
-                }
-              },
-              "mock-config": {
-                "type": "providers.config.mock",
-                "config": {}
-              },
-              "mock-secret": {
-                "type": "providers.secret.mock",
                 "config": {}
               }
             }

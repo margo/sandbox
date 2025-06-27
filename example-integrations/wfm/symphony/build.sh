@@ -353,7 +353,7 @@ main() {
     build_components
 
 		# ./buildx build --no-cache --platform linux/amd64 -t mjlatest . -f api/Dockerfile
-		# docker run --rm -it -v ./api:/configs -e CONFIG=symphony-api-no-k8s.json mjlatest:latest
+		# docker run --rm -it -v ./api:/configs -e CONFIG=symphony-api-no-k8s.json margo1:latest
     
     log_info "Build process completed successfully!"
 }

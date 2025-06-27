@@ -73,13 +73,6 @@ func (o *MargoNorthboundVendor) GetEndpoints() []v1alpha2.Endpoint {
 			Parameters: []string{"id?", "name?", "type?"},
 		},
 		{
-			Methods:    []string{fasthttp.MethodGet},
-			Route:      route + "/applications",
-			Version:    o.Version,
-			Handler:    o.getApplication,
-			Parameters: []string{"id?"},
-		},
-		{
 			Methods:    []string{fasthttp.MethodDelete},
 			Route:      route + "/applications",
 			Version:    o.Version,

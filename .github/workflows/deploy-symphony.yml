@@ -101,5 +101,5 @@ jobs:
           port: 22
           script: |
             cd ~/symphony/api
-            nohup SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug > symphony-api.log 2>&1 &
+            nohup env SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug > symphony-api.log 2>&1 &
             echo "symphony-api started in background."

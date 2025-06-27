@@ -72,7 +72,13 @@ jobs:
           script: |
             source $HOME/.cargo/env
             cd ~/symphony/api/pkg/apis/v1alpha1/providers/target/rust
-            cargo build --release
+            # Only build if the output does not exist or is older than the source
+            if [ ! -f target/release/libsymphony_provider.so ] || [ $(find src -type f -newer target/release/libsymphony_provider.so | wc -l) -gt 0 ]; then
+              cargo build --release
+              echo "Rust library built."
+            else
+              echo "Rust library is up-to-date, skipping build."
+            fi
 
       - name: Build symphony-api Go binary
         uses: appleboy/ssh-action@v0.1.8

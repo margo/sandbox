@@ -13,7 +13,7 @@ import (
 	margoModels "github.com/margo/dev-repo/sdk/pkg/models"
 )
 
-var log = logger.NewLogger("coa.runtime")
+var margoLog = logger.NewLogger("coa.runtime")
 
 type MargoManager struct {
 	managers.Manager

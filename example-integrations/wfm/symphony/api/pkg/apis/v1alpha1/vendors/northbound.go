@@ -1,4 +1,4 @@
-package margo
+package vendors
 
 import (
 	"github.com/eclipse-symphony/symphony/api/pkg/apis/v1alpha1/managers/margo"
@@ -15,15 +15,15 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var uLog = logger.NewLogger("coa.runtime")
+var margoLog = logger.NewLogger("coa.runtime")
 
-type MargoSouthboundVendor struct {
+type MargoNorthboundVendor struct {
 	vendors.Vendor
 	MargoManager     *margo.MargoManager
 	SolutionsManager *solutions.SolutionsManager
 }
 
-func (o *MargoSouthboundVendor) GetInfo() vendors.VendorInfo {
+func (o *MargoNorthboundVendor) GetInfo() vendors.VendorInfo {
 	return vendors.VendorInfo{
 		Version:  o.Vendor.Version,
 		Name:     "MargoSouthbound",
@@ -31,7 +31,7 @@ func (o *MargoSouthboundVendor) GetInfo() vendors.VendorInfo {
 	}
 }
 
-func (e *MargoSouthboundVendor) Init(config vendors.VendorConfig, factories []managers.IManagerFactroy, providers map[string]map[string]providers.IProvider, pubsubProvider pubsub.IPubSubProvider) error {
+func (e *MargoNorthboundVendor) Init(config vendors.VendorConfig, factories []managers.IManagerFactroy, providers map[string]map[string]providers.IProvider, pubsubProvider pubsub.IPubSubProvider) error {
 	err := e.Vendor.Init(config, factories, providers, pubsubProvider)
 	if err != nil {
 		return err
@@ -53,8 +53,8 @@ func (e *MargoSouthboundVendor) Init(config vendors.VendorConfig, factories []ma
 	return nil
 }
 
-func (o *MargoSouthboundVendor) GetEndpoints() []v1alpha2.Endpoint {
-	route := "margo/v1"
+func (o *MargoNorthboundVendor) GetEndpoints() []v1alpha2.Endpoint {
+	route := "margo/northbound/v1"
 	if o.Route != "" {
 		route = o.Route
 	}
@@ -89,14 +89,14 @@ func (o *MargoSouthboundVendor) GetEndpoints() []v1alpha2.Endpoint {
 	}
 }
 
-func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
+func (c *MargoNorthboundVendor) onboardApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
 	pCtx, span := observability.StartSpan("Margo Southbound Vendor", request.Context, &map[string]string{
 		"method": "onboardApplication",
 		"route":  request.Route,
 		"verb":   request.Method,
 	})
 	defer span.End()
-	uLog.InfofCtx(pCtx, "V (MargoSouthboundVendor): onboardApplication, method: %s", request.Method)
+	margoLog.InfofCtx(pCtx, "V (MargoNorthboundVendor): onboardApplication, method: %s", request.Method)
 
 	margoSpec, err := margoModels.ParseApplicationFromBytes(request.Body)
 	coaErr := v1alpha2.NewCOAError(err, "Failed to parse the request", v1alpha2.BadRequest)
@@ -127,7 +127,7 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 
 	err = c.SolutionsManager.UpsertState(pCtx, appId, symphonySolution)
 	if err != nil {
-		uLog.ErrorfCtx(pCtx, "V (Solutions): onboardApplication failed - %s", err.Error())
+		margoLog.ErrorfCtx(pCtx, "V (Solutions): onboardApplication failed - %s", err.Error())
 		return observ_utils.CloseSpanWithCOAResponse(span, v1alpha2.COAResponse{
 			State: v1alpha2.GetErrorState(err),
 			Body:  []byte(err.Error()),
@@ -154,7 +154,7 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 		State: v1alpha2.OK,
 	})
 
-	uLog.ErrorCtx(pCtx, "V (Solutions): onboardApplication failed - 405 method not allowed")
+	margoLog.ErrorCtx(pCtx, "V (Solutions): onboardApplication failed - 405 method not allowed")
 	resp := v1alpha2.COAResponse{
 		State:       v1alpha2.MethodNotAllowed,
 		Body:        []byte("{\"result\":\"405 - method not allowed\"}"),
@@ -164,7 +164,7 @@ func (c *MargoSouthboundVendor) onboardApplication(request v1alpha2.COARequest) 
 	return resp
 }
 
-func (c *MargoSouthboundVendor) listApplications(request v1alpha2.COARequest) v1alpha2.COAResponse {
+func (c *MargoNorthboundVendor) listApplications(request v1alpha2.COARequest) v1alpha2.COAResponse {
 	resp := v1alpha2.COAResponse{
 		State:       v1alpha2.MethodNotAllowed,
 		Body:        []byte("{\"result\":\"405 - method not allowed\"}"),
@@ -173,7 +173,7 @@ func (c *MargoSouthboundVendor) listApplications(request v1alpha2.COARequest) v1
 	return resp
 }
 
-func (c *MargoSouthboundVendor) getApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
+func (c *MargoNorthboundVendor) getApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
 	resp := v1alpha2.COAResponse{
 		State:       v1alpha2.MethodNotAllowed,
 		Body:        []byte("{\"result\":\"405 - method not allowed\"}"),
@@ -182,7 +182,7 @@ func (c *MargoSouthboundVendor) getApplication(request v1alpha2.COARequest) v1al
 	return resp
 }
 
-func (c *MargoSouthboundVendor) deleteApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
+func (c *MargoNorthboundVendor) deleteApplication(request v1alpha2.COARequest) v1alpha2.COAResponse {
 	resp := v1alpha2.COAResponse{
 		State:       v1alpha2.MethodNotAllowed,
 		Body:        []byte("{\"result\":\"405 - method not allowed\"}"),

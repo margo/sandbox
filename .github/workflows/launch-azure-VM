@@ -1,12 +1,9 @@
 name: Azure VM SSH Login
-
-# Allow manual trigger via GitHub Actions UI (workflow_dispatch)
 on:
   push:
     branches:
-      - dev  # Trigger on push to the `dev` branch
-  workflow_dispatch:  # Allows manual trigger from UI
-
+      - TestAutomation    # Trigger on push to the `dev` branch
+  workflow_dispatch:      # Make sure this is correctly defined
 jobs:
   ssh-login:
     runs-on: ubuntu-latest

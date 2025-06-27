@@ -1,12 +1,9 @@
 name: Azure VM SSH Login
-#on:
- # push:
-  #  branches:
-  #    - TestAutomation    # Trigger on push to the `dev` branch
-#  workflow_dispatch:      # Make sure this is correctly defined
-
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - TestAutomation    # Trigger on push to the `dev` branch
+  workflow_dispatch:      # Make sure this is correctly defined
 
 jobs:
   ssh-login:

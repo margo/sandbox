@@ -5,8 +5,13 @@ on:
     branches:
       - TestAutomation  # This workflow will still be triggered on pushes to the `dev` branch
   workflow_dispatch:  # This allows manual triggering of the workflow
-jobs:
 
+env:
+  VM_HOST: "52.224.241.180"
+  VM_USER: "azureuser"
+  VM_PASS: "Margo@123456"
+  
+jobs:
   ssh-login:
     runs-on: ubuntu-latest
     

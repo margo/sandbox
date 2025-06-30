@@ -28,9 +28,9 @@ jobs:
       - name: Add VM's SSH key to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H $env.VM_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -H $VM_HOST >> ~/.ssh/known_hosts
 
       - name: Log in to Azure VM using SSH
         run: |
           # Use sshpass to authenticate using username/password
-          sshpass -p $env.AZURE_VM_PASSWORD ssh -o StrictHostKeyChecking=no $env.AZURE_VM_USERNAME@$env.VM_HOST "echo 'Logged in successfully!'"
+          sshpass -p $AZURE_VM_PASSWORD ssh -o StrictHostKeyChecking=no $AZURE_VM_USERNAME@$env.VM_HOST "echo 'Logged in successfully!'"

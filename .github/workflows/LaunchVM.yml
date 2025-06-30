@@ -25,4 +25,5 @@ jobs:
       - name: Log in to Azure VM using SSH
         run: |
           # Use sshpass to authenticate using username/password
-          sshpass -p "$AZURE_VM_PASSWORD" -- ssh -o StrictHostKeyChecking=no "$AZURE_VM_USERNAME@$VM_HOST" "echo 'Logged in successfully!'"
+          echo "Trying to SSH to $VM_USER@$VM_HOST"
+          sshpass -p "$VM_PASS" -- ssh -vvv -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "echo 'Logged in successfully!'"

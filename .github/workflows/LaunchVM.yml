@@ -1,34 +1,12 @@
-name: Azure VM SSH Login
-
 on:
-  push:
-    branches:
-      - TestAutomation  # This workflow will still be triggered on pushes to the `dev` branch
-  workflow_dispatch:  # This allows manual triggering of the workflow
-
-env:
-  VM_HOST: "52.224.241.180"
-  VM_USER: "azureuser"
-  VM_PASS: "Margo@123456"
-  
+  workflow_dispatch:
+ 
 jobs:
-  ssh-login:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up environment variables from .env file
-        run: |
-          # Load environment variables from the .env file
-          echo "Loading .env variables..."
-          set -o allexport
-          source .env
-          set +o allexport
-
-      - name: Log in to Azure VM using SSH
-        run: |
-          # Use sshpass to authenticate using username/password
-          echo "Trying to SSH to $VM_USER@$VM_HOST"
-          sshpass -p "$VM_PASS" -- ssh -vvv -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "echo 'Logged in successfully!'"
+      - name: Checkout code
+        uses: actions/checkout@v3
+ 
+      - name: Run a script
+        run: echo "Hello, manual trigger!"

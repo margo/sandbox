@@ -73,6 +73,8 @@ func (client *NorthboundClient) OnboardApplicationPackage(option OnboardApplicat
 	}
 	// api endpoint of margo server (symphony or any wfm that has exposed margo apis)
 	fmt.Println("ApplicationPacakge", applicationPackage)
+
+	//... to the northbound api server
 	return nil
 }
 

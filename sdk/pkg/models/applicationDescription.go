@@ -598,7 +598,7 @@ func (s *SelectValidationSchema) isValidOption(value interface{}) bool {
 // }
 
 // use only when the payload is smaller in size
-func ParseApplicationYAMLFromBytes(spec []byte) (ApplicationDescription, error) {
+func ParseApplicationDescriptionYAMLFromBytes(spec []byte) (ApplicationDescription, error) {
 	description := ApplicationDescription{}
 	if err := yaml.Unmarshal(spec, &description); err != nil {
 		return description, err
@@ -607,7 +607,7 @@ func ParseApplicationYAMLFromBytes(spec []byte) (ApplicationDescription, error) 
 }
 
 // use only when the payload is smaller in size
-func ParseApplicationJSONFromBytes(spec []byte) (ApplicationDescription, error) {
+func ParseApplicationDescriptionJSONFromBytes(spec []byte) (ApplicationDescription, error) {
 	description := ApplicationDescription{}
 	if err := json.Unmarshal(spec, &description); err != nil {
 		return description, err
@@ -616,7 +616,7 @@ func ParseApplicationJSONFromBytes(spec []byte) (ApplicationDescription, error) 
 }
 
 // Suggested to use Parse over ParseFromBytes
-func ParseApplication(r io.Reader) (ApplicationDescription, error) {
+func ParseApplicationDescription(r io.Reader) (ApplicationDescription, error) {
 	description := ApplicationDescription{}
 	if err := yaml.NewDecoder(r).Decode(&description); err != nil {
 		return description, err

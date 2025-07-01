@@ -67,7 +67,7 @@ func (client *NorthboundClient) OnboardApplicationPackage(option OnboardApplicat
 		}
 	}
 
-	applicationPackage, err := models.ParseApplication(ioreader)
+	applicationPackage, err := models.ParseApplicationDescription(ioreader)
 	if err != nil {
 		return fmt.Errorf("failed to parse application from io reader: %w", err)
 	}

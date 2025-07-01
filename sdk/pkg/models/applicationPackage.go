@@ -1,21 +1,10 @@
 package models
 
 type ApplicationPackage struct {
-	ApplicationDescription
-	ApplicationResources
-	Description *ApplicationDescription
-	Resources   map[string][]byte // filename -> content
-	RootPath    string
+	Description *ApplicationDescription // mandatory field
+	Resources   map[string][]byte       // omitempty, *ApplicationResources  // optional field //map[string][]byte // filename -> content
 }
 
 type ApplicationResources struct {
 	// icon, releasenotes, license file..
-}
-
-func ParseApplicationPackageFromDir(dirAbsolutePath string) (ApplicationPackage, error) {
-	return ApplicationPackage{}, nil
-}
-
-func (pack *ApplicationPackage) Validate() error {
-	return nil
 }

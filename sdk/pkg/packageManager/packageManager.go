@@ -27,7 +27,7 @@ func NewPackageManager() *PackageManager {
 
 // LoadPackage loads an application package from a directory
 func (pm *PackageManager) LoadPackage(packagePath string) (*models.ApplicationPackage, error) {
-	pkg := &models.ApplicationPackage{Resources: make(map[string][]byte), RootPath: packagePath}
+	pkg := &models.ApplicationPackage{Resources: make(map[string][]byte)}
 
 	// Find and load application description
 	descFile, err := pm.findApplicationDescription(packagePath)

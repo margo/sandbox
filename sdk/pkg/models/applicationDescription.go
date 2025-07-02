@@ -597,29 +597,26 @@ func (s *SelectValidationSchema) isValidOption(value interface{}) bool {
 // 	}
 // }
 
-// use only when the payload is smaller in size
-func ParseApplicationDescriptionYAMLFromBytes(spec []byte) (ApplicationDescription, error) {
-	description := ApplicationDescription{}
-	if err := yaml.Unmarshal(spec, &description); err != nil {
-		return description, err
-	}
-	return ApplicationDescription{}, nil
-}
+type ApplicationDescriptionFormat string
 
-// use only when the payload is smaller in size
-func ParseApplicationDescriptionJSONFromBytes(spec []byte) (ApplicationDescription, error) {
-	description := ApplicationDescription{}
-	if err := json.Unmarshal(spec, &description); err != nil {
-		return description, err
-	}
-	return ApplicationDescription{}, nil
-}
+const (
+	ApplicationDescriptionFormatYAML ApplicationDescriptionFormat = "yaml"
+	ApplicationDescriptionFormatJSON ApplicationDescriptionFormat = "json"
+)
 
-// Suggested to use Parse over ParseFromBytes
-func ParseApplicationDescription(r io.Reader) (ApplicationDescription, error) {
+func ParseApplicationDescription(r io.Reader, format ApplicationDescriptionFormat) (ApplicationDescription, error) {
 	description := ApplicationDescription{}
-	if err := yaml.NewDecoder(r).Decode(&description); err != nil {
-		return description, err
+	switch format {
+	case ApplicationDescriptionFormatYAML:
+		if err := yaml.NewDecoder(r).Decode(&description); err != nil {
+			return description, err
+		}
+	case ApplicationDescriptionFormatJSON:
+		if err := json.NewDecoder(r).Decode(&description); err != nil {
+			return description, err
+		}
+	default:
+		return description, fmt.Errorf("unknown format: %s", format)
 	}
-	return ApplicationDescription{}, nil
+	return description, nil
 }

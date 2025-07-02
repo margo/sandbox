@@ -8,17 +8,17 @@ import (
 
 type Application struct {
 	AppId string
-	ApplicationState[string]
+	ApplicationOperationState
 	ApplicationDescription
 }
 
-func NewApplication(desc ApplicationDescription, op ApplicationOp, status OpStatus) Application {
+func NewApplication(desc ApplicationDescription, op ApplicationOp, status OpStatus, details string) Application {
 	return Application{
 		AppId: utils.GenerateAppId(),
-		ApplicationState: ApplicationState[string]{
-			CurrentOperation: ApplicationOpOnboardingRequested,
-			OpStatus:         OpStatusPending,
-			OpDetails:        "",
+		ApplicationOperationState: ApplicationOperationState{
+			Op:        op,
+			OpStatus:  status,
+			OpDetails: details,
 		},
 	}
 }

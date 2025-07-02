@@ -4,12 +4,12 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/margo/dev-repo/sdk/pkg/models"
+	"github.com/margo/dev-repo/sdk/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,8 +25,20 @@ func NewPackageManager() *PackageManager {
 	return &PackageManager{}
 }
 
+func (pm *PackageManager) LoadPackageFromGit(url, branchName string, auth *utils.GitAuth) (*models.ApplicationPackage, error) {
+	dirPath, err := utils.ReadFromGitWithAuth(url, branchName, auth)
+	if err != nil {
+		return nil, err
+	}
+	appPackage, err := pm.LoadPackageFromDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	return appPackage, nil
+}
+
 // LoadPackage loads an application package from a directory
-func (pm *PackageManager) LoadPackage(packagePath string) (*models.ApplicationPackage, error) {
+func (pm *PackageManager) LoadPackageFromDir(packagePath string) (*models.ApplicationPackage, error) {
 	pkg := &models.ApplicationPackage{Resources: make(map[string][]byte)}
 
 	// Find and load application description
@@ -116,14 +128,14 @@ func isApplicationDescription(filePath string) bool {
 
 // loadApplicationDescription loads and validates application description
 func (pm *PackageManager) loadApplicationDescription(filePath string) (*models.ApplicationDescription, error) {
-	data, err := os.ReadFile(filePath)
+	reader, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	var desc models.ApplicationDescription
-	if err := yaml.Unmarshal(data, &desc); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML: %w", err)
+	desc, err := models.ParseApplicationDescription(reader, models.ApplicationDescriptionFormatYAML)
+	if err != nil {
+		return nil, err
 	}
 
 	// Validate required fields
@@ -290,68 +302,4 @@ func (pm *PackageManager) PackageToTarball(pkg *models.ApplicationPackage, outpu
 	}
 
 	return nil
-}
-
-// LoadFromTarball loads an application package from a tarball
-func (pm *PackageManager) LoadFromTarball(tarballPath string) (*models.ApplicationPackage, error) {
-	file, err := os.Open(tarballPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open tarball: %w", err)
-	}
-	defer file.Close()
-
-	gzReader, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer gzReader.Close()
-
-	tarReader := tar.NewReader(gzReader)
-
-	pkg := &models.ApplicationPackage{
-		Resources: make(map[string][]byte),
-	}
-
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read tar header: %w", err)
-		}
-
-		content, err := io.ReadAll(tarReader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read file content: %w", err)
-		}
-
-		if strings.HasSuffix(header.Name, ".yaml") || strings.HasSuffix(header.Name, ".yml") {
-			// Check if this is the application description
-			var doc struct {
-				Kind string `yaml:"kind"`
-			}
-
-			if yaml.Unmarshal(content, &doc) == nil && doc.Kind == "ApplicationDescription" {
-				var desc models.ApplicationDescription
-				if err := yaml.Unmarshal(content, &desc); err != nil {
-					return nil, fmt.Errorf("failed to parse application description: %w", err)
-				}
-				pkg.Description = &desc
-				continue
-			}
-		}
-
-		// Add to resources
-		if strings.HasPrefix(header.Name, "resources/") {
-			resourceName := strings.TrimPrefix(header.Name, "resources/")
-			pkg.Resources[resourceName] = content
-		}
-	}
-
-	if pkg.Description == nil {
-		return nil, fmt.Errorf("no application description found in tarball")
-	}
-
-	return pkg, nil
 }

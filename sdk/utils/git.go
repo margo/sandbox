@@ -2,13 +2,13 @@ package utils
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
@@ -20,21 +20,21 @@ type GitAuth struct {
 }
 
 // ReadFromGit clones a repository using go-git library
-func ReadFromGit(url string) (reader io.Reader, err error) {
-	return ReadFromGitWithAuth(url, nil)
+func ReadFromGit(url, branchName string) (dirPath string, err error) {
+	return ReadFromGitWithAuth(url, branchName, nil)
 }
 
 // ReadFromGitWithAuth clones a repository with optional authentication
-func ReadFromGitWithAuth(url string, auth *GitAuth) (reader io.Reader, err error) {
+func ReadFromGitWithAuth(url string, branchName string, auth *GitAuth) (dirPath string, err error) {
 	// Validate URL
 	if url == "" {
-		return nil, fmt.Errorf("git URL cannot be empty")
+		return "", fmt.Errorf("git URL cannot be empty")
 	}
 
 	// Extract repository name from URL for directory naming
 	repoName := extractRepoName(url)
 	if repoName == "" {
-		return nil, fmt.Errorf("invalid git URL format")
+		return "", fmt.Errorf("invalid git URL format")
 	}
 
 	// Create temporary directory for cloning
@@ -43,7 +43,7 @@ func ReadFromGitWithAuth(url string, auth *GitAuth) (reader io.Reader, err error
 
 	// Ensure temp directory exists
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
 	// Clean up on function exit
@@ -53,15 +53,17 @@ func ReadFromGitWithAuth(url string, auth *GitAuth) (reader io.Reader, err error
 
 	// Prepare clone options
 	cloneOptions := &git.CloneOptions{
-		URL:      url,
-		Progress: os.Stdout,
+		URL:           url,
+		Progress:      os.Stdout,
+		ReferenceName: plumbing.ReferenceName(branchName),
+		SingleBranch:  true,
 	}
 
 	// Set authentication if provided
 	if auth != nil {
 		authMethod, err := getAuthMethod(url, auth)
 		if err != nil {
-			return nil, fmt.Errorf("failed to setup authentication: %w", err)
+			return "", fmt.Errorf("failed to setup authentication: %w", err)
 		}
 		cloneOptions.Auth = authMethod
 	}
@@ -69,30 +71,23 @@ func ReadFromGitWithAuth(url string, auth *GitAuth) (reader io.Reader, err error
 	// Clone the repository
 	repo, err := git.PlainClone(cloneDir, false, cloneOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to clone repository from %s: %w", url, err)
+		return "", fmt.Errorf("failed to clone repository from %s: %w", url, err)
 	}
 
 	// Verify the clone was successful
 	if _, err := os.Stat(cloneDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("repository clone failed: directory not found")
+		return "", fmt.Errorf("repository clone failed: directory not found")
 	}
 
 	// Get repository info
 	head, err := repo.Head()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository head: %w", err)
+		return cloneDir, fmt.Errorf("failed to get repository head: %w", err)
 	}
 
 	fmt.Printf("Successfully cloned repository to: %s\n", cloneDir)
 	fmt.Printf("Current commit: %s\n", head.Hash())
-
-	// TODO: Process the cloned repository
-	// This is where you would:
-	// 1. Look for Margo application definition files
-	// 2. Parse and validate the application spec
-	// 3. Store or process the application data
-
-	return nil, nil
+	return cloneDir, nil
 }
 
 // getAuthMethod returns appropriate authentication method based on URL and auth info

@@ -1,23 +1,16 @@
 package models
 
-type ApplicationOp string
+type ApplicationPackageOp string
 
 const (
-	ApplicationOpOnboardingRequested ApplicationOp = "OnboardingRequested"
-	ApplicationOpOnboarded           ApplicationOp = "Onboarded"
-	ApplicationOpActive              ApplicationOp = "Active"
-	ApplicationOpInactive            ApplicationOp = "Inactive"
-	ApplicationOpDeletionRequested   ApplicationOp = "DeletionRequested"
-	ApplicationOpDeleted             ApplicationOp = "Deleted"
+	ApplicationPackageOpOnboard ApplicationPackageOp = "ONBOARD"
+	ApplicationPackageOpDeboard ApplicationPackageOp = "DEBOARD"
+	ApplicationPackageOpStage   ApplicationPackageOp = "STAGE"
+	ApplicationPackageOpUnstage ApplicationPackageOp = "UNSTAGE"
 )
 
-type OpDetailsConstraint interface {
-	// interface{}
-	string | interface{}
-}
-
-type ApplicationState[OpConstraint OpDetailsConstraint] struct {
-	CurrentOperation ApplicationOp
-	OpStatus         OpStatus
-	OpDetails        OpConstraint
+type ApplicationPackageOperationState struct {
+	Op        ApplicationPackageOp
+	OpStatus  OpStatus
+	OpDetails interface{}
 }

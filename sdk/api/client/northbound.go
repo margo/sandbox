@@ -2,11 +2,11 @@ package client
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/margo/dev-repo/sdk/auth"
 	"github.com/margo/dev-repo/sdk/pkg/models"
+	"github.com/margo/dev-repo/sdk/pkg/packageManager"
 	"github.com/margo/dev-repo/sdk/transport"
 	"github.com/margo/dev-repo/sdk/utils"
 )
@@ -42,37 +42,35 @@ type OnboardApplicationPackageOptions struct {
 	// the git is given in case you have a git repo where you have hosted the file
 
 	// Git configuration (optional)
-	GitURL  string
-	GitAuth *utils.GitAuth
-	Timeout time.Duration
+	GitURL    string
+	GitBranch string
+	GitAuth   *utils.GitAuth
+	Timeout   time.Duration
 
 	// Reader configuration (optional)
-	Reader io.Reader
+	// Reader io.Reader
 }
 
 // this function should onboard an app package by reading from a git repo,
 // or an ioReader, the user can pass any of them
 func (client *NorthboundClient) OnboardApplicationPackage(option OnboardApplicationPackageOptions) error {
-	if option.Reader == nil && option.GitURL == "" {
+	if option.GitURL == "" {
 		return fmt.Errorf("either ioreader or git url should be provided")
 	}
 
 	var err error
-	ioreader := option.Reader
-
-	if ioreader == nil {
-		ioreader, err = utils.ReadFromGitWithAuth(option.GitURL, option.GitAuth)
-		if err != nil {
-			return fmt.Errorf("failed to read from git: %w", err)
-		}
+	// ioreader := option.Reader
+	appPackage, err := packageManager.NewPackageManager().LoadPackageFromGit(option.GitURL, option.GitBranch, option.GitAuth)
+	if err != nil {
+		return fmt.Errorf("failed to read from git: %w", err)
 	}
+	fmt.Println(appPackage)
 
-	applicationPackage, err := models.ParseApplicationDescription(ioreader)
 	if err != nil {
 		return fmt.Errorf("failed to parse application from io reader: %w", err)
 	}
 	// api endpoint of margo server (symphony or any wfm that has exposed margo apis)
-	fmt.Println("ApplicationPacakge", applicationPackage)
+	fmt.Println("ApplicationPacakge", appPackage)
 
 	//... to the northbound api server
 	return nil

@@ -2,11 +2,9 @@ on:
   workflow_dispatch:
  
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
- 
-      - name: Run a script
-        run: echo "Hello, manual trigger!"
+      - uses: actions/checkout@v3
+      - name: Run a PowerShell command
+        run: Write-Output "Hello from Windows VM!"

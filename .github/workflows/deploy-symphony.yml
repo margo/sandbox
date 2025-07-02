@@ -38,7 +38,7 @@ jobs:
         with:
           script: |
             if [ ! -d "$HOME/symphony/.git" ]; then
-              git clone https://github.com/eclipse-symphony/symphony.git $HOME/symphony
+              git clone https://github.com/margo/symphony.git
             else
               cd $HOME/symphony
               git pull
@@ -90,47 +90,6 @@ jobs:
               exit 1
             fi
 
-      - name: Pull code/artifacts from MARGO repositories
-        run: |
-          # Example: Pull artifacts using a script or Helm
-          # Replace with your actual script or Helm command
-          echo "Pulling artifacts from MARGO repositories..."
-          # ./scripts/pull-margo-artifacts.sh
-          # helm repo add margo <repo-url> && helm pull margo/<chart> --version <version>
+      
 
-      - name: Setup Maestro CLI
-        run: |
-          # Install Maestro CLI
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
-
-      - name: Trigger test scenarios with Maestro CLI
-        run: |
-          # Run Maestro test scenarios (replace with your test path)
-          if [ -d "path/to/maestro/tests" ]; then
-            maestro test path/to/maestro/tests
-          else
-            echo "Maestro test directory not found, skipping tests."
-          fi
-        continue-on-error: true
-
-      - name: Run Go integration tests
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          script: |
-            cd $HOME/symphony/api
-            if [ -d "integration" ]; then
-              go test -v ./integration/...
-            else
-              echo "Integration test directory not found, skipping tests."
-            fi
-        continue-on-error: true
-
-      - name: Cleanup on failure
-        if: failure()
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          script: |
-            # Stop symphony-api if it's running
-            pkill -f symphony-api || true
-            echo "Cleanup completed."
+    

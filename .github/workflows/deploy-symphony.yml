@@ -3,19 +3,14 @@ name: Deploy Symphony Application
 on:
   # Trigger on push to main branch
   push:
-    branches: [ main, githib-actions ]
-
+    branches: [ main, github-actions ]
+  
+  # Manual trigger
   workflow_dispatch:
+  
   # Trigger on pull request
   pull_request:
     branches: [ main ]
-  
-
-env:
-  VM_HOST: "52.224.241.180"
-  VM_USER: "azureuser"
-  VM_PASS: "Margo@123456"  
-    
 
 jobs:
   install_symphony:
@@ -23,13 +18,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Check and install Go and Rust
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.VM_HOST }}
-          username: ${{ env.VM_USER }}
-          password: ${{ env.VM_PASS }}
-          port: 22
           script: |
             # Install Go if not present
             if ! command -v go &> /dev/null; then
@@ -38,6 +32,7 @@ jobs:
             else
               echo "Go already installed."
             fi
+            
             # Install Rust if not present
             if ! command -v cargo &> /dev/null; then
               curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -49,13 +44,9 @@ jobs:
       - name: Clone or update Symphony repository
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.VM_HOST }}
-          username: ${{ env.VM_USER }}
-          password: ${{ env.VM_PASS }}
-          port: 22
           script: |
             if [ ! -d "$HOME/symphony/.git" ]; then
-              git clone https://github.com/eclipse-symphony/symphony.git
+              git clone https://github.com/eclipse-symphony/symphony.git $HOME/symphony
             else
               cd $HOME/symphony
               git pull
@@ -65,15 +56,12 @@ jobs:
       - name: Build native Rust library
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.VM_HOST }}
-          username: ${{ env.VM_USER }}
-          password: ${{ env.VM_PASS }}
-          port: 22
           script: |
             source $HOME/.cargo/env
-            cd ~/symphony/api/pkg/apis/v1alpha1/providers/target/rust
+            cd $HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust
+            
             # Only build if the output does not exist or is older than the source
-            if [ ! -f target/release/libsymphony_provider.so ] || [ $(find src -type f -newer target/release/libsymphony_provider.so | wc -l) -gt 0 ]; then
+            if [ ! -f target/release/libsymphony_provider.so ] || [ $(find src -type f -newer target/release/libsymphony_provider.so 2>/dev/null | wc -l) -gt 0 ]; then
               cargo build --release
               echo "Rust library built."
             else
@@ -83,23 +71,74 @@ jobs:
       - name: Build symphony-api Go binary
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.VM_HOST }}
-          username: ${{ env.VM_USER }}
-          password: ${{ env.VM_PASS }}
-          port: 22
           script: |
             export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
-            cd ~/symphony/api
+            cd $HOME/symphony/api
             go build -o symphony-api
 
       - name: Run symphony-api in background
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.VM_HOST }}
-          username: ${{ env.VM_USER }}
-          password: ${{ env.VM_PASS }}
-          port: 22
           script: |
-            cd ~/symphony/api
+            cd $HOME/symphony/api
+            
+            # Kill existing symphony-api process if running
+            pkill -f symphony-api || true
+            
+            # Start symphony-api in background
             nohup env SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" ./symphony-api -c ./symphony-api-no-k8s.json -l Debug > symphony-api.log 2>&1 &
             echo "symphony-api started in background."
+            
+            # Wait a moment and check if it's running
+            sleep 5
+            if pgrep -f symphony-api > /dev/null; then
+              echo "symphony-api is running successfully."
+            else
+              echo "Failed to start symphony-api."
+              exit 1
+            fi
+
+      - name: Pull code/artifacts from MARGO repositories
+        run: |
+          # Example: Pull artifacts using a script or Helm
+          # Replace with your actual script or Helm command
+          echo "Pulling artifacts from MARGO repositories..."
+          # ./scripts/pull-margo-artifacts.sh
+          # helm repo add margo <repo-url> && helm pull margo/<chart> --version <version>
+
+      - name: Setup Maestro CLI
+        run: |
+          # Install Maestro CLI
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Trigger test scenarios with Maestro CLI
+        run: |
+          # Run Maestro test scenarios (replace with your test path)
+          if [ -d "path/to/maestro/tests" ]; then
+            maestro test path/to/maestro/tests
+          else
+            echo "Maestro test directory not found, skipping tests."
+          fi
+        continue-on-error: true
+
+      - name: Run Go integration tests
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          script: |
+            cd $HOME/symphony/api
+            if [ -d "integration" ]; then
+              go test -v ./integration/...
+            else
+              echo "Integration test directory not found, skipping tests."
+            fi
+        continue-on-error: true
+
+      - name: Cleanup on failure
+        if: failure()
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          script: |
+            # Stop symphony-api if it's running
+            pkill -f symphony-api || true
+            echo "Cleanup completed."

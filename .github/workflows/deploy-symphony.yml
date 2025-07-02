@@ -14,7 +14,7 @@ on:
 
 jobs:
   install_symphony:
-    name: Symphony Install via SSH
+    name: Symphony Install
     runs-on: ubuntu-latest
 
     steps:

@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://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@github.com/".insteadOf "https://github.com/"
           go env -w GOPRIVATE=github.com/margo/*
           
           GO_DIR="$HOME/symphony/api"

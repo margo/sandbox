@@ -32,7 +32,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             source $HOME/.cargo/env
 
-     - name: Clone Symphony repo
+      - name: Clone Symphony repo
         shell: bash
         run: |
           set -e

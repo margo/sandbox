@@ -1,0 +1,91 @@
+name: Azure VM SSH Login and Deploy Symphony
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - TestAutomation
+
+env:
+  VM_HOST: "52.224.241.180"
+  VM_USER: "azureuser"
+  VM_PASS: "Margo@123456"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Login to azure VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "echo Hello from Azure VM"
+            set -e
+            
+      - name: Install Rust
+        run: |
+            echo "Installing Rust..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source $HOME/.cargo/env
+      - name: Clone Symphoy repo
+        run: |
+            echo "Cloning Symphony repository..."
+            rm -rf "$HOME/symphony"
+            git clone https://github.com/eclipse-symphony/symphony.git "$HOME/symphony"
+      - name: Build rust library
+        run: |
+            echo "Building Rust library..."
+            RUST_DIR="$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust"
+            if [ -d "$RUST_DIR" ]; then
+              cd "$RUST_DIR"
+              cargo build --release
+            else
+              echo "Rust directory not found, skipping Rust build."
+            fi
+            
+      - name: Build Go library
+        run: |
+            echo "Building Go binary..."
+            GO_DIR="$HOME/symphony/api"
+            if [ -d "$GO_DIR" ]; then
+              export LD_LIBRARY_PATH="$RUST_DIR/target/release"
+              cd "$GO_DIR"
+              go build -o symphony-api
+            else
+              echo "Go directory not found, skipping Go build."
+            fi
+      - name: Run Symphony API
+        run: |
+          echo "Starting symphony-api in background..."
+                API_BIN="$HOME/symphony/api/symphony-api"
+                if [ -f "$API_BIN" ]; then
+                  nohup env SYMPHONY_API_URL="http://localhost:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" \
+                    "$API_BIN" -c "$HOME/symphony/api/symphony-api-no-k8s.json" -l Debug > "$HOME/symphony-api.log" 2>&1 &
+                  echo "symphony-api started in background."
+                else
+                  echo "symphony-api binary not found, skipping startup."
+                fi
+           sleep 5
+           
+            if [ -f "$HOME/symphony-api.log" ]; then
+            echo "Log file exists."
+            echo "exists=true" >> $GITHUB_OUTPUT
+            cp "$HOME/symphony-api.log" ./symphony-api.log
+          else
+            echo "Log file not found."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Fetch Symphony API log from VM
+        run: |
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/symphony-api.log" ./symphony-api.log
+      - name: Upload Symphony API log
+        uses: actions/upload-artifact@v4
+        with:
+          name: symphony-api-log
+          path: ./symphony-api.log

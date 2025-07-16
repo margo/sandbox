@@ -32,11 +32,20 @@ jobs:
             echo "Installing Rust..."
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             source $HOME/.cargo/env
-      - name: Clone Symphoy repo
+
+     - name: Clone Symphony repo
+        shell: bash
         run: |
-            echo "Cloning Symphony repository..."
-            rm -rf "$HOME/symphony"
-            git clone https://github.com/eclipse-symphony/symphony.git "$HOME/symphony"
+          set -e
+          git clone -b margo-dev-sprint-1 \
+          --single-branch \
+          https://x-access-token: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@github.com/margo/symphony.git "$HOME/symphony"
+      - name: Inspect repo structure
+        shell: bash
+        run: |
+          echo "Directory structure of symphony repo:"
+          ls -laR $HOME/symphony
+
       - name: Build rust library
         run: |
             echo "Building Rust library..."
@@ -48,17 +57,23 @@ jobs:
               echo "Rust directory not found, skipping Rust build."
             fi
             
-      - name: Build Go library
+      - name: Build Go binary
+        shell: bash
         run: |
-            echo "Building Go binary..."
-            GO_DIR="$HOME/symphony/api"
-            if [ -d "$GO_DIR" ]; then
-              export LD_LIBRARY_PATH="$RUST_DIR/target/release"
-              cd "$GO_DIR"
-              go build -o symphony-api
-            else
-              echo "Go directory not found, skipping Go build."
-            fi
+          set -e
+          git config --global url."https://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@github.com/".insteadOf "https://github.com/"
+          go env -w GOPRIVATE=github.com/margo/*
+          
+          GO_DIR="$HOME/symphony/api"
+          if [ -d "$GO_DIR" ]; then
+            echo "Go directory found. Building Go binary..."
+            export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
+            cd "$GO_DIR"
+            go build -o symphony-api
+          else
+            echo "Go directory not found. Skipping Go build."
+          fi
+
       - name: Run Symphony API
         run: |
           echo "Starting symphony-api in background..."

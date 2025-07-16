@@ -12,7 +12,7 @@ env:
   VM_PASS: ${{ secrets.VM_PASS }}
 
 jobs:
-  deploy:
+   deploy:
     runs-on: ubuntu-latest
 
     steps:

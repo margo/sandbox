@@ -1,4 +1,4 @@
-name: Azure VM SSH Login and Deploy Symphony
+name: Login Azure Vm and deploy forked Symphony app
 
 on:
   workflow_dispatch:
@@ -12,9 +12,8 @@ env:
   VM_PASS: ${{ secrets.VM_PASS }}
 
 jobs:
-   deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

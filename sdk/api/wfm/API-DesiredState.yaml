@@ -8,6 +8,7 @@ info:
     
     Some useful links:
     - [MARGO Desired State](https://specification.margo.org/margo-api-reference/workload-api/desired-state-api/desired-state/)
+    - [MARGO Current State](https://specification.margo.org/margo-api-reference/workload-api/device-api/deployment-status/)
     - [MARGO Authorization](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)
   termsOfService: https://specification.margo.org/#an-edge-interoperability-user-story
   contact:
@@ -15,12 +16,12 @@ info:
   license:
     name: MARGO License
     url: https://github.com/margo/specification?#licenses
-  version: 0.0.1
+  version: 1.0.0
 externalDocs:
   description: Find out more about MARGO
   url: https://margo.org/
 servers:
-  - url: https://margo.swagger.io/api/v0
+  - url: https://margo.wfm.io/wfmdev/api/v0
 tags:
   - name: device
     description: A MARGO compliant device
@@ -208,16 +209,45 @@ components:
     currentAppStates:
       type: array
       items:
-        $ref: '#/components/schemas/appState'
+        $ref: '#/components/schemas/currentAppState'
       xml:
         name: currentAppStates
     desiredAppStates:
       type: array
       items:
-        $ref: '#/components/schemas/appState'
+        $ref: '#/components/schemas/desiredAppState'
       xml:
         name: desiredAppStates        
-    appState:
+    currentAppState:
+      type: object
+      properties:
+        appId:
+          type: string
+          example: a12nub7ub
+        appVersion:
+          type: string
+          description: Version String
+          example: v1.2.0
+        appDeploymentStatusJSON:
+          type: string
+          description: Base64 encoded MARGO DeploymentStatus JSON content ("https://specification.margo.org/margo-api-reference/workload-api/device-api/deployment-status/")
+          example: a2V5MTogdmFsdWUxCmtleTI6IHZhbHVlMgo=
+        appState:
+          type: string
+          default: STOPPED
+          enum:
+            - RUNNING
+            - UPDATING
+            - CRASHLOOP
+            - STOPPED
+      required:
+        - appId
+        - appVersion
+        - appDeploymentStatusJSON
+        - appState
+      xml:
+        name: appCurrentState
+    desiredAppState:
       type: object
       properties:
         appId:
@@ -229,11 +259,11 @@ components:
           example: v1.2.0
         appDeploymentYAML:
           type: string
-          description: Base64 encoded MARGO ApplicationDescription YAML content
+          description: Base64 encoded MARGO ApplicationDeployment YAML content ("https://specification.margo.org/margo-api-reference/workload-api/desired-state-api/desired-state/")
           example: a2V5MTogdmFsdWUxCmtleTI6IHZhbHVlMgo=
         appDeploymentYAMLHash:
           type: string
-          description: App Hash encoding used for versioning the MARGO ApplicationDescription
+          description: App Hash encoding used for versioning the MARGO ApplicationDeployment
           example: c6779ec2960296ed9a04f08d67f64422
         appState:
           type: string

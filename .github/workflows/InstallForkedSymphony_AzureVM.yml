@@ -133,10 +133,11 @@ jobs:
         run: | 
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
+            cd ~/harbor
             chmod +x ./install.sh ./prepare ./cleanup_harbor.sh
             find . -type d -exec chmod 755 {} \;
             find . -type f -exec chmod 644 {} \;
-            '
+            '     
             
       - name: Install harbor
         run: |

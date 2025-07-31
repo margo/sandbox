@@ -16,9 +16,9 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      - name: Login to Azure VM (test connection)
+      - name: Login to Azure VM
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "echo Hello from Azure VM"
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'echo Hello from Azure VM'
 
       - name: Install Rust on VM
         run: |
@@ -26,21 +26,21 @@ jobs:
             echo "Installing Rust..."
             curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             source $HOME/.cargo/env
-          
+          '
 
       - name: Clone Symphony repo on VM
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-          set -e
-          git clone -b margo-dev-sprint-1 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git $HOME/symphony
-          
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            git clone -b margo-dev-sprint-1 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
+          "
 
       - name: Inspect repo structure on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             echo "Directory structure of symphony repo:"
             ls -laR $HOME/symphony
-          
+          '
 
       - name: Build Rust library on VM
         run: |
@@ -53,24 +53,40 @@ jobs:
             else
               echo "Rust directory not found, skipping Rust build."
             fi
-          
+          '
 
+      # - name: Build Go binary on VM
+      #   run: |
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+      #       set -e
+      #       git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+      #       go env -w GOPRIVATE=github.com/margo/*
+      #       GO_DIR="$HOME/symphony/api"
+      #       if [ -d "$GO_DIR" ]; then
+      #         echo "Go directory found. Building Go binary..."
+      #         export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
+      #         cd "$GO_DIR"
+      #         go build -o symphony-api
+      #       else
+      #         echo "Go directory not found. Skipping Go build."
+      #       fi
+      #     "
       - name: Build Go binary on VM
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
-            git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+            git config --global url.\"https://${GITHUB_TOKEN}@github.com/\".insteadOf \"https://github.com/\"
             go env -w GOPRIVATE=github.com/margo/*
-            GO_DIR="$HOME/symphony/api"
-            if [ -d "$GO_DIR" ]; then
-              echo "Go directory found. Building Go binary..."
-              export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
-              cd "$GO_DIR"
+            GO_DIR=\"\$HOME/symphony/api\"
+            if [ -d \"\$GO_DIR\" ]; then
+              echo 'Go directory found. Building Go binary...'
+              export LD_LIBRARY_PATH=\$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
+              cd \"\$GO_DIR\"
               go build -o symphony-api
             else
-              echo "Go directory not found. Skipping Go build."
+              echo 'Go directory not found. Skipping Go build.'
             fi
-          
+          "
 
       - name: Run Symphony API on VM
         run: |
@@ -85,7 +101,7 @@ jobs:
               echo "symphony-api binary not found, skipping startup."
             fi
             sleep 5
-          
+          '
 
       - name: Fetch Symphony API log from VM
         run: |

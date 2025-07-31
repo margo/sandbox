@@ -123,12 +123,16 @@ jobs:
       - name: Copy Harbor scripts to VM
         run: |
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no -r ./harbor "$VM_USER@$VM_HOST:~/harbor"
+
+      - name: Check Harbor folder on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            ls -la ~/harbor
           
-      - name: Harbor installation process begins here. Make the scripts required for installation executable
+      - name: Make the harbor scripts required for installation executable
         run: | 
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
-            cd ~/harbor
             chmod +x ./install.sh ./prepare ./cleanup_harbor.sh
             find . -type d -exec chmod 755 {} \;
             find . -type f -exec chmod 644 {} \;
@@ -137,7 +141,9 @@ jobs:
       - name: Install harbor
         run: |
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-            cd ./harbor
+            set -e
+            cd ~/harbor
+            ls -l
             sudo ./install.sh
             '
       #Gogs Installation     

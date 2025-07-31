@@ -34,9 +34,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          git clone -b margo-dev-sprint-1 \
-          --single-branch \
-           https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git "$HOME/symphony"
+          git clone -b margo-dev-sprint-1   --single-branch   https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git "$HOME/symphony"
       - name: Inspect repo structure
         shell: bash
         run: |

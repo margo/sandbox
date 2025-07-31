@@ -162,7 +162,7 @@ jobs:
       - name: Copy Gogs setup to VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'mkdir -p ~/gogs'
-          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no docker-compose.yaml "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no docker-compose.yml "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no Dockerfile "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no install_gogs.sh "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no app.ini "$VM_USER@$VM_HOST:~/gogs/"

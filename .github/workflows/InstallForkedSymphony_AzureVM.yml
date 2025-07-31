@@ -114,3 +114,85 @@ jobs:
         with:
           name: symphony-api-log
           path: ./symphony-api.log
+
+     #Harbor Installation
+      - name: Copy Harbor scripts to VM
+        run: |
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no -r ./harbor "$VM_USER@$VM_HOST:~/harbor"
+          
+      - name: Harbor installation process begins here. Make the scripts required for installation executable
+        run: | 
+            set -e
+            cd ~/harbor
+            chmod +x ./harbor/install.sh ./harbor/prepare ./harbor/cleanup_harbor.sh
+            #sudo chown -R azureuser:azureuser .
+            find ./harbor -type d -exec chmod 755 {} \;
+            find ./harbor -type f -exec chmod 644 {} \;
+            chmod +x ./harbor/install.sh ./harbor/prepare ./harbor/cleanup_harbor.sh
+            
+      - name: Install harbor
+        run: |
+            cd ./harbor
+            sudo ./install.sh
+      #Gogs Installation     
+      - name: Install Docker & Docker Compose on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          '    
+          
+      - name: Start Gogs with Docker Compose
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            cd ~/gogs || exit 1
+            docker-compose up --build -d
+          '
+            
+      - name: Wait for Gogs to be ready
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+          echo "Waiting for Gogs to be ready..."
+          for i in {1..30}; do
+            if curl -s http://{$VM_HOST}:3000 | grep -q "Gogs"; then
+              echo "Gogs is up!"
+              break
+            fi
+            sleep 2
+          done
+          "
+      - name: Create admin user inside Gogs container
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+          GOGS_CONTAINER=$(docker ps --filter "ancestor=gogs/gogs" --format "{{.Names}}")
+          docker exec -u git "$GOGS_CONTAINER" /app/gogs/gogs admin create-user \
+            --name gogsadmin \
+            --password admin123 \
+            --email you@example.com \
+            --admin || echo "User might already exist, skipping..."
+            '
+      - name: Generate API token
+        id: gogs-token
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            curl -s -X POST "http://localhost:3000/api/v1/users/gogsadmin/tokens" \
+              -u "gogsadmin:admin123" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"mytoken\"}" > ~/gogs_token.json
+          '
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
+          TOKEN=$(jq -r '.sha1' ./gogs_token.json)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+    
+      - name: Create repository using token
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+          curl -X POST -H "Authorization: token ${{ steps.token.outputs.token }}" \
+               -H "Content-Type: application/json" \
+               -d '{"name":"my-new-repo","private":false}' \
+               http://localhost:3000/api/v1/user/repos
+              '

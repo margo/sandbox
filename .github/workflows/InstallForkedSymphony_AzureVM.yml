@@ -31,8 +31,8 @@ jobs:
       - name: Clone Symphony repo on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-            set -e
-            git clone -b margo-dev-sprint-1 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git "$HOME/symphony"
+          set -e
+          git clone -b margo-dev-sprint-1 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git $HOME/symphony
           
 
       - name: Inspect repo structure on VM

@@ -159,6 +159,9 @@ jobs:
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
           '    
+      - name: Copy Gogs setup to VM
+        run: |
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no -r ./gogs "$VM_USER@$VM_HOST:~/gogs"
           
       - name: Start Gogs with Docker Compose
         run: |

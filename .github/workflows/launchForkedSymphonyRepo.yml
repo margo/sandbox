@@ -3,6 +3,12 @@ name: Deploying Symphony
 on:
   workflow_dispatch:
 
+env:
+  VM_HOST: ${{ secrets.VM_HOST }}
+  VM_USER: ${{ secrets.VM_USER }}
+  VM_PASS: ${{ secrets.VM_PASS }}
+  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,7 +29,7 @@ jobs:
           set -e
           git clone -b margo-dev-sprint-1 \
           --single-branch \
-          https://x-access-token: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@github.com/margo/symphony.git "$HOME/symphony"
+           https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git "$HOME/symphony"
       - name: Inspect repo structure
         shell: bash
         run: |

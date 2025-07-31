@@ -145,6 +145,7 @@ jobs:
             set -e
             cd ~/harbor
             ls -l
+            chmod +x install.sh prepare cleanup_harbor.sh
             sudo ./install.sh
             '
       #Gogs Installation     

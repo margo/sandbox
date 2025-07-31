@@ -126,18 +126,19 @@ jobs:
           
       - name: Harbor installation process begins here. Make the scripts required for installation executable
         run: | 
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
             cd ~/harbor
-            chmod +x ./harbor/install.sh ./harbor/prepare ./harbor/cleanup_harbor.sh
-            #sudo chown -R azureuser:azureuser .
-            find ./harbor -type d -exec chmod 755 {} \;
-            find ./harbor -type f -exec chmod 644 {} \;
-            chmod +x ./harbor/install.sh ./harbor/prepare ./harbor/cleanup_harbor.sh
+            chmod +x ./install.sh ./prepare ./cleanup_harbor.sh
+            find . -type d -exec chmod 755 {} \;
+            find . -type f -exec chmod 644 {} \;
+            '
             
       - name: Install harbor
         run: |
             cd ./harbor
             sudo ./install.sh
+            
       #Gogs Installation     
       - name: Install Docker & Docker Compose on VM
         run: |

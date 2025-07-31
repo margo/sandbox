@@ -200,13 +200,13 @@ jobs:
       - name: Generate API token
         id: gogs-token
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-            curl -s -X POST "http://{$VM_HOST}:3000/api/v1/users/gogsadmin/tokens" \
-              -u "gogsadmin:admin123" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\": \"mytoken\"}" > ~/gogs_token.json
-          '
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -s -X POST \"http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens\" \
+          -u \"gogsadmin:admin123\" \
+          -H \"Content-Type: application/json\" \
+          -d '{\"name\": \"mytoken\"}' > ~/gogs_token.json"
+          
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
+          cat ./gogs_token.json
           TOKEN=$(jq -r '.sha1' ./gogs_token.json)
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
     

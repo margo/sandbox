@@ -128,7 +128,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             ls -la ~/harbor
-          
+            '
       - name: Make the harbor scripts required for installation executable
         run: | 
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '

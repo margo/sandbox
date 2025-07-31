@@ -216,5 +216,5 @@ jobs:
           curl -X POST -H "Authorization: token ${{ steps.token.outputs.token }}" \
                -H "Content-Type: application/json" \
                -d '{"name":"my-new-repo","private":false}' \
-               http://localhost:3000/api/v1/user/repos
+               http://{$VM_HOST}:3000/api/v1/user/repos
               '

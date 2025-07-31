@@ -136,9 +136,10 @@ jobs:
             
       - name: Install harbor
         run: |
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             cd ./harbor
             sudo ./install.sh
-            
+            '
       #Gogs Installation     
       - name: Install Docker & Docker Compose on VM
         run: |

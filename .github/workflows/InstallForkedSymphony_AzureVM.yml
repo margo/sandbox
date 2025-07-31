@@ -46,6 +46,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
+            source $HOME/.cargo/env
             RUST_DIR="$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust"
             if [ -d "$RUST_DIR" ]; then
               cd "$RUST_DIR"

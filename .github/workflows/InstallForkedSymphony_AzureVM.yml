@@ -91,7 +91,7 @@ jobs:
             API_BIN="$HOME/symphony/api/symphony-api"
             if [ -f "$API_BIN" ]; then
               nohup env SYMPHONY_API_URL="http://$VM_HOST:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" \
-                "$API_BIN" -c "$HOME/symphony/api/symphony-api-no-k8s.json" -l Debug > "$HOME/symphony-api.log" 2>&1 &
+                "$API_BIN" -c "$HOME/symphony/api/symphony-api-margo.json" -l Debug > "$HOME/symphony-api.log" 2>&1 &
               echo "symphony-api started in background."
             else
               echo "symphony-api binary not found, skipping startup."

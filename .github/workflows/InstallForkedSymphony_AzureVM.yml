@@ -262,7 +262,6 @@ jobs:
               ./maestro wfm list app-pkg
             else
               echo "No app package ID found to delete."
-              ./maestro wfm list app-pkg
             fi
 
           '

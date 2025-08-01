@@ -60,23 +60,7 @@ jobs:
               echo "Rust directory not found, skipping Rust build."
             fi
           '
-
-      # - name: Build Go binary on VM
-      #   run: |
-      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
-      #       set -e
-      #       git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      #       go env -w GOPRIVATE=github.com/margo/*
-      #       GO_DIR="$HOME/symphony/api"
-      #       if [ -d "$GO_DIR" ]; then
-      #         echo "Go directory found. Building Go binary..."
-      #         export LD_LIBRARY_PATH=$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
-      #         cd "$GO_DIR"
-      #         go build -o symphony-api
-      #       else
-      #         echo "Go directory not found. Skipping Go build."
-      #       fi
-      #     "
+          
       - name: Build Go binary on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
@@ -93,14 +77,20 @@ jobs:
               echo 'Go directory not found. Skipping Go build.'
             fi
           "
-
+      - name: Verify symphony-api binary on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            file $HOME/symphony/api/symphony-api
+            ls -l $HOME/symphony/api/symphony-api
+          '
+          
       - name: Run Symphony API on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             echo "Starting symphony-api in background..."
             API_BIN="$HOME/symphony/api/symphony-api"
             if [ -f "$API_BIN" ]; then
-              nohup env SYMPHONY_API_URL="http://{$VM_HOST}:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" \
+              nohup env SYMPHONY_API_URL="http://$VM_HOST:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" \
                 "$API_BIN" -c "$HOME/symphony/api/symphony-api-no-k8s.json" -l Debug > "$HOME/symphony-api.log" 2>&1 &
               echo "symphony-api started in background."
             else
@@ -185,7 +175,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
           echo "Waiting for Gogs to be ready..."
           for i in {1..35}; do
-            if curl -s http://{$VM_HOST}:3000 | grep -q "Gogs"; then
+            if curl -s http://$VM_HOST:3000 | grep -q "Gogs"; then
               echo "Gogs is up!"
               break
             fi

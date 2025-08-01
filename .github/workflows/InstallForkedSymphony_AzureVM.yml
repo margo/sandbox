@@ -217,9 +217,9 @@ jobs:
     
       - name: Create repository using token
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-          curl -X POST -H "Authorization: token ${{ steps.token.outputs.token }}" \
-               -H "Content-Type: application/json" \
-               -d '{"name":"my-new-repo","private":false}' \
-               http://{$VM_HOST}:3000/api/v1/user/repos
-              '
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+                curl -X POST -H 'Authorization: token ${{ steps.token.outputs.token }}" \
+               -H 'Content-Type: application/json' \
+               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
+               http://$VM_HOST:3000/api/v1/user/repos
+              "

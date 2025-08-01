@@ -244,7 +244,7 @@ jobs:
 
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f package.yml
-            sleep 8
+            sleep 10
 
             echo "Listing app packages after apply..."
             ./maestro wfm list app-pkg
@@ -257,12 +257,12 @@ jobs:
               echo "Deleting app package with ID: $APP_PKG_ID"
               ./maestro wfm delete app-pkg "$APP_PKG_ID"
               echo "Waiting 8 seconds after delete..."
-              sleep 8
-              //echo "Verifying package deletion..."
-              //./maestro wfm list app-pkg
+              sleep 10
+              echo "Verifying package deletion..."
+              ./maestro wfm list app-pkg
             else
               echo "No app package ID found to delete."
+              ./maestro wfm list app-pkg
             fi
-            echo "Verifying app-pkg deletion..."
-            ./maestro wfm list app-pkg
+
           '

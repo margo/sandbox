@@ -161,12 +161,15 @@ jobs:
           '    
       - name: Copy Gogs setup to VM
         run: |
+          dos2unix entrypoint.sh
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'mkdir -p ~/gogs'
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no docker-compose.yml "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no Dockerfile "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no install_gogs.sh "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no app.ini "$VM_USER@$VM_HOST:~/gogs/"
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no entrypoint.sh "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'dos2unix ~/gogs/entrypoint.sh'
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'head -n 1 ~/gogs/entrypoint.sh'
           
       - name: Start Gogs with Docker Compose
         run: |
@@ -179,7 +182,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
           echo "Waiting for Gogs to be ready..."
-          for i in {1..30}; do
+          for i in {1..35}; do
             if curl -s http://{$VM_HOST}:3000 | grep -q "Gogs"; then
               echo "Gogs is up!"
               break

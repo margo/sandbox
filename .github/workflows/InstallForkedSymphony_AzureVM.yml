@@ -247,7 +247,7 @@ jobs:
             sleep 8
 
             echo "Listing app packages after apply..."
-            ./maestro wfm list app-pkg > app_pkg_list.txt
+            ./maestro wfm list app-pkg
 
             echo "Extracting App Package ID..."
             APP_PKG_ID=$(grep -Eo "^[a-f0-9\-]{36}" app_pkg_list.txt | head -n 1)
@@ -256,11 +256,12 @@ jobs:
             if [ -n "$APP_PKG_ID" ]; then
               echo "Deleting app package with ID: $APP_PKG_ID"
               ./maestro wfm delete app-pkg "$APP_PKG_ID"
-              echo "Waiting 8 seconds after delete..."
+              echo "Waiting 8 seconds after deletion..."
               sleep 8
-              echo "Verifying package deletion..."
-              ./maestro wfm list app-pkg
             else
-              echo "No app package ID found to delete."
+              echo "No app package ID found — skipping delete."
             fi
+
+            echo "Listing app-pkg after delete operation:"
+            ./maestro wfm list app-pkg
           '

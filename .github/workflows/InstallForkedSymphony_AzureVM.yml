@@ -161,6 +161,8 @@ jobs:
           '    
       - name: Copy Gogs setup to VM
         run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
           dos2unix entrypoint.sh
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'mkdir -p ~/gogs'
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no docker-compose.yml "$VM_USER@$VM_HOST:~/gogs/"

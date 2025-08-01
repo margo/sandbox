@@ -256,12 +256,11 @@ jobs:
             if [ -n "$APP_PKG_ID" ]; then
               echo "Deleting app package with ID: $APP_PKG_ID"
               ./maestro wfm delete app-pkg "$APP_PKG_ID"
-              echo "Waiting 8 seconds after deletion..."
+              echo "Waiting 8 seconds after delete..."
               sleep 8
+              echo "Verifying package deletion..."
+              ./maestro wfm list app-pkg
             else
-              echo "No app package ID found — skipping delete."
+              echo "No app package ID found to delete."
             fi
-
-            echo "Listing app-pkg after delete operation:"
-            ./maestro wfm list app-pkg
           '

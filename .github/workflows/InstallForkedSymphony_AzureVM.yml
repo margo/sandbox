@@ -240,7 +240,7 @@ jobs:
             echo "Copying package.yaml to package.yml for compatibility..."
             cp ~/symphony/cli/package.yaml ~/symphony/cli/package.yml
 
-            sed -i "s|http://172\.19\.59\.148:3000|http://52.224.241.180:3000|g" package.yml
+            sed -i "s|^\(\s*url:\s*\).*|\1\"http://52.224.241.180:3000/gogsadmin/my-new-repo\"|" package.yml
 
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f package.yaml

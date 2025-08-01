@@ -228,3 +228,22 @@ jobs:
               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
               http://$VM_HOST:3000/api/v1/user/repos
               "
+      - name: Upload app package with Maestro CLI
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            set -e
+            cd ~/symphony/cli
+
+            echo "Listing existing app packages..."
+            ./maestro wfm list app-pkg
+
+            echo "Copying package.yaml to package.yml for compatibility..."
+            cp ~/symphony/cli/package.yaml ~/symphony/cli/package.yml
+
+            echo "Uploading package using maestro..."
+            ./maestro wfm apply -f package.yaml
+            sleep 3
+
+            echo "Listing app packages after apply..."
+            ./maestro wfm list app-pkg
+          '

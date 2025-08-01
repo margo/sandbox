@@ -258,9 +258,11 @@ jobs:
               ./maestro wfm delete app-pkg "$APP_PKG_ID"
               echo "Waiting 8 seconds after delete..."
               sleep 8
-              echo "Verifying package deletion..."
-              ./maestro wfm list app-pkg
+              //echo "Verifying package deletion..."
+              //./maestro wfm list app-pkg
             else
               echo "No app package ID found to delete."
             fi
+            echo "Verifying app-pkg deletion..."
+            ./maestro wfm list app-pkg
           '

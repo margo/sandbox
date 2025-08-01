@@ -1,0 +1,14 @@
+apiVersion: non-margo.org
+kind: ApplicationPackage
+metadata:
+  name: my-web-app-pkg
+  labels:
+    env: dev
+  annotations:
+    description: "A web application for managing user accounts"
+spec:
+  sourceType: GIT_REPO
+  source:
+    #url: "https://github.com/user/my-app.git"
+    url: "http://172.19.59.148:3000/margouser/package-repo"
+    branch: "master"

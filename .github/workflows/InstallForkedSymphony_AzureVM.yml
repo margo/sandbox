@@ -257,7 +257,7 @@ jobs:
               echo "Deleting app package with ID: $APP_PKG_ID"
               ./maestro wfm delete app-pkg "$APP_PKG_ID"
               echo "Waiting 8 seconds after delete..."
-              sleep 10
+              sleep 8
               echo "Verifying package deletion..."
               ./maestro wfm list app-pkg
             else

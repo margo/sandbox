@@ -77,6 +77,20 @@ jobs:
               echo 'Go directory not found. Skipping Go build.'
             fi
           "
+      - name: Build Maestro Go binary on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            CLI_DIR=\"\$HOME/symphony/cli\"
+            if [ -d \"\$CLI_DIR\" ]; then
+              echo 'CLI directory found. Building maestro binary...'
+              cd \"\$CLI_DIR\"
+              go build -o maestro
+            else
+              echo 'CLI directory not found. Skipping maestro build.'
+            fi
+          "
+          
       - name: Verify symphony-api binary on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '

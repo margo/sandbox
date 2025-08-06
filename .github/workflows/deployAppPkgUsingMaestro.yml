@@ -1,4 +1,4 @@
-name: Login Azure Vm and deploy forked Symphony app
+name: DeployAppPkgUsingMaestro
 
 on:
   workflow_dispatch:
@@ -123,7 +123,7 @@ jobs:
           name: symphony-api-log
           path: ./symphony-api.log
 
-     #Harbor Installation
+     # Harbor Installation
       - name: Copy Harbor scripts to VM
         run: |
           sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no -r ./harbor "$VM_USER@$VM_HOST:~/harbor"
@@ -223,7 +223,7 @@ jobs:
         run: |
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
               curl -X POST \
-              -H 'Authorization: token ${{ steps.token.outputs.token }}' \
+              -H 'Authorization: token ${{ steps.gogs-token.outputs.token }}'
               -H 'Content-Type: application/json' \
               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
               http://$VM_HOST:3000/api/v1/user/repos

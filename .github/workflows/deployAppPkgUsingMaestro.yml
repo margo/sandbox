@@ -196,40 +196,46 @@ jobs:
             sleep 2
           done
           "
-      - name: Create admin user inside Gogs container
+      - name: Create Gogs admin user
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
-          GOGS_CONTAINER=$(docker ps --filter "ancestor=gogs/gogs" --format "{{.Names}}")
-          docker exec -u git "$GOGS_CONTAINER" /app/gogs/gogs admin create-user \
-            --name gogsadmin \
-            --password admin123 \
-            --email you@example.com \
-            --admin || echo "User might already exist, skipping..."
-            '
-          - name: Generate API token
-            id: gogs-token
-            run: |
-              sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -s -X POST \"http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens\" \
-                -u \"gogsadmin:admin123\" \
-                -H \"Content-Type: application/json\" \
-                -d '{\"name\": \"mytoken\"}' > ~/gogs_token.json"
-                
-              sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
-              cat ./gogs_token.json
-              TOKEN=$(jq -r '.sha1' ./gogs_token.json)
-              echo "token=$TOKEN" >> $GITHUB_OUTPUT
-    
-          - name: Create repository using token
-              run: |
-                TOKEN="${{ steps.gogs-token.outputs.token }}"
-                echo "Using Gogs token: $TOKEN"
-            
-                sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'bash -s' <<EOF
-                  curl -X POST \
-                    -H "Authorization: token $TOKEN" \
-                    -H "Content-Type: application/json" \
-                    -d '{"name":"my-new-repo","private":false}' \
-                    http://$VM_HOST:3000/api/v1/user/repos
+            GOGS_CONTAINER=$(docker ps --filter "ancestor=gogs/gogs" --format "{{.Names}}" | head -n 1)
+            if [ -z "$GOGS_CONTAINER" ]; then
+              echo "Gogs container not found! Exiting."
+              exit 1
+            fi
+      
+            docker exec -u git "$GOGS_CONTAINER" /app/gogs/gogs admin create-user \
+              --name gogsadmin \
+              --password admin123 \
+              --email you@example.com \
+              --admin || echo "User might already exist, skipping..."
+          '
+      
+      - name: Generate API token
+        id: gogs-token
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -s -X POST \"http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens\" \
+            -u \"gogsadmin:admin123\" \
+            -H \"Content-Type: application/json\" \
+            -d '{\"name\": \"mytoken\"}' > ~/gogs_token.json"
+      
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
+          cat ./gogs_token.json
+          TOKEN=$(jq -r '.sha1' ./gogs_token.json)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+      
+      - name: Create repository using token
+        run: |
+          TOKEN="${{ steps.gogs-token.outputs.token }}"
+          echo "Using Gogs token: $TOKEN"
+      
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'bash -s' <<EOF
+            curl -X POST \
+              -H "Authorization: token $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"my-new-repo","private":false}' \
+              http://$VM_HOST:3000/api/v1/user/repos
             EOF
       - name: Upload app package with Maestro CLI
         run: |

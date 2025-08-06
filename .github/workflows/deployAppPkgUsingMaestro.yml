@@ -196,7 +196,7 @@ jobs:
             sleep 2
           done
           "
-      - name: Create Gogs admin user
+      - name: Create Gogs Admin User
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             GOGS_CONTAINER=$(docker ps --filter "name=custom-gogs" --format "{{.Names}}" | head -n 1)
@@ -211,20 +211,19 @@ jobs:
               --email you@example.com \
               --admin || echo "User might already exist, skipping..."
           '
+      - name: Generate API token
+        id: gogs-token
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -s -X POST \"http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens\" \
+            -u \"gogsadmin:admin123\" \
+            -H \"Content-Type: application/json\" \
+            -d '{\"name\": \"mytoken\"}' > ~/gogs_token.json"
       
-          - name: Generate API token
-            id: gogs-token
-            run: |
-              sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -s -X POST \"http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens\" \
-                -u \"gogsadmin:admin123\" \
-                -H \"Content-Type: application/json\" \
-                -d '{\"name\": \"mytoken\"}' > ~/gogs_token.json"
-          
-              sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
-              cat ./gogs_token.json
-              TOKEN=$(jq -r '.sha1' ./gogs_token.json)
-              echo "TOKEN=$TOKEN" >> $GITHUB_ENV  # Save token to env var
-              echo "Token retrieved: $TOKEN"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/gogs_token.json" ./gogs_token.json
+          cat ./gogs_token.json
+          TOKEN=$(jq -r '.sha1' ./gogs_token.json)
+          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+          echo "Token retrieved: $TOKEN"
           
       - name: Create repository using token
         run: |

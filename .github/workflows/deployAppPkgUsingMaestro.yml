@@ -219,15 +219,18 @@ jobs:
           TOKEN=$(jq -r '.sha1' ./gogs_token.json)
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
     
-      - name: Create repository using token
-        run: |
-            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
-              curl -X POST \
-              -H 'Authorization: token ${{ steps.gogs-token.outputs.token }}'
-              -H 'Content-Type: application/json' \
-              -d '{\"name\":\"my-new-repo\",\"private\":false}' \
-              http://$VM_HOST:3000/api/v1/user/repos
-              "
+          - name: Create repository using token
+              run: |
+                TOKEN="${{ steps.gogs-token.outputs.token }}"
+                echo "Using Gogs token: $TOKEN"
+                
+                sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'bash -s' <<EOF
+                  curl -X POST \
+                    -H "Authorization: token $TOKEN" \
+                    -H "Content-Type: application/json" \
+                    -d '{"name":"my-new-repo","private":false}' \
+                    http://$VM_HOST:3000/api/v1/user/repos
+            EOF
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '

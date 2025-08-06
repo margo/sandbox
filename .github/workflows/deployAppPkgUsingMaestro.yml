@@ -235,35 +235,36 @@ jobs:
             -d '{\"name\":\"my-new-repo\",\"private\":false}' \
             http://$VM_HOST:3000/api/v1/user/repos"
             
+      
       - name: Upload app package with Maestro CLI
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
             set -e
             cd ~/symphony/cli
-
+      
             echo "Listing existing app packages..."
             ./maestro wfm list app-pkg
-
+      
             echo "Copying package.yaml to package.yml for compatibility..."
             cp ~/symphony/cli/package.yaml ~/symphony/cli/package.yml
-
-            sed -i "s|^\(\s*url:\s*\).*|\1\"http://52.224.241.180:3000/gogsadmin/my-new-repo\"|" package.yml
-
+      
+            sed -i "s|^\(\s*url:\s*\).*|\1\"http://***:3000/gogsadmin/my-new-repo\"|" package.yml
+      
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f package.yml
             sleep 10
-
+      
             echo "Listing app packages after apply..."
             ./maestro wfm list app-pkg > app_pkg_list.txt
             cat app_pkg_list.txt
-            
+      
             echo "Extracting App Package ID..."
-            APP_PKG_ID=$(grep -Eo "^[a-f0-9\-]{36}" app_pkg_list.txt | head -n 1)
-            echo "Detected App Package ID: $APP_PKG_ID"
-
-            if [ -n "$APP_PKG_ID" ]; then
-              echo "Deleting app package with ID: $APP_PKG_ID"
-              ./maestro wfm delete app-pkg "$APP_PKG_ID"
+            APP_PKG_ID=$(grep -Eo "^[a-f0-9\\-]{36}" app_pkg_list.txt | head -n 1)
+            echo "Detected App Package ID: \$APP_PKG_ID"
+      
+            if [ -n "\$APP_PKG_ID" ]; then
+              echo "Deleting app package with ID: \$APP_PKG_ID"
+              ./maestro wfm delete app-pkg "\$APP_PKG_ID"
               echo "Waiting 8 seconds after delete..."
               sleep 8
               echo "Verifying package deletion..."
@@ -271,3 +272,4 @@ jobs:
             else
               echo "No app package ID found to delete."
             fi
+          EOF

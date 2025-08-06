@@ -226,17 +226,16 @@ jobs:
               echo "TOKEN=$TOKEN" >> $GITHUB_ENV  # Save token to env var
               echo "Token retrieved: $TOKEN"
           
-          - name: Create repository using token
-            run: |
-              echo "Using Gogs token: $TOKEN"
-          
-              sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "bash -s" <<EOF
-          curl -X POST \
-            -H "Authorization: token $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"my-new-repo","private":false}' \
-          http://$VM_HOST:3000/api/v1/user/repos
-          EOF
+      - name: Create repository using token
+        run: |
+          echo "Using Gogs token: $TOKEN"
+      
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -X POST \
+            -H 'Authorization: token $TOKEN' \
+            -H 'Content-Type: application/json' \
+            -d '{\"name\":\"my-new-repo\",\"private\":false}' \
+            http://$VM_HOST:3000/api/v1/user/repos"
+            
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '

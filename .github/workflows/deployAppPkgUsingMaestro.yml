@@ -264,4 +264,3 @@ jobs:
             else
               echo "No app package ID found to delete."
             fi
-          '

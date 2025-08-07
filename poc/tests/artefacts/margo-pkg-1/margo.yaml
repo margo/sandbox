@@ -1,0 +1,133 @@
+apiVersion: margo.org/v1-alpha1
+kind: ApplicationDescription
+metadata:
+  id: margo-app-nginx-web-server
+  name: NGINX Web Server
+  description: High-performance web server and reverse proxy
+  version: "1.25.3"
+  catalog:
+    application:
+      icon: ./resources/nginx-logo.png
+      tagline: High-performance HTTP server and reverse proxy.
+      descriptionFile: ./resources/description.md
+      releaseNotes: ./resources/release-notes.md
+      licenseFile: ./resources/license.txt
+      site: https://github.com/nginx/nginx
+      tags: ["web", "http", "proxy", "server"]
+    author:
+      - name: NGINX Team
+        email: nginx@nginx.org
+    organization:
+      - name: NGINX Inc
+        site: https://nginx.org
+deploymentProfiles:
+  - type: helm.v3
+    components:
+      - name: nginx
+        properties:  
+          repository: oci://registry-1.docker.io/library/nginx
+          revision: "1.25.3-alpine"
+          wait: true
+parameters:
+  httpPort:
+    value: 80
+    targets:
+    - pointer: service.port
+      components: ["nginx"]
+  httpsPort:
+    value: 443
+    targets:
+    - pointer: service.httpsPort
+      components: ["nginx"]
+  workerProcesses:
+    value: "auto"
+    targets:
+    - pointer: config.workerProcesses
+      components: ["nginx"]
+  workerConnections:
+    value: 1024
+    targets:
+    - pointer: config.workerConnections
+      components: ["nginx"]
+  clientMaxBodySize:
+    value: "1m"
+    targets:
+    - pointer: config.clientMaxBodySize
+      components: ["nginx"]
+  keepaliveTimeout:
+    value: 65
+    targets:
+    - pointer: config.keepaliveTimeout
+      components: ["nginx"]
+  gzipEnabled:
+    value: true
+    targets:
+    - pointer: config.gzip
+      components: ["nginx"]
+  accessLogEnabled:
+    value: true
+    targets:
+    - pointer: config.accessLog
+      components: ["nginx"]
+configuration:
+  sections:
+    - name: Network Settings
+      settings:
+        - parameter: httpPort
+          name: HTTP Port
+          description: Port number for HTTP connections
+          schema: portNumber
+        - parameter: httpsPort
+          name: HTTPS Port
+          description: Port number for HTTPS connections
+          schema: portNumber
+        - parameter: keepaliveTimeout
+          name: Keepalive Timeout
+          description: Timeout for keep-alive connections (seconds)
+          schema: positiveInteger
+    - name: Performance Settings
+      settings:
+        - parameter: workerProcesses
+          name: Worker Processes
+          description: Number of worker processes (auto, or specific number)
+          schema: workerProcessValue
+        - parameter: workerConnections
+          name: Worker Connections
+          description: Maximum connections per worker process
+          schema: positiveInteger
+        - parameter: clientMaxBodySize
+          name: Max Request Body Size
+          description: Maximum allowed size of client request body
+          schema: sizeValue
+    - name: Feature Settings
+      settings:
+        - parameter: gzipEnabled
+          name: Enable Gzip Compression
+          description: Enable gzip compression for responses
+          schema: boolean
+        - parameter: accessLogEnabled
+          name: Enable Access Logging
+          description: Enable HTTP access request logging
+          schema: boolean
+  schema:
+    - name: portNumber
+      dataType: integer
+      minimum: 1
+      maximum: 65535
+      allowEmpty: false
+    - name: positiveInteger
+      dataType: integer
+      minimum: 1
+      maximum: 999999
+      allowEmpty: false
+    - name: boolean
+      dataType: boolean
+      allowEmpty: false
+    - name: workerProcessValue
+      dataType: string
+      pattern: "^(auto|[1-9][0-9]*)$"
+      allowEmpty: false
+    - name: sizeValue
+      dataType: string
+      pattern: "^[1-9][0-9]*[kmgKMG]?$"
+      allowEmpty: false

@@ -1,0 +1,50 @@
+{
+    "apiVersion": "device.margo/v1",
+    "kind": "DeviceCapability",
+    "properties": {
+        "id": "northstarida.xtapro.k8s.edge",
+        "vendor": "Northstar Industrial Applications",
+        "modelNumber": "332ANZE1-N1",
+        "serialNumber": "PF45343-AA",
+        "roles": ["standalone cluster", "cluster lead"],
+        "resources": {
+            "memory": "64.0 GB",
+            "storage": "2000 GB",
+            "cpus": [{
+                "architecture": "Intel x64",
+                "cores": 24,
+                "frequency": "6.2 GHz"
+            }]
+        },
+        "peripherals": [{
+            "name": "NVIDIA GeForce RTX 4070 Ti SUPER OC Edition Graphics Card",
+            "type": "GPU",  
+            "modelNumber": "TUF-RTX4070TIS-O16G",
+            "properties": {
+                "manufacturer": "NVIDIA",
+                "series": "NVIDIA GeForce RTX 40 Series",
+                "gpu": "GeForce RTX 4070 Ti SUPER",
+                "ram": "16 GB",
+                "clockSpeed": "2640 MHz"
+            }
+        }],
+        "interfaces": [
+            {
+                "name": "RTL8125 NIC 2.5G Gigabit LAN Network Card",
+                "type": "Ethernet",
+                "modelNumber": "RTL8125",
+                "properties": {
+                    "maxSpeed": "2.5 Gbps"
+                }
+            },
+            {
+                "name": "WiFi 6E Intel AX411NGW M.2 Cnvio2",
+                "type":  "Wi-Fi",
+                "modelNumber": "AX411NGW",
+                "properties": {
+                    "bands": ["2.4 GHz", "5 GHz", "6GHz"],
+                    "maxSpeed": "2.4 Gbps"
+                }
+            }]
+    }
+}

@@ -1,0 +1,837 @@
+openapi: 3.0.4
+info:
+  title: MARGO Workload Fleet Management (WFM) API
+  version: 1.0.0
+  description: |
+    Unified API specification for the MARGO Workload Fleet Management (WFM) service.
+    Includes APIs for device onboarding, reporting device capabilities, reporting deployment status,
+    and managing application desired state.
+
+servers:
+  - url: https://margo.swagger.io/api/v0  # Update with your actual server URL
+
+tags:
+  - name: onboarding
+    description: APIs for device onboarding.
+  - name: device
+    description: APIs for managing device information and capabilities.
+  - name: deployment
+    description: APIs for managing deployment status.
+  - name: wfm
+    description: APIs for workload fleet management.
+
+paths:
+  /onboarding/rootCA:
+    get:
+      summary: Download the workload orchestration solution vendor's public root CA certificate.
+      description: |
+        Devices call this API to download the root CA certificate, establishing trust with the WFM web service.
+      tags:
+        - onboarding
+      responses:
+        '200':
+          description: Successful operation. Returns the root CA certificate.
+          content:
+            application/x-pem-file:  # Or application/x-x509-ca-cert, depending on the format
+              schema:
+                type: string
+                description: The root CA certificate in PEM format.
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/device:
+    post:
+      summary: Onboard the device with the workload orchestration service.
+      description: |
+        Devices call this API to onboard with the WFM service and receive necessary credentials.
+      tags:
+        - onboarding
+      requestBody:
+        description: Device onboarding request.  (Details TBD)
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingRequest'  # Define this schema later
+      responses:
+        '200':
+          description: Successful onboarding. Returns client credentials and Git repository information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingResponse' # Define this schema later
+        '400':
+          description: Bad request (e.g., invalid input).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: []  # Replace with your actual security scheme
+
+  /device/{deviceId}/capabilities:
+    post:
+      summary: Report device capabilities (Create)
+      description: |
+        Devices call this API to report their capabilities.  This is typically done during onboarding or when capabilities change significantly.
+      tags:
+        - device
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: The device's ID registered with the workload orchestration web service.
+      requestBody:
+        description: Device capabilities information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCapabilities'
+      responses:
+        '201':
+          description: The device capabilities document was added successfully.
+        '400':
+          description: Bad request (e.g., invalid input).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Device not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: []  # Replace with your actual security scheme
+    put:
+      summary: Update device capabilities (Update)
+      description: |
+        Devices call this API to update their capabilities.  This is typically done when capabilities change.
+      tags:
+        - device
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: The device's ID registered with the workload orchestration web service.
+      requestBody:
+        description: Device capabilities information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCapabilities'
+      responses:
+        '201':
+          description: The device capabilities document was updated successfully.
+        '400':
+          description: Bad request (e.g., invalid input).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Device not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: []  # Replace with your actual security scheme
+
+  /device/{deviceId}/deployment/{deploymentId}/status:
+    post:
+      summary: Report deployment status
+      description: |
+        Devices call this API to report the current status of a deployment.
+        The WOS uses this information to track deployment progress and identify issues.
+      tags:
+        - deployment
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: The device's ID registered with the workload orchestration web service.
+        - in: path
+          name: deploymentId
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The deployment ID the status is being reported for (UUID).
+      requestBody:
+        description: Deployment status information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentStatus'
+      responses:
+        '201':
+          description: The deployment status was added or updated successfully.
+        '400':
+          description: Bad request (e.g., invalid input).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Device or deployment not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: []  # Replace with your actual security scheme
+
+  /wfm/state:
+    post:
+      tags:
+        - wfm
+      summary: Device sends this API to the WFM to update the current-state of the device and applications.
+      description: Device sends this API to the WFM to update the current-state of the device and applications.
+      operationId: state
+      requestBody:
+        description: The current-state of the device as well as the state of each deployed app
+        content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/currentAppStates'
+      responses:
+        '200':
+          description: Successful operation, WFM returns desired state of Applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/desiredAppStates'
+        '422':
+          description: Validation exception
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - margo_auth:
+            - write:state
+            - read:state
+
+  /wfm/process:
+    post:
+      tags:
+        - wfm
+      summary: Device sends this API to the WFM after it's poked with a private RPC Id.
+      description: Device sends this API to the WFM after it's poked with a private RPC Id.
+      operationId: process
+      requestBody:
+        description: Send a private payload, not defined by MARGO
+        content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/privatePayload'
+      parameters:
+        - name: rpcId
+          in: query
+          description: An RPC call to the WFM, initiated by the Device
+          required: false
+          explode: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation, WFM returns a private payload not defined by MARGO
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/privatePayload'
+        '422':
+          description: Validation exception
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - margo_auth:
+            - write:state
+            - read:state
+
+components:
+  schemas:
+    # Re-use common schemas from the individual specifications
+    Error:
+      type: object
+      description: Defines an error that occurred.
+      properties:
+        code:
+          type: string
+          description: Associated error code.
+          example: "INTERNAL_ERROR"
+        message:
+          type: string
+          description: Associated error message.
+          example: "An unexpected error occurred."
+
+    # Onboarding Schemas
+    OnboardingRequest:
+      type: object
+      description: Request body for the /onboarding/device endpoint.
+      # properties:
+        # TBD - Define the properties of the onboarding request
+        # This will depend on the chosen onboarding method (e.g., FIDO Device Onboarding)
+        # Example:
+        # deviceCertificate:
+        #   type: string
+        #   description: The device's X.509 certificate (PEM encoded).
+      #required:  # Define required fields based on the chosen onboarding method
+
+    OnboardingResponse:
+      type: object
+      description: Response body for the /onboarding/device endpoint.
+      properties:
+        clientId:
+          type: string
+          description: The client ID for OAuth 2.0 authentication.
+          example: "your_client_id"
+        clientSecret:
+          type: string
+          description: The client secret for OAuth 2.0 authentication.
+          example: "your_client_secret"
+        tokenEndpointUrl:
+          type: string
+          format: uri
+          description: The URL for the OAuth 2.0 token endpoint.
+          example: "https://wfm.example.com/oauth/token"
+        gitRepositoryUrl:
+          type: string
+          format: uri
+          description: The URL for the Git repository containing the desired state.
+          example: "https://git.example.com/your-repo.git"
+        gitAccessToken:
+          type: string
+          description: An access token for authenticating with the Git repository.
+          example: "your_git_access_token"
+      required:
+        - clientId
+        - clientSecret
+        - tokenEndpointUrl
+        - gitRepositoryUrl
+        - gitAccessToken
+
+    # Device Capabilities Schemas
+    DeviceCapabilities:
+      type: object
+      description: Reports the capabilities of a device.
+      required:
+        - apiVersion
+        - kind
+        - properties
+      properties:
+        apiVersion:
+          type: string
+          description: Identifier of the version of the API the object definition follows.
+          example: device.margo/v1
+        kind:
+          type: string
+          description: Must be DeviceCapabilities.
+          example: DeviceCapabilities
+        properties:
+          $ref: '#/components/schemas/Properties'
+
+    Properties:
+      type: object
+      description: Defines characteristics about the device.
+      required:
+        - id
+        - vendor
+        - modelNumber
+        - serialNumber
+        - roles
+        - resources
+        - peripherals
+        - interfaces
+      properties:
+        id:
+          type: string
+          description: Unique deviceID assigned to the device via the Device Owner.
+          example: northstarida.xtapro.k8s.edge
+        vendor:
+          type: string
+          description: Defines the device vendor.
+          example: Northstar Industrial Applications
+        modelNumber:
+          type: string
+          description: Defines the model number of the device.
+          example: 332ANZE1-N1
+        serialNumber:
+          type: string
+          description: Defines the serial number of the device.
+          example: PF45343-AA
+        roles:
+          type: array
+          description: Defines the device role it can provide to the Margo environment.
+          items:
+            type: string
+            enum:
+              - standalone cluster
+              - cluster lead
+              - standalone device
+          example: ["standalone cluster", "cluster lead"]
+        resources:
+          $ref: '#/components/schemas/Resources'
+        peripherals:
+          type: array
+          description: Defines the device's peripherals available to the application deployed on the device.
+          items:
+            $ref: '#/components/schemas/Peripheral'
+        interfaces:
+          type: array
+          description: Defines the device's interfaces that are available to the application deployed on the device.
+          items:
+            $ref: '#/components/schemas/Interface'
+
+    Resources:
+      type: object
+      description: Defines the device's resources available to the application deployed on the device.
+      required:
+        - cpus
+        - memory
+        - storage
+      properties:
+        cpus:
+          type: array
+          description: Defines the device's CPUs that are available to the application deployed on the device.
+          items:
+            $ref: '#/components/schemas/CPU'
+        memory:
+          type: integer
+          description: Defines the memory capacity available for applications on the device in GBs.
+          format: int32
+          example: 64
+        storage:
+          type: integer
+          description: Defines the storage capacity available for applications to utilize in GBs.
+          format: int32
+          example: 2000
+
+    CPU:
+      type: object
+      description: Defines the CPU characteristics.
+      required:
+        - cpuArchitecture
+        - cores
+        - frequency
+      properties:
+        cpuArchitecture:
+          type: string
+          description: Defines the CPUs architecture. i.e. ARM/Intel x86.
+          example: Intel x64
+        cores:
+          type: integer
+          description: Defines the cores available within the hosts CPU.
+          format: int32
+          example: 24
+        frequency:
+          type: number
+          description: Defines the frequency of the CPU in GHz.
+          format: float
+          example: 6.2
+
+    Peripheral:
+      type: object
+      description: Defines a device peripheral.
+      required:
+        - name
+        - type
+        - modelNumber
+        - properties
+      properties:
+        name:
+          type: string
+          description: Name of the peripheral.
+          example: NVIDIA GeForce RTX 4070 Ti SUPER OC Edition Graphics Card
+        type:
+          type: string
+          description: Type of the peripheral. i.e. GPU
+          example: GPU
+        modelNumber:
+          type: string
+          description: Model number of the peripheral.
+          example: TUF-RTX4070TIS-O16G
+        properties:
+          type: object
+          description: Properties of the peripheral.
+          additionalProperties:
+            type: string
+          example:
+            manufacturer: NVIDIA
+            series: NVIDIA GeForce RTX 40 Series
+            gpu: GeForce RTX 4070 Ti SUPER
+            ram: 16 GB
+            clockSpeed: 2640 MHz
+
+    Interface:
+      type: object
+      description: Defines a device interface.
+      required:
+        - name
+        - type
+        - modelNumber
+        - properties
+      properties:
+        name:
+          type: string
+          description: Name of the interface.
+          example: RTL8125 NIC 2.5G Gigabit LAN Network Card
+        type:
+          type: string
+          description: Type of the interface. i.e. Ethernet NIC
+          example: Ethernet
+        modelNumber:
+          type: string
+          description: Model number of the interface.
+          example: RTL8125
+        properties:
+          type: object
+          description: Properties of the interface to inform the WOS with additional information.
+          additionalProperties:
+            type: string
+          example:
+            maxSpeed: 2.5 Gbps
+
+    # Deployment Status Schemas
+    DeploymentStatus:
+      type: object
+      description: Reports the status of a deployment.
+      required:
+        - apiVersion
+        - kind
+        - deploymentId
+        - status
+        - components
+      properties:
+        apiVersion:
+          type: string
+          description: Identifier of the version of the API the object definition follows.
+          example: deployment.margo/v1
+        kind:
+          type: string
+          description: Must be DeploymentStatus.
+          example: DeploymentStatus
+        deploymentId:
+          type: string
+          format: uuid
+          description: The unique identifier UUID of the deployment specification.
+          example: a3e2f5dc-912e-494f-8395-52cf3769bc06
+        status:
+          $ref: '#/components/schemas/OverallStatus'
+        components:
+          type: array
+          description: Individual component deployment statuses.
+          items:
+            $ref: '#/components/schemas/ComponentStatus'
+
+    OverallStatus:
+      type: object
+      description: Defines the overall deployment status.
+      required:
+        - state
+      properties:
+        state:
+          type: string
+          description: Current state of the overall deployment.
+          enum:
+            - Pending
+            - Installing
+            - Installed
+            - Failed
+          example: Pending
+        error:
+          $ref: '#/components/schemas/Error'
+
+    ComponentStatus:
+      type: object
+      description: Defines the status of a single deployment component.
+      required:
+        - name
+        - state
+      properties:
+        name:
+          type: string
+          description: Name of the deployment component (inherited from the deployment specification).
+          example: digitron-orchestrator
+        state:
+          type: string
+          description: The component's current deployment state.
+          enum:
+            - Pending
+            - Installing
+            - Installed
+            - Failed
+          example: Pending
+        error:
+          $ref: '#/components/schemas/Error'
+
+    # Seek State Schemas
+    currentAppStates:
+      type: array
+      items:
+        $ref: '#/components/schemas/appState'
+      xml:
+        name: currentAppStates
+
+    desiredAppStates:
+      type: array
+      items:
+        $ref: '#/components/schemas/appState'
+      xml:
+        name: desiredAppStates
+
+    appState:
+      type: object
+      properties:
+        appId:
+          type: string
+          example: a12nub7ub
+        appVersion:
+          type: string
+          description: Version String
+          example: v1.2.0
+        appDeploymentYAML:
+          type: string
+          description: Base64 encoded MARGO ApplicationDescription YAML content
+          example: a2V5MTogdmFsdWUxCmtleTI6IHZhbHVlMgo=
+        appDeploymentYAMLHash:
+          type: string
+          description: App Hash encoding used for versioning the MARGO ApplicationDescription
+          example: c6779ec2960296ed9a04f08d67f64422
+        appState:
+          type: string
+          default: STOPPED
+          enum:
+            - RUNNING
+            - UPDATING
+            - CRASHLOOP
+            - STOPPED
+            - REMOVING
+            - PENDING
+      required:
+        - appId
+        - appVersion
+        - appDeploymentYAMLHash
+        - appState
+      xml:
+        name: appCurrentState
+
+    privatePayload:
+      type: object
+      properties:
+        code:
+          type: string
+
+    appDeploymentMetadata:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the application deployment
+        name:
+          type: string
+          description: Name of the resource
+        namespace:
+          type: string
+          description: Namespace of the resource
+        labels:
+          type: object
+          additionalProperties: { type: string }
+          description: Labels for the resource
+        annotations:
+          type: object
+          additionalProperties: { type: string }
+          description: Annotations for the resource
+    helmApplicationDeploymentProfileComponent:
+      type: object
+      description: Helm Application Deployment Profile Component
+      required: [name, properties]
+      properties:
+        name:
+          type: string
+          description: Name of the component
+        properties:
+          type: object
+          required: [repository]
+          properties:
+            repository:
+              type: string
+              description: Repository of the component
+            revision:
+              type: string
+              description: Revision of the component
+            timeout:
+              type: string
+              description: Timeout for the component
+            wait:
+              type: boolean
+              description: Wait for the component to be ready
+    composeApplicationDeploymentProfileComponent:
+      type: object
+      description: Compose Application Deployment Profile Component
+      required: [name, properties]
+      properties:
+        name:
+          type: string
+          description: Name of the component
+        properties:
+          type: object
+          required: [packageLocation]
+          properties:
+            packageLocation:
+              type: string
+              description: Package location of the component
+            keyLocation:
+              type: string
+              description: Key location of the component
+            timeout:
+              type: string
+              description: Timeout for the component
+            wait:
+              type: boolean
+              description: Wait for the component to be ready
+    appDeploymentProfile:
+      type: object
+      description: Application Deployment Profile
+      required: [type, components]
+      properties:
+        type:
+          type: string
+          enum: ["helm.v3", "compose"]
+          description: Type of deployment profile
+        components:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/helmApplicationDeploymentProfileComponent'
+              - $ref: '#/components/schemas/composeApplicationDeploymentProfileComponent'
+          description: Components of the deployment profile
+    appParameterTarget:
+      type: object
+      description: Application Parameter Target
+      required: [pointer, components]
+      properties:
+        pointer:
+          type: string
+          description: Pointer to the parameter
+        components:
+          type: array
+          items:
+            type: string
+          description: Components of the parameter
+    appParameterValue:
+      type: object
+      description: Application Parameter Value
+      required: [value, targets]
+      properties:
+        value:
+          type: string
+          description: Value of the parameter
+        targets:
+          type: array
+          items:
+            $ref: '#/components/schemas/appParameterTarget'
+          description: Targets of the parameter
+    appDeploymentParams:
+      type: object
+      description: Application Parameters
+      additionalProperties:
+        $ref: '#/components/schemas/appParameterValue'
+    appDeploymentSpec:
+      type: object
+      description: Application Deployment specification
+      required: [appPackageRef, deploymentProfile]
+      properties:
+        deploymentProfile:
+          $ref: '#/components/schemas/appDeploymentProfile'
+          description: Deployment profile
+        parameters:
+          $ref: '#/components/schemas/appDeploymentParams'
+          description: Parameters for the deployment
+    appDeployment:
+      type: object
+      description: Application Deployment manifest
+      required: [apiVersion, kind, metadata, spec]
+      properties:
+        apiVersion:
+          type: string
+          default: margo.org
+          description: API version
+        kind:
+          type: string
+          default: ApplicationDeployment
+          description: Resource kind
+        metadata:
+          $ref: '#/components/schemas/appDeploymentMetadata'
+        spec:
+          $ref: '#/components/schemas/appDeploymentSpec'
+
+  requestBodies:
+    UserArray:
+      description: List of user object
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: string
+
+  securitySchemes:
+    margo_auth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: 'https://margo.swagger.io/oauth/authorize'
+          scopes:
+            "write:state": modify app state in your device
+            "read:state": read your app states
+    api_key:
+      type: apiKey
+      name: X-API-Key  # Or whatever your API key header is
+      in: header

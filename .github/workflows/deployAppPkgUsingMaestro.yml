@@ -8,7 +8,8 @@ env:
   VM_USER: ${{ secrets.VM_USER }}
   VM_PASS: ${{ secrets.VM_PASS }}
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-
+  GOGS_TOKEN: ${{ secrets.GG_TOKEN }}
+  
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -249,7 +250,7 @@ jobs:
       
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             curl -s -o /tmp/resp.json -w '\nHTTP %{http_code}\n' \
-              -H 'Authorization: token $TOKEN' \
+              -u gogsadmin:$TOKEN \
               -H 'Content-Type: application/json' \
               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
               http://$VM_HOST:3000/api/v1/user/repos

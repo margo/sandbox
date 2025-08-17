@@ -212,45 +212,45 @@ jobs:
               --email you@example.com \
               --admin || echo "User might already exist, skipping..."
           '
-      - name: Generate or reuse Gogs token
-        run: |
-          echo "Checking for existing Gogs token..."      
-          # List existing tokens
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
-            "curl -s -u 'gogsadmin:admin123' http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
-            > ./gogs_token.json
+      # - name: Generate or reuse Gogs token
+      #   run: |
+      #     echo "Checking for existing Gogs token..."      
+      #     # List existing tokens
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
+      #       "curl -s -u 'gogsadmin:admin123' http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
+      #       > ./gogs_token.json
       
-          # Try to grab token with name "mytoken"
-          TOKEN=$(jq -r '.[] | select(.name=="mytoken") | .sha1' ./gogs_token.json)
+      #     # Try to grab token with name "mytoken"
+      #     TOKEN=$(jq -r '.[] | select(.name=="mytoken") | .sha1' ./gogs_token.json)
       
-          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-            echo "No existing token found, creating a new one..."
+      #     if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+      #       echo "No existing token found, creating a new one..."
       
-            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
-              "curl -s -X POST \
-                -u 'gogsadmin:admin123' \
-                -H 'Content-Type: application/json' \
-                -d '{\"name\": \"mytoken\"}' \
-                http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
-              > ./gogs_token.json
+      #       sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
+      #         "curl -s -X POST \
+      #           -u 'gogsadmin:admin123' \
+      #           -H 'Content-Type: application/json' \
+      #           -d '{\"name\": \"mytoken\"}' \
+      #           http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
+      #         > ./gogs_token.json
       
-            TOKEN=$(jq -r '.sha1' ./gogs_token.json)
-          fi
+      #       TOKEN=$(jq -r '.sha1' ./gogs_token.json)
+      #     fi
       
-          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-            echo "Failed to get or create a Gogs token"
-            exit 1
-          fi
-          echo "Token retrieved: $TOKEN"
-          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+      #     if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+      #       echo "Failed to get or create a Gogs token"
+      #       exit 1
+      #     fi
+      #     echo "Token retrieved: $TOKEN"
+      #     echo "TOKEN=$TOKEN" >> $GITHUB_ENV
           
       - name: Create repository using token
         run: |
-          echo "Using Gogs token: $TOKEN"
+          echo "Using Gogs token: $GOGS_TOKEN"
       
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             curl -s -o /tmp/resp.json -w '\nHTTP %{http_code}\n' \
-              -u gogsadmin:$TOKEN \
+              -u gogsadmin:$GOGS_TOKEN \
               -H 'Content-Type: application/json' \
               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
               http://$VM_HOST:3000/api/v1/user/repos
@@ -271,7 +271,7 @@ jobs:
                 git config user.name 'gogsadmin'
                 git config user.email 'nitin.parihar@capgemini.com'
               fi
-            git remote add origin http://gogsadmin:${TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
+            git remote add origin http://gogsadmin:${GOGS_TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
             git add margo.yaml resources/
             if ! git diff --cached --quiet; then
               git commit -m 'Initial commit with margo.yaml and resources'

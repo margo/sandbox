@@ -240,10 +240,11 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
-            rm -rf .git
             git init
+            git init
+            git remote remove origin 2>/dev/null
             git config user.name 'gogsadmin'
-            git config user.email 'you@example.com'
+            git config user.email 'nitin.parihar@capgemini.com'
             git remote add origin http://gogsadmin:admin123@${VM_HOST}:3000/gogsadmin/my-new-repo.git
             git add margo.yaml resources/
             git commit -m 'Initial commit with margo.yaml and resources'

@@ -8,7 +8,7 @@ env:
   VM_USER: ${{ secrets.VM_USER }}
   VM_PASS: ${{ secrets.VM_PASS }}
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-  GOGS_TOKEN: ${{ secrets.GOGs_TOKEN }}
+  #GOGS_TOKEN: ${{ secrets.GOGs_TOKEN }}
   
 jobs:
   deploy:
@@ -243,6 +243,18 @@ jobs:
       #     fi
       #     echo "Token retrieved: $TOKEN"
       #     echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Create new Gogs token
+        run: |
+          TOKEN_NAME="autogen-$(date +%s)"
+          TOKEN=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            curl -s -X POST \
+              -u 'gogsadmin:admin123' \
+              -H 'Content-Type: application/json' \
+              -d '{\"name\": \"$TOKEN_NAME\"}' \
+              http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens | jq -r '.sha1'
+          ")
+          echo "GOGS_TOKEN=$TOKEN" >> $GITHUB_ENV
           
       - name: Create repository using token
         run: |

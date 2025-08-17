@@ -247,11 +247,14 @@ jobs:
         run: |
           echo "Using Gogs token: $TOKEN"
       
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "curl -X POST \
-            -H 'Authorization: token $TOKEN' \
-            -H 'Content-Type: application/json' \
-            -d '{\"name\":\"my-new-repo\",\"private\":false}' \
-            http://$VM_HOST:3000/api/v1/user/repos"
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            curl -s -o /tmp/resp.json -w '\nHTTP %{http_code}\n' \
+              -H 'Authorization: token $TOKEN' \
+              -H 'Content-Type: application/json' \
+              -d '{\"name\":\"my-new-repo\",\"private\":false}' \
+              http://$VM_HOST:3000/api/v1/user/repos
+            cat /tmp/resp.json
+          "
 
       - name: Push margo.yaml and resources to Gogs repo
         run: |
@@ -269,7 +272,11 @@ jobs:
               fi
             git remote add origin http://gogsadmin:${TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
             git add margo.yaml resources/
-            git commit -m 'Initial commit with margo.yaml and resources'
+            if ! git diff --cached --quiet; then
+              git commit -m 'Initial commit with margo.yaml and resources'
+            else
+              echo 'No changes to commit, skipping commit step'
+            fi
             git branch -M main
             git push -u origin main
           "

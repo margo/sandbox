@@ -244,7 +244,7 @@ jobs:
             git init
             git config user.name 'gogsadmin'
             git config user.email 'you@example.com'
-            git remote add origin http://gogsadmin:$TOKEN@${VM_HOST}:3000/gogsadmin/my-new-repo.git
+            git remote add origin http://gogsadmin:admin123@${VM_HOST}:3000/gogsadmin/my-new-repo.git
             git add margo.yaml resources/
             git commit -m 'Initial commit with margo.yaml and resources'
             git branch -M main

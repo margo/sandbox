@@ -8,7 +8,7 @@ env:
   VM_USER: ${{ secrets.VM_USER }}
   VM_PASS: ${{ secrets.VM_PASS }}
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-  GOGS_TOKEN: ${{ secrets.GG_TOKEN }}
+  GOGS_TOKEN: ${{ secrets.GOGs_TOKEN }}
   
 jobs:
   deploy:

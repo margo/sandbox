@@ -234,7 +234,31 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{\"name\":\"my-new-repo\",\"private\":false}' \
             http://$VM_HOST:3000/api/v1/user/repos"
-            
+
+      - name: Push margo.yaml and resources to Gogs repo
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
+            set -e
+            cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
+
+            # Remove any old git repo if present
+            rm -rf .git
+
+            # Initialize fresh repo
+            git init
+            git config user.name "gogsadmin"
+            git config user.email "nitin.parihar@capgemini.com"
+
+            # Add remote using token
+            git remote add origin http://gogsadmin:${TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
+
+            # Add only required files
+            git add margo.yaml resources/
+
+            git commit -m "Initial commit with margo.yaml and resources"
+            git branch -M main
+            git push -u origin main
+          EOF
       
       - name: Upload app package with Maestro CLI
         run: |

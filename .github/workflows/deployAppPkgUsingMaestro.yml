@@ -237,28 +237,23 @@ jobs:
 
       - name: Push margo.yaml and resources to Gogs repo
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
 
-            # Remove any old git repo if present
             rm -rf .git
-
-            # Initialize fresh repo
             git init
-            git config user.name "gogsadmin"
-            git config user.email "nitin.parihar@capgemini.com"
+            git config user.name 'gogsadmin'
+            git config user.email 'you@example.com'
 
-            # Add remote using token
-            git remote add origin http://gogsadmin:${TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
+            git remote add origin http://gogsadmin:$TOKEN@$VM_HOST:3000/gogsadmin/my-new-repo.git
 
-            # Add only required files
             git add margo.yaml resources/
+            git commit -m 'Initial commit with margo.yaml and resources'
 
-            git commit -m "Initial commit with margo.yaml and resources"
             git branch -M main
             git push -u origin main
-          EOF
+          "
       
       - name: Upload app package with Maestro CLI
         run: |

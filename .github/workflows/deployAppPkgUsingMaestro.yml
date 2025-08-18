@@ -273,6 +273,7 @@ jobs:
             ./maestro wfm list app-pkg
       
             echo "Copying package.yaml to package.yml for compatibility..."
+            cd ~/symphony/cli/templates/margo
             cp ~/symphony/cli/templates/margo/package.yaml ~/symphony/cli/templates/margo/package.yml
       
             sed -i "s|^\(\s*url:\s*\).*|\1\"http://$VM_HOST:3000/gogsadmin/my-new-repo\"|" package.yml

@@ -38,7 +38,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             rm -rf \$HOME/symphony
-            git clone -b margo-dev-sprint-1 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
+            git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
           "
 
       - name: Inspect repo structure on VM
@@ -212,37 +212,6 @@ jobs:
               --email you@example.com \
               --admin || echo "User might already exist, skipping..."
           '
-      # - name: Generate or reuse Gogs token
-      #   run: |
-      #     echo "Checking for existing Gogs token..."      
-      #     # List existing tokens
-      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
-      #       "curl -s -u 'gogsadmin:admin123' http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
-      #       > ./gogs_token.json
-      
-      #     # Try to grab token with name "mytoken"
-      #     TOKEN=$(jq -r '.[] | select(.name=="mytoken") | .sha1' ./gogs_token.json)
-      
-      #     if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-      #       echo "No existing token found, creating a new one..."
-      
-      #       sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
-      #         "curl -s -X POST \
-      #           -u 'gogsadmin:admin123' \
-      #           -H 'Content-Type: application/json' \
-      #           -d '{\"name\": \"mytoken\"}' \
-      #           http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens" \
-      #         > ./gogs_token.json
-      
-      #       TOKEN=$(jq -r '.sha1' ./gogs_token.json)
-      #     fi
-      
-      #     if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-      #       echo "Failed to get or create a Gogs token"
-      #       exit 1
-      #     fi
-      #     echo "Token retrieved: $TOKEN"
-      #     echo "TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Create new Gogs token
         run: |
@@ -304,7 +273,7 @@ jobs:
             ./maestro wfm list app-pkg
       
             echo "Copying package.yaml to package.yml for compatibility..."
-            cp ~/symphony/cli/package.yaml ~/symphony/cli/package.yml
+            cp ~/symphony/cli/templates/margo/package.yaml ~/symphony/cli/templates/margo/package.yml
       
             sed -i "s|^\(\s*url:\s*\).*|\1\"http://***:3000/gogsadmin/my-new-repo\"|" package.yml
       

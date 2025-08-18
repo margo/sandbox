@@ -289,7 +289,7 @@ jobs:
           cat app_pkg_list.txt
           
           echo "Extracting App Package ID..."
-          APP_PKG_ID=$(grep -Eo "[a-f0-9\\-]{36}" app_pkg_list.txt | head -n 1)
+          APP_PKG_IDS=$(awk -F'|' 'NR>2 && $2 ~ /^[a-f0-9-]{36}$/ {gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}' app_pkg_list.txt)
           echo "Detected App Package ID: $APP_PKG_ID"
           
           if [ -n "$APP_PKG_ID" ]; then

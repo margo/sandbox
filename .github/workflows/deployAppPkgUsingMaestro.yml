@@ -274,8 +274,10 @@ jobs:
       
             echo "Copying package.yaml to package.yml for compatibility..."
             cp ~/symphony/cli/templates/margo/package.yaml ~/symphony/cli/templates/margo/package.yml
-      
-            sed -i "s|^\(\s*url:\s*\).*|\1\"http://$VM_HOST:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
+
+            echo $VM_HOST
+            #sed -i "s|^\(\s*url:\s*\).*|\1\"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
+            sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
             sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/package.yml
       
             echo "Uploading package using maestro..."

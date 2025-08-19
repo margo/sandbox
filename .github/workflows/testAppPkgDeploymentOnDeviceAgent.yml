@@ -73,6 +73,7 @@ jobs:
               echo 'Go directory found. Building Go binary...'
               export LD_LIBRARY_PATH=\$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
               cd \"\$GO_DIR\"
+              go mod tidy
               go build -o symphony-api
             else
               echo 'Go directory not found. Skipping Go build.'
@@ -86,6 +87,7 @@ jobs:
             if [ -d \"\$CLI_DIR\" ]; then
               echo 'CLI directory found. Building maestro binary...'
               cd \"\$CLI_DIR\"
+              go mod tidy
               go build -o maestro
             else
               echo 'CLI directory not found. Skipping maestro build.'

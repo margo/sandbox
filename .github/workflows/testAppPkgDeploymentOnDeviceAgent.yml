@@ -304,60 +304,95 @@ jobs:
           #   echo "No app package ID found to delete."
           # fi
 
-      - name: clone dev-repo
+      - name: Clone dev-repo
         run: |
-          echo "Cleaning up any old dev-repo..."
-          rm -rf dev-repo
-          echo "Cloning fresh dev-repo..."
-          git clone https://github.com/margo/dev-repo.git
-          cd dev-repo
-          git checkout dev-sprint-4
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Cleaning up any old dev-repo...'
+            rm -rf dev-repo
+            echo 'Cloning fresh dev-repo...'
+            git clone https://github.com/margo/dev-repo.git
+            cd dev-repo
+            git checkout dev-sprint-4
+          "
 
       - name: Update kubeconfig path in device agent config
         run: |
-          sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
+          "
 
       - name: Install k3s
         run: |
-          sudo apt update && sudo apt upgrade -y
-          sudo apt install -y curl
-          curl -sfL https://get.k3s.io | sh -
-          sudo systemctl status k3s --no-pager
-          sudo k3s kubectl get nodes
-          mkdir -p $HOME/.kube
-          sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
-          sudo chown $(id -u):$(id -g) $HOME/.kube/config
-          kubectl get nodes
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sudo apt update && sudo apt upgrade -y
+            sudo apt install -y curl
+            curl -sfL https://get.k3s.io | sh -
+            sudo systemctl status k3s --no-pager
+            sudo k3s kubectl get nodes
+            mkdir -p \$HOME/.kube
+            sudo cp /etc/rancher/k3s/k3s.yaml \$HOME/.kube/config
+            sudo chown \$(id -u):\$(id -g) \$HOME/.kube/config
+            kubectl get nodes
+          "
 
       - name: Update keycloak URL in symphony-api-margo.json
         run: |
-          sed -i 's|"keycloakURL": *"http://[^"]*"|"keycloakURL": "http://${VM_HOST}:8083"|' ~/symphony/api/symphony-api-margo.json
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|\"keycloakURL\": *\"http://[^\"]*\"|\"keycloakURL\": \"http://$VM_HOST:8083\"|' ~/symphony/api/symphony-api-margo.json
+          "
 
       - name: Update wfmSbiUrl and capabilitiesFile in agent config
         run: |
-          sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://${VM_HOST}:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
-          sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
-          
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
+            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
+          "
+
       - name: Start Keycloak from docker-compose
         run: |
-          echo "Starting Keycloak service..."
-          cd ~/dev-repo
-          docker compose -f keycloak-compose.yml up -d
-          echo "Waiting for Keycloak to be ready..."
-          sleep 20
-          docker ps
-          
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Starting Keycloak service...'
+            cd ~/dev-repo
+            docker compose -f keycloak-compose.yml up -d
+            echo 'Waiting for Keycloak to be ready...'
+            sleep 20
+            docker ps | grep keycloak
+          "
+
       - name: Start the device-agent
         run: |
-          cd ~/dev-repo/poc/device/agent/
-          go build -o device-agent
-          sudo ./device-agent --config ./config/config.yaml
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            cd ~/dev-repo/poc/device/agent/
+            echo 'Building device-agent...'
+            go build -o device-agent &
+
+            echo 'Waiting for device-agent binary to be created...'
+            for i in {1..10}; do
+              if [ -f device-agent ]; then
+                echo 'device-agent binary found.'
+                ls -lrt device-agent
+                break
+              fi
+              echo 'device-agent not ready yet, retrying in 10s...'
+              sleep 10
+            done
+
+            if [ ! -f device-agent ]; then
+              echo 'device-agent binary was not created within timeout.'
+              exit 1
+            fi
+            echo 'Starting device-agent...'
+            sudo ./device-agent --config ./config/config.yaml
+          "
 
       - name: Deploy app-pkg desc on device-agent
         run: |
-          echo "Replacing appPackageRef.id with APP_PKG_ID..."
-          sed -i "s/id: .*/id: $APP_PKG_ID/" ~/symphony/cli/templates/margo/instance01-device-101.yaml
-          cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Replacing appPackageRef.id with APP_PKG_ID...'
+            sed -i \"s/id: .*/id: $APP_PKG_ID/\" ~/symphony/cli/templates/margo/instance01-device-101.yaml
+            cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
 
-          ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
+            ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
+          "
+
           

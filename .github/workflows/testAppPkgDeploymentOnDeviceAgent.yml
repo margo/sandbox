@@ -1,0 +1,363 @@
+name: DeployAppPkgUsingMaestro
+
+on:
+  workflow_dispatch:
+
+env:
+  VM_HOST: ${{ secrets.VM_HOST }}
+  VM_USER: ${{ secrets.VM_USER }}
+  VM_PASS: ${{ secrets.VM_PASS }}
+  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+  #GOGS_TOKEN: ${{ secrets.GOGs_TOKEN }}
+  
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Login to Azure VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'echo Hello from Azure VM'
+
+      - name: Install Rust on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            echo "Installing Rust..."
+            curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source $HOME/.cargo/env
+          '
+
+      - name: Clone Symphony repo on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            rm -rf \$HOME/symphony
+            git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
+          "
+
+      - name: Inspect repo structure on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            echo "Directory structure of symphony repo:"
+            ls -laR $HOME/symphony
+          '
+
+      - name: Build Rust library on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            set -e
+            source $HOME/.cargo/env
+            RUST_DIR="$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust"
+            if [ -d "$RUST_DIR" ]; then
+              cd "$RUST_DIR"
+              cargo build --release
+            else
+              echo "Rust directory not found, skipping Rust build."
+            fi
+          '
+          
+      - name: Build Go binary on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            git config --global url.\"https://${GITHUB_TOKEN}@github.com/\".insteadOf \"https://github.com/\"
+            go env -w GOPRIVATE=github.com/margo/*
+            GO_DIR=\"\$HOME/symphony/api\"
+            if [ -d \"\$GO_DIR\" ]; then
+              echo 'Go directory found. Building Go binary...'
+              export LD_LIBRARY_PATH=\$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust/target/release
+              cd \"\$GO_DIR\"
+              go build -o symphony-api
+            else
+              echo 'Go directory not found. Skipping Go build.'
+            fi
+          "
+      - name: Build Maestro Go binary on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            CLI_DIR=\"\$HOME/symphony/cli\"
+            if [ -d \"\$CLI_DIR\" ]; then
+              echo 'CLI directory found. Building maestro binary...'
+              cd \"\$CLI_DIR\"
+              go build -o maestro
+            else
+              echo 'CLI directory not found. Skipping maestro build.'
+            fi
+          "
+          
+      - name: Verify symphony-api binary on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            file $HOME/symphony/api/symphony-api
+            ls -l $HOME/symphony/api/symphony-api
+          '
+          
+      - name: Run Symphony API on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            echo "Starting symphony-api in background..."
+            API_BIN="$HOME/symphony/api/symphony-api"
+            if [ -f "$API_BIN" ]; then
+              nohup env SYMPHONY_API_URL="http://$VM_HOST:8082/v1alpha2/" USE_SERVICE_ACCOUNT_TOKENS="false" \
+                "$API_BIN" -c "$HOME/symphony/api/symphony-api-margo.json" -l Debug > "$HOME/symphony-api.log" 2>&1 &
+              echo "symphony-api started in background."
+            else
+              echo "symphony-api binary not found, skipping startup."
+            fi
+            sleep 5
+          '
+
+      - name: Fetch Symphony API log from VM
+        run: |
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST:~/symphony-api.log" ./symphony-api.log
+
+      - name: Upload Symphony API log
+        uses: actions/upload-artifact@v4
+        with:
+          name: symphony-api-log
+          path: ./symphony-api.log
+
+     # Harbor Installation
+      - name: Copy Harbor scripts to VM
+        run: |
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no -r ./harbor "$VM_USER@$VM_HOST:~/harbor"
+
+      - name: Check Harbor folder on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            ls -la ~/harbor
+            '
+      - name: Make the harbor scripts required for installation executable
+        run: | 
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            set -e
+            cd ~/harbor
+            chmod +x ./install.sh ./prepare ./cleanup_harbor.sh
+            find . -type d -exec chmod 755 {} \;
+            find . -type f -exec chmod 644 {} \;
+            '     
+            
+      - name: Install harbor
+        run: |
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            set -e
+            cd ~/harbor
+            ls -l
+            chmod +x install.sh prepare cleanup_harbor.sh
+            sudo ./install.sh
+            '
+      #Gogs Installation     
+      - name: Install Docker & Docker Compose on VM
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          '    
+      - name: Copy Gogs setup to VM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          dos2unix entrypoint.sh
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'mkdir -p ~/gogs'
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no docker-compose.yml "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no Dockerfile "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no install_gogs.sh "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no app.ini "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" scp -o StrictHostKeyChecking=no entrypoint.sh "$VM_USER@$VM_HOST:~/gogs/"
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'dos2unix ~/gogs/entrypoint.sh'
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'head -n 1 ~/gogs/entrypoint.sh'
+          
+      - name: Start Gogs with Docker Compose
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            cd ~/gogs || exit 1
+            docker-compose up --build -d
+          '
+            
+      - name: Wait for Gogs to be ready
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+          echo "Waiting for Gogs to be ready..."
+          for i in {1..35}; do
+            if curl -s http://$VM_HOST:3000 | grep -q "Gogs"; then
+              echo "Gogs is up!"
+              break
+            fi
+            sleep 2
+          done
+          "
+      - name: Create Gogs Admin User
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
+            GOGS_CONTAINER=$(docker ps --filter "name=custom-gogs" --format "{{.Names}}" | head -n 1)
+            if [ -z "$GOGS_CONTAINER" ]; then
+              echo "Gogs container not found! Exiting."
+              exit 1
+            fi
+      
+            docker exec -u git "$GOGS_CONTAINER" /app/gogs/gogs admin create-user \
+              --name gogsadmin \
+              --password admin123 \
+              --email you@example.com \
+              --admin || echo "User might already exist, skipping..."
+          '
+
+      - name: Create new Gogs token
+        run: |
+          TOKEN_NAME="autogen-$(date +%s)"
+          TOKEN=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            curl -s -X POST \
+              -u 'gogsadmin:admin123' \
+              -H 'Content-Type: application/json' \
+              -d '{\"name\": \"$TOKEN_NAME\"}' \
+              http://$VM_HOST:3000/api/v1/users/gogsadmin/tokens | jq -r '.sha1'
+          ")
+          echo "GOGS_TOKEN=$TOKEN" >> $GITHUB_ENV
+          
+      - name: Create repository using token
+        run: |
+          echo "Using Gogs token: $GOGS_TOKEN"
+      
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            curl -s -o /tmp/resp.json -w '\nHTTP %{http_code}\n' \
+              -H 'Authorization: token $GOGS_TOKEN' \
+              -H 'Content-Type: application/json' \
+              -d '{\"name\":\"my-new-repo\",\"private\":false}' \
+              http://$VM_HOST:3000/api/v1/user/repos
+            cat /tmp/resp.json
+          "
+
+      - name: Push margo.yaml and resources to Gogs repo
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
+            set -e
+            cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
+            if [ -d .git ]; then
+                echo 'Git repo already exists, cleaning up origin...'
+                git remote remove origin 2>/dev/null || true
+              else
+                echo 'No git repo found, initializing fresh...'
+                git init
+                git config user.name 'gogsadmin'
+                git config user.email 'nitin.parihar@capgemini.com'
+              fi
+            git remote add origin http://gogsadmin:${GOGS_TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
+            git add margo.yaml resources/
+            if ! git diff --cached --quiet; then
+              git commit -m 'Initial commit with margo.yaml and resources'
+            else
+              echo 'No changes to commit, skipping commit step'
+            fi
+            git branch -M main
+            git push -u origin main
+          "
+      
+      - name: Upload app package with Maestro CLI
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
+            set -e
+            cd ~/symphony/cli
+      
+            echo "Listing existing app packages..."
+            ./maestro wfm list app-pkg
+      
+            echo "Copying package.yaml to package.yml for compatibility..."
+            cp ~/symphony/cli/templates/margo/package.yaml ~/symphony/cli/templates/margo/package.yml
+
+            echo $VM_HOST
+            #sed -i "s|^\(\s*url:\s*\).*|\1\"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
+            sed -i "s|^\s*url:.*|    url: \"http://${{ secrets.VM_HOST }}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
+            sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/package.yml
+      
+            echo "Uploading package using maestro..."
+            ./maestro wfm apply -f ~/symphony/cli/templates/margo/package.yml
+            sleep 10
+      
+            echo "Listing app packages after apply..."
+          ./maestro wfm list app-pkg > app_pkg_list.txt
+          cat app_pkg_list.txt
+          
+          echo "Extracting App Package ID..."
+          APP_PKG_ID=$(./maestro wfm list app-pkg 2>/dev/null | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}')
+          echo "Detected App Package ID: $APP_PKG_ID"
+          echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
+          
+          if [ -n "$APP_PKG_ID" ]; then
+            echo "Deleting app package with ID: $APP_PKG_ID"
+            ./maestro wfm delete app-pkg "$APP_PKG_ID"
+            echo "Waiting 8 seconds after delete..."
+            sleep 8
+            echo "Verifying package deletion..."
+            ./maestro wfm list app-pkg
+          else
+            echo "No app package ID found to delete."
+          fi
+
+      - name: clone dev-repo
+        run: |
+          echo "Cleaning up any old dev-repo..."
+          rm -rf dev-repo
+          echo "Cloning fresh dev-repo..."
+          git clone https://github.com/margo/dev-repo.git
+          cd dev-repo
+          git checkout dev-sprint-4
+
+      - name: Update kubeconfig path in device agent config
+        run: |
+          sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' dev-repo/poc/device/agent/config/config.yaml
+
+      - name: Install k3s
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y curl
+          curl -sfL https://get.k3s.io | sh -
+          sudo systemctl status k3s --no-pager
+          sudo k3s kubectl get nodes
+          mkdir -p $HOME/.kube
+          sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          kubectl get nodes
+
+      - name: Update keycloak URL in symphony-api-margo.json
+        run: |
+          sed -i 's|"keycloakURL": *"http://[^"]*"|"keycloakURL": "http://${VM_HOST}:8083"|' symphony/api/symphony-api-margo.json
+
+      - name: Update wfmSbiUrl and capabilitiesFile in agent config
+        run: |
+          sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://${VM_HOST}:8082/v1alpha2/margo/sbi/v1|' dev-repo/poc/device/agent/config/config.yaml
+          sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' dev-repo/poc/device/agent/config/config.yaml
+
+      - name: Update App Package ID in YAML
+        run: |
+          echo "Replacing appPackageRef.id with APP_PKG_ID..."
+          sed -i "s/id: .*/id: $APP_PKG_ID/" symphony/cli/templates/margo/instance01-device-101.yaml
+          echo "Updated YAML:"
+          cat symphony/cli/templates/margo/instance01-device-101.yaml
+          
+      - name: Start Keycloak from docker-compose
+        run: |
+          echo "Starting Keycloak service..."
+          cd dev-repo
+          docker compose -f keycloak-compose.yml up -d
+          echo "Waiting for Keycloak to be ready..."
+          sleep 20
+          docker ps
+          
+      - name: Start the device-agent
+        run: |
+          cd dev-repo/poc/device/agent/
+          sudo ./device-agent
+
+
+          

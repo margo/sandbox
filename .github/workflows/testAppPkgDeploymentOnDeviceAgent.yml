@@ -360,6 +360,4 @@ jobs:
           cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
 
           ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
-
-
           

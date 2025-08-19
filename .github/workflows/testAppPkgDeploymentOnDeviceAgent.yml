@@ -315,7 +315,7 @@ jobs:
 
       - name: Update kubeconfig path in device agent config
         run: |
-          sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' dev-repo/poc/device/agent/config/config.yaml
+          sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
 
       - name: Install k3s
         run: |
@@ -331,19 +331,19 @@ jobs:
 
       - name: Update keycloak URL in symphony-api-margo.json
         run: |
-          sed -i 's|"keycloakURL": *"http://[^"]*"|"keycloakURL": "http://${VM_HOST}:8083"|' symphony/api/symphony-api-margo.json
+          sed -i 's|"keycloakURL": *"http://[^"]*"|"keycloakURL": "http://${VM_HOST}:8083"|' ~/symphony/api/symphony-api-margo.json
 
       - name: Update wfmSbiUrl and capabilitiesFile in agent config
         run: |
-          sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://${VM_HOST}:8082/v1alpha2/margo/sbi/v1|' dev-repo/poc/device/agent/config/config.yaml
-          sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' dev-repo/poc/device/agent/config/config.yaml
+          sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://${VM_HOST}:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
+          sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
 
       - name: Update App Package ID in YAML
         run: |
           echo "Replacing appPackageRef.id with APP_PKG_ID..."
-          sed -i "s/id: .*/id: $APP_PKG_ID/" symphony/cli/templates/margo/instance01-device-101.yaml
+          sed -i "s/id: .*/id: $APP_PKG_ID/" ~/symphony/cli/templates/margo/instance01-device-101.yaml
           echo "Updated YAML:"
-          cat symphony/cli/templates/margo/instance01-device-101.yaml
+          cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
           
       - name: Start Keycloak from docker-compose
         run: |

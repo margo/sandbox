@@ -382,7 +382,7 @@ jobs:
               exit 1
             fi
             echo 'Starting device-agent...'
-            sudo ./device-agent --config ./config/config.yaml
+            nohup sudo ./device-agent --config ./config/config.yaml > device-agent.log 2>&1 &
           "
 
       - name: Deploy app-pkg desc on device-agent

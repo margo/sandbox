@@ -86,8 +86,14 @@ jobs:
             if [ -d \"\$CLI_DIR\" ]; then
               echo 'CLI directory found. Building maestro binary...'
               cd \"\$CLI_DIR\"
-              sed -i '/replace github.com\\/eclipse-symphony\\/symphony/d' go.mod
-              echo 'replace github.com/eclipse-symphony/symphony => '\"\$HOME/symphony\" >> go.mod
+              cd ~/symphony/cli
+              sed -i '/replace github.com\/eclipse-symphony\/symphony/d' go.mod
+
+              # Add replace directives for both root and submodules
+              cat >> go.mod <<EOL
+              replace github.com/eclipse-symphony/symphony => $HOME/symphony
+              replace github.com/eclipse-symphony/symphony/api => $HOME/symphony/api
+              EOL
               go mod tidy
               go build -o maestro
             else

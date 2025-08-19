@@ -86,6 +86,10 @@ jobs:
             if [ -d \"\$CLI_DIR\" ]; then
               echo 'CLI directory found. Building maestro binary...'
               cd \"\$CLI_DIR\"
+            if ! grep -q 'replace github.com/eclipse-symphony/symphony' go.mod; then
+              echo 'Adding replace directive to go.mod...'
+              echo 'replace github.com/eclipse-symphony/symphony => ../' >> go.mod
+            fi
               go mod tidy
               go build -o maestro
             else

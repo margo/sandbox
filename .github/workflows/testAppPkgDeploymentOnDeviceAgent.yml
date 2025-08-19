@@ -293,16 +293,16 @@ jobs:
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
           
-          if [ -n "$APP_PKG_ID" ]; then
-            echo "Deleting app package with ID: $APP_PKG_ID"
-            ./maestro wfm delete app-pkg "$APP_PKG_ID"
-            echo "Waiting 8 seconds after delete..."
-            sleep 8
-            echo "Verifying package deletion..."
-            ./maestro wfm list app-pkg
-          else
-            echo "No app package ID found to delete."
-          fi
+          # if [ -n "$APP_PKG_ID" ]; then
+          #   echo "Deleting app package with ID: $APP_PKG_ID"
+          #   ./maestro wfm delete app-pkg "$APP_PKG_ID"
+          #   echo "Waiting 8 seconds after delete..."
+          #   sleep 8
+          #   echo "Verifying package deletion..."
+          #   ./maestro wfm list app-pkg
+          # else
+          #   echo "No app package ID found to delete."
+          # fi
 
       - name: clone dev-repo
         run: |
@@ -337,18 +337,11 @@ jobs:
         run: |
           sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://${VM_HOST}:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
           sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
-
-      - name: Update App Package ID in YAML
-        run: |
-          echo "Replacing appPackageRef.id with APP_PKG_ID..."
-          sed -i "s/id: .*/id: $APP_PKG_ID/" ~/symphony/cli/templates/margo/instance01-device-101.yaml
-          echo "Updated YAML:"
-          cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
           
       - name: Start Keycloak from docker-compose
         run: |
           echo "Starting Keycloak service..."
-          cd dev-repo
+          cd ~/dev-repo
           docker compose -f keycloak-compose.yml up -d
           echo "Waiting for Keycloak to be ready..."
           sleep 20
@@ -356,8 +349,17 @@ jobs:
           
       - name: Start the device-agent
         run: |
-          cd dev-repo/poc/device/agent/
-          sudo ./device-agent
+          cd ~/dev-repo/poc/device/agent/
+          go build -o device-agent
+          sudo ./device-agent --config ./config/config.yaml
+
+      - name: Deploy app-pkg desc on device-agent
+        run: |
+          echo "Replacing appPackageRef.id with APP_PKG_ID..."
+          sed -i "s/id: .*/id: $APP_PKG_ID/" ~/symphony/cli/templates/margo/instance01-device-101.yaml
+          cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
+
+          ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
 
 
           

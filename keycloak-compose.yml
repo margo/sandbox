@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  postgresdb:
+    image: postgres:13
+    container_name: postgresdb
+    restart: always
+    environment:
+      POSTGRES_DB: usermgmt_keycloak
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.3
+    container_name: keycloak
+    restart: always
+    depends_on:
+      - postgresdb
+    ports:
+      - "8083:8080"
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 60s
+      start_period: 30s
+      timeout: 10s
+      retries: 5
+    hostname: "keycloak"
+    pids_limit: 200
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresdb:5432/usermgmt_keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: admin123
+    command: start-dev
+
+volumes:
+  pgdata:
+

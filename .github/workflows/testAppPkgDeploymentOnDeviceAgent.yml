@@ -270,7 +270,7 @@ jobs:
       
       - name: Upload app package with Maestro CLI
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
             set -e
             cd ~/symphony/cli
       
@@ -289,7 +289,7 @@ jobs:
       
             echo "Extracting App Package ID..."
             ./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}'
-            EOF
+          EOF
 
       - name: Capture APP_PKG_ID
         run: |

@@ -270,7 +270,7 @@ jobs:
       
       - name: Upload app package with Maestro CLI
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
             set -e
             cd ~/symphony/cli
       
@@ -279,22 +279,21 @@ jobs:
       
             echo "Copying package.yaml to package.yml for compatibility..."
             cp ~/symphony/cli/templates/margo/package.yaml ~/symphony/cli/templates/margo/package.yml
-
-            echo $VM_HOST
-            #sed -i "s|^\(\s*url:\s*\).*|\1\"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
-            sed -i "s|^\s*url:.*|    url: \"http://${{ secrets.VM_HOST }}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
+      
+            sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/package.yml
             sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/package.yml
       
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f ~/symphony/cli/templates/margo/package.yml
             sleep 10
       
-            echo "Listing app packages after apply..."
-          ./maestro wfm list app-pkg > app_pkg_list.txt
-          cat app_pkg_list.txt
-          
-          echo "Extracting App Package ID..."
-          APP_PKG_ID=$(./maestro wfm list app-pkg 2>/dev/null | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}')
+            echo "Extracting App Package ID..."
+            ./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}'
+            EOF
+
+      - name: Capture APP_PKG_ID
+        run: |
+          APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "./symphony/cli/maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}'")
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
           

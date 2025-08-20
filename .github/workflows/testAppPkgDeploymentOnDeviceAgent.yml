@@ -293,7 +293,7 @@ jobs:
 
       - name: Capture APP_PKG_ID
         run: |
-          APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "./symphony/cli/maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}'")
+          APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "./symphony/cli/maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}' | head -n 1")
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
           

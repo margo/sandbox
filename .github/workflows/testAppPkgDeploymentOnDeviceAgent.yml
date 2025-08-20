@@ -312,7 +312,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             echo 'Cleaning up any old dev-repo...'
-            rm -rf dev-repo
+            sudo rm -rf dev-repo
             echo 'Cloning fresh dev-repo...'
             git clone https://github.com/margo/dev-repo.git
             cd dev-repo

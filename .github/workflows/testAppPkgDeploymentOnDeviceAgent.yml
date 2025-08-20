@@ -399,10 +399,7 @@ jobs:
       
             sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
               ~/symphony/cli/templates/margo/instance01-device-101.yaml
-      
-            cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
-      
-            cd ~/symphony/cli
+              cd ~/symphony/cli
             ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
           "
 

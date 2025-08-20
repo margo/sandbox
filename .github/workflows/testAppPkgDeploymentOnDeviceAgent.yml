@@ -243,24 +243,29 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
+          
             if [ -d .git ]; then
-                echo 'Git repo already exists, cleaning up origin...'
+                echo 'Git repo already exists locally, cleaning up origin...'
                 git remote remove origin 2>/dev/null || true
-              else
+            else
                 echo 'No git repo found, initializing fresh...'
                 git init
                 git config user.name 'gogsadmin'
                 git config user.email 'nitin.parihar@capgemini.com'
-              fi
+            fi
+          
             git remote add origin http://gogsadmin:${GOGS_TOKEN}@${VM_HOST}:3000/gogsadmin/my-new-repo.git
             git add margo.yaml resources/
+          
             if ! git diff --cached --quiet; then
               git commit -m 'Initial commit with margo.yaml and resources'
             else
               echo 'No changes to commit, skipping commit step'
             fi
+          
             git branch -M main
-            git push -u origin main
+            # Always overwrite remote with local state
+            git push -u origin main --force
           "
       
       - name: Upload app package with Maestro CLI

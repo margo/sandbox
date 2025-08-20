@@ -393,10 +393,12 @@ jobs:
       - name: Deploy app-pkg desc on device-agent
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            set -e
             echo 'Replacing appPackageRef.id with APP_PKG_ID...'
             sed -i \"s/id: .*/id: $APP_PKG_ID/\" ~/symphony/cli/templates/margo/instance01-device-101.yaml
             cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
-
+          
+            cd ~/symphony/cli
             ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
           "
 

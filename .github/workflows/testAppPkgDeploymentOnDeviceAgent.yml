@@ -86,6 +86,7 @@ jobs:
             if [ -d \"\$CLI_DIR\" ]; then
               echo 'CLI directory found. Building maestro binary...'
               cd \"\$CLI_DIR\"
+              go mod tidy
               go build -o maestro
             else
               echo 'CLI directory not found. Skipping maestro build.'

@@ -358,7 +358,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             echo 'Starting Keycloak service...'
-            cd ~/dev-repo
+            cd ~/keycloak
             docker compose -f keycloak-compose.yml up -d
             echo 'Waiting for Keycloak to be ready...'
             sleep 20

@@ -401,7 +401,15 @@ jobs:
               ~/symphony/cli/templates/margo/instance01-device-101.yaml
               cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
               cd ~/symphony/cli
-            ./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml
+            
+            echo 'Running maestro apply...'
+            OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml 2>&1)
+            echo \"\$OUTPUT\"
+            if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
+              echo 'Deployment failed!'
+              exit 1
+            fi
+            echo 'Deployment succeeded!'
           "
 
           

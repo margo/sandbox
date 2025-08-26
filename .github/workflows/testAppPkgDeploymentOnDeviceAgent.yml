@@ -238,12 +238,22 @@ jobs:
               http://$VM_HOST:3000/api/v1/user/repos
             cat /tmp/resp.json
           "
-
+      - name: Clone dev-repo
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Cleaning up any old dev-repo...'
+            sudo rm -rf dev-repo
+            echo 'Cloning fresh dev-repo...'
+            git clone https://github.com/margo/dev-repo.git
+            cd dev-repo
+            git checkout dev-sprint-4
+          "
+          
       - name: Push margo.yaml and resources to Gogs repo
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
-            cd ~/reqfiles/poc/tests/artefacts/margo-pkg-1
+            cd ~/dev-repo/poc/tests/artefacts/margo-pkg-1
           
             if [ -d .git ]; then
                 echo 'Git repo already exists locally, cleaning up origin...'
@@ -308,17 +318,6 @@ jobs:
           # else
           #   echo "No app package ID found to delete."
           # fi
-
-      - name: Clone dev-repo
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            echo 'Cleaning up any old dev-repo...'
-            sudo rm -rf dev-repo
-            echo 'Cloning fresh dev-repo...'
-            git clone https://github.com/margo/dev-repo.git
-            cd dev-repo
-            git checkout dev-sprint-4
-          "
 
       - name: Update kubeconfig path in device agent config
         run: |

@@ -154,6 +154,17 @@ jobs:
             chmod +x install.sh prepare cleanup_harbor.sh
             sudo ./install.sh
             '
+       #Keycloak Installation     
+      - name: Start Keycloak from docker-compose
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Starting Keycloak service...'
+            cd ~/keycloak
+            docker compose -f keycloak-compose.yml up -d
+            echo 'Waiting for Keycloak to be ready...'
+            sleep 20
+            docker ps | grep keycloak
+          "
       #Gogs Installation     
       - name: Install Docker & Docker Compose on VM
         run: |
@@ -247,6 +258,7 @@ jobs:
             git clone https://github.com/margo/dev-repo.git
             cd dev-repo
             git checkout dev-sprint-4
+            git branch
           "
           
       - name: Push margo.yaml and resources to Gogs repo
@@ -275,7 +287,6 @@ jobs:
             fi
           
             git branch -M main
-            # Always overwrite remote with local state
             git push -u origin main --force
           "
       
@@ -351,17 +362,6 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
             sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
-
-      - name: Start Keycloak from docker-compose
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            echo 'Starting Keycloak service...'
-            cd ~/keycloak
-            docker compose -f keycloak-compose.yml up -d
-            echo 'Waiting for Keycloak to be ready...'
-            sleep 20
-            docker ps | grep keycloak
           "
 
       - name: Start the device-agent

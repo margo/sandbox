@@ -125,6 +125,18 @@ jobs:
           name: symphony-api-log
           path: ./symphony-api.log
 
+     #Keycloak Installation     
+      - name: Start Keycloak from docker-compose
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Starting Keycloak service...'
+            cd ~/keycloak
+            docker compose -f keycloak-compose.yml up -d
+            echo 'Waiting for Keycloak to be ready...'
+            sleep 20
+            docker ps | grep keycloak
+          "
+          
      # Harbor Installation
       - name: Copy Harbor scripts to VM
         run: |
@@ -154,18 +166,7 @@ jobs:
             chmod +x install.sh prepare cleanup_harbor.sh
             sudo ./install.sh
             '
-       #Keycloak Installation     
-      - name: Start Keycloak from docker-compose
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            echo 'Starting Keycloak service...'
-            cd ~/keycloak
-            docker compose -f keycloak-compose.yml up -d
-            echo 'Waiting for Keycloak to be ready...'
-            sleep 20
-            docker ps | grep keycloak
-          "
-      #Gogs Installation     
+           
       - name: Install Docker & Docker Compose on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
@@ -175,7 +176,8 @@ jobs:
             sudo usermod -aG docker $USER
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
-          '    
+          '
+      #Gogs Installation    
       - name: Copy Gogs setup to VM
         run: |
           sudo apt-get update

@@ -363,7 +363,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
-            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
+            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
           "
 
       - name: Start the device-agent
@@ -411,6 +411,8 @@ jobs:
               exit 1
             fi
             echo 'Deployment succeeded!'
+            sleep 5
+            ./maestro wfm list deployment
           "
 
           

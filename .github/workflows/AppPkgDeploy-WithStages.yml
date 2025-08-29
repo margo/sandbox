@@ -21,7 +21,7 @@
 #   - "Create Sandbox" → Runs: build, run_api, start_services, gogs
 # ===========================================================
 
-name: DeployAppPkgUsingMaestro
+name: AppPkgDeploy-WithStages
 
 on:
   workflow_dispatch:
@@ -42,12 +42,25 @@ on:
           - onboard_app
           - deploy_app
           - Create Sandbox
+          
+      VM_HOST:
+        description: "VM Host address"
+        required: true
+      VM_USER:
+        description: "VM Username"
+        required: true
+      VM_PASS:
+        description: "VM Password"
+        required: true
+      GITHUB_TOKEN:
+        description: "GitHub Personal Access Token"
+        required: true
 
 env:
-  VM_HOST: ${{ secrets.VM_HOST }}
-  VM_USER: ${{ secrets.VM_USER }}
-  VM_PASS: ${{ secrets.VM_PASS }}
-  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+  VM_HOST: ${{ github.event.inputs.VM_HOST }}
+  VM_USER: ${{ github.event.inputs.VM_USER }}
+  VM_PASS: ${{ github.event.inputs.VM_PASS }}
+  GITHUB_TOKEN: ${{ github.event.inputs.GITHUB_TOKEN }}
 
 # ==============================
 # Stage: Setup Environment

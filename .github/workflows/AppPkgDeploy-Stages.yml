@@ -88,7 +88,7 @@ jobs:
             echo "Directory structure of symphony repo:"
             ls -laR $HOME/symphony
           '
-          - name: Build Rust library on VM
+      - name: Build Rust library on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e

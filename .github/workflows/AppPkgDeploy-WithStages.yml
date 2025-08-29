@@ -52,15 +52,12 @@ on:
       VM_PASS:
         description: "VM Password"
         required: true
-      GITHUB_TOKEN:
-        description: "GitHub Personal Access Token"
-        required: true
 
 env:
   VM_HOST: ${{ github.event.inputs.VM_HOST }}
   VM_USER: ${{ github.event.inputs.VM_USER }}
   VM_PASS: ${{ github.event.inputs.VM_PASS }}
-  GITHUB_TOKEN: ${{ github.event.inputs.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
 # ==============================
 # Stage: Setup Environment

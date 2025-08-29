@@ -89,16 +89,20 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 	}
 
 	// Determine output path
-	filename, err := generateFilename(url, resp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate output filename: %w", err)
-	}
-	outputPath := options.OutputPath + filename
+	// filename, err := generateFilename(url, resp)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to generate output filename: %w", err)
+	// }
+	// outputPath := filepath.Join(options.OutputPath, filename)
+	outputPath := options.OutputPath
 
 	// Create directories if needed
 	if options.CreateDirs {
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-			return nil, fmt.Errorf("failed to create directories: %w", err)
+		dir := filepath.Dir(outputPath)
+		if dir != "." && dir != "/" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create directories: %w", err)
+			}
 		}
 	}
 

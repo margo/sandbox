@@ -33,6 +33,9 @@ const (
 )
 
 type DatabaseIfc interface {
+	// if your database engine already has persistence, then just keep the implementation empty
+	// we added an in-memory database implementation for this margo poc, hence needed this one
+	TriggerDataPersist()
 	Subscribe(callback func(string, *DeploymentRecord, DeploymentChangeType))
 	SetDesiredState(deploymentId string, state sbi.AppState)
 	SetCurrentState(deploymentId string, state sbi.AppState)
@@ -74,7 +77,7 @@ func NewDatabase(dataDir string) *Database {
 	return db
 }
 
-func (db *Database) triggerPersist() {
+func (db *Database) TriggerDataPersist() {
 	select {
 	case db.persistChan <- struct{}{}:
 	default: // Already queued

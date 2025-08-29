@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -24,12 +23,12 @@ type DeploymentManagerIfc interface {
 type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
-	composeClient *workloads.DockerComposeClient
+	composeClient *workloads.DockerComposeCliClient
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 }
 
-func NewDeploymentManager(db database.DatabaseIfc, helmClient *workloads.HelmClient, composeClient *workloads.DockerComposeClient, log *zap.SugaredLogger) *DeploymentManager {
+func NewDeploymentManager(db database.DatabaseIfc, helmClient *workloads.HelmClient, composeClient *workloads.DockerComposeCliClient, log *zap.SugaredLogger) *DeploymentManager {
 	return &DeploymentManager{
 		database:      db,
 		helmClient:    helmClient,
@@ -136,7 +135,7 @@ func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId st
 		dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("Unsupported deployment type: %s", profileType))
 	}
 	if err != nil {
-		dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("Helm operation failed: %v", err))
+		dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("operation failed: %v", err))
 		return
 	}
 
@@ -209,28 +208,29 @@ func (dm *DeploymentManager) deployOrUpdateCompose(ctx context.Context, deployme
 
 	// Get compose content from package location
 	dm.log.Infow("view of the compose component", "composecomp", pretty.Sprint(composeComp))
-	composeContent, err := dm.getComposeContent(ctx, composeComp.Properties.PackageLocation, composeComp.Properties.KeyLocation)
+
+	composeFilename, err := dm.composeClient.DownloadCompose(ctx, composeComp.Properties.PackageLocation, composeComp.Properties.KeyLocation, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to get compose content: %v", err)
 	}
-	dm.log.Debugw("preview of the compose file", "composeContent", string(composeContent))
+	dm.log.Debugw("preview of the compose file", "composeFilename", composeFilename)
 
 	// Convert parameters to environment variables
 	envVars := dm.convertParametersToEnvVars(values, composeComp.Name)
+
 	// Check if project already exists
-	exists, err := dm.composeClient.ComposeExists(ctx, projectName)
+	exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to check compose project existence: %v", err)
 	}
-
 	if exists {
 		// Update existing deployment
-		dm.log.Infow("Updating existing Docker Compose project", "projectName", projectName, "deploymentId", deploymentId)
-		err = dm.composeClient.UpdateCompose(ctx, projectName, composeContent, envVars)
+		dm.log.Infow("Updating existing Docker Compose project", "projectName", projectName, "deploymentId", deploymentId, "composeFilename", composeFilename)
+		err = dm.composeClient.UpdateCompose(ctx, projectName, composeFilename, envVars)
 	} else {
 		// New deployment
-		dm.log.Infow("Deploying new Docker Compose project", "projectName", projectName, "deploymentId", deploymentId)
-		err = dm.composeClient.DeployCompose(ctx, projectName, []byte(composeContent), envVars)
+		dm.log.Infow("Deploying new Docker Compose project", "projectName", projectName, "deploymentId", deploymentId, "composeFilename", composeFilename)
+		err = dm.composeClient.DeployCompose(ctx, projectName, composeFilename, envVars)
 	}
 
 	if err != nil {
@@ -250,6 +250,7 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	}
 
 	if record.CurrentState == nil {
+		dm.log.Infof("there was no current state found against the deployment, proceeding with complete removal", "expected", "complete removal", "currentState", "null")
 		dm.database.SetPhase(deploymentId, "REMOVED", "Removal Complete")
 		dm.database.RemoveDeployment(deploymentId)
 		return
@@ -284,20 +285,12 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		dm.log.Warnw("Unknown deployment type for removal", "type", profileType, "deploymentId", deploymentId)
 	}
 
-	if len(appDeployment.Spec.DeploymentProfile.Components) > 0 {
-		component := appDeployment.Spec.DeploymentProfile.Components[0]
-		if helmComp, err := component.AsHelmApplicationDeploymentProfileComponent(); err == nil {
-			releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
-			dm.helmClient.UninstallChart(ctx, releaseName, "")
-		}
-	}
-
 	dm.database.SetPhase(deploymentId, "REMOVED", "Removal Complete")
 	dm.database.RemoveDeployment(deploymentId)
 	dm.log.Infow("Removal completed", "appId", deploymentId)
 }
 
-func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string, appDeployment sbi.AppDeployment) {
+func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string, appDeployment sbi.AppDeployment) error {
 	component := appDeployment.Spec.DeploymentProfile.Components[0]
 	if helmComp, err := component.AsHelmApplicationDeploymentProfileComponent(); err == nil {
 		releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
@@ -305,11 +298,14 @@ func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string
 
 		if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
 			dm.log.Warnw("Failed to uninstall Helm chart", "releaseName", releaseName, "error", err)
+			return err
 		}
 	}
+
+	return nil
 }
 
-func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId string, appDeployment sbi.AppDeployment) {
+func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId string, appDeployment sbi.AppDeployment) error {
 	component := appDeployment.Spec.DeploymentProfile.Components[0]
 	if composeComp, err := component.AsComposeApplicationDeploymentProfileComponent(); err == nil {
 		projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
@@ -319,36 +315,11 @@ func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId str
 
 		if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
 			dm.log.Warnw("Failed to remove Docker Compose project", "projectName", projectName, "error", err)
+			return err
 		}
 	}
-}
 
-// Helper function to get compose content from package location
-func (dm *DeploymentManager) getComposeContent(ctx context.Context, packageLocation string, keyLocation *string) (string, error) {
-	// This is a simplified implementation
-	// 1. Download from URL if it's a remote location
-	// 2. Read from file system if it's a local path
-	if strings.HasPrefix(packageLocation, "http://") || strings.HasPrefix(packageLocation, "https://") {
-		content, err := dm.composeClient.FetchComposeFileFromURL(ctx, packageLocation)
-		if err != nil {
-			return "", fmt.Errorf("failed to download the compose file from: %s, err: %s", packageLocation, err.Error())
-		}
-
-		return string(content), nil
-	}
-
-	if strings.HasPrefix(packageLocation, "file://") {
-		// Local file
-		filePath := strings.TrimPrefix(packageLocation, "file://")
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", fmt.Errorf("failed to read compose file: %w", err)
-		}
-		return string(content), nil
-	}
-
-	// For now, assume it's inline YAML content
-	return packageLocation, nil
+	return nil
 }
 
 // Helper function to convert parameters to environment variables

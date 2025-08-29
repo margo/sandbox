@@ -38,7 +38,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	}
 
 	// Create database
-	db := database.NewDatabase("")
+	db := database.NewDatabase("data/")
 
 	// Create API client
 	apiClient, err := sbi.NewClient(cfg.Wfm.SbiURL)
@@ -47,7 +47,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	}
 
 	var helmClient *workloads.HelmClient
-	var composeClient *workloads.DockerComposeClient
+	var composeClient *workloads.DockerComposeCliClient
 	for _, runtime := range cfg.Runtimes {
 		if runtime.Kubernetes != nil {
 			// Create Helm client
@@ -59,11 +59,11 @@ func NewAgent(configPath string) (*Agent, error) {
 
 		if runtime.Docker != nil {
 			// Create docker compose client
-			composeClient, err = workloads.NewDockerComposeClient(workloads.DockerConnectivityParams{
+			composeClient, err = workloads.NewDockerComposeCliClient(workloads.DockerConnectivityParams{
 				ViaSocket: &workloads.DockerConnectionViaSocket{
 					SocketPath: runtime.Docker.Url,
 				},
-			})
+			}, "data/composeFiles")
 			if err != nil {
 				return nil, err
 			}
@@ -130,6 +130,7 @@ func (a *Agent) Stop() error {
 	a.deployer.Stop()
 	a.monitor.Stop()
 	a.statusReporter.Stop()
+	a.database.TriggerDataPersist()
 
 	a.log.Info("Agent stopped")
 	return nil

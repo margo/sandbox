@@ -7,13 +7,13 @@ metadata:
   version: 1.0.0
   catalog:
     application:
-      icon: ./resources/nginx-logo.png
-      tagline: High-performance HTTP server and reverse proxy.
+      icon: ./resources/nextcloud-logo.png  # Fixed
+      tagline: Self-hosted productivity platform with file sync and collaboration tools.  # Fixed
       descriptionFile: ./resources/description.md
       releaseNotes: ./resources/release-notes.md
       licenseFile: ./resources/license.txt
-      site: https://github.com/nginx/nginx
-      tags: ["web", "http", "proxy", "server"]
+      site: https://nextcloud.com  # More appropriate than nginx site
+      tags: ["productivity", "file-sync", "collaboration", "self-hosted"]  # More relevant tags
     author:
       - name: Nextcloud Team
         email: info@nextcloud.com
@@ -26,7 +26,7 @@ deploymentProfiles:
     components:
       - name: nextcloud-stack
         properties:
-          packageLocation: https://github.com/docker/awesome-compose/blob/master/nextcloud-redis-mariadb/compose.yaml
+          packageLocation: https://raw.githubusercontent.com/docker/awesome-compose/refs/heads/master/nextcloud-redis-mariadb/compose.yaml
 parameters:
   mysqlDatabase:
     value: nextcloud

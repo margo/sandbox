@@ -22,12 +22,12 @@ type DeploymentMonitorIfc interface {
 type DeploymentMonitor struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
-	composeClient *workloads.DockerComposeClient
+	composeClient *workloads.DockerComposeCliClient
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 }
 
-func NewDeploymentMonitor(db database.DatabaseIfc, helmClient *workloads.HelmClient, composeClient *workloads.DockerComposeClient, log *zap.SugaredLogger) *DeploymentMonitor {
+func NewDeploymentMonitor(db database.DatabaseIfc, helmClient *workloads.HelmClient, composeClient *workloads.DockerComposeCliClient, log *zap.SugaredLogger) *DeploymentMonitor {
 	return &DeploymentMonitor{
 		database:      db,
 		helmClient:    helmClient,

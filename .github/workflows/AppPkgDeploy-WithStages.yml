@@ -2,12 +2,10 @@
 # GitHub Actions Pipeline: apppkgDeploymentDeviceAgentWithStages
 #
 # Stage Matrix:
-#
 # ┌─────────────────── ┬───────────────┬────────────────────── ┐
 # │       Stage        │   Included in │      Description      │
 # ├─────────────────── ┼───────────────┼────────────────────── ┤
-# │ setup              │ all           │ Setup environment     │
-# │ build              │ all, Sandbox  │ Build components      │
+# │ setup              │ all, Sandbox  │ Setup environment     │
 # │ run_api            │ all, Sandbox  │ Run Symphony API      │
 # │ start_services     │ all, Sandbox  │ Keycloak, Harbor,     │
 # │                    │               │ Docker, Maestro, K3s  │
@@ -15,10 +13,18 @@
 # │ device_agent       │ all           │ Start Device Agent    │
 # │ deploy_app         │ all           │ Deploy App via Maestro│
 # └─────────────────── ┴───────────────┴────────────────────── ┘
+# Dependent tasks:
+#  setup
+#    ↓
+#  run_Symphony-api  ──┐
+#                      ├─ device_agent ─┐
+#  gogs-setup_creation ┘                ├─ deploy_app
+#                                       │
+#  run_Symphony-api ── onboard_app ─────┘
 #
 # Special Tags:
 #   - "all" → Runs entire pipeline
-#   - "Create Sandbox" → Runs: build, run_api, start_services, gogs
+#   - "Create Sandbox" → Runs: setup, run_Symphony-api, start_services, gogs
 # ===========================================================
 
 name: AppPkgDeploy-WithStages
@@ -32,16 +38,15 @@ on:
         default: "all"
         type: choice
         options:
-          - all
           - setup
           - build
-          - run_api
+          - run_Symphony-api
+          - Create Sandbox
           - start_services
-          - gogs
+          - gogs-setup_creation
           - device_agent
           - onboard_app
           - deploy_app
-          - Create Sandbox
           
       VM_HOST:
         description: "VM Host address"
@@ -64,7 +69,7 @@ env:
 # ==============================
 jobs:
   setup:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'setup'
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'setup' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -91,7 +96,19 @@ jobs:
             rm -rf \$HOME/symphony
             git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
           "
-
+          
+      - name: Clone dev-repo
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Cleaning up any old dev-repo...'
+            sudo rm -rf dev-repo
+            echo 'Cloning fresh dev-repo...'
+            git clone https://github.com/margo/dev-repo.git
+            cd dev-repo
+            git checkout dev-sprint-4
+            git branch
+          "
+          
       - name: Inspect repo structure on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
@@ -110,8 +127,7 @@ jobs:
             else
               echo "Rust directory not found, skipping Rust build."
             fi
-          '
-          
+          '         
       - name: Build Go binary on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
@@ -141,21 +157,20 @@ jobs:
             else
               echo 'CLI directory not found. Skipping maestro build.'
             fi
-          "
-          
+          "          
       - name: Verify symphony-api binary on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             file $HOME/symphony/api/symphony-api
             ls -l $HOME/symphony/api/symphony-api
-          '
-          
+          '        
   # ==============================
-  # Stage: Run API
+  # Stage: Run Symphony API
   # Included in: Create Sandbox
   # ==============================
-  run_api:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'run_api' || github.event.inputs.run_stage == 'Create Sandbox'
+  run_Symphony-api:
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'run_Symphony-api' || github.event.inputs.run_stage == 'Create Sandbox'
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - name: Run Symphony API on VM
@@ -186,7 +201,7 @@ jobs:
   # Included in: Create Sandbox
   # ==============================
   start_services:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'start_services' || github.event.inputs.run_stage == 'Create Sandbox'
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'start_services' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Start Keycloak from docker-compose
@@ -208,7 +223,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             ls -la ~/harbor
             '
-      - name: Make the harbor scripts required for installation executable
+      - name: Make the harbor scripts executable
         run: | 
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
@@ -274,8 +289,8 @@ jobs:
   # Stage: Gogs Setup
   # Included in: Create Sandbox
   # ==============================
-  gogs:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'gogs' || github.event.inputs.run_stage == 'Create Sandbox'
+  gogs-setup_creation:
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'gogs-setup_creation' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Copy Gogs setup to VM
@@ -350,17 +365,6 @@ jobs:
               http://$VM_HOST:3000/api/v1/user/repos
             cat /tmp/resp.json
           "
-      - name: Clone dev-repo
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            echo 'Cleaning up any old dev-repo...'
-            sudo rm -rf dev-repo
-            echo 'Cloning fresh dev-repo...'
-            git clone https://github.com/margo/dev-repo.git
-            cd dev-repo
-            git checkout dev-sprint-4
-            git branch
-          "
           
       - name: Push margo.yaml and resources to Gogs repo
         run: |
@@ -394,7 +398,8 @@ jobs:
   # Stage: Device Agent
   # ==============================
   device_agent:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'device_agent'
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'device_agent'
+    needs: [run_Symphony-api, start_services, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:
       - name: Start the device-agent
@@ -424,7 +429,8 @@ jobs:
   # Stage: Onboard application
   # ==============================
   onboard_app:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'deploy_app'
+    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'onboard_app'
+    needs: [run_Symphony-api, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:
       - name: Upload app package with Maestro CLI
@@ -465,15 +471,14 @@ jobs:
           #   ./maestro wfm list app-pkg
           # else
           #   echo "No app package ID found to delete."
-          # fi
-
-  
+          # fi  
   
   # ==============================
   # Stage: Deploy Application
   # ==============================
   deploy_app:
-    if: github.event.inputs.run_stage == 'all' || github.event.inputs.run_stage == 'deploy_app'
+    if: github.event.inputs.run_stage == 'deploy_app'
+    needs: [device_agent, onboard_app]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy app-pkg desc on device-agent

@@ -40,7 +40,17 @@ jobs:
             rm -rf \$HOME/symphony
             git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
           "
-
+      - name: Clone dev-repo
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            echo 'Cleaning up any old dev-repo...'
+            sudo rm -rf dev-repo
+            echo 'Cloning fresh dev-repo...'
+            git clone https://github.com/margo/dev-repo.git
+            cd dev-repo
+            git checkout dev-sprint-4
+            git branch
+          "
       - name: Inspect repo structure on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
@@ -250,17 +260,6 @@ jobs:
               -d '{\"name\":\"my-new-repo\",\"private\":false}' \
               http://$VM_HOST:3000/api/v1/user/repos
             cat /tmp/resp.json
-          "
-      - name: Clone dev-repo
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            echo 'Cleaning up any old dev-repo...'
-            sudo rm -rf dev-repo
-            echo 'Cloning fresh dev-repo...'
-            git clone https://github.com/margo/dev-repo.git
-            cd dev-repo
-            git checkout dev-sprint-4
-            git branch
           "
           
       - name: Push margo.yaml and resources to Gogs repo

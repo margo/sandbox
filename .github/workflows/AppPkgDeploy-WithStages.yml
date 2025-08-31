@@ -173,6 +173,9 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Run Symphony API on VM
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
@@ -204,6 +207,9 @@ jobs:
     if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'start_services' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
       - name: Start Keycloak from docker-compose
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
@@ -293,6 +299,9 @@ jobs:
     if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'gogs-setup_creation' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Copy Gogs setup to VM
         run: |
           sudo apt-get update
@@ -402,6 +411,9 @@ jobs:
     needs: [run_Symphony-api, start_services, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Start the device-agent
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
@@ -433,6 +445,9 @@ jobs:
     needs: [run_Symphony-api, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
@@ -481,6 +496,9 @@ jobs:
     needs: [device_agent, onboard_app]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Deploy app-pkg desc on device-agent
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "

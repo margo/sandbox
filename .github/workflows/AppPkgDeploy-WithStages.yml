@@ -511,7 +511,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
           set -e
-          echo 'Replacing only appPackageRef.id with APP_PKG_ID...'
+          echo 'Replacing only appPackageRef.id with $APP_PKG_ID...'
           sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: $APP_PKG_ID/' ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
           cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
           cd ~/symphony/cli

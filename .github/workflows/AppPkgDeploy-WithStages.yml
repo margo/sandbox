@@ -514,12 +514,12 @@ jobs:
             echo 'Replacing only appPackageRef.id with APP_PKG_ID...'
       
             sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
-              ~/symphony/cli/templates/margo/instance01-device-101.yaml
-            cat ~/symphony/cli/templates/margo/instance01-device-101.yaml
+              ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+            cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
             cd ~/symphony/cli
             
             echo 'Running maestro apply...'
-            OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-device-101.yaml 2>&1)
+            OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
             echo \"\$OUTPUT\"
             if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
               echo 'Deployment failed!'

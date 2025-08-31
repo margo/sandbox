@@ -243,6 +243,13 @@ jobs:
         run: |
             sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
+            echo "Cleaning up old registry container if it exists..."
+            if [ "$(docker ps -aq -f name=registry)" ]; then
+              docker rm -f registry
+              echo "Old registry container removed."
+            else
+              echo "No old registry container found."
+            fi
             cd ~/harbor
             ls -l
             chmod +x install.sh prepare cleanup_harbor.sh

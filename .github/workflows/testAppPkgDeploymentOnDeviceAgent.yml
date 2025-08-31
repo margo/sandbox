@@ -300,8 +300,8 @@ jobs:
             echo "Listing existing app packages..."
             ./maestro wfm list app-pkg
       
-            echo "Copying package.yaml to package.yml for compatibility..."
-            cp ~/symphony/cli/templates/margo/nginx-package.yml ~/symphony/cli/templates/margo/nginx-package.yml
+            echo "modifying extension of nginx-package.yml.yaml to nginx-package.yml.yml for compatibility..."
+            cp ~/symphony/cli/templates/margo/nginx-package.yaml ~/symphony/cli/templates/margo/nginx-package.yml
       
             sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/nginx-package.yml
             sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/nginx-package.yml

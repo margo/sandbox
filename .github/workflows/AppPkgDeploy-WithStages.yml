@@ -509,28 +509,20 @@ jobs:
         
       - name: Deploy app-pkg desc on device-agent
         run: |
-            echo "Using captured App Package ID: $APP_PKG_ID"
-        
-            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST \
-            APP_PKG_ID="$APP_PKG_ID" bash -c '
-              set -e
-              echo "Replacing only appPackageRef.id with APP_PKG_ID..."
-              sed -i "/appPackageRef:/,/deviceRef:/ s/id:.*/id: $APP_PKG_ID/" ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
-              echo "Updated YAML content:"
-              cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
-        
-              cd ~/symphony/cli
-        
-              echo "Running maestro apply..."
-              OUTPUT=$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
-              echo "$OUTPUT"
-        
-              if echo "$OUTPUT" | grep -qE "errorCode|Failed|failed"; then
-                echo "Deployment failed!"
-                exit 1
-              fi
-        
-              echo "Deployment succeeded!"
-              sleep 5
-              ./maestro wfm list deployment
-            '
+            sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            set -e
+            echo 'Replacing only appPackageRef.id with APP_PKG_ID...'
+            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: $APP_PKG_ID/' ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+            cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+            cd ~/symphony/cli
+            echo 'Running maestro apply...'
+            OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
+            echo \"\$OUTPUT\"
+            if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
+              echo 'Deployment failed!'
+              exit 1
+            fi
+            echo 'Deployment succeeded!'
+            sleep 5
+            ./maestro wfm list deployment
+            "

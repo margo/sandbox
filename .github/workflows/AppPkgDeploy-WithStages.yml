@@ -508,16 +508,15 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Deploy app-pkg desc on device-agent
+        env:
+          APP_PKG_ID: ${{ env.APP_PKG_ID }}
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             set -e
             echo 'Replacing only appPackageRef.id with APP_PKG_ID...'
-      
-            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
-              ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
             cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
             cd ~/symphony/cli
-            
             echo 'Running maestro apply...'
             OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
             echo \"\$OUTPUT\"

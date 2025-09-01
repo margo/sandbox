@@ -459,7 +459,7 @@ jobs:
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
-            APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
+            APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'SSH_EOF'
             set -e
             cd ~/symphony/cli
       
@@ -468,10 +468,10 @@ jobs:
             sleep 10
       
             echo "Extracting App Package ID..."
-            APP_PKG_ID=$(./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}' | head -n 1)
-            echo $APP_PKG_ID
-          EOF
+            ./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}' | head -n 1
+            SSH_EOF
           )
+      
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
   

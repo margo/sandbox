@@ -459,59 +459,55 @@ jobs:
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
-            APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" '
             set -e
             cd ~/symphony/cli
-          
+  
+            echo "Listing existing app packages..."
+            ./maestro wfm list app-pkg
+  
+            echo "Preparing nginx-package.yml..."
+            cp ~/symphony/cli/templates/margo/nginx-package.yaml ~/symphony/cli/templates/margo/nginx-package.yml
+  
+            sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/nginx-package.yml
+            sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/nginx-package.yml
+  
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f ~/symphony/cli/templates/margo/nginx-package.yml
             sleep 10
-          
-            echo "Extracting App Package ID..."
-            ./maestro wfm list app-pkg | grep -E "^\| [0-9a-fA-F-]{36} " | awk "{print \$2}" | head -n 1')
-            
+          EOF
+  
+      #Capture the App Package ID
+      - name: Capture APP_PKG_ID
+        run: |
+          APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" \
+            "./symphony/cli/maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}' | head -n 1")
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
   
-      - name: Update kubeconfig path in device agent config
+      #Deploy app package to device
+      - name: Deploy app package on device-agent
         run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
-  
-      - name: Update keycloak URL in symphony-api-margo.json
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|\"keycloakURL\": *\"http://[^\"]*\"|\"keycloakURL\": \"http://$VM_HOST:8083\"|' ~/symphony/api/symphony-api-margo.json
-          "
-  
-      - name: Update wfmSbiUrl and capabilitiesFile in agent config
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
-            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
-  
-      - name: Deploy app-pkg desc on device-agent
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
             set -e
-            echo 'Replacing only appPackageRef.id with $APP_PKG_ID...'
-            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: $APP_PKG_ID/' ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
-            cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
             cd ~/symphony/cli
   
-            echo 'Running maestro apply...'
+            echo "Replacing appPackageRef.id with $APP_PKG_ID..."
+            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
+              ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+  
+            cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+  
+            echo "Running maestro apply..."
             OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
-            echo \"\$OUTPUT\"
-            if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
+            echo "\$OUTPUT"
+            if echo "\$OUTPUT" | grep -qE 'errorCode|Failed|failed'; then
               echo 'Deployment failed!'
               exit 1
             fi
             echo 'Deployment succeeded!'
             sleep 5
             ./maestro wfm list deployment
-          "
+          EOF
 
 
 

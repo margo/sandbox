@@ -93,7 +93,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             rm -rf \$HOME/symphony
-            git clone -b margo-dev-sprint-6 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
+            git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
           "
           
       - name: Clone dev-repo

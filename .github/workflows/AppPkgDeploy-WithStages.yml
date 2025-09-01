@@ -2,17 +2,17 @@
 # GitHub Actions Pipeline: apppkgDeploymentDeviceAgentWithStages
 #
 # Stage Matrix:
-# ┌─────────────────── ┬───────────────┬────────────────────── ┐
-# │       Stage        │   Included in │      Description      │
-# ├─────────────────── ┼───────────────┼────────────────────── ┤
-# │ setup              │ all, Sandbox  │ Setup environment     │
-# │ run_api            │ all, Sandbox  │ Run Symphony API      │
-# │ start_services     │ all, Sandbox  │ Keycloak, Harbor,     │
-# │                    │               │ Docker, Maestro, K3s  │
-# │ gogs               │ all, Sandbox  │ Setup & push to Gogs  │
-# │ device_agent       │ all           │ Start Device Agent    │
-# │ deploy_app         │ all           │ Deploy App via Maestro│
-# └─────────────────── ┴───────────────┴────────────────────── ┘
+# ┌───────────────────┬───────────────┬───────────────────────────  ┐
+# │       Stage       │   Included in │      Description            │
+# ├───────────────────┼───────────────┼───────────────────────────  ┤
+# │ setup             │deploy_app, Sandbox│Setup environment      │
+# │ run_api           │all, Sandbox  │       Run Symphony API      │
+# │ start_services    │all, Sandbox  │       Keycloak, Harbor,     │
+# │                   │               │       Docker, Maestro, K3s  │
+# │ gogs              │all, Sandbox  │       Setup & push to Gogs  │
+# │ device_agent      │all           │       Start Device Agent    │
+# │ deploy_app        │all           │       Deploy App via Maestro│
+# └───────────────────┴───────────────┴──────────────────────────   ┘
 # Dependent tasks:
 #  setup
 #    ↓
@@ -444,6 +444,8 @@ jobs:
             fi
             echo 'Starting device-agent...'
             nohup sudo ./device-agent --config ./config/config.yaml > device-agent.log 2>&1 &
+            sleep 3
+            ps aux | grep device-agent
            "
 # ==============================
 # Stage: Onboard and Deploy application

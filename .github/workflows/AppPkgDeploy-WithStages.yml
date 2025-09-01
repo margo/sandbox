@@ -386,7 +386,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
-            cd ~/dev-repo/poc/tests/artefacts/margo-pkg-1
+            cd ~/dev-repo/poc/tests/artefacts//nginx
           
             if [ -d .git ]; then
                 echo 'Git repo already exists locally, cleaning up origin...'

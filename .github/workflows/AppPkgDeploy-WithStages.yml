@@ -459,28 +459,21 @@ jobs:
       - name: Upload app package with Maestro CLI
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
+            APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<'EOF'
             set -e
             cd ~/symphony/cli
-  
-            echo "Listing existing app packages..."
-            ./maestro wfm list app-pkg
-  
-            echo "Modifying extension for nginx package..."
-            cp ~/symphony/cli/templates/margo/nginx-package.yaml ~/symphony/cli/templates/margo/nginx-package.yml
-  
-            sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/nginx-package.yml
-            sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/nginx-package.yml
-  
+      
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f ~/symphony/cli/templates/margo/nginx-package.yml
             sleep 10
-  
+      
             echo "Extracting App Package ID..."
-            APP_PKG_ID=\$(./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}' | head -n 1)
-            echo "Detected App Package ID: \$APP_PKG_ID"
-  
-            echo "APP_PKG_ID=\$APP_PKG_ID" >> $GITHUB_ENV
+            APP_PKG_ID=$(./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}' | head -n 1)
+            echo $APP_PKG_ID
           EOF
+          )
+          echo "Detected App Package ID: $APP_PKG_ID"
+          echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
   
       - name: Update kubeconfig path in device agent config
         run: |

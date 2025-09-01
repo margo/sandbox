@@ -45,8 +45,7 @@ on:
           - start_services
           - gogs-setup_creation
           - device_agent
-          - onboard_app
-          - deploy_app
+          - onboard_and_deploy_app
           
       VM_HOST:
         description: "VM Host address"
@@ -69,7 +68,7 @@ env:
 # ==============================
 jobs:
   setup:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'setup' || github.event.inputs.run_stage == 'Create Sandbox'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'setup' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -94,7 +93,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "
             set -e
             rm -rf \$HOME/symphony
-            git clone -b margo-dev-sprint-4 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
+            git clone -b margo-dev-sprint-6 --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/margo/symphony.git \$HOME/symphony
           "
           
       - name: Clone dev-repo
@@ -105,7 +104,7 @@ jobs:
             echo 'Cloning fresh dev-repo...'
             git clone https://github.com/margo/dev-repo.git
             cd dev-repo
-            git checkout dev-sprint-4
+            git checkout dev-sprint-6
             git branch
           "
           
@@ -169,7 +168,7 @@ jobs:
   # Included in: Create Sandbox
   # ==============================
   run_Symphony-api:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'run_Symphony-api' || github.event.inputs.run_stage == 'Create Sandbox'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'run_Symphony-api' || github.event.inputs.run_stage == 'Create Sandbox'
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -204,7 +203,7 @@ jobs:
   # Included in: Create Sandbox
   # ==============================
   start_services:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'start_services' || github.event.inputs.run_stage == 'Create Sandbox'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'start_services' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -303,7 +302,7 @@ jobs:
   # Included in: Create Sandbox
   # ==============================
   gogs-setup_creation:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'gogs-setup_creation' || github.event.inputs.run_stage == 'Create Sandbox'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'gogs-setup_creation' || github.event.inputs.run_stage == 'Create Sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -415,7 +414,7 @@ jobs:
   # Stage: Device Agent
   # ==============================
   device_agent:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'device_agent'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'device_agent'
     needs: [run_Symphony-api, start_services, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:
@@ -451,7 +450,7 @@ jobs:
 # Stage: Onboard and Deploy application
 # ==============================
   onboard_and_deploy_app:
-    if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'onboard_app'
+    if: github.event.inputs.run_stage == 'onboard_and_deploy_app' || github.event.inputs.run_stage == 'onboard_app'
     needs: [run_Symphony-api, gogs-setup_creation]
     runs-on: ubuntu-latest
     steps:

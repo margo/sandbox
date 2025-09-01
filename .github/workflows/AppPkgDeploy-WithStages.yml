@@ -445,15 +445,13 @@ jobs:
             echo 'Starting device-agent...'
             nohup sudo ./device-agent --config ./config/config.yaml > device-agent.log 2>&1 &
            "
-  # ==============================
-  # Stage: Onboard application
-  # ==============================
+# ==============================
+# Stage: Onboard application
+# ==============================
   onboard_app:
     if: github.event.inputs.run_stage == 'deploy_app' || github.event.inputs.run_stage == 'onboard_app'
     needs: [run_Symphony-api, gogs-setup_creation]
     runs-on: ubuntu-latest
-    outputs:
-      app_pkg_id: ${{ steps.capture.outputs.APP_PKG_ID }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -463,48 +461,35 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" <<EOF
             set -e
             cd ~/symphony/cli
-      
+  
             echo "Listing existing app packages..."
             ./maestro wfm list app-pkg
-      
+  
             echo "modifying extension of nginx-package.yml.yaml to nginx-package.yml.yml for compatibility..."
             cp ~/symphony/cli/templates/margo/nginx-package.yaml ~/symphony/cli/templates/margo/nginx-package.yml
-      
+  
             sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/nginx-package.yml
             sed -i 's/branch: "master"/branch: "main"/' ~/symphony/cli/templates/margo/nginx-package.yml
-      
+  
             echo "Uploading package using maestro..."
             ./maestro wfm apply -f ~/symphony/cli/templates/margo/nginx-package.yml
             sleep 10
-      
+  
             echo "Extracting App Package ID..."
             ./maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print $2}'
           EOF
-
+  
       - name: Capture APP_PKG_ID
         run: |
           APP_PKG_ID=$(sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "./symphony/cli/maestro wfm list app-pkg | grep -E '^\| [0-9a-fA-F-]{36} ' | awk '{print \$2}' | head -n 1")
           echo "Detected App Package ID: $APP_PKG_ID"
           echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_ENV
-          echo "APP_PKG_ID=$APP_PKG_ID" >> $GITHUB_OUTPUT
-          
-          # if [ -n "$APP_PKG_ID" ]; then
-          #   echo "Deleting app package with ID: $APP_PKG_ID"
-          #   ./maestro wfm delete app-pkg "$APP_PKG_ID"
-          #   echo "Waiting 8 seconds after delete..."
-          #   sleep 8
-          #   echo "Verifying package deletion..."
-          #   ./maestro wfm list app-pkg
-          # else
-          #   echo "No app package ID found to delete."
-          # fi  
-
+  
       - name: Update kubeconfig path in device agent config
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
           "
-
       - name: Update keycloak URL in symphony-api-margo.json
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
@@ -516,10 +501,10 @@ jobs:
             sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
             sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
           "
-  
-  # ==============================
-  # Stage: Deploy Application
-  # ==============================
+
+# ==============================
+# Stage: Deploy Application
+# ==============================
   deploy_app:
     if: github.event.inputs.run_stage == 'deploy_app'
     needs: [device_agent, onboard_app]
@@ -533,7 +518,7 @@ jobs:
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             set -e
             echo 'Replacing only appPackageRef.id with $APP_PKG_ID...'    
-            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: ${{ needs.onboard_app.outputs.app_pkg_id }}/' \
+            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
                 ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
               cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
               cd ~/symphony/cli
@@ -549,3 +534,5 @@ jobs:
             sleep 5
             ./maestro wfm list deployment
           "
+
+

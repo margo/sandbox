@@ -267,22 +267,22 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
           '
           
-      - name: Update kubeconfig path in device agent config
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
-      - name: Update keycloak URL in symphony-api-margo.json
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|\"keycloakURL\": *\"http://[^\"]*\"|\"keycloakURL\": \"http://$VM_HOST:8083\"|' ~/symphony/api/symphony-api-margo.json
-          "
-      - name: Update wfmSbiUrl and capabilitiesFile in agent config
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
-            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
+      # - name: Update kubeconfig path in device agent config
+      #   run: |
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+      #       sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
+      #     "
+      # - name: Update keycloak URL in symphony-api-margo.json
+      #   run: |
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+      #       sed -i 's|\"keycloakURL\": *\"http://[^\"]*\"|\"keycloakURL\": \"http://$VM_HOST:8083\"|' ~/symphony/api/symphony-api-margo.json
+      #     "
+      # - name: Update wfmSbiUrl and capabilitiesFile in agent config
+      #   run: |
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+      #       sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
+      #       sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
+      #     "
   
       - name: Install k3s
         run: |
@@ -465,7 +465,7 @@ jobs:
             echo "Listing existing app packages..."
             ./maestro wfm list app-pkg
       
-            echo "modifying extension of package.yaml to package.yml for compatibility..."
+            echo "modifying extension of nginx-package.yml.yaml to nginx-package.yml.yml for compatibility..."
             cp ~/symphony/cli/templates/margo/nginx-package.yaml ~/symphony/cli/templates/margo/nginx-package.yml
       
             sed -i "s|^\s*url:.*|    url: \"http://${VM_HOST}:3000/gogsadmin/my-new-repo\"|" ~/symphony/cli/templates/margo/nginx-package.yml
@@ -495,6 +495,24 @@ jobs:
           # else
           #   echo "No app package ID found to delete."
           # fi  
+
+      - name: Update kubeconfig path in device agent config
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
+          "
+
+      - name: Update keycloak URL in symphony-api-margo.json
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|\"keycloakURL\": *\"http://[^\"]*\"|\"keycloakURL\": \"http://$VM_HOST:8083\"|' ~/symphony/api/symphony-api-margo.json
+          "
+      - name: Update wfmSbiUrl and capabilitiesFile in agent config
+        run: |
+          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+            sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
+            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
+          "
   
   # ==============================
   # Stage: Deploy Application
@@ -510,19 +528,21 @@ jobs:
       - name: Deploy app-pkg desc on device-agent
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-          set -e
-          echo 'Replacing only appPackageRef.id with $APP_PKG_ID...'
-          sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: $APP_PKG_ID/' ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
-          cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
-          cd ~/symphony/cli
-          echo 'Running maestro apply...'
-          OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
-          echo \"\$OUTPUT\"
-          if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
-            echo 'Deployment failed!'
-            exit 1
-          fi
-          echo 'Deployment succeeded!'
-          sleep 5
-          ./maestro wfm list deployment
+            set -e
+            echo 'Replacing only appPackageRef.id with $APP_PKG_ID...'    
+            sed -i '/appPackageRef:/,/deviceRef:/ s/id:.*/id: '"$APP_PKG_ID"'/' \
+              ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+              cat ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml
+              cd ~/symphony/cli
+            
+            echo 'Running maestro apply...'
+            OUTPUT=\$(./maestro wfm apply --file ~/symphony/cli/templates/margo/instance01-nginx-helm.yaml 2>&1)
+            echo \"\$OUTPUT\"
+            if echo \"\$OUTPUT\" | grep -qE 'errorCode|Failed|failed'; then
+              echo 'Deployment failed!'
+              exit 1
+            fi
+            echo 'Deployment succeeded!'
+            sleep 5
+            ./maestro wfm list deployment
           "

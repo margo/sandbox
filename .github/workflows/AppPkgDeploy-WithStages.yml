@@ -266,11 +266,11 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
           '
           
-      - name: Update kubeconfig path in device agent config
-        run: |
-          sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
-            sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
-          "
+      # - name: Update kubeconfig path in device agent config
+      #   run: |
+      #     sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
+      #       sed -i 's|kubeconfigPath:.*|kubeconfigPath: /home/azureuser/.kube/config|' ~/dev-repo/poc/device/agent/config/config.yaml
+      #     "
       - name: Update keycloak URL in symphony-api-margo.json
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
@@ -280,7 +280,7 @@ jobs:
         run: |
           sshpass -p "$VM_PASS" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "
             sed -i 's|wfmSbiUrl:.*|wfmSbiUrl: http://$VM_HOST:8082/v1alpha2/margo/sbi/v1|' ~/dev-repo/poc/device/agent/config/config.yaml
-            sed -i 's|capabilitiesFile:.*|capabilitiesFile: /home/azureuser/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
+            sed -i 's|capabilitiesFile:.*|capabilitiesFile: ~/dev-repo/poc/device/agent/config/capabilities.json|' ~/dev-repo/poc/device/agent/config/config.yaml
           "
   
       - name: Install k3s

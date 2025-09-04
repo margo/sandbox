@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  gogs:
+    build: .
+    container_name: custom-gogs
+    ports:
+      - "3000:3000"   # HTTP access
+      - "2222:22"     # SSH access
+    volumes:
+      - ./gogs-data:/data  # Persist Gogs data locally
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    restart: always
+

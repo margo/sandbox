@@ -499,6 +499,44 @@ start_symphony_api() {
   tail -n 50 $HOME/symphony-api.log
 }
 
+observability_stack_install(){
+echo "Observability stack install started"
+
+# Check if collector-scrape-cm-change.txt file exists
+if [ ! -f "$HOME/dev-repo/pipeline/observability/collector-scrape-cm-change.txt" ]; then
+    echo "Error: collector-scrape-cm-change.txt file not found in $HOME/dev-repo/pipeline/observability"
+    echo "Please ensure the file exists before proceeding."
+    exit 1
+fi
+
+echo "collector-scrape-cm-change.txt file found, proceeding..."
+
+
+echo "Observability stack install completed"
+}
+
+
+
+observability_stack_uninstall(){
+    echo "Observability stack uninstall started"
+    cd $HOME/dev-repo/pipeline/observability || { echo '❌ observability dir missing'; exit 1; }
+
+    # Uninstall helm releases
+    helm uninstall jaeger grafana loki prometheus --namespace observability --wait || true
+    
+    # Wait for pods to be completely terminated
+    echo "Waiting for pods to be terminated..."
+    
+    # Wait for specific pods to be deleted
+    kubectl wait --for=delete pods -l app.kubernetes.io/instance=jaeger --timeout=300s || true
+    kubectl wait --for=delete pods -l app.kubernetes.io/instance=grafana --timeout=300s || true
+    kubectl wait --for=delete pods -l app.kubernetes.io/instance=loki --timeout=300s || true
+    kubectl wait --for=delete pods -l app.kubernetes.io/instance=prometheus --timeout=300s || true
+    
+    rm -f prometheus-values.yaml loki-values.yaml collector-scrape-cm-change.yaml
+    echo "Observability stack uninstall completed"
+}
+
 # ----------------------------
 # Uninstall Functions (Reverse Chronological Order)
 # ----------------------------
@@ -1024,13 +1062,17 @@ show_menu() {
   echo "1) Prepare-Environment"
   echo "2) Symphony-Start"
   echo "3) Symphony-Stop"
-  echo "4) Tearup-Environment"
+  echo "4) Obeservabiliy Stack-Install"
+  echo "5) Obeservabiliy Stack-Uninstall"
+  echo "6) Tearup-Environment"
   read -p "Enter choice [1-4]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) start_symphony ;;
     3) stop_symphony ;;
-    4) uninstall_prerequisites ;;
+    4) observability_stack_install ;;
+    5) observability_stack_uninstall ;;
+    6) uninstall_prerequisites ;;
     *) echo "⚠️ Invalid choice"; exit 1 ;;
   esac
 }
@@ -1047,6 +1089,8 @@ else
     Prepare-Environment) install_prerequisites ;;
     Symphony-Start) start_symphony ;;
     Symphony-Stop) stop_symphony ;;
+    Jaeger_Prometheus_Grafana_Loki-Installation) observability_stack_install ;;
+    Jaeger_Prometheus_Grafana_Loki-Uninstallation) observability_stack_uninstall ;;
     Tearup-Environment) uninstall_prerequisites ;;
     *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites}"; exit 1 ;;
   esac

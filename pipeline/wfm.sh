@@ -1352,7 +1352,7 @@ else
     Jaeger_Prometheus_Grafana_Loki-Installation) observability_stack_install ;;
     Jaeger_Prometheus_Grafana_Loki-Uninstallation) observability_stack_uninstall ;;
     Tearup-Environment) uninstall_prerequisites ;;
-    *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites}"; exit 1 ;;
+    *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites|observability_stack_install|observability_stack_uninstall}"; exit 1 ;;
   esac
 fi
 

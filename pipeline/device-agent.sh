@@ -14,6 +14,10 @@ DEV_REPO_BRANCH="${DEV_REPO_BRANCH:-dev-sprint-6}"
 WFM_IP="${WFM_IP:-127.0.0.1}"
 WFM_PORT="${WFM_PORT:-8082}"
 
+# variables for observability stack
+NAMESPACE_OBSERVABILITY="observability"
+PROMTAIL_RELEASE="promtail"
+OTEL_RELEASE="otel-collector"
 
 validate_required_vars() {
   local required_vars=("GITHUB_USER" "GITHUB_TOKEN" "DEV_REPO_BRANCH" "WFM_IP" "WFM_PORT")
@@ -242,16 +246,51 @@ show_status() {
   fi
 }
 
+install_otel_collector_promtail() {
+  echo "Installing OTEL Collector and Promtail..."
+  cd "$HOME/dev-repo/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+  
+
+
+
+}
+
+unnstall_otel_collector_promtail() {
+  echo "🧹 Uninstalling Promtail and OTEL Collector..."
+  cd "$HOME/dev-repo/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+   
+   # Uninstall helm releases only if they exist
+    for release in $PROMTAIL_RELEASE $OTEL_RELEASE; do
+        if helm status $release -n "$NAMESPACE_OBSERVABILITY" >/dev/null 2>&1; then
+            echo "🗑️ Uninstalling $release..."
+            helm uninstall $release --namespace "$NAMESPACE_OBSERVABILITY"
+        else
+            echo "⏭️ $release not found, skipping..."
+        fi
+    done
+
+
+  rm -f promtail-values.yaml otel-values.yaml
+  echo "✅ Cleanup complete."
+
+}
+
+
+
 show_menu() {
   echo "Choose an option:"
   echo "1) device-agent-start"
   echo "2) device-agent-stop"
   echo "3) device-agent-status"
+  echo "4) otel-collector-promtail-installation"
+  echo "5) otel-collector-promtail-uninstallation"
   read -rp "Enter choice [1-3]: " choice
   case $choice in
     1) start_device_agent ;;
     2) stop_device_agent ;;
     3) show_status ;;
+    4) install_otel_collector_promtail ;;
+    5) unnstall_otel_collector_promtail ;;
     *) echo "Invalid choice" ;;
   esac
 }
@@ -266,6 +305,8 @@ else
     start) start_device_agent ;;
     stop) stop_device_agent ;;
     status) show_status ;;
-    *) echo "Usage: $0 {start|stop|status}" ;;
+    install_otel_collector_promtail) install_otel_collector_promtail ;;
+    unnstall_otel_collector_promtail) unnstall_otel_collector_promtail ;;
+    *) echo "Usage: $0 {start|stop|status|install_otel_collector_promtail|unnstall_otel_collector_promtail}" ;;
   esac
 fi

@@ -1325,7 +1325,7 @@ show_menu() {
   echo "4) Obeservabiliy Stack-Install"
   echo "5) Obeservabiliy Stack-Uninstall"
   echo "6) Tearup-Environment"
-  read -p "Enter choice [1-4]: " choice
+  read -p "Enter choice [1-6]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) start_symphony ;;

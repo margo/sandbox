@@ -21,7 +21,8 @@ EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 EXPOSED_SYMPHONY_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 
-DEVICE_NODE_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
+#--  device node IP (can be overridden via env) for prometheus to scrape metrics 
+DEVICE_NODE_IP="${DEVICE_NODE_IP:-127.0.0.1}"
 
 #--- keycloak settings (can be overridden via env)
 EXPOSED_KEYCLOAK_IP="${EXPOSED_KEYCLOAK_IP:-127.0.0.1}"

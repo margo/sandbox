@@ -29,7 +29,7 @@ data:
       - role: endpoints
       relabel_configs:
       - action: keep
-        regex: default;kubernetes;https
+        regex: observability;kubernetes;https
         source_labels:
         - __meta_kubernetes_namespace
         - __meta_kubernetes_service_name
@@ -324,7 +324,7 @@ data:
         bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
         relabel_configs:
         - source_labels: [__meta_kubernetes_namespace]
-          regex: default
+          regex: observability
           action: keep
         - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
           regex: prometheus
@@ -343,7 +343,7 @@ kind: ConfigMap
 metadata:
   annotations:
     meta.helm.sh/release-name: prometheus
-    meta.helm.sh/release-namespace: default
+    meta.helm.sh/release-namespace: observability
   creationTimestamp: "2025-09-08T05:33:03Z"
   labels:
     app.kubernetes.io/component: server
@@ -354,6 +354,6 @@ metadata:
     app.kubernetes.io/version: v3.5.0
     helm.sh/chart: prometheus-27.36.0
   name: prometheus-server
-  namespace: default
+  namespace: observability
   resourceVersion: "676799"
   uid: 74eb2dd8-577b-4bfb-9eb8-33dd08d24a4b

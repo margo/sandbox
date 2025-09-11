@@ -21,6 +21,8 @@ EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 EXPOSED_SYMPHONY_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 
+DEVICE_NODE_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
+
 #--- keycloak settings (can be overridden via env)
 EXPOSED_KEYCLOAK_IP="${EXPOSED_KEYCLOAK_IP:-127.0.0.1}"
 EXPOSED_KEYCLOAK_PORT="${EXPOSED_KEYCLOAK_PORT:-8083}"
@@ -28,6 +30,15 @@ EXPOSED_KEYCLOAK_PORT="${EXPOSED_KEYCLOAK_PORT:-8083}"
 #--- gogs settings (can be overridden via env)
 EXPOSED_GOGS_IP="${EXPOSED_GOGS_IP:-127.0.0.1}"
 EXPOSED_GOGS_PORT="${EXPOSED_GOGS_PORT:-8084}"
+
+
+
+# variables for observability stack
+NAMESPACE_OBSERVABILITY="observability"
+JAEGER_RELEASE="jaeger"
+PROM_RELEASE="prometheus"
+GRAFANA_RELEASE="grafana"
+LOKI_RELEASE="loki"
 
 # ----------------------------
 # Utility Functions
@@ -499,8 +510,245 @@ start_symphony_api() {
   tail -n 50 $HOME/symphony-api.log
 }
 
+function install_jaeger() {
+  echo "🔄 Refreshing Jaeger Helm repo..."
+  helm repo remove jaegertracing || true
+  helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+  helm repo update
+
+  echo "🚀 Installing Jaeger with OTLP and NodePort configuration..."
+  helm install $JAEGER_RELEASE jaegertracing/jaeger \
+    --namespace $NAMESPACE_OBSERVABILITY \
+    --set agent.enabled=false \
+    --set collector.enabled=true \
+    --set collector.otlp.enabled=true \
+    --set collector.service.type=NodePort \
+    --set collector.service.nodePort=30417 \
+    --set collector.service.additionalPorts[0].name=otlp-grpc \
+    --set collector.service.additionalPorts[0].port=4317 \
+    --set collector.service.additionalPorts[0].protocol=TCP \
+    --set query.enabled=true \
+    --set query.service.type=NodePort \
+    --set query.service.nodePort=32500
+
+  echo "⏳ Waiting for Jaeger pods to initialize..."
+  sleep 10
+
+  echo "🛠 Patching Jaeger Collector Service for OTLP gRPC..."
+  sudo kubectl patch svc ${JAEGER_RELEASE}-collector \
+    -n $NAMESPACE_OBSERVABILITY \
+    --type='json' \
+    -p='[
+      {
+        "op": "add",
+        "path": "/spec/ports/-",
+        "value": {
+          "name": "otlp-grpc",
+          "port": 4317,
+          "protocol": "TCP",
+          "targetPort": 4317,
+          "nodePort": 30417
+        }
+      }
+    ]'
+
+  echo "🛠 Patching Jaeger Collector Service for OTLP HTTP..."
+  sudo kubectl patch svc ${JAEGER_RELEASE}-collector \
+    -n $NAMESPACE_OBSERVABILITY \
+    --type='json' \
+    -p='[
+      {
+        "op": "add",
+        "path": "/spec/ports/-",
+        "value": {
+          "name": "otlp-http",
+          "port": 4318,
+          "protocol": "TCP",
+          "targetPort": 4318,
+          "nodePort": 30418
+        }
+      }
+    ]'
+
+  echo "✅ Jaeger setup complete!"
+  echo "🌐 Query UI: NodePort 32500"
+  echo "📡 OTLP gRPC: Port 4317"
+  echo "📡 OTLP HTTP: Port 4318"
+}
+
+# Function to create observability namespace
+create_observability_namespace() {
+    echo "🔧 Checking observability namespace..."
+    
+    if sudo kubectl get namespace $NAMESPACE_OBSERVABILITY >/dev/null 2>&1; then
+        echo "✅ Namespace '$NAMESPACE_OBSERVABILITY' already exists"
+    else
+        echo "🔧 Creating namespace '$NAMESPACE_OBSERVABILITY'..."
+        sudo kubectl create namespace $NAMESPACE_OBSERVABILITY
+        echo "✅ Namespace '$NAMESPACE_OBSERVABILITY' created successfully"
+    fi
+}
+
+function install_prometheus() {
+  cd "$HOME/dev-repo/pipeline/observability"
+  echo "📡 Setting up Prometheus to expose metrics for OTEL Collector..."
+
+  cat <<EOF > prometheus-values.yaml
+server:
+  image:
+    repository: prom/prometheus
+    tag: latest
+  service:
+    type: NodePort
+    nodePort: 30900
+  persistentVolume:
+    enabled: false
+  serverFiles:
+    prometheus.yml:
+      global:
+        scrape_interval: 5s
+      scrape_configs:
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['${DEVICE_NODE_IP}:30999']
+EOF
+
+  helm repo remove prometheus-community || true
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update
+
+  helm install $PROM_RELEASE prometheus-community/prometheus \
+    --namespace $NAMESPACE_OBSERVABILITY \
+    -f prometheus-values.yaml
+
+  echo "✅ Prometheus setup complete!"
+  echo "📊 Prometheus UI: NodePort 30900"
+  echo "📡 Metrics exposed at ${DEVICE_NODE_IP}:30999"
+
+  patch_prometheus_configmap
+}
+
+function patch_prometheus_configmap() {
+  cd "$HOME/dev-repo/pipeline/observability"
+  echo "🛠 Applying Prometheus ConfigMap with DEVICE_NODE_IP..."
+
+  CM_SOURCE="collector-scrape-cm-change.txt"
+  CM_TARGET="collector-scrape-cm-change.yaml"
+
+  if [ ! -f "$CM_SOURCE" ]; then
+    echo "❌ Source ConfigMap file '$CM_SOURCE' not found."
+    exit 1
+  fi
+
+  sed "s|__DEVICE_NODE_IP__|${DEVICE_NODE_IP}|g" "$CM_SOURCE" > "$CM_TARGET"
+
+  echo "📄 Applying ConfigMap with force replace..."
+  
+  # Method 1: Force replace (recommended) 
+  sudo kubectl replace -f "$CM_TARGET" --force --namespace "$NAMESPACE_OBSERVABILITY" || {
+    echo "⚠️ Force replace failed, trying server-side apply..."
+    # Method 2: Server-side apply (handles conflicts better) 
+    sudo kubectl apply -f "$CM_TARGET" --server-side --force-conflicts --namespace "$NAMESPACE_OBSERVABILITY" || {
+      echo "⚠️ Server-side apply failed, trying delete and recreate..."
+      # Method 3: Delete and recreate as last resort
+      sudo kubectl delete configmap prometheus-server -n "$NAMESPACE_OBSERVABILITY" --ignore-not-found=true
+      sleep 3
+      sudo kubectl apply -f "$CM_TARGET" --namespace "$NAMESPACE_OBSERVABILITY"
+    }
+  }
+
+  echo "🔄 Restarting Prometheus pod to apply new config..."
+  sudo kubectl rollout restart deployment prometheus-server -n "$NAMESPACE_OBSERVABILITY" || \
+  sudo kubectl delete pod -l app=prometheus,component=server -n "$NAMESPACE_OBSERVABILITY" || \
+  echo "⚠️ Pod restart may be needed manually."
+
+  rm -f "$CM_TARGET"
+  echo "✅ ConfigMap applied and temporary file removed."
+}
+
+
+
+function install_loki() {
+  echo "📦 Installing Loki for log aggregation..."
+
+  cat <<EOF > loki-values.yaml
+deploymentMode: SingleBinary
+chunksCache:
+  enabled: false
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  limits_config:
+    allow_structured_metadata: false
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: 2020-10-24
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
+  storage_config:
+    boltdb_shipper:
+      active_index_directory: /tmp/loki/index
+      cache_location: /tmp/loki/cache
+    filesystem:
+      directory: /tmp/loki/chunks
+singleBinary:
+  replicas: 1
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+EOF
+
+  helm install $LOKI_RELEASE grafana/loki -f loki-values.yaml --namespace $NAMESPACE_OBSERVABILITY
+
+  echo "🔧 Patching Loki service to expose via NodePort 32100..."
+ sudo kubectl patch svc loki -n $NAMESPACE_OBSERVABILITY \
+    --type='json' \
+    -p='[
+      {
+        "op": "replace",
+        "path": "/spec/type",
+        "value": "NodePort"
+      },
+      {
+        "op": "add",
+        "path": "/spec/ports/0/nodePort",
+        "value": 32100
+      }
+    ]'
+
+  echo "✅ Loki installed and exposed at NodePort 32100"
+}
+
+function install_grafana() {
+  echo "📊 Installing Grafana..."
+  helm repo remove grafana || true
+  helm repo add grafana https://grafana.github.io/helm-charts
+  helm repo update
+
+  helm install $GRAFANA_RELEASE grafana/grafana \
+    --namespace $NAMESPACE_OBSERVABILITY \
+    --set service.type=NodePort \
+    --set service.nodePort=32000 \
+    --set adminPassword='admin' \
+    --set persistence.enabled=false
+
+  echo "✅ Grafana installed!"
+  echo "🌐 Grafana UI available at NodePort 32000"
+  echo "🔐 Login with username: admin and password: admin"
+}
+
 observability_stack_install(){
-echo "Observability stack install started"
+echo "Observability stack installation started"
 
 # Check if collector-scrape-cm-change.txt file exists
 if [ ! -f "$HOME/dev-repo/pipeline/observability/collector-scrape-cm-change.txt" ]; then
@@ -510,19 +758,30 @@ if [ ! -f "$HOME/dev-repo/pipeline/observability/collector-scrape-cm-change.txt"
 fi
 
 echo "collector-scrape-cm-change.txt file found, proceeding..."
-
-
-echo "Observability stack install completed"
+  create_observability_namespace
+  install_jaeger
+  install_prometheus
+  install_grafana
+  install_loki
+echo "Observability stack installation completed"
 }
 
 
 
 observability_stack_uninstall(){
     echo "Observability stack uninstall started"
-    cd $HOME/dev-repo/pipeline/observability || { echo '❌ observability dir missing'; exit 1; }
+    cd "$HOME/dev-repo/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
 
-    # Uninstall helm releases
-    helm uninstall jaeger grafana loki prometheus --namespace observability --wait || true
+    # Uninstall helm releases only if they exist
+    for release in $PROM_RELEASE $JAEGER_RELEASE $GRAFANA_RELEASE $LOKI_RELEASE; do
+        if helm status $release -n "$NAMESPACE_OBSERVABILITY" >/dev/null 2>&1; then
+            echo "🗑️ Uninstalling $release..."
+            helm uninstall $release --namespace "$NAMESPACE_OBSERVABILITY"
+        else
+            echo "⏭️ $release not found, skipping..."
+        fi
+    done
+
     
     # Wait for pods to be completely terminated
     echo "Waiting for pods to be terminated..."

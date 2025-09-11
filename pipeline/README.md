@@ -7,6 +7,7 @@ export EXPOSED_KEYCLOAK_IP=<machine-ip>
 export EXPOSED_SYMPHONY_IP=<machine-ip>
 export SYMPHONY_BRANCH=margo-dev-sprint-6
 export DEV_REPO_BRANCH=dev-sprint-6
+DEVICE_NODE_IP=<device-ip>
 sudo -E bash wfm.sh
 
 # How to setup device agent?

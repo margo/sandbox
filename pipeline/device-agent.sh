@@ -64,22 +64,45 @@ install_basic_utilities() {
 install_docker_compose_v2() {
   echo "Installing Docker Compose V2 plugin..."
   
+  # Stop any running docker-compose processes
+  echo "Stopping any running Docker Compose processes..."
+  sudo pkill -f docker-compose 2>/dev/null || true
+  
+  # Wait a moment for processes to stop
+  sleep 2
+  
   # Create the plugins directory
   sudo mkdir -p /usr/local/lib/docker/cli-plugins
+  
+  # Remove existing docker-compose if it exists
+  if [ -f /usr/local/lib/docker/cli-plugins/docker-compose ]; then
+    echo "Removing existing Docker Compose binary..."
+    sudo rm -f /usr/local/lib/docker/cli-plugins/docker-compose
+  fi
   
   # Download the latest Docker Compose V2
   COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
   echo "Downloading Docker Compose ${COMPOSE_VERSION}..."
   
+  # Download to temporary location first
+  TEMP_FILE="/tmp/docker-compose-$(date +%s)"
   sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose
+    -o "${TEMP_FILE}"
+  
+  # Move from temp location to final location
+  sudo mv "${TEMP_FILE}" /usr/local/lib/docker/cli-plugins/docker-compose
   
   # Make it executable
   sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
   
   # Verify installation
-  docker compose version
-  echo "✅ Docker Compose V2 installed successfully"
+  if docker compose version; then
+    echo "Docker Compose V2 installed successfully"
+  else
+    echo "Docker Compose installation verification failed"
+    return 1
+  fi
+
 }
 
 
@@ -261,6 +284,7 @@ build_device_agent_docker() {
       echo 'device-agent build complete.'
    fi
   #Copy the config.yaml and capabilities.yaml files to the config directory
+  enable_docker_runtime
   cd docker-compose
   mkdir -p config
   cp -r ../poc/device/agent/config/* ./config/
@@ -269,7 +293,6 @@ build_device_agent_docker() {
 }
 
 start_device_agent_docker_service() {
-  enable_docker_runtime
   echo 'Starting device-agent...'
   cd "$HOME/dev-repo/docker-compose"
   docker compose -f docker-compose.yaml up -d
@@ -521,19 +544,19 @@ start_device_agent_kubernetes() {
 }
 
 stop_device_agent_binary() {
-  echo "Stopping device-agent on VM2 ($VM2_HOST)..."
+  echo "Stopping device-agent on VM ($DEVICE_NODE_IP)..."
   stop_device_agent_service_binary
   echo "Device Agent stopped"
 }
 
 stop_device_agent_docker() {
-  echo "Stopping device-agent on VM2 ($VM2_HOST)..."
+  echo "Stopping device-agent on VM ($DEVICE_NODE_IP)..."
   stop_device_agent_service_docker
   echo "Device Agent stopped"
 }
 
 stop_device_agent_kubernetes() {
-  echo "Stopping device-agent on VM2 ($VM2_HOST)..."
+  echo "Stopping device-agent on VM ($DEVICE_NODE_IP)..."
   stop_device_agent_service_kubernetes
   echo "Device Agent stopped"
 }

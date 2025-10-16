@@ -258,15 +258,22 @@ build_device_agent_docker() {
       echo 'Building device-agent...'
       #Buildcontainer image for the device agent
       docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:latest   
-      #Copy the config.yaml and capabilities.yaml files to the config directory
-      cd docker-compose
-      mkdir -p config
-      cp -r ../poc/device/agent/config/* ./config/
-      #Create a data directory for persistent storage
-      mkdir -p data
-      docker  compose -f docker-compose.yaml build
+      echo 'device-agent build complete.'
    fi
-  echo 'device-agent build complete.'
+  #Copy the config.yaml and capabilities.yaml files to the config directory
+  cd docker-compose
+  mkdir -p config
+  cp -r ../poc/device/agent/config/* ./config/
+  #Create a data directory for persistent storage
+  mkdir -p data
+}
+
+start_device_agent_docker_service() {
+  enable_docker_runtime
+  echo 'Starting device-agent...'
+  cd "$HOME/dev-repo/docker-compose"
+  docker compose -f docker-compose.yaml up -d
+  docker compose -f docker-compose.yaml logs -f > "$HOME/device-agent.log" 2>&1 &
 }
 
 build_device_agent_binary() {
@@ -285,14 +292,6 @@ start_device_agent_service_binary() {
   enable_kubernetes_runtime
   nohup sudo ./poc/device/agent/device-agent --config poc/device/agent/config/config.yaml > "$HOME/device-agent.log" 2>&1 &
   echo $! > "$HOME/device-agent.pid"
-}
-
-start_device_agent_docker_service() {
-  echo 'Starting device-agent...'
-  cd "$HOME/dev-repo/docker-compose"
-  enable_docker_runtime
-  docker compose -f docker-compose.yaml up -d
-  docker compose -f docker-compose.yaml logs -f > "$HOME/device-agent.log" 2>&1 &
 }
 
 start_device_agent_k8s_service() {
@@ -315,8 +314,8 @@ verify_device_agent_running() {
 
 stop_device_agent_service_docker() {
   echo "Stopping device-agent..."
-  cd "$HOME/dev-repo"
-  docker compose -f docker-compose.yml down
+  cd "$HOME/dev-repo/docker-compose"
+  docker compose -f docker-compose.yaml down
 }
 
 stop_device_agent_service_kubernetes() {

@@ -43,4 +43,4 @@ runtimes:
 # in the file.
 # Path to the capabilities file (required).
 capabilities:
-  readFromFile: /root/dev-repo/poc/device/agent/config/capabilities.json
+  readFromFile: /config/capabilities.json

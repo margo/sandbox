@@ -156,14 +156,13 @@ update_agent_kubepath() {
   sed -i "s|kubeconfigPath:.*|kubeconfigPath: $HOME/.kube/config|" "$HOME/dev-repo/poc/device/agent/config/config.yaml"
 }
 
-update_agent_capabilities_path() {
-  echo 'Updating capabilities.readFromFile in agent config...'
-  sed -i "s|readFromFile:.*|readFromFile: $HOME/dev-repo/poc/device/agent/config/capabilities.json|" "$HOME/dev-repo/poc/device/agent/config/config.yaml"
-}
+# update_agent_capabilities_path() {
+#   echo 'Updating capabilities.readFromFile in agent config...'
+#   sed -i "s|readFromFile:.*|readFromFile: $HOME/dev-repo/poc/device/agent/config/capabilities.json|" "$HOME/dev-repo/poc/device/agent/config/config.yaml"}
 
 update_agent_config() {
   update_agent_sbi_url
-  update_agent_capabilities_path
+  #update_agent_capabilities_path
   update_agent_kubepath
   echo 'Config updates completed.'
 }
@@ -249,17 +248,23 @@ enable_docker_runtime() {
 # ----------------------------
 # Device Agent Build Functions
 # ----------------------------
-build_device_agent() {
+build_device_agent_docker() {
   cd "$HOME/dev-repo"
-  echo 'Checking if device-agent image already exists...'
-
   # Check if the image exists
-  if docker images dev-repo-device-agent:latest | awk 'NR>1 {print $1}' | grep -q "dev-repo-device-agent"; then
-    echo "device-agent image already exists. Skipping build."
+  echo 'Checking if device-agent image already exists...'
+  if docker images margo.org/device-agent:latest | awk 'NR>1 {print $1}' | grep -q "margo.org/device-agent"; then
+      echo "device-agent image already exists. Skipping build."
   else
-  echo 'Building device-agent...'
-    # go build -o device-agent
-      docker  compose -f docker-compose.yml build
+      echo 'Building device-agent...'
+      #Buildcontainer image for the device agent
+      docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:latest   
+      #Copy the config.yaml and capabilities.yaml files to the config directory
+      cd docker-compose
+      mkdir -p config
+      cp -r ../poc/device/agent/config/* ./config/
+      #Create a data directory for persistent storage
+      mkdir -p data
+      docker  compose -f docker-compose.yaml build
    fi
   echo 'device-agent build complete.'
 }
@@ -284,14 +289,10 @@ start_device_agent_service_binary() {
 
 start_device_agent_docker_service() {
   echo 'Starting device-agent...'
-  cd "$HOME/dev-repo"
+  cd "$HOME/dev-repo/docker-compose"
   enable_docker_runtime
-  if ! docker images dev-repo-device-agent:latest | awk 'NR>1 {print $1}' | grep -q "dev-repo-device-agent"; then
-    echo "device-agent image not found. Building it..."
-    docker compose -f docker-compose.yml build
-  fi
-  docker compose -f docker-compose.yml up -d
-  docker compose -f docker-compose.yml logs -f > "$HOME/device-agent.log" 2>&1 &
+  docker compose -f docker-compose.yaml up -d
+  docker compose -f docker-compose.yaml logs -f > "$HOME/device-agent.log" 2>&1 &
 }
 
 start_device_agent_k8s_service() {
@@ -502,8 +503,7 @@ start_device_agent_docker() {
   echo "Building and starting device-agent ..."
   validate_start_required_vars
   update_agent_config
-  build_device_agent
-  #start_device_agent_service
+  build_device_agent_docker
   start_device_agent_docker_service
   verify_device_agent_running
   echo 'device-agent started'
@@ -514,8 +514,7 @@ start_device_agent_kubernetes() {
   validate_start_required_vars
   update_agent_config
   
-  build_device_agent
-  #start_device_agent_service
+  build_device_agent_docker
   start_device_agent_k8s_service
   verify_device_agent_running
   
@@ -769,10 +768,10 @@ show_menu() {
   echo "2) uninstall-prerequisites"
   echo "3) device-agent-start(docker-compose-device)"
   echo "4) device-agent-start(k3s-device)"
-  echo "5) device-agent-start(Binary-with-k3s-runtime)"
+  echo "5) device-agent-start(Binary)"
   echo "6) device-agent-stop(docker-compose-device)"
   echo "7) device-agent-stop(k3s-device)"
-  echo "8) device-agent-stop(Binary-with-k3s-runtime)"
+  echo "8) device-agent-stop(Binary)"
   echo "9) device-agent-status"
   echo "10) otel-collector-promtail-installation"
   echo "11) otel-collector-promtail-uninstallation"
@@ -785,9 +784,9 @@ show_menu() {
     3) start_device_agent_docker ;;
     4) start_device_agent_kubernetes ;;
     5) start_device_agent_binary ;;
-    6) stop_device_agent_binary ;;
-    7) stop_device_agent_docker ;;
-    8) stop_device_agent_kubernetes ;;
+    6) stop_device_agent_docker ;;
+    7) stop_device_agent_kubernetes ;;
+    8) stop_device_agent_binary ;;
     9) show_status ;;
     10) install_otel_collector_promtail ;;
     11) uninstall_otel_collector_promtail ;;

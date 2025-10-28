@@ -45,6 +45,22 @@ CERT_DIR="$HOME/symphony/api/certificates"
 # ----------------------------
 # Utility Functions
 # ----------------------------
+
+
+# Add these missing functions
+info() {
+    echo "ℹ️  $1"
+}
+
+success() {
+    echo "✅ $1"
+}
+
+error() {
+    echo "❌ Error: $1" >&2
+    exit 1
+}
+
 validate_passwordless_sudo() {
   local username="${1:-$(whoami)}"
   local exit_code=0
@@ -54,7 +70,7 @@ validate_passwordless_sudo() {
   
   # Test 1: Basic test
   echo -n "Test 1 - Basic access: "
-  if -n true 2>/dev/null; then
+  if sudo -n true 2>/dev/null; then
       echo "✓ PASS"
   else
       echo "✗ FAIL"
@@ -63,7 +79,7 @@ validate_passwordless_sudo() {
   
   # Test 2: Specific command test
   echo -n "Test 2 - Command execution: "
-  if -n whoami >/dev/null 2>&1; then
+  if sudo -n whoami >/dev/null 2>&1; then
       echo "✓ PASS"
   else
       echo "✗ FAIL"
@@ -72,7 +88,7 @@ validate_passwordless_sudo() {
   
   # Test 3: File access test
   echo -n "Test 3 - File access: "
-  if -n test -r /etc/shadow 2>/dev/null; then
+  if sudo -n test -r /etc/shadow 2>/dev/null; then
       echo "✓ PASS"
   else
       echo "✗ FAIL"
@@ -150,7 +166,7 @@ install_go() {
   else
     echo 'Go not found, installing...';
     rm -rf /usr/local/go /usr/bin/go
-    wget "https://go.dev/dl/go1.23.2.linux-amd64.tar.gz" -O go.tar.gz;
+    wget "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" -O go.tar.gz;
     tar -C /usr/local -xzf go.tar.gz;
     rm go.tar.gz
     export PATH="$PATH:/usr/local/go/bin";
@@ -522,7 +538,8 @@ start_symphony_api() {
 enable_tls_in_symphony_api() {
   cd $HOME
   echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
-  collect_certs_info && generate_server_certs
+  collect_certs_info 
+  generate_server_certs
   # replace value of "tls": false, to "tls": true
   sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
   echo "TLS Config is setup and seeded in symphony-api-margo.json"
@@ -1480,13 +1497,13 @@ install_prerequisites() {
   install_docker_compose
   add_insecure_registry_to_daemon
   setup_k3s
-  install_rust
+  #install_rust    #uncomment if want to deploy symphony api as binary
   
   clone_symphony_repo
   clone_dev_repo
   
-  setup_keycloak
-  update_keycloak_config
+  #setup_keycloak            #Not required as client-id is getting generate using server-side TLS (as per REST API SUP)
+  #update_keycloak_config      
   
   setup_harbor
   build_custom_otel_container_images
@@ -1507,14 +1524,94 @@ start_symphony() {
   echo "Starting Symphony API server on..."
   export PATH="$PATH:/usr/local/go/bin";
   # Build phase
-  build_rust
-  build_symphony_api_server
-  build_maestro_cli
-  verify_symphony_api
+
+  # Commented to build symphony container instead of using binary
+  # Uncomment if you want to run symphony api as binary, also comment the container start line below
+  # build_rust
+  # build_symphony_api_server
+  build_maestro_cli   # this is required for WFM CLI operations
+  # verify_symphony_api
   enable_tls_in_symphony_api
-  start_symphony_api
-  echo "symphony API server started"
+  # uncomment to run the symphony api as a binary
+  # start_symphony_api
+  start_symphony_api_container
 }
+
+start_symphony_api_container(){
+
+    cd "$HOME/symphony/api"
+    echo "Building Symphony API container..."
+    
+    # Check for required environment variables
+    if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+        echo "Error: GITHUB_USER and GITHUB_TOKEN environment variables must be set"
+        echo "Current values:"
+        echo "  GITHUB_USER: ${GITHUB_USER:-'(not set)'}"
+        echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:-'(not set)'}"
+        return 1
+    fi
+    
+    echo "Using GitHub credentials for user: $GITHUB_USER"
+
+    # Stop and remove existing container if present
+    echo "Stopping and removing existing symphony-api-container if present..."
+    docker stop symphony-api-container 2>/dev/null || true
+    docker rm symphony-api-container 2>/dev/null || true
+    
+    # Remove existing image if present
+    echo "Removing existing margo-symphony-api:latest image if present..."
+    docker rmi margo-symphony-api:latest 2>/dev/null || true
+    
+    
+    # Check if we're in the api directory or root directory
+    if [ -f "Dockerfile" ]; then
+        # We're in the api directory
+        echo "Building from api directory..."
+        docker build \
+            --build-arg GITHUB_USERNAME="$GITHUB_USER" \
+            --build-arg GITHUB_TOKEN="$GITHUB_TOKEN" \
+            -t margo-symphony-api:latest \
+            .. -f Dockerfile
+    elif [ -f "api/Dockerfile" ]; then
+        # We're in the root directory
+        echo "Building from root directory..."
+        docker build \
+            --build-arg GITHUB_USERNAME="$GITHUB_USER" \
+            --build-arg GITHUB_TOKEN="$GITHUB_TOKEN" \
+            -t margo-symphony-api:latest \
+            . -f api/Dockerfile
+    else
+        echo "Error: Dockerfile not found in current directory or api/ subdirectory"
+        return 1
+    fi
+    
+    if [ $? -eq 0 ]; then
+        echo "Symphony API container built successfully with tag: margo-symphony-api:latest"
+        
+        # Run the container
+        echo "Starting Symphony API container..."
+        docker run -dit --name symphony-api-container \
+            -p 8082:8082 \
+            -e LOG_LEVEL=Debug \
+            -v "$HOME/symphony/api/certificates:/certificates" \
+            -v "$HOME/symphony/api":/configs \
+            -e CONFIG=symphony-api-margo.json \
+            margo-symphony-api:latest
+            
+        if [ $? -eq 0 ]; then
+            echo "Symphony API container started successfully"
+            echo "Container is running on port 8082"
+            echo "Container name: symphony-api-container"
+        else
+            echo "Failed to start Symphony API container"
+            return 1
+        fi
+    else
+        echo "Failed to build Symphony API container"
+        return 1
+    fi
+}
+
 
 stop_symphony() {
   echo "Stopping Symphony API on..."
@@ -1528,26 +1625,37 @@ stop_symphony() {
 
 # Collect certificate information
 collect_certs_info() {
-    read -p "Common Name (FQDN): " CN
-    read -p "Country (2 letters, default: US): " C
-    read -p "State (default: CA): " ST
-    read -p "City (default: San Francisco): " L
-    read -p "Organization (default: MyCompany): " O
-    read -p "Email (default: admin@example.com): " EMAIL
-    read -p "Validity days (default: 365): " DAYS
-    read -p "Additional domains (comma-separated, optional): " SAN_DOMAINS
-    read -p "Additional IPs (comma-separated, optional): " SAN_IPS
+    # read -p "Common Name (FQDN): " CN
+    # read -p "Country (2 letters, default: US): " C
+    # read -p "State (default: CA): " ST
+    # read -p "City (default: San Francisco): " L
+    # read -p "Organization (default: MyCompany): " O
+    # read -p "Email (default: admin@example.com): " EMAIL
+    # read -p "Validity days (default: 365): " DAYS
+    # read -p "Additional domains (comma-separated, optional): " SAN_DOMAINS
+    # read -p "Additional IPs (comma-separated, optional): " SAN_IPS
+
+    CN="${EXPOSED_SYMPHONY_IP:-localhost}"
+    C="IN"
+    ST="GGN"
+    L="Some ABC Location"
+    O="Margo"
+    EMAIL="admin@example.com"
+    DAYS="365"
+    SAN_DOMAINS=""
+    SAN_IPS=""
     
-    # Set defaults
-    C=${C:-IN}
-    ST=${ST:-GGN}
-    L=${L:-"Some ABC Location"}
-    O=${O:-Margo}
-    EMAIL=${EMAIL:-admin@example.com}
-    DAYS=${DAYS:-365}
+    # # Set defaults
+    # C=${C:-IN}
+    # ST=${ST:-GGN}
+    # L=${L:-"Some ABC Location"}
+    # O=${O:-Margo}
+    # EMAIL=${EMAIL:-admin@example.com}
+    # DAYS=${DAYS:-365}
     
-    [[ -z "$CN" ]] && error "Common Name is required"
+    echo "Using certificate defaults with CN: $CN"
 }
+
 
 # Generate OpenSSL config
 generate_config_for_certs() {
@@ -1568,8 +1676,12 @@ L=$L
 O=$O
 CN=$CN
 emailAddress=$EMAIL
+EOF
 
-$([ "$cert_type" = "server" ] && cat << 'SERVEREXT'
+    # Add server extensions separately for better control
+    if [ "$cert_type" = "server" ]; then
+        cat >> "$config_file" << EOF
+
 [v3_req]
 basicConstraints = CA:FALSE
 keyUsage = keyEncipherment, dataEncipherment
@@ -1578,11 +1690,10 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = $CN
-SERVEREXT
-)
 EOF
+    fi
 
-    # Add SAN domains and IPs
+    # Add SAN domains and IPs (rest of the function remains the same)
     if [[ "$cert_type" = "server" && (-n "$SAN_DOMAINS" || -n "$SAN_IPS") ]]; then
         local dns_count=2
         local ip_count=1
@@ -1605,6 +1716,7 @@ EOF
     fi
 }
 
+
 # Generate CA certificate
 generate_ca() {
     info "Generating CA certificate..."
@@ -1623,13 +1735,21 @@ generate_ca() {
 
 # Generate server certificate
 generate_server_certs() {
-    info "Generating server certificate..."
-    mkdir -p $CERT_DIR
+    echo "Generating server certificate..."
+    if ! mkdir -p "$CERT_DIR"; then
+        echo "Error: Failed to create directory $CERT_DIR"
+        return 1
+    fi
+    
+    if [[ ! -w "$CERT_DIR" ]]; then
+        echo "Error: Cannot write to $CERT_DIR"
+        return 1
+    fi
     local server_key="$CERT_DIR/server-key.pem"
     local server_csr="$CERT_DIR/server.csr"
     local server_cert="$CERT_DIR/server-cert.pem"
     local server_config="$CERT_DIR/server.conf"
-    
+    generate_ca
     generate_config_for_certs "$server_config" "server"
     
     openssl genrsa -out "$server_key" 2048
@@ -1683,18 +1803,6 @@ show_menu() {
 # Update the main script execution section
 if [[ -z "$1" ]]; then
   show_menu
-else
-  case "$1" in
-    Prepare-Environment) install_prerequisites ;;
-    Symphony-Start) start_symphony ;;
-    Symphony-Stop) stop_symphony ;;
-    Jaeger_Prometheus_Grafana_Loki-Installation) observability_stack_install ;;
-    Jaeger_Prometheus_Grafana_Loki-Uninstallation) observability_stack_uninstall ;;
-    Teardown-Environment) uninstall_prerequisites ;;
-    Add-Container-Registry-Mirror-To-K3s) add_container_registry_mirror_to_k3s;;
-    # Advanced-Options) advanced_options;;
-    *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites|observability_stack_install|observability_stack_uninstall|add_container_registry_mirror_to_k3s|advanced-options}"; exit 1 ;;
-  esac
 fi
 
 

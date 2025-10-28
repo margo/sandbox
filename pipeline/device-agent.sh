@@ -906,7 +906,6 @@ create_device_ecdsa_certs() {
   echo "✅ Cert generation has been completed."
 }
 
-
 show_menu() {
   echo "Choose an option:"
   echo "1) Install-prerequisites"

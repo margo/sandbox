@@ -7,14 +7,24 @@ This directory contains scripts to set up a complete WFM environment with Sympho
 - Ubuntu/Debian-based Linux system
 - Internet connectivity
 - GitHub account with access to the margo repositories
+- Create github personal access token using the path `Settings -> Developer settings -> Personal access tokens`. Generate a Token(classic). This GITHUB_TOKEN and GITHUB_USER will be exported as environment variables while running scripts (wfm.sh , device-agent.sh) 
+
 
 ## 🏗️ Architecture Overview
 
 The setup consists of three main components:
 
-1. **WFM Node** (`wfm.sh`) - Main workfleet management server (symphony)
-2. **WFM CLI** (`wfm-cli.sh`) - Interactive command-line interface for WFM
-3. **Device Agent Node** (`device-agent.sh`) - Device management agent
+1. **WFM Node** (`wfm.sh`) - Main workfleet management server (symphony). For PoC purpose this script is deploying 
+    1. **WFM (Symphony)**: Workload Fleet Manager
+    2. **Gogs**: Stores Margo application/workload artefacts (Application description manifest stored in margo.yaml file and related resources)
+    3. **Harbor**: Stores docker images and helm charts as OCI compliant artefacts
+    4. **Keycloak**: Earlier it was used while device onboarding to get client-id, this was removed as WFM is generating client-id while authenticating the device with server-side TLS as part of Initial Trust Establishment. WFM Server verifies client certificate and assigns client-id
+    5. **Observability stack**: Ideally observability stack should be hosted at separate VM. In this PoC stack is hosted on WFM and observability data sent to otel collector at device agent. OTEL collector forwards the data to Observability stack(WFM VM). Stack includes jaeger for workload traces, prometheus for workload metrices, grafana and loki for workoad logging.
+
+
+2. **WFM CLI** (`wfm-cli.sh`) - Interactive command-line interface for WFM. Used for application package and deployment instance LCM operations
+
+3. **Device Agent Node** (`device-agent.sh`) - Device management agent. Also hosts OTEL collector and promtail components. Promtail is an agent which ships the contents of workload logs to a Grafana Loki instance as OpenTelemetry doesn't have an evolved logging support as compared to metrics and traces.
 
 ## 🚀 Quick Start
 
@@ -32,15 +42,41 @@ export EXPOSED_HARBOR_IP=<wfm-machine-ip>
 export EXPOSED_GOGS_IP=<wfm-machine-ip>
 export EXPOSED_KEYCLOAK_IP=<wfm-machine-ip>
 export EXPOSED_SYMPHONY_IP=<wfm-machine-ip>
-export DEVICE_NODE_IP=<device-machine-ip>
+export DEVICE_NODE_IP=<device-agent-machine-ip>
 
 # Branch configuration (change as per your need)
-export SYMPHONY_BRANCH=margo-dev-sprint-6
-export DEV_REPO_BRANCH=dev-sprint-6
+export SYMPHONY_BRANCH=margo-dev-sprint-7    # Repo path : https://github.com/margo/dev-repo
+export DEV_REPO_BRANCH=main                  # Repo path : https://github.com/margo/symphony
 
-# Device Agent specific
+# Device Agent script specific
 export WFM_IP=<wfm-machine-ip>
 export WFM_PORT=8082
+export EXPOSED_HARBOR_IP=<wfm-machine-ip>
+```
+
+```bash
+Examples: 
+For wfm.sh script
+export GITHUB_USER=<your-github-username>
+export GITHUB_TOKEN=<your-github-personal-access-token>  
+export EXPOSED_HARBOR_IP=10.139.9.90
+export EXPOSED_GOGS_IP=10.139.9.90
+export EXPOSED_KEYCLOAK_IP=10.139.9.90
+export EXPOSED_SYMPHONY_IP=10.139.9.90
+export DEVICE_NODE_IP=10.139.9.151
+export SYMPHONY_BRANCH=margo-dev-sprint-8
+export DEV_REPO_BRANCH=dev-sprint-8
+sudo -E bash wfm.sh
+-------------------------------------------------------------
+For device-agent.sh script
+export GITHUB_USER=<your-github-username>
+export GITHUB_TOKEN=<your-github-personal-access-token>
+export DEV_REPO_BRANCH=dev-sprint-8
+export WFM_IP=10.139.9.90
+export WFM_PORT=8082
+export EXPOSED_HARBOR_IP=10.139.9.90
+export EXPOSED_HARBOR_PORT=8081
+sudo -E bash device-agent.sh
 ```
 
 ### Step 2: WFM Node Setup

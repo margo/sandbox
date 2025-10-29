@@ -1502,7 +1502,7 @@ install_prerequisites() {
   clone_symphony_repo
   clone_dev_repo
   
-  #setup_keycloak            #Not required as client-id is getting generate using server-side TLS (as per REST API SUP)
+  #setup_keycloak            #Not required as client-id is getting generated using server-side TLS (as per REST API SUP)
   #update_keycloak_config      
   
   setup_harbor

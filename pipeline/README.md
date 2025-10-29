@@ -88,13 +88,13 @@ sudo -E bash wfm.sh
 ```
 
 **Interactive Menu Options:**
-1. **PreRequisites: Setup** - Install all dependencies and services
-2. **PreRequisites: Cleanup** - Remove all installed components
-3. **Symphony: Start** - Start the Symphony API server
-4. **Symphony: Stop** - Stop the Symphony API server
-5. **ObservabilityStack: Start** - Install Jaeger, Prometheus, Grafana, Loki
+1. **PreRequisites: Setup** - Install all dependencies and services. This includes docker, docker compose, rust, go, helm, git, jq, symphony, gogs, harbor, k3s etc.    
+2. **PreRequisites: Cleanup** - Remove all installed components.
+3. **Symphony: Start** - Start the Symphony API server.
+4. **Symphony: Stop** - Stop the Symphony API server.
+5. **ObservabilityStack: Start** - Install Jaeger, Prometheus, Grafana, Loki.
 6. **ObservabilityStack: Stop** - Uninstall observability components
-7. **Registry-K3s: Add-Pull-Secrets** - Configure container registry access
+7. **Registry-K3s: Add-Pull-Secrets** - Configure container registry access, this needs to be ran if we get Docker image pull errors during workload deployment. This adds mirror configuration for Harbor components so that images/helm charts can be pulled.
 
 ### Step 3: Device Agent Setup
 
@@ -104,14 +104,21 @@ Run the device agent script on your device node:
 sudo -E bash device-agent.sh
 ```
 
+
 **Interactive Menu Options:**
-1. **device-agent-start** - Install and start the device agent
-2. **device-agent-stop** - Stop the device agent
-3. **device-agent-status** - Check agent status
-4. **otel-collector-promtail-installation** - Install observability collectors
-5. **otel-collector-promtail-uninstallation** - Remove observability collectors
-6. **add-container-registry-mirror-to-k3s** - Configure registry mirrors
-7. **cleanup-residual** - Clean up all residual files
+1. **Install-prerequisites** - Install all dependencies and services.
+2. **Uninstall-prerequisites** - Uninstall all dependencies and services.
+3. **Device-agent-Start(docker-compose-device)** - Start device agent as docker container.
+4. **Device-agent-Stop(docker-compose-device)**  - Stop device agent container.
+5. **Device-agent-Start(k3s-device)** - Start device agent as k3s pod.
+6. **Device-agent-Stop(k3s-device)**  - stop device agent pod
+7. **Device-agent-Status** - check device docker container or pod is running
+8. **otel-collector-promtail-installation** - Install Opentelemetry collector and Promtail
+9. **otel-collector-promtail-uninstallation** -  Uninstall Opentelemetry collector and Promtail
+10. **add-container-registry-mirror-to-k3s** - Configure container registry access, this needs to be ran if we get Docker image pull errors during workload deployment. This adds mirror configuration for Harbor components so that images/helm charts can be pulled.
+11. **cleanup-residual** - Remove residual files.
+12. **create_device_rsa_certs** - Create device rsa certificates required for server trust establishment.
+13. **create_device_ecdsa_certs** - Create device ecdsa certificates required for server trust establishment.
 
 ### Step 4: Using WFM CLI
 
@@ -144,7 +151,7 @@ The WFM setup installs and configures:
 
 The device agent setup includes:
 
-- **K3s** - Kubernetes cluster
+- **K3s** - Kubernetes device OR **Docker** - Docker compose device
 - **Device Agent** - Connects to WFM server
 - **OTEL Collector** - Metrics and traces collection
 - **Promtail** - Log forwarding to Loki
@@ -200,8 +207,8 @@ sudo netstat -tlnp | grep 8082
 
 ### Log Locations
 
-- Symphony API: `$HOME/symphony-api.log`
-- Device Agent: `$HOME/device-agent.log`
+- Symphony API: docker logs -f symphony-container-name
+- Device Agent: docker logs -f device-agent-container-name (For docker-compose device) OR kubectl logs -f device-agent-pod-name (For k3s device)
 - K3s: `sudo journalctl -u k3s`
 - Docker: `sudo journalctl -u docker`
 
@@ -219,7 +226,7 @@ sudo -E bash wfm.sh
 ```bash
 sudo -E bash device-agent.sh
 # Select option 2: device-agent-stop
-# Select option 7: cleanup-residual
+# Select option 11: cleanup-residual
 ```
 
 ## 📚 Additional Information

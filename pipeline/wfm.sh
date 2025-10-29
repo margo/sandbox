@@ -1562,28 +1562,25 @@ start_symphony_api_container(){
     echo "Removing existing margo-symphony-api:latest image if present..."
     docker rmi margo-symphony-api:latest 2>/dev/null || true
     
+
+
+
+
+    # Create credential files
+    echo "$GITHUB_USER" > github_username.txt
+    echo "$GITHUB_TOKEN" > github_token.txt
+
+    # Build with secrets
+    docker build \
+      --secret id=github_username,src=github_username.txt \
+      --secret id=github_token,src=github_token.txt \
+      -t margo-symphony-api:latest \
+      .. -f Dockerfile
+
+    # Clean up credential files
+    rm github_username.txt github_token.txt
     
-    # Check if we're in the api directory or root directory
-    if [ -f "Dockerfile" ]; then
-        # We're in the api directory
-        echo "Building from api directory..."
-        docker build \
-            --build-arg GITHUB_USERNAME="$GITHUB_USER" \
-            --build-arg GITHUB_TOKEN="$GITHUB_TOKEN" \
-            -t margo-symphony-api:latest \
-            .. -f Dockerfile
-    elif [ -f "api/Dockerfile" ]; then
-        # We're in the root directory
-        echo "Building from root directory..."
-        docker build \
-            --build-arg GITHUB_USERNAME="$GITHUB_USER" \
-            --build-arg GITHUB_TOKEN="$GITHUB_TOKEN" \
-            -t margo-symphony-api:latest \
-            . -f api/Dockerfile
-    else
-        echo "Error: Dockerfile not found in current directory or api/ subdirectory"
-        return 1
-    fi
+    
     
     if [ $? -eq 0 ]; then
         echo "Symphony API container built successfully with tag: margo-symphony-api:latest"
@@ -1614,14 +1611,21 @@ start_symphony_api_container(){
 
 
 stop_symphony() {
-  echo "Stopping Symphony API on..."
-  PID=$(ps -ef | grep '[s]ymphony-api-margo.json' | awk '{print $2}'); 
-  if [ -z "$PID" ]; then 
-    echo '❌ Symphony API is not running'; 
-  else 
-    kill -9 $PID && echo '✅ Symphony API stopped'; 
+  echo "Stopping and removing Symphony API container..."
+  
+  # Stop the container if running
+  if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
+    docker stop symphony-api-container && echo '✅ Symphony API container stopped'
+  fi
+  
+  # Remove the container if it exists
+  if docker ps -a --format '{{.Names}}' | grep -q "symphony-api-container"; then
+    docker rm symphony-api-container && echo '✅ Symphony API container removed'
+  else
+    echo 'ℹ️ Symphony API container not found'
   fi
 }
+
 
 # Collect certificate information
 collect_certs_info() {

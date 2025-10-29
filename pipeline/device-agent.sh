@@ -62,6 +62,16 @@ install_basic_utilities() {
 }
 
 install_docker_compose_v2() {
+  
+  if ! command -v docker >/dev/null 2>&1; then
+    echo 'Docker not found. Installing Docker...';
+    apt-get remove -y docker docker-engine docker.io containerd runc || true;
+    curl -fsSL "https://get.docker.com" -o get-docker.sh; sh get-docker.sh;
+    usermod -aG docker $USER;
+  else
+    echo 'Docker already installed.';
+  fi;
+    
   echo "Installing Docker Compose V2 plugin..."
   
   # Create the plugins directory
@@ -147,8 +157,11 @@ clone_dev_repo() {
 # Configuration Functions
 # ----------------------------
 update_agent_sbi_url() {
-  echo 'Updating wfm.sbiUrl in agent config...'
+  echo 'Updating wfm.sbiUrl in agent config for k3s device ...'
   sed -i "s|sbiUrl:.*|sbiUrl: http://$WFM_IP:$WFM_PORT/v1alpha2/margo/sbi/v1|" "$HOME/dev-repo/helmchart/config.yaml"
+
+  echo 'Updating wfm.sbiUrl in agent config for docker device ...'
+  sed -i "s|sbiUrl:.*|sbiUrl: http://$WFM_IP:$WFM_PORT/v1alpha2/margo/sbi/v1|" "$HOME/dev-repo/docker-compose/config/config.yaml"
 }
 
 
@@ -880,9 +893,7 @@ uninstall_otel_collector_promtail() {
 cleanup_residual() {
   rm -rf "$HOME/dev-repo"
   rm -rf "$HOME/symphony"
-  rm -rf "$HOME/device-agent.log"
-  rm -rf "$HOME/device-agent.pid"
-}
+ }
 
 create_device_rsa_certs() {
   echo "Generating device certs..."

@@ -31,11 +31,18 @@ The repository is divided into three main parts. More details on [Repo Structure
 - Container Registry & Repository Management (Harbor, Gogs)
 - Observability Stack (Prometheus, Grafana, Jaeger, Loki, OpenTelemetry Collector, Promtail)
 - Security & Authentication (OpenSSL for server/client certificate generation)
-- System Utilities and Workload Packages(Nextcloud, Nginx and custom OTEL)
+- Workload Packages(Nextcloud, Nginx and custom OTEL)
 
 ---
 
 ## 🧠 Design and Mapping to MARGO Architecture
+
+Margo intends to create an open interoperability standard and ecosystem for the industrial edge, allowing edge compute devices, workloads, and fleet management software to be compatible and interoperable across manufacturers and software developers willing to adopt such standard.
+
+Margo envision the follwing [Architecture](./docs/margo-architecture.png).
+
+The reference implementation through this 'Sandbox' environment implements the key MARGO components as per following [Overlay-Architecture](./docs/overlay-architecture.png).
+
 
 ### 🎼 Symphony WFM
 Workflow management integration details.

@@ -1,7 +1,7 @@
-# Margo Project Documentation
+# MARGO Project Documentation
 
 ## 📘 Introduction
-Welcome to the Margo project! The Margo initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit.  Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about Margo [here](https://margo.org/).
+Welcome to the MARGO project! The MARGO initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit.  MARGO unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about MARGO [here](https://margo.org/).
 
 ---
 
@@ -22,8 +22,8 @@ This section allows you to set up a 'Sandbox' environment for experimenting with
 ## 🗂️ Structure of the Repository
 The repository is divided into three main parts. More details on [Repo Structure](./docs/repo-structure.md):
 - `shared-lib`: Reusable libraries and utilities (Open Source Components)
-- `standard`: Standard implementation components as per Margo specification
-- `non-standard`: Sandbox enabling components, these are not defined by Margo but required for reference implementation
+- `standard`: Standard implementation components as per MARGO specification
+- `non-standard`: Sandbox enabling components, these are not defined by MARGO but required for reference implementation
 
 ---
 
@@ -31,37 +31,63 @@ The repository is divided into three main parts. More details on [Repo Structure
 - Container Registry & Repository Management (Harbor, Gogs)
 - Observability Stack (Prometheus, Grafana, Jaeger, Loki, OpenTelemetry Collector, Promtail)
 - Security & Authentication (OpenSSL for server/client certificate generation)
-- Workload Packages(Nextcloud, Nginx and custom OTEL)
+- Workload Packages (Nextcloud, Nginx and custom OTEL)
 
 ---
 
 ## 🧠 Design and Mapping to MARGO Architecture
 
-Margo intends to create an open interoperability standard and ecosystem for the industrial edge, allowing edge compute devices, workloads, and fleet management software to be compatible and interoperable across manufacturers and software developers willing to adopt such standard.
+MARGO intends to create an open interoperability standard and ecosystem for the industrial edge, allowing edge compute devices, workloads, and fleet management software to be compatible and interoperable across manufacturers and software developers willing to adopt such standard.
 
-Margo envision the follwing [Architecture](./docs/margo-architecture.png).
+- MARGO envision the [Architecture](./docs/margo-architecture.png).
+- The reference implementation through this 'Sandbox' environment implements the key MARGO components as per [Overlay-Architecture](./docs/overlay-architecture.png).
 
-The reference implementation through this 'Sandbox' environment implements the key MARGO components as per following [Overlay-Architecture](./docs/overlay-architecture.png).
 
 
-### 🎼 Symphony WFM
-Workflow management integration details.
+### Overlay Architecture as 'Code-first Sandbox' maps to the following components with respect to MARGO architecture
 
-### 📁 Repositories
-- **Gogs**: Git repository management
-- **Harbor**: Container image registry
+#### 🎼 Symphony WFM
+- Sandbox uses Eclipse Symphony as Workload Fleet Manager. 
+- As mentioned in MARGO architecture and overlay architecture WFM connects through MARGO envisioned communication mechanisms.
 
-### 📊 Telemetry and Monitoring
-- **OTEL Telemetry**: OpenTelemetry integration
-- **Jaeger**: Distributed tracing
-- **Prometheus**: Metrics collection
-- **Grafana/Loki**: Visualization and log aggregation
+#### 📁 Repositories and registry
+- Gogs and Harbor provide application registry and repository functionalities.
+- Application supplier's packages are stored in Gogs and docker images/helm artifacts related to these applications are stored in Harbor registry.
+- Application packages are pulled/pushed/deleted from Gogs repository whenever WFM performs application package LCM operation. 
+- The WFM Client/Device-agent pulls docker images/helm artifacts from Harbor whenever workloads are getting deployed corresponding to the application packages during instance deployment.
 
-### 🧩 Provider MVP Pattern
-Explanation of the MVP (Model-View-Presenter) pattern used for providers.
+#### 📊 Telemetry and Monitoring
+- Sandbox deploys OpenTelemetry Collector at WFM client for instrumentation as per MARGO observability specification.
+- OpenTelemetry Collector sends telemetry data to observability backends from WFM client. Promtail is also deployed on WFM client for logs aggregation. Promtail agent fetches and pushes logs to Loki on WFM.
+- Observability backends should be external to WFM client. In Sandbox implementation, these backends are deployed on WFM. These include Prometheus, Jaeger, Loki and Grafana.
+- Loki is deployed for log aggregation and Grafana dashboard for visualization.
+- Jaeger is deployed for tracing.
+- Prometheus is deployed for Metrics collection.
 
-### 🔐 HTTP/1.1 and API Security
-Security protocols and API communication standards.
+#### 🧩 MVP Pattern
+- Eclipse Symphony is an open-source orchestration platform developed by the Eclipse Foundation to unify and manage complex workloads across diverse systems. In the context of Eclipse Symphony, MVP refers to a design pattern for building extensible systems, specifically a three-tiered architecture consisting of Managers, Vendors, and Providers. 
+- This pattern is often referred to as HB-MVP (Host-Bound MVP).
+    **Managers**: Implement business logic.
+    **Vendors**: Facilitate interaction with other systems.
+    **Providers**: Bridge the connection to external systems. 
+
+##### Here's a breakdown of each component:
+
+- **Vendors**: Vendors offer capabilities, typically exposed through an API surface. They act as the entry point for interacting with a specific service or functionality. Ideally, vendors are protocol-agnostic, allowing them to be bound to various communication protocols (e.g., HTTP, gRPC, MQTT) as needed.
+- **Managers**: Managers implement the platform-agnostic business logic for a given capability. They receive requests from vendors and orchestrate the necessary actions, often by interacting with one or more providers. Managers are designed for reuse and encapsulate the core business logic.
+- **Providers**: Providers are responsible for interacting with specific external systems or dependencies. They abstract away the details of platform-specific interactions, containing any platform-specific knowledge within their scope. Managers utilize providers to perform actions on external resources.
+
+Sandbox uses MVP pattern to implement MARGO specification.
+
+
+#### 🔐 HTTP/1.1 and API Security
+- Sandbox utilizes HTTP/1.1 to ensure maximum support for existing infrastructure.
+- Server-side TLS is utilized instead of mTLS due to potential issues with TLS- terminating HTTPS load-balancer or a HTTPS proxies doing lawful inspection. 
+- Use of X.509 certificates to represent both parties within the REST API construction. These certificates are utilized to prove each participant's identity, establish a secure TLS session, and securely transport information within secure envelopes. Supports client authentication using X.509 certificates conforming to RFC 5280. 
+- The device establishes a secure HTTPS connection using server-side TLS. It validates the server's identity using the public root CA certificate. By utilizing the certificates to create payload envelopes (HTTP request body), the device's management client can ensure secure transport between the device's management client and the Workload Fleet Management web service.
+- For API security, server side TLS 1.3 (minimum) is used, where the keys are obtained from the Server's X.509 Certificate as defined in the standard HTTP over TLS
+- For API integrity, the device's management client is issued a client-specific X.509 certificate.
+The issuer of the client X.509 certificate is trusted under the assumption that the root CA download to the Workload Fleet Management server occurs as a precondition to onboarding the devices.
 
 ---
 

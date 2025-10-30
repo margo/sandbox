@@ -13,13 +13,13 @@
     export SYMPHONY_BRANCH="margo-dev-sprint-6"
     export DEV_REPO_BRANCH="dev-sprint-6"
     ```
-    **Note:** Refer examples mentioned in [WFM and Device-Agent Setup Guide](../pipeline/README.md#step-1-environment-variables-setup) for exporting Environment variables.
+    **Note:** Refer to the examples mentioned in the [WFM and Device-Agent Setup Guide](../pipeline/README.md#step-1-environment-variables-setup) for exporting environment variables.
 
 - **Steps**: Step-by-step instructions to build the project:
 
   1. **Setup Prerequisites**
      ```bash
-     # Install basic utilities, Go 1.24.4, Docker, Helm v3.15.1, and k3s
+     # Install basic utilities, Go, Docker, Helm, and k3s
      ./wfm.sh  # Choose option 1: PreRequisites Setup
      ```
 
@@ -50,4 +50,4 @@
      # Installs Jaeger, Prometheus, Grafana, and Loki
      ```
 
-This setup creates a complete sandbox environment with WFM (Workflow Manager) and Device-Agent components for experimenting with MARGO APIs and running CLI scenarios.
+This setup creates a complete sandbox environment with WFM (Workload Fleet Manager) and Device-Agent components for experimenting with MARGO APIs and running CLI scenarios.

@@ -97,7 +97,7 @@ This creates an optimized, compressed binary with UPX compression.
 
 ```bash
 # Build Docker image
-docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:dev-sprint-6
+docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:latest
 
 cd poc/device/agent
 
@@ -107,14 +107,14 @@ docker run -d \
   -v /root/.kube/config:/root/.kube/config \
   -v ./data:/data \
   --name device-agent \
-  margo.org/device-agent:dev-sprint-6
+  margo.org/device-agent:latest
 ```
 
 ### Docker Deployment to manager Docker runtime (for compose apps)
 
 ```bash
 # Build Docker image
-docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:dev-sprint-6
+docker build -f poc/device/agent/Dockerfile . -t margo.org/device-agent:latest
 
 # Run container
 docker run -d \
@@ -122,7 +122,7 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v ./data:/data \
   --name device-agent \
-  margo.org/device-agent:dev-sprint-6
+  margo.org/device-agent:latest
 ```
 
 ## Configuration

@@ -1,27 +1,29 @@
 # Margo Development Repository
 
-A development repository for the Margo platform - an edge computing orchestration system that manages workloads across margo compliant devices and workload orchestrators.
+A development repository for the Margo project - an edge computing orchestration system that manages workloads across margo compliant devices and workload orchestrators.
 
 ## Overview
 
-This repository contains the core components, shared libraries, proof-of-concepts, and tooling for the Margo PoCs.
+This repository contains the core components, shared libraries, proof-of-concepts, and tooling for the Margo reference implementation.
 
 ## Repository Structure
 
 ```
 dev-repo/
-├── README.md                 # This file
-├── LICENSE                   # Project license
-├── go.mod                    # Go module dependencies
-├── go.sum                    # Go module checksums
-├── .github/                  # GitHub workflows and templates
-├── .vscode/                  # VS Code configuration
-├── config/                   # Global configuration files
-├── tools/                    # Development and testing tools
-├── shared-lib/               # Reusable libraries and utilities
-├── standard/                 # Standard Margo components and APIs
-├── non-standard/             # Experimental and non-standard components that are not defined in Margo, but needed for a complete PoC
-└── poc/                      # Proof-of-concept implementations
+├── docker-compose  # files related to run device-agent as docker container
+├── docs            # documentation related to Margo project
+├── go.mod          # Go module dependencies
+├── go.sum          # Go module checksums
+├── .github/        # GitHub workflows and templates
+├── .vscode/        # VS Code configuration
+├── helmchart       # helmchart files to run device-agent as pod
+├── LICENSE         # Project license
+├── non-standard    # Sandbox enabling components (components that are not defined in Margo, but needed for a complete PoC)
+├── pipeline        # Automation scripts for build, deployment and run.
+├── poc             # Margo reference implementations and code for device-agent
+├── README.md       # Main markdown file for whole project which links to other .md files
+├── shared-lib      # Reusable libraries and utilities 
+└── standard        # Standard Margo components and APIs
 ```
 
 ## Core Components
@@ -43,7 +45,7 @@ go build -o agent .
 ./agent
 ```
 
-NOTE: Please check the README.md given in `poc/device/agent` directory. It has comprehensive literature on how it works, and how to extend its development.
+NOTE: Please check the [Agent Docs](../poc/device/agent/README.md). It has comprehensive literature on how it works, and how to extend its development.
 
 ### 📚 Shared Libraries (`shared-lib/`)
 Reusable Go libraries providing common functionality across Margo components.
@@ -53,13 +55,13 @@ Reusable Go libraries providing common functionality across Margo components.
 - **Workload management** (`workloads/`) - Helm and Docker Compose clients
 - **File operations** (`file/`) - File download and manipulation utilities
 
-### 🛠️ Development Tools (`tools/`) [TBD -- Incomplete]
+### 🛠️ Development Tools (`pipeline/`) 
 Scripts and utilities for development, testing, and deployment automation.
 
 **Tools:**
-- **Setup script** (`setup.sh`) - Automated environment setup (Gogs, Harbor, Keycloak, Symphony)
-- **Test suite** (`tests.sh`) - Comprehensive testing framework
-- **Test cases** (`helm-app-pkg-testcases.yaml`) - YAML-based test definitions
+- **Setup script** (`wfm.sh` , device-agent.sh) - Automated environment setup (Gogs, Harbor, device-agent, Symphony etc)
+- **WFM CLI** (`wfm-cli.sh`) - Interactive menu with options to upload/apply/delete app packages, deploy/delete instances.
+
 
 ### 📋 Standard Components (`standard/`)
 Official Margo API specifications, generated code, and standard implementations.
@@ -94,12 +96,6 @@ cd dev-repo
 go mod download
 ```
 
-3. **Setup development environment:**
-```bash
-cd tools
-chmod +x setup.sh
-./setup.sh
-```
 
 4. **Build and run device agent:**
 ```bash
@@ -117,10 +113,7 @@ go test ./...
 # Run with coverage
 go test -cover ./...
 
-# Run integration tests
-cd tools
-./test_runner.sh
-```
+
 
 ## Development Workflow
 
@@ -145,10 +138,6 @@ cd tools
 go test ./shared-lib/...
 go test ./poc/device/agent/...
 
-# Integration tests
-cd tools
-# End-to-end tests
-./test_runner.sh -f test-cases/e2e-tests.yaml
 ```
 
 ## Deployment Options
@@ -162,32 +151,3 @@ go run ./poc/device/agent
 go run ./poc/device/agent -config custom-config.yaml
 ```
 
-### Production
-[TBD]
-
-## Contributing
-
-### Development Setup
-
-1. **Fork the repository**
-2. **Create feature branch**: `git checkout -b feature/new-feature`
-3. **Follow code standards**: Run `gofmt` and `golangci-lint`
-4. **Write tests**: [Not a priority]
-5. **Update documentation**: Include README updates
-6. **Submit PR**: Include tests and documentation
-
-### Code Standards
-
-- **Go conventions** - Follow effective Go practices
-- **Error handling** - Use structured errors with context
-- **Testing** - Table-driven tests with proper mocking [Not a priority]
-- **Documentation** - Godoc comments for public APIs
-- **Logging** - Structured logging with appropriate levels
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Build failures** - Check Go version and dependencies
-2. **Agent connectivity** - Verify orchestrator URL and network access
-3. **Runtime errors** - Check Docker

@@ -1,7 +1,7 @@
 # Margo Project Documentation
 
 ## 📘 Introduction
-Welcome to the Margo project! The Margo initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation and a comprehensive compliance testing toolkit.  Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about Margo [here](https://margo.org/).
+Welcome to the Margo project! The Margo initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit.  Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about Margo [here](https://margo.org/).
 
 ---
 
@@ -20,15 +20,18 @@ This section allows you to set up a 'Sandbox' environment for experimenting with
 ---
 
 ## 🗂️ Structure of the Repository
-The repository is divided into three main parts:
-- `shared-lib`: Common libraries used across modules
-- `standard`: Standard implementation components
-- `non-standard`: Custom or experimental components
+The repository is divided into three main parts. More details on [Repo Structure](./docs/repo-structure.md):
+- `shared-lib`: Reusable libraries and utilities (Open Source Components)
+- `standard`: Standard implementation components as per Margo specification
+- `non-standard`: Sandbox enabling components, these are not defined by Margo but required for reference implementation
 
 ---
 
 ## 📦 3rd Party Components
-List of integrated third-party tools and libraries used in the project.
+- Container Registry & Repository Management (Harbor, Gogs)
+- Observability Stack (Prometheus, Grafana, Jaeger, Loki, OpenTelemetry Collector, Promtail)
+- Security & Authentication (OpenSSL for server/client certificate generation)
+- System Utilities and Workload Packages(Nextcloud, Nginx and custom OTEL)
 
 ---
 
@@ -50,7 +53,7 @@ Workflow management integration details.
 ### 🧩 Provider MVP Pattern
 Explanation of the MVP (Model-View-Presenter) pattern used for providers.
 
-### 🔐 HTTP1.1 and API Security
+### 🔐 HTTP/1.1 and API Security
 Security protocols and API communication standards.
 
 ---

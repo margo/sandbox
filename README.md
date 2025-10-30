@@ -1,4 +1,4 @@
-# Project Documentation
+# Margo Project Documentation
 
 ## 📘 Introduction
 Welcome to the Margo project! This document provides a comprehensive guide to setting up, deploying, and understanding the architecture and components of the Margo system. The Margo initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver the interoperability promise through an open standard, a reference implementation and comprehensive compliance testing toolkit.  Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about MARGO [here](https://margo.org/)
@@ -9,7 +9,7 @@ Welcome to the Margo project! This document provides a comprehensive guide to se
 This section provides an overview of the quick start steps for the project. More details are available in the respective sections below. It includes setting up your environment, building the project, deploying it, and running it.  
 
 ### 🛠️ Dev Toolset
-Details of different tools used in the development [Dev Toolset](./docs/dev-toolsets.md)
+Details of different [Dev Toolset](./docs/dev-toolsets.md) used in the development. 
 
 
 #### 🔧 How to Build
@@ -17,9 +17,25 @@ Details of different tools used in the development [Dev Toolset](./docs/dev-tool
 - **Steps**: Step-by-step instructions to build the project
 
 #### 🚚 How to Deploy
-- **3 VM Architecture**: Overview of the virtual machine setup
-- **VM Environment**: Configuration details for each VM
-- **Steps**: Deployment process walkthrough
+- **3 VM Architecture**: Margo envision 3 VM architecture for local setup where one VM is for WFM, one for stand alone cluster using k3s device and 1 more for standalone docker compose device.
+
+    1. **WFM-VM**: WFM setup has been done using symphony, harbor and gogs. Also runs observability stack( Jaegar, Promtheus, Grafana and Loki)
+
+    2. **K3s-Device-VM**: Using k3s as the standalone device. Runs device-agent, OTEL colletor, promtail and workloads deployed as k3s pods.
+
+    3. **Docker-compose-Device-VM**: Using docker-compose as the standalone device. Runs device-agent, OTEL colletor, promtail and workloads deployed as docker containers.
+
+   
+
+- **VM Environment**: Configuration details for each VM. This size might vary based on number of workloads to be deployed on device and actual load post deployment of workloads. Below is for stable workload validation in devlopment environment.
+
+    | VM Type                | OS            | VM Size                   |
+    |------------------------|---------------|---------------------------| 
+    | WFM                    | Ubuntu/Debian | (8 CPU, 16 GB RAM, 100 GB)|
+    | K3s Device             | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
+    | Docker-Compose Device  | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
+    
+- **Steps**: [WFM and Device-Agent Setup Guide](./pipeline/README.md)
 
 #### ▶️ How to Run
 - **Steps**: Execution instructions

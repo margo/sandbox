@@ -65,7 +65,7 @@ Based on the two shell scripts (`/pipeline/device-agent.sh` and `/pipeline/wfm.s
 - **Uses**:
   - Git repository hosting
   - Management of workload packages as per margo defined specification
-  - Nextcloud, Nginx and Custom OTEL workload packages are getting uploaded to Gogs while environment setup. These packages are based on margo application description specification and availabe at [Margo Packages](../poc/tests/artefacts)
+  - Nextcloud, Nginx and Custom OTEL workload packages are getting uploaded to Gogs while environment setup. These [Margo Packages](../poc/tests/artefacts) are based on margo application description specification 
   - API-based repository creation and management
 
 ---
@@ -93,7 +93,7 @@ Based on the two shell scripts (`/pipeline/device-agent.sh` and `/pipeline/wfm.s
 - **Uses**:
   - Log aggregation and storage
   - Centralized logging solution
-  - Fetches logs from Loki
+  - Receives logs via Promtail
 
 #### OTEL Collector (OpenTelemetry)
 - **Uses**:
@@ -140,7 +140,7 @@ Based on the two shell scripts (`/pipeline/device-agent.sh` and `/pipeline/wfm.s
   - Building Symphony UI components
   - JavaScript dependency management
   
-  **Note : Symphony UI not used. Applicaton and workload LCM operations are performed using the script /pipeline/wfm-cli.sh**
+  **Note : Symphony UI not used. Application and workload LCM operations are performed using the script /pipeline/wfm-cli.sh**
 
 #### curl & wget
 - **Uses**:
@@ -168,7 +168,7 @@ Based on the two shell scripts (`/pipeline/device-agent.sh` and `/pipeline/wfm.s
 
 ---
 
-### 📦 Application Packages
+### 📦 Workload Packages
 
 #### Nextcloud
 - **Uses**:

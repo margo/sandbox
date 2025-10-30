@@ -1,4 +1,4 @@
-# WFM and Device-Agent Setup Guide
+# WFM, Device-Agent and Observability stack Setup Guide
 
 This directory contains scripts to set up a complete WFM environment with Symphony API, device agents, and observability stack.
 

@@ -1,193 +1,74 @@
-# Margo Development Repository
+# Project Documentation
 
-A development repository for the Margo platform - an edge computing orchestration system that manages workloads across margo compliant devices and workload orchestrators.
+## 📘 Introduction
+Welcome to the Margo project! This document provides a comprehensive guide to setting up, deploying, and understanding the architecture and components of the Margo system. The Margo initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver the interoperability promise through an open standard, a reference implementation and comprehensive compliance testing toolkit.  Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about MARGO [here](https://margo.org/)
 
-## Overview
+---
 
-This repository contains the core components, shared libraries, proof-of-concepts, and tooling for the Margo PoCs.
+## 🚀 Quick Start
+This section provides an overview of the quick start steps for the project. More details are available in the respective sections below. It includes setting up your environment, building the project, deploying it, and running it.  
 
-## Repository Structure
+### 🛠️ Dev Toolset
+Details of different tools used in the development [Dev Toolset](./docs/dev-toolsets.md)
 
-```
-dev-repo/
-├── README.md                 # This file
-├── LICENSE                   # Project license
-├── go.mod                    # Go module dependencies
-├── go.sum                    # Go module checksums
-├── .github/                  # GitHub workflows and templates
-├── .vscode/                  # VS Code configuration
-├── config/                   # Global configuration files
-├── tools/                    # Development and testing tools
-├── shared-lib/               # Reusable libraries and utilities
-├── standard/                 # Standard Margo components and APIs
-├── non-standard/             # Experimental and non-standard components that are not defined in Margo, but needed for a complete PoC
-└── poc/                      # Proof-of-concept implementations
-```
 
-## Core Components
+#### 🔧 How to Build
+- **Environment**: Setup prerequisites and configurations
+- **Steps**: Step-by-step instructions to build the project
 
-### 🤖 Device Agent (`poc/device/agent/`)
-Edge device agent that manages workload deployments on device and talks to the workload orchestrator for state seeking,  status updates and some other operations.
+#### 🚚 How to Deploy
+- **3 VM Architecture**: Overview of the virtual machine setup
+- **VM Environment**: Configuration details for each VM
+- **Steps**: Deployment process walkthrough
 
-**Key Features:**
-- Multi-runtime support (Kubernetes Distributions(for Helm workloads), Docker(for docker-compose workloads))
-- Event-driven architecture with state synchronization
-- Device onboarding and capability reporting
-- Workload lifecycle management and monitoring
-- In-memory database with persistence
+#### ▶️ How to Run
+- **Steps**: Execution instructions
+- **Automation**: Scripts and tools for automated runs
 
-**Quick Start:**
-```bash
-cd poc/device/agent
-go build -o agent .
-./agent
-```
+---
 
-NOTE: Please check the README.md given in `poc/device/agent` directory. It has comprehensive literature on how it works, and how to extend its development.
+## 🗂️ Structure of the Repository
+The repository is divided into three main parts:
+- `shared-lib`: Common libraries used across modules
+- `standard`: Standard implementation components
+- `non-standard`: Custom or experimental components
 
-### 📚 Shared Libraries (`shared-lib/`)
-Reusable Go libraries providing common functionality across Margo components.
+---
 
-**Libraries:**
-- **HTTP utilities** (`http/`) - HTTP client with authentication utilties
-- **Workload management** (`workloads/`) - Helm and Docker Compose clients
-- **File operations** (`file/`) - File download and manipulation utilities
+## 📦 3rd Party Components
+List of integrated third-party tools and libraries used in the project.
 
-### 🛠️ Development Tools (`tools/`) [TBD -- Incomplete]
-Scripts and utilities for development, testing, and deployment automation.
+---
 
-**Tools:**
-- **Setup script** (`setup.sh`) - Automated environment setup (Gogs, Harbor, Keycloak, Symphony)
-- **Test suite** (`tests.sh`) - Comprehensive testing framework
-- **Test cases** (`helm-app-pkg-testcases.yaml`) - YAML-based test definitions
+## 🧠 Design and Mapping to MARGO Architecture
 
-### 📋 Standard Components (`standard/`)
-Official Margo API specifications, generated code, and standard implementations.
+### 🎼 Symphony WFM
+Workflow management integration details.
 
-**Contents:**
-- Standard data models and schemas derived from the Official Margo spec literature 
-- Generated API clients and server stubs
-- Protocol definitions and interfaces
+### 📁 Repositories
+- **Gogs**: Git repository management
+- **Harbor**: Container image registry
 
-### 🧪 Proof of Concepts (`poc/`)
-Experimental implementations and prototypes for new features.
+### 📊 Telemetry and Monitoring
+- **OTEL Telemetry**: OpenTelemetry integration
+- **Jaeger**: Distributed tracing
+- **Prometheus**: Metrics collection
+- **Grafana/Loki**: Visualization and log aggregation
 
-## Quick Start
+### 🧩 Provider MVP Pattern
+Explanation of the MVP (Model-View-Presenter) pattern used for providers.
 
-### Prerequisites
+### 🔐 HTTP1.1 and API Security
+Security protocols and API communication standards.
 
-- **Go 1.24.3+** for building components
-- **Docker** for container-based deployments
-- **Kubernetes cluster** (optional, for Helm deployments)
-- **Git** for version control
+---
 
-### Environment Setup
+## 📝 Release Notes
+Details of version updates, bug fixes, and new features.
 
-1. **Clone the repository:**
-```bash
-git clone https://github.com/margo/dev-repo
-cd dev-repo
-```
+---
 
-2. **Install dependencies:**
-```bash
-go mod download
-```
+## 💬 Comments and Feedback
+We welcome your thoughts! Please open an issue or submit a pull request for suggestions or improvements.
 
-3. **Setup development environment:**
-```bash
-cd tools
-chmod +x setup.sh
-./setup.sh
-```
-
-4. **Build and run device agent:**
-```bash
-cd poc/device/agent
-go build -o agent .
-./agent
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Run integration tests
-cd tools
-./test_runner.sh
-```
-
-## Development Workflow
-
-### Adding New Features
-
-1. **Shared functionality** → Add to `shared-lib/`
-2. **API changes from Official Margo Spec** → Update `standard/` specifications
-2. **API changes needed for PoC but not defined in Margo spec** → Update `non-standard/` specifications
-3. **Implementation of the standard and non-standard features** → Implement in `poc/`
-4. **Testing utilities** → Add to `tools/`
-
-### Code Organization
-
-- **Error handling** - Use structured errors with context
-- **Logging** - Structured logging with zap
-- **Testing** - Table-driven tests with mocks
-
-### Testing Strategy
-
-```bash
-# Unit tests
-go test ./shared-lib/...
-go test ./poc/device/agent/...
-
-# Integration tests
-cd tools
-# End-to-end tests
-./test_runner.sh -f test-cases/e2e-tests.yaml
-```
-
-## Deployment Options
-
-### Development
-```bash
-# Local development
-go run ./poc/device/agent
-
-# With custom config
-go run ./poc/device/agent -config custom-config.yaml
-```
-
-### Production
-[TBD]
-
-## Contributing
-
-### Development Setup
-
-1. **Fork the repository**
-2. **Create feature branch**: `git checkout -b feature/new-feature`
-3. **Follow code standards**: Run `gofmt` and `golangci-lint`
-4. **Write tests**: [Not a priority]
-5. **Update documentation**: Include README updates
-6. **Submit PR**: Include tests and documentation
-
-### Code Standards
-
-- **Go conventions** - Follow effective Go practices
-- **Error handling** - Use structured errors with context
-- **Testing** - Table-driven tests with proper mocking [Not a priority]
-- **Documentation** - Godoc comments for public APIs
-- **Logging** - Structured logging with appropriate levels
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Build failures** - Check Go version and dependencies
-2. **Agent connectivity** - Verify orchestrator URL and network access
-3. **Runtime errors** - Check Docker
+---

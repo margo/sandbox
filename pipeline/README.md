@@ -1,4 +1,4 @@
-# WFM (Workflow Management) Setup Guide
+# WFM and Device-Agent Setup Guide
 
 This directory contains scripts to set up a complete WFM environment with Symphony API, device agents, and observability stack.
 

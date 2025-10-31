@@ -1,7 +1,7 @@
 ##### [Back To Main](../README.md)
 ## 🛠 Development Toolsets used in Sandbox
 
-Based on the two shell scripts (`/pipeline/device-agent.sh` and `/pipeline/wfm.sh`), here are all the development toolsets used and their purposes:
+Here are all the development toolsets used and their purposes:
 
 ---
 

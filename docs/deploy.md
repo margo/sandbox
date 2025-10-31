@@ -1,9 +1,9 @@
 ##### [Back To Main](../README.md)
-## 🚀 How to Deploy Sandbox
+## 🚀 How to deploy Sandbox
 
- **3 VM Architecture**: Margo envision 3 VM architecture for local setup where one VM is for WFM, one for stand alone cluster using k3s device and 1 more for standalone docker compose device.
+ **3 VM Architecture**: Margo envision 3 VM architecture for local setup where one VM is for WFM, one for stand alone cluster using k3s device and one more for standalone docker compose device.
 
-   1. **WFM-VM**: WFM setup has been done using symphony, harbor and gogs. Also runs observability stack( Jaegar, Promtheus, Grafana and Loki)
+   1. **WFM-VM**: WFM setup has been done using Symphony, Harbor and Gogs. Also runs observability stack(Jaegar, Promtheus, Grafana and Loki)
    2. **K3s-Device-VM**: Using k3s as the standalone device. Runs device-agent, OTEL colletor, promtail and workloads deployed as k3s pods.
    3. **Docker-compose-Device-VM**: Using docker-compose as the standalone device. Runs device-agent, OTEL colletor, promtail and workloads deployed as docker containers.
   
@@ -15,12 +15,9 @@
     | WFM                    | Ubuntu/Debian | (8 CPU, 16 GB RAM, 100 GB)|
     | K3s Device             | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
     | Docker-Compose Device  | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
-
-    
+  
  
 **Deployment Configurations**:
-
-
   ```bash
   # Builds and deploys containerized Symphony API 
   # start_symphony_api_container() 
@@ -38,9 +35,7 @@
   # For Kubernetes deployment:
 
     ./device-agent.sh  # Choose option 5: Device-agent-Start(k3s-device)
-
   ```
-
   
 **Deployment Verification**:
   ```bash
@@ -59,18 +54,21 @@
   Grafana: http://${WFM_IP}:32000 (admin/admin)
   Jaeger: http://${WFM_IP}:32500
   Prometheus: http://${WFM_IP}:30900
-  
   ```
 
 **Clean Deployment**:
   ```bash
-  # Stop services
+  # On WFM
   ./wfm.sh  # Option 4: Symphony Stop
-  ./device-agent.sh  # Option 4 or 6: Device-agent Stop
-  
-  # Complete cleanup
   ./wfm.sh  # Option 2: PreRequisites Cleanup
+  ./wfm.sh  # Option 6: ObservabilityStack Stop
+  
+  
+  # On Device
+  ./device-agent.sh  # Option 4 or 6: Device-agent Stop
   ./device-agent.sh  # Option 2: Uninstall-prerequisites
+  ./device-agent.sh  # Option 9: otel-collector-promtail-uninstallation
+  ./device-agent.sh  # Option 11: cleanup-residual
   ```
 
 This deployment setup supports both development and production-like environments with TLS-enabled communications and comprehensive observability stack.

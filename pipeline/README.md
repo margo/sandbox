@@ -4,10 +4,10 @@ This directory contains scripts to set up a complete WFM environment with Sympho
 
 ## 📋 Prerequisites
 
-- Ubuntu/Debian-based Linux system
-- Internet connectivity
-- GitHub account with access to the margo repositories
-- Create github personal access token using the path `Settings -> Developer settings -> Personal access tokens`. Generate a Token(classic). This GITHUB_TOKEN and GITHUB_USER will be exported as environment variables while running scripts (wfm.sh , device-agent.sh) 
+- Ubuntu/Debian-based Linux system.
+- Internet connectivity.
+- GitHub account with access to the MARGO repositories.
+- Create GitHub personal access token using the path `Settings -> Developer settings -> Personal access tokens`. Generate a Token(classic). This GITHUB_TOKEN and GITHUB_USER will be exported as environment variables while running scripts(wfm.sh , device-agent.sh) 
 
 
 ## 🏗️ Architecture Overview

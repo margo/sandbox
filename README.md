@@ -52,10 +52,31 @@ The repository is divided into three main parts. More details on [Repository Str
 ---
 
 ## 📦 3rd Party Components
-- Container Registry & Repository Management (Harbor, Gogs)
-- Observability Stack (Prometheus, Grafana, Jaeger, Loki, OpenTelemetry Collector, Promtail)
-- Security & Authentication (OpenSSL for server/client certificate generation)
-- Workload Packages (Nextcloud, Nginx and custom OTEL)
+| Component Type | Component Name | Version |
+|---|---|---|
+| Container Registry | Harbor | v2.13.2 |
+| Repository Management | Gogs | Latest |
+| Observability Stack | Prometheus | Latest |
+| Observability Stack | Grafana | Latest |
+| Observability Stack | Jaeger | Latest |
+| Observability Stack | Loki | Latest |
+| Observability Stack | OpenTelemetry Collector | Latest |
+| Observability Stack | Promtail | Latest |
+| Security & Authentication | OpenSSL | System default |
+| Supporting Infrastructure | Helm | 3.15.1 |
+| Supporting Infrastructure | Go | 1.23.2 / 1.24.4 |
+| Supporting Infrastructure | Docker | Latest (from get.docker.com) |
+| Supporting Infrastructure | Docker Compose | V2 (latest) |
+| Supporting Infrastructure | K3s | Latest (from get.k3s.io) |
+| Supporting Infrastructure | Rust | Latest (from rustup) |
+| Supporting Infrastructure | Node.js/NPM | System default |
+| System Utilities | curl | System default |
+| System Utilities | git | System default |
+| System Utilities | wget | System default |
+| System Utilities | build-essential | System default |
+| System Utilities | gcc | System default |
+| System Utilities | libc6-dev | System default |
+| System Utilities | dos2unix | System default |
 
 ---
 

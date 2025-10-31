@@ -1,53 +1,49 @@
 
-
-## 🔧 How to Build
+##### [Back To Main](../README.md)
+## 🔧 How to Build Sandbox
 
 - **Environment**: To build the project, ensure you have:
-  - **GitHub Access**: Valid GitHub token and username for repository access
-  - **System Requirements**: Ubuntu/Debian-based system with passwordless sudo access
-  - **Network**: Internet connectivity for downloading dependencies
-  - **Environment Variables**: 
-    ```bash
-    export GITHUB_USER="your-github-username"
-    export GITHUB_TOKEN="your-github-token"
-    export SYMPHONY_BRANCH="margo-dev-sprint-6"
-    export DEV_REPO_BRANCH="dev-sprint-6"
-    ```
-    **Note:** Refer to the examples mentioned in the [WFM and Device-Agent Setup Guide](../pipeline/README.md#step-1-environment-variables-setup) for exporting environment variables.
+  - **GitHub Access**: Valid GitHub token and username for repository access.
+  - **System Requirements**:  [ Ubuntu/Debian-based VM requirements](./deploy.md#vm-requirements). 
+  - **Network**: Internet connectivity for downloading dependencies.
+  - **Environment Variables**: [Export Enviroment Varibales](../pipeline/README.md#step-1-environment-variables-setup).
+    
 
-- **Steps**: Step-by-step instructions to build the project:
+- **Steps**: Post exporting environment variables refer below steps to build the project:
 
   1. **Setup Prerequisites**
      ```bash
-     # Install basic utilities, Go, Docker, Helm, and k3s
+     # Install basic utilities, Go, Docker, Helm, k3s etc
      ./wfm.sh  # Choose option 1: PreRequisites Setup
      ```
 
   2. **Configure Infrastructure Services**
      ```bash
-     # Sets up Harbor registry, Gogs Git service, and clones repositories
-     # Automatically configures container registry and Git repositories
+     # Step-1 sets up Harbor registry, Gogs Git service, clones repositories and automatically configures container registry and Git repositories with predefined application packages like Nextcloud, Nginx and Custom OTEL.
      ```
 
   3. **Build and Start Symphony API**
      ```bash
-     ./wfm.sh  # Choose option 3: Symphony Start
      # Builds containerized Symphony API with TLS enabled
+     # This needs to be ran on WFM VM
+     ./wfm.sh  # Choose option 3: Symphony Start
      ```
 
-  4. **Setup Device Agent** (Choose deployment method)
+  4. **Setup Device Agent** (Choose deployment method either Docker or K3s device)
      ```bash
+     # This needs to be ran on device VM, below option(s) perform both building and running device-agent in respective device type ( either docker-compose or k3s device)
+     
      # For Docker deployment:
      ./device-agent.sh  # Choose option 3: Device-agent-Start(docker-compose-device)
-     
+
      # For Kubernetes deployment:
      ./device-agent.sh  # Choose option 5: Device-agent-Start(k3s-device)
      ```
 
   5. **Optional: Install Observability Stack**
      ```bash
-     ./wfm.sh  # Choose option 5: ObservabilityStack Start
      # Installs Jaeger, Prometheus, Grafana, and Loki
+     ./wfm.sh  # Choose option 5: ObservabilityStack Start
      ```
 
 This setup creates a complete sandbox environment with WFM (Workload Fleet Manager) and Device-Agent components for experimenting with MARGO APIs and running CLI scenarios.

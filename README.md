@@ -3,7 +3,7 @@
 ## Table of Contents
 - [📘 Introduction](#-introduction)
 - [🚀 Sandbox Quick Start](#-sandbox-quick-start)
-  - [🛠️ Development Toolset](#-development-toolset)
+    - [🛠️ Development Toolset](#-development-toolset)
     - [🔧 How to Build](#-how-to-build)
     - [🚚 How to Deploy](#-how-to-deploy)
     - [▶️ How to Run](#-how-to-run)

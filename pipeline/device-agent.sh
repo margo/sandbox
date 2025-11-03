@@ -269,11 +269,18 @@ start_device_agent_docker_service() {
   cd "$HOME/dev-repo/docker-compose"
   
   mkdir -p config
-  cp -r ../poc/device/agent/config/* ./config/
+
+  cp ../poc/device/agent/config/device-rsa.key ./config/
+  cp ../poc/device/agent/config/device-rsa.crt ./config/
+  cp ../poc/device/agent/config/device-ecdsa.key ./config/
+  cp ../poc/device/agent/config/device-ecdsa.crt ./config/
+  cp ../poc/device/agent/config/ca-cert.pem ./config/
+  
+  cp ../poc/device/agent/config/capabilities.json ./config/
+  cp ../poc/device/agent/config/config.yaml ./config/
   mkdir -p data
   enable_docker_runtime
   docker compose up -d
-   
 }
 
 

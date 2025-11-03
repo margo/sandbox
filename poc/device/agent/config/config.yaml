@@ -41,7 +41,7 @@ wfm:
       enabled: true
       # path to the ca certificate that will be used to verify server certificates
       caKeyRef: 
-        path: "./config/serverca.pem"
+        path: "./config/ca-cert.pem"
 
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm

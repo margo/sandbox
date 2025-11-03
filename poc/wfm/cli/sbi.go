@@ -18,7 +18,8 @@ const (
 	sbiDefaultTimeout = 30 * time.Second
 )
 
-type HTTPApiClientOptions = sbi.RequestEditorFn
+type HTTPApiClientRequestEditorOptions = sbi.RequestEditorFn
+type HTTPApiClientOptions = sbi.ClientOption
 
 // SbiHttpClient implementation
 type SbiHttpClient struct {
@@ -34,7 +35,9 @@ func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClie
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
-	client.RequestEditors = options
+	for _, opt := range options {
+		opt(client)
+	}
 
 	apiClient := &SbiHttpClient{
 		url:     url,
@@ -44,7 +47,7 @@ func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClie
 	return apiClient, nil
 }
 
-func (self *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceCertificate []byte, overrideOptions ...HTTPApiClientOptions) (clientId string, endpoints []string, err error) {
+func (self *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceCertificate []byte, overrideOptions ...HTTPApiClientRequestEditorOptions) (clientId string, endpoints []string, err error) {
 	cert := base64.StdEncoding.EncodeToString([]byte(deviceCertificate))
 
 	onboardingReq := sbi.OnboardingRequest{
@@ -79,7 +82,7 @@ func (self *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceCertif
 	return onboardingResp.JSON200.ClientId, endpointsList, nil
 }
 
-func (self *SbiHttpClient) ReportCapabilities(ctx context.Context, deviceClientId string, capabilities sbi.DeviceCapabilities, overrideOptions ...HTTPApiClientOptions) error {
+func (self *SbiHttpClient) ReportCapabilities(ctx context.Context, deviceClientId string, capabilities sbi.DeviceCapabilities, overrideOptions ...HTTPApiClientRequestEditorOptions) error {
 	resp, err := self.client.PostClientClientIdCapabilities(ctx, deviceClientId, capabilities)
 	if err != nil {
 		return fmt.Errorf("failed to report capabilities: %w", err)
@@ -93,7 +96,7 @@ func (self *SbiHttpClient) ReportCapabilities(ctx context.Context, deviceClientI
 	return nil
 }
 
-func (self *SbiHttpClient) SyncState(ctx context.Context, deviceClientId string, currentStates sbi.CurrentAppStates, overrideOptions ...HTTPApiClientOptions) (desiredStates sbi.DesiredAppStates, err error) {
+func (self *SbiHttpClient) SyncState(ctx context.Context, deviceClientId string, currentStates sbi.CurrentAppStates, overrideOptions ...HTTPApiClientRequestEditorOptions) (desiredStates sbi.DesiredAppStates, err error) {
 	resp, err := self.client.State(
 		ctx,
 		deviceClientId,

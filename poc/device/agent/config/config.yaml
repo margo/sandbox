@@ -35,6 +35,13 @@ wfm:
       # and the agent will not add any authorization header in the request
       enabled: false
 
+    # this plugin will be used to verify server tls certificates
+    # note: we do not support mTLS hence client side certificates are not part of this configuration
+    tlsHelper:
+      enabled: false
+      # path to the ca certificate that will be used to verify server certificates
+      caKeyRef: "./config/serverca.pem"
+
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm
   # in seconds

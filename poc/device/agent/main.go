@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -22,9 +23,14 @@ import (
 	wfm "github.com/margo/dev-repo/poc/wfm/cli"
 	"github.com/margo/dev-repo/shared-lib/crypto"
 	"github.com/margo/dev-repo/shared-lib/workloads"
+	"github.com/margo/dev-repo/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 )
 
+// 1. Device onboarding on wfm
+// 2. Device capabilities reporting to the wfm
+// 3. State seeking/syncing with wfm
+// 4. Deployment status updates to the wfm
 type Agent struct {
 	log            *zap.SugaredLogger
 	auth           *DeviceClientSettings
@@ -50,16 +56,15 @@ func NewAgent(configPath string) (*Agent, error) {
 	db := database.NewDatabase("data/")
 
 	// Prepare request editors (e.g., request signer) for WFM client
-	requestEditors := []wfm.HTTPApiClientOptions{}
+	clientOptions := []wfm.HTTPApiClientOptions{}
 
 	// Create WFM client using configured URL
 	wfmUrl := cfg.Wfm.SbiURL
-	if wfmUrl == "" {
-		return nil, fmt.Errorf("wfm.sbiUrl is empty in configuration")
-	}
+
+	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
 
 	hasRequestSigningKey := false
-	// If request signer plugin enabled, create signer and add as RequestEditorFn
+	// If request signer plugin enabled in the configuration, then create signer object and add it as http client option/RequestEditorFn
 	if cfg.Wfm.ClientPlugins.RequestSigner != nil && cfg.Wfm.ClientPlugins.RequestSigner.Enabled {
 		if cfg.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
 			return nil, fmt.Errorf("request signer enabled but no keyRef provided in configuration")
@@ -77,14 +82,22 @@ func NewAgent(configPath string) (*Agent, error) {
 
 		hasRequestSigningKey = true
 		// adapter to the generated client's RequestEditorFn signature
-		requestEditors = append(requestEditors, func(ctx context.Context, req *http.Request) error {
-			return signer.SignRequest(ctx, req)
-		})
+		clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
 	}
 
-	requestEditors = append(requestEditors, PreflightLogger(100, log))
+	hasServerTLSVerificationEnabled := false
+	// If tls plugin is enabled in the configuration, then pass the http tls client option/RequestEditorFn
+	if cfg.Wfm.ClientPlugins.TLSHelper != nil && cfg.Wfm.ClientPlugins.TLSHelper.Enabled {
+		if cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef == nil {
+			return nil, fmt.Errorf("tls helper plugin is enabled but no caKeyRef is not provided in configuration")
+		}
 
-	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, requestEditors...)
+		// adapter to the generated client's RequestEditorFn signature
+		clientOptions = append(clientOptions, TLSVerifier(&cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef.Path))
+		hasServerTLSVerificationEnabled = true
+	}
+
+	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WFM client: %w", err)
 	}
@@ -158,6 +171,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		"deviceId", deviceSettings.deviceClientId,
 		"deviceSignatureType", deviceSettings.deviceRootIdentity.IdentityType,
 		"hasValidDeviceCertificate", hasValidDeviceCertificate,
+		"hasServerTLSVerificationEnabled", hasServerTLSVerificationEnabled,
 		"canSignRequests", hasRequestSigningKey,
 		"canDeployHelm", deviceSettings.canDeployHelm,
 		"canDeployCompose", deviceSettings.canDeployCompose,
@@ -407,4 +421,57 @@ func PreflightLogger(maxPreviewBytes int, logger *zap.SugaredLogger) func(ctx co
 		logger.Infow("preflight-http-request", fields...)
 		return nil
 	}
+}
+
+// pass caPath if you want to use some particular ca to verify the certificates
+func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
+	// TODO: we should instead create our own http client and then set that into the openapi client
+	// the current way is a slightly longer route to acheive things
+	return func(client *sbi.Client) error {
+		// Validate client
+		if client == nil {
+			return fmt.Errorf("client cannot be nil")
+		}
+
+		// Create TLS config
+		tlsConfig := &tls.Config{}
+
+		// Load and configure custom CA if provided
+		if caPath != nil && *caPath != "" {
+			var err error
+			tlsConfig, err = crypto.LoadCustomCA(*caPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Configure HTTP client with TLS
+		return configureClientTLS(client, tlsConfig)
+	}
+}
+
+// Helper function to configure client TLS
+func configureClientTLS(client *sbi.Client, tlsConfig *tls.Config) error {
+	httpClient, ok := client.Client.(*http.Client)
+	if !ok {
+		return fmt.Errorf("client.Client is not *http.Client, cannot configure TLS")
+	}
+
+	// Get or create transport
+	var transport *http.Transport
+	if httpClient.Transport != nil {
+		if existingTransport, ok := httpClient.Transport.(*http.Transport); ok {
+			transport = existingTransport.Clone()
+		} else {
+			transport = &http.Transport{}
+		}
+	} else {
+		transport = &http.Transport{}
+	}
+
+	// Configure TLS
+	transport.TLSClientConfig = tlsConfig
+	httpClient.Transport = transport
+
+	return nil
 }

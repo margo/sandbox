@@ -65,6 +65,7 @@ type WFMConfig struct {
 type ClientPluginsConfig struct {
 	RequestSigner *RequestSignerConfig `yaml:"requestSigner,omitempty"`
 	AuthHelper    *AuthHelperConfig    `yaml:"authHelper,omitempty"`
+	TLSHelper     *TLSHelperConfig     `yaml:"tlsHelper,omitempty"`
 }
 
 type RequestSignerConfig struct {
@@ -80,6 +81,14 @@ type AuthHelperConfig struct {
 	Enabled  bool       `yaml:"enabled"`
 	AuthType string     `yaml:"authType"`
 	JWT      *JWTConfig `yaml:"jwt"`
+}
+
+type TLSHelperConfig struct {
+	Enabled        bool    `yaml:"enabled"`
+	ServerCAKeyRef *KeyRef `yaml:"caKeyRef,omitempty"`
+	// you can support the following to enable client side tls as well
+	// ClientCertPath string `yaml:"certPath"`
+	// ClientKeyPath  string `yaml:"keyPath"`
 }
 
 type JWTConfig struct {
@@ -213,7 +222,7 @@ func (d DeviceRootIdentity) HasCertificateReference() bool {
 
 // KeyRef describes where the private key used for signing can be found.
 type KeyRef struct {
-	Path string `yaml:"path,omitempty"` // for type=file
+	Path string `yaml:"path"` // for type=file
 }
 
 type PKCS11Config struct {

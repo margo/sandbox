@@ -40,7 +40,8 @@ wfm:
     tlsHelper:
       enabled: true
       # path to the ca certificate that will be used to verify server certificates
-      caKeyRef: "./config/serverca.pem"
+      caKeyRef: 
+        path: "./config/serverca.pem"
 
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm

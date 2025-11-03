@@ -14,6 +14,7 @@ services:
       - ./config/device-rsa.crt:/config/device-rsa.crt
       - ./config/device-ecdsa.key:/config/device-ecdsa.key
       - ./config/device-ecdsa.crt:/config/device-ecdsa.crt
+      - ./config/serverca.pem:/config/serverca.pem
       - ./data:/data
     restart: unless-stopped
     entrypoint: ["./device-agent"]

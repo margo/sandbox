@@ -897,8 +897,8 @@ create_device_rsa_certs() {
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ RSA Cert generation has been completed."
 
-  echo "Copying RSA Certs in dev-repo"
-  cp device-private.key device-public.crt "$HOME/dev-repo/docker-compose/config/"
+  #echo "Copying RSA Certs in dev-repo"
+  #cp device-private.key device-public.crt "$HOME/dev-repo/docker-compose/config/"
 }
 
 create_device_ecdsa_certs() {
@@ -921,8 +921,8 @@ create_device_ecdsa_certs() {
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ ECDSA Cert generation has been completed."
 
-  echo "Copying ECDSA Certs in dev-repo"
-  cp device-ecdsa.key device-ecdsa.crt "$HOME/dev-repo/docker-compose/config/"
+  #echo "Copying ECDSA Certs in dev-repo"
+  #cp device-ecdsa.key device-ecdsa.crt "$HOME/dev-repo/docker-compose/config/"
 }
 
 

@@ -18,7 +18,7 @@ deviceRootIdentity:
       pubCertPath: ./config/device-rsa.crt
 
 wfm:
-  sbiUrl: http://127.0.0.1:8082/v1alpha2/margo/sbi/v1 #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
+  sbiUrl: https://10.139.9.90:8082/v1alpha2/margo/sbi/v1 #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
   clientPlugins:
     requestSigner:
       enabled: true
@@ -38,7 +38,7 @@ wfm:
     # this plugin will be used to verify server tls certificates
     # note: we do not support mTLS hence client side certificates are not part of this configuration
     tlsHelper:
-      enabled: false
+      enabled: true
       # path to the ca certificate that will be used to verify server certificates
       caKeyRef: "./config/serverca.pem"
 

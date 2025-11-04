@@ -268,15 +268,28 @@ start_device_agent_docker_service() {
   echo 'Starting device-agent...'
   cd "$HOME/dev-repo/docker-compose"
   mkdir -p config
+  
   if [ -d "$HOME/certs" ] && [ "$(ls -A "$HOME/certs")" ]; then
     cp "$HOME"/certs/* ../poc/device/agent/config/
     echo "Copied certs from \$HOME/certs to ../poc/device/agent/config/"
       else
     echo "No certs found or directory missing: \$HOME/certs"
   fi
-  cp ../poc/device/agent/config/device-{rsa.key,rsa.crt,ecdsa.key,ecdsa.crt} ./config/ 2>/dev/null
 
-  cp ../poc/device/agent/config/{capabilities.json,config.yaml} ./config/ 2>/dev/null
+
+  cp ../poc/device/agent/config/device-private.key ./config/
+  cp ../poc/device/agent/config/device-public.crt ./config/
+  cp ../poc/device/agent/config/device-ecdsa.key ./config/
+  cp ../poc/device/agent/config/device-ecdsa.crt ./config/
+ #cp ../poc/device/agent/config/ca-cert.pem ./config/
+  
+  cp ../poc/device/agent/config/capabilities.json ./config/
+  cp ../poc/device/agent/config/config.yaml ./config/
+
+
+  #cp ../poc/device/agent/config/device-{device-private.key,device-public.crt,ecdsa.key,ecdsa.crt} ./config/ 2>/dev/null
+
+  #cp ../poc/device/agent/config/-{capabilities.json,config.yaml} ./config/ 2>/dev/null
 
   mkdir -p data
   enable_docker_runtime
@@ -352,12 +365,63 @@ build_start_device_agent_k3s_service() {
     update_agent_sbi_url
     enable_kubernetes_runtime
     
-    # Step 7: Install/upgrade Helm chart (ServiceAccount approach)
+     # Create secrets with proper base64 encoding
+    if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-rsa.key" ] && [ -f "$HOME/certs/device-rsa.crt" ]; then
+        echo "Creating TLS secrets with proper encoding..."
+        
+        # Base64 encode the certificate files
+        RSA_KEY=$(base64 -w 0 "$HOME/certs/device-rsa.key")
+        RSA_CRT=$(base64 -w 0 "$HOME/certs/device-rsa.crt")
+        ECDSA_KEY=$(base64 -w 0 "$HOME/certs/device-ecdsa.key")
+        ECDSA_CRT=$(base64 -w 0 "$HOME/certs/device-ecdsa.crt")
+
+        # Create secret manifest
+        cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: device-agent-tls
+  namespace: device-agent
+type: Opaque
+data:
+  device-rsa.key: ${RSA_KEY}
+  device-rsa.crt: ${RSA_CRT}
+  device-ecdsa.key: ${ECDSA_KEY}
+  device-ecdsa.crt: ${ECDSA_CRT}
+EOF
+        echo "✅ TLS secrets created with proper encoding"
+    else
+        echo "⚠️ Certificates not found in $HOME/certs, skipping TLS secret creation"
+    fi
+
+    # Clean up existing resources
+    echo "Cleaning up any existing resources..."
+    kubectl delete clusterrole device-agent-device-agent-role 2>/dev/null || true
+    kubectl delete clusterrolebinding device-agent-device-agent-binding 2>/dev/null || true
+    helm uninstall device-agent -n device-agent 2>/dev/null || true
     
-      echo "Installing new device-agent deployment..."
-      helm install device-agent . 
-    
-    
+    # Wait for resources to be fully removed
+    sleep 5
+
+    # Install helm chart with modified values
+    echo "Installing new device-agent deployment..."
+    helm install device-agent . \
+        --namespace device-agent \
+        --create-namespace \
+        --set serviceAccount.create=true \
+        --set serviceAccount.name=device-agent-sa \
+        --set global.namespace=device-agent \
+        --set secrets.existingSecret=device-agent-tls \
+        --debug \
+        --wait
+
+        if [ $? -eq 0 ]; then
+        echo "✅ Helm installation successful"
+    else
+        echo "❌ Helm installation failed"
+        return 1
+    fi
+
     #STEP 8: Fix RBAC permissions
     if [ $? -eq 0 ]; then
       echo "🔧 Applying RBAC permissions fix..."

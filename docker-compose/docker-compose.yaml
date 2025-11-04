@@ -10,8 +10,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # to manage docker runtimes
       - ./config/config.yaml:/config/config.yaml
       - ./config/capabilities.json:/config/capabilities.json
-      - ./config/device-rsa.key:/config/device-rsa.key
-      - ./config/device-rsa.crt:/config/device-rsa.crt
+      - ./config/device-private.key:/config/device-private.key
+      - ./config/device-public.crt:/config/device-public.crt
       - ./config/device-ecdsa.key:/config/device-ecdsa.key
       - ./config/device-ecdsa.crt:/config/device-ecdsa.crt
       - ./config/ca-cert.pem:/config/ca-cert.pem

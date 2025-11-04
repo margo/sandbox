@@ -1559,8 +1559,8 @@ start_symphony_api_container(){
     docker rm symphony-api-container 2>/dev/null || true
     
     # Remove existing image if present
-    echo "Removing existing margo-symphony-api:latest image if present..."
-    docker rmi margo-symphony-api:latest 2>/dev/null || true
+   # echo "Removing existing margo-symphony-api:latest image if present..."
+   # docker rmi margo-symphony-api:latest 2>/dev/null || true
     
 
 
@@ -1571,11 +1571,11 @@ start_symphony_api_container(){
     echo "$GITHUB_TOKEN" > github_token.txt
 
     # Build with secrets
-    docker build \
-      --secret id=github_username,src=github_username.txt \
-      --secret id=github_token,src=github_token.txt \
-      -t margo-symphony-api:latest \
-      .. -f Dockerfile
+    # docker build \
+    #   --secret id=github_username,src=github_username.txt \
+    #   --secret id=github_token,src=github_token.txt \
+    #   -t margo-symphony-api:latest \
+    #   .. -f Dockerfile
 
     # Clean up credential files
     rm github_username.txt github_token.txt
@@ -1646,8 +1646,8 @@ collect_certs_info() {
     O="Margo"
     EMAIL="admin@example.com"
     DAYS="365"
-    SAN_DOMAINS=""
-    SAN_IPS=""
+    SAN_DOMAINS="${EXPOSED_SYMPHONY_IP:-localhost}"
+    SAN_IPS="${EXPOSED_SYMPHONY_IP:-localhost}"
     
     # # Set defaults
     # C=${C:-IN}
@@ -1666,6 +1666,7 @@ generate_config_for_certs() {
     local config_file="$1"
     local cert_type="$2"
     
+    # Create base config
     cat > "$config_file" << EOF
 [req]
 default_bits = 2048
@@ -1680,11 +1681,6 @@ L=$L
 O=$O
 CN=$CN
 emailAddress=$EMAIL
-EOF
-
-    # Add server extensions separately for better control
-    if [ "$cert_type" = "server" ]; then
-        cat >> "$config_file" << EOF
 
 [v3_req]
 basicConstraints = CA:FALSE
@@ -1695,29 +1691,34 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = $CN
 EOF
+
+    # Initialize counters
+    local dns_count=2
+    local ip_count=1
+
+    # Add SAN domains if provided
+    if [ -n "$SAN_DOMAINS" ]; then
+        echo "Adding SAN domains..."
+        IFS=',' read -ra DOMAINS <<< "$SAN_DOMAINS"
+        for domain in "${DOMAINS[@]}"; do
+            echo "DNS.$dns_count = ${domain// /}" >> "$config_file"
+            ((dns_count++))
+        done
     fi
 
-    # Add SAN domains and IPs (rest of the function remains the same)
-    if [[ "$cert_type" = "server" && (-n "$SAN_DOMAINS" || -n "$SAN_IPS") ]]; then
-        local dns_count=2
-        local ip_count=1
-        
-        if [[ -n "$SAN_DOMAINS" ]]; then
-            IFS=',' read -ra DOMAINS <<< "$SAN_DOMAINS"
-            for domain in "${DOMAINS[@]}"; do
-                echo "DNS.$dns_count = ${domain// /}" >> "$config_file"
-                ((dns_count++))
-            done
-        fi
-        
-        if [[ -n "$SAN_IPS" ]]; then
-            IFS=',' read -ra IPS <<< "$SAN_IPS"
-            for ip in "${IPS[@]}"; do
-                echo "IP.$ip_count = ${ip// /}" >> "$config_file"
-                ((ip_count++))
-            done
-        fi
-    fi
+    # Add SAN IPs if provided
+  if [ -n "$SAN_IPS" ]; then
+    echo "Adding SAN IPs..."
+    IFS=',' read -ra IPS <<< "$SAN_IPS"
+    for ip in "${IPS[@]}"; do
+        echo "IP.$ip_count = ${ip// /}" >> "$config_file"
+        ((ip_count++))
+    done
+  fi
+
+    # Debug output
+    echo "Generated OpenSSL config at $config_file:"
+    cat "$config_file"
 }
 
 

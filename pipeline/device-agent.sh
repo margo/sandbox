@@ -267,17 +267,17 @@ build_device_agent_docker() {
 start_device_agent_docker_service() {
   echo 'Starting device-agent...'
   cd "$HOME/dev-repo/docker-compose"
-  
   mkdir -p config
+  if [ -d "$HOME/certs" ] && [ "$(ls -A "$HOME/certs")" ]; then
+    cp "$HOME"/certs/* ../poc/device/agent/config/
+    echo "Copied certs from \$HOME/certs to ../poc/device/agent/config/"
+      else
+    echo "No certs found or directory missing: \$HOME/certs"
+  fi
+  cp ../poc/device/agent/config/device-{rsa.key,rsa.crt,ecdsa.key,ecdsa.crt} ./config/ 2>/dev/null
 
-  cp ../poc/device/agent/config/device-rsa.key ./config/
-  cp ../poc/device/agent/config/device-rsa.crt ./config/
-  cp ../poc/device/agent/config/device-ecdsa.key ./config/
-  cp ../poc/device/agent/config/device-ecdsa.crt ./config/
-  cp ../poc/device/agent/config/ca-cert.pem ./config/
-  
-  cp ../poc/device/agent/config/capabilities.json ./config/
-  cp ../poc/device/agent/config/config.yaml ./config/
+  cp ../poc/device/agent/config/{capabilities.json,config.yaml} ./config/ 2>/dev/null
+
   mkdir -p data
   enable_docker_runtime
   docker compose up -d

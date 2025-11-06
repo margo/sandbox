@@ -1,7 +1,7 @@
 ##### [Back To Main](../README.md)
 ## 🚀 How to deploy Sandbox
 
- **3 VM Architecture**: Margo envision 3 VM architecture for local setup where one VM is for WFM, one for stand alone cluster using k3s device and one more for standalone docker compose device.
+ **3 VM Architecture**: You can setup the Code First Sandbox using 3 VMs on a single host, where one VM is for WFM, one for a K3s cluster as a single node and one more for a single node docker compose device.
 
    1. **WFM-VM**: WFM setup has been done using Symphony, Harbor and Gogs. Also runs observability stack(Jaegar, Promtheus, Grafana and Loki)
    2. **K3s-Device-VM**: Using k3s as the standalone device. Runs device-agent, OTEL colletor, promtail and workloads deployed as k3s pods.
@@ -12,28 +12,30 @@
 
     | VM Type                | OS            | VM Size                   |
     |------------------------|---------------|---------------------------| 
-    | WFM                    | Ubuntu/Debian | (8 CPU, 16 GB RAM, 100 GB)|
-    | K3s Device             | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
-    | Docker-Compose Device  | Ubuntu/Debian | (8 CPU, 16 GB RAM, 50 GB) |
-  
+    | WFM                    | Ubuntu/Debian | (8 vCPU, 16 GB RAM, 100 GB)|
+    | K3s Device             | Ubuntu/Debian | (8 vCPU, 16 GB RAM, 50 GB) |
+    | Docker-Compose Device  | Ubuntu/Debian | (8 vCPU, 16 GB RAM, 50 GB) |
+
+  Note : Network configuration for the VMs should use the host-network, with static IPs assigned to the VMs.
+
+<<This section below needs to re-written>>
  
 **Deployment Configurations**:
-  ```bash
-  # Builds and deploys containerized Symphony API 
-  # start_symphony_api_container() 
-     
+  
+  Use the WFM VM for building and deploying a containerized instance of Symphony API
+  ```bash   
     ./wfm.sh  # Choose option 3: Symphony Start
-    
+  ```  
   # Device Agent as docker container
   # start_device_agent_docker_service()  
   # For Docker deployment:
-     
+  ```bash   
     ./device-agent.sh  # Choose option 3: Device-agent-Start(docker-compose-device)
-
+  ```
   # Device Agent as pod   
   # build_start_device_agent_k3s_service()
   # For Kubernetes deployment:
-
+  ```bash
     ./device-agent.sh  # Choose option 5: Device-agent-Start(k3s-device)
   ```
   

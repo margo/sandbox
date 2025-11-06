@@ -18,7 +18,7 @@
 
   Note : Network configuration for the VMs should use the host-network, with static IPs assigned to the VMs.
 
-<<This section below needs to re-written>>
+-->> This section below needs to re-written
  
 **Deployment Configurations**:
   

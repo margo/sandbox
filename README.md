@@ -2,7 +2,7 @@
 
 ## Table of Contents
 - [📘 Introduction](#-introduction)
-- [🚀 Sandbox Quick Start](#-sandbox-quick-start)
+- [🚀 Quick Start Guide](#-sandbox-quick-start)
     - [🛠️ Development Toolset](#-development-toolset)
     - [🔧 How to Build](#-how-to-build)
     - [🚚 How to Deploy](#-how-to-deploy)
@@ -21,12 +21,24 @@
 ---
 
 ## 📘 Introduction
-Welcome to the MARGO project! The MARGO initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit. MARGO unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. More about MARGO [here](https://margo.org/).
+Welcome to the MARGO project's Code-first Sandbox ! 
+The [MARGO](https://margo.org/) initiative defines mechanisms for interoperable orchestration at scale of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit. MARGO unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. 
+
+This project provides an open-source, sandbox with an implementation of the MARGO specified interfaces and workflows. The objective is to allow interested users to experiment with the interfaces and APIs and provide feedback to improve the MARGO specifications. This project is by no means intended for "commercial adoption".
+
+Before you get started, please spend some time to understand the [Structure of the Repository](#-structure-of-the-repository) first.
+
+The project follows a Release schedule tied with the MARGO specification releases. Please look at the [Release Notes](#-release-notes) sections for specific release specific content.
+If you want to read more on the design aspects and understand how various components map to the MARGO Architecture, please read the [Design and Mapping to MARGO Architecture](#-design-and-mapping-to-margo-architecture) section.
+
+However, if you want to try out things first read the section [Quick Start Guide](#-sandbox-quick-start) below to get your Sandbox Environment setup quickly.
+
+Please leave a comment as we welcome feedback, a * is always appreciated !!
 
 ---
 
-## 🚀 Sandbox Quick Start
-This section allows you to set up a 'Sandbox' environment for experimenting with the MARGO specifications and APIs. This includes instructions on the prerequisites, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the MARGO WFM and the Device-Agent using a simple CLI.
+## 🚀 Quick Start Guide
+This section allows you to set up a 'Sandbox' environment for experimenting with the MARGO specifications and APIs. This includes instructions on the prerequisites for your setup, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the MARGO WFM and the Device-Agent using a simple CLI.
 
 ### 🛠️ Development Toolset
 - [Development Toolset](./docs/dev-toolsets.md)
@@ -43,11 +55,11 @@ This section allows you to set up a 'Sandbox' environment for experimenting with
 ---
 
 ## 🗂️ Structure of the Repository
-The repository is divided into three main parts. More details on [Repository Structure](./docs/repo-structure.md):
+The repository is divided into three main parts. You can find more details here on [Repository Structure](./docs/repo-structure.md):
 
 - `shared-lib`: Reusable libraries and utilities (Open Source Components)
-- `standard`: Standard implementation components as per MARGO specification
-- `non-standard`: Sandbox enabling components, these are not defined by MARGO but required for reference implementation
+- `standard`: Implementation of the components as per MARGO specification
+- `non-standard`: Enabling components, which are not defined by MARGO, but required for an overall implementation
 
 ---
 
@@ -81,13 +93,18 @@ The repository is divided into three main parts. More details on [Repository Str
 ---
 
 ## 🧠 Design and Mapping to MARGO Architecture
-MARGO intends to create an open interoperability standard and ecosystem for the industrial edge, allowing edge compute devices, workloads, and fleet management software to be compatible and interoperable across manufacturers and software developers willing to adopt such standard.
+MARGO envisions a [distributed system design]([./docs/margo-architecture.png](https://specification.margo.org/overview/envisioned-system-design/#overview)) for Industry 4.0 applications, which chiefly includes Application Supplier infrastructure, Fleet Manager and Devices which run Applications.
+The Fleet Manager responsible for deploying Applications as running Workloads is refered to as a 'Workload Fleet Manager' or WFM.
 
-- MARGO envision the [Architecture](./docs/margo-architecture.png)
-- The reference implementation through this 'Sandbox' environment implements the key MARGO components as per [Overlay-Architecture](./docs/overlay-architecture.png)
+Other MARGO definitions are avialable in [MARGO Technical Lexicon](https://specification.margo.org/personas-and-definitions/technical-lexicon/)
+
+This Code First Sandbox realises the MARGO system design using a set of open-source components, as well as an implementation of the 'standard' and 'non-standard' or enabling components.
+You can see a view of the MARGO system design, with an overlay of the components available in the Code First Sandbox in [this diagram of the distributed system design](./docs/margo-architecture.png).
+
+This includes the following elements - 
 
 ### 🎼 Symphony WFM
-- Sandbox uses Eclipse Symphony as Workload Fleet Manager
+- This Code First Sandbox uses [Eclipse Symphony](https://github.com/eclipse-symphony/symphony) as Workload Fleet Manager
 - As mentioned in MARGO architecture and overlay architecture WFM connects through MARGO envisioned communication mechanisms
 
 ### 📁 Repositories and Registry
@@ -109,7 +126,7 @@ Eclipse Symphony is an open-source orchestration platform developed by the Eclip
 
 This pattern is often referred to as HB-MVP (Host-Bound MVP):
 
-- **Managers**: Implement business logic
+- **Managers**: Implements business logic
 - **Vendors**: Facilitate interaction with other systems
 - **Providers**: Bridge the connection to external systems
 
@@ -118,7 +135,7 @@ This pattern is often referred to as HB-MVP (Host-Bound MVP):
 - **Managers**: Managers implement the platform-agnostic business logic for a given capability. They receive requests from vendors and orchestrate the necessary actions, often by interacting with one or more providers. Managers are designed for reuse and encapsulate the core business logic
 - **Providers**: Providers are responsible for interacting with specific external systems or dependencies. They abstract away the details of platform-specific interactions, containing any platform-specific knowledge within their scope. Managers utilize providers to perform actions on external resources
 
-Sandbox uses MVP pattern to implement MARGO specification.
+Code Frist Sandbox uses MVP pattern to implement MARGO specification.
 
 ---
 

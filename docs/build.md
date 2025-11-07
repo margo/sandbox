@@ -6,15 +6,15 @@
   - **GitHub Access**: Username for MARGO repository access and [Generate](../pipeline/README.md#-prerequisites#) valid GitHub token.
   - **System Requirements**:  [ Ubuntu/Debian-based VM requirements](./deploy.md#vm-requirements). 
   - **Network**: Internet connectivity for downloading dependencies.
-  - **Environment Variables**: [Export Enviroment Varibales](../pipeline/README.md#step-1-environment-variables-setup).
+  - **Environment Variables**: [Export Enviroment Variables](../pipeline/README.md#step-1-environment-variables-setup).
     
 
-- **Steps**: Post exporting environment variables refer below steps to build the Sandbox:
+- **Steps**: After exporting environment variables refer to the below steps to build the Sandbox:
 
   1. **Setup Prerequisites**
      ```bash
      # Install basic utilities, Go, Docker, Helm, k3s etc
-     ./wfm.sh  # Choose option 1: PreRequisites Setup
+     ./wfm.sh  # Choose option 1: Pre-requisites Setup
      ```
 
   2. **Configure Infrastructure Services**
@@ -25,13 +25,13 @@
   3. **Build and Start Symphony API**
      ```bash
      # Builds containerized Symphony API with TLS enabled
-     # This needs to be ran on WFM VM
+     # This needs to be run on WFM VM
      ./wfm.sh  # Choose option 3: Symphony Start
      ```
 
   4. **Setup Device Agent** (Choose deployment method either Docker or K3s device)
      ```bash
-     # This needs to be ran on device VM, below option(s) perform both building and running device-agent in respective device type (either docker-compose or k3s device)
+     # This needs to be run on device VM, below option(s) perform both building and running device-agent in respective device type (either docker-compose or k3s device)
      
      # For Docker deployment:
      ./device-agent.sh  # Choose option 3: Device-agent-Start(docker-compose-device)
@@ -49,4 +49,4 @@
      ./device-agent.sh # Choose option 8: otel-collector-promtail-installation
      ```
 
-This setup creates a complete sandbox environment with WFM (Workload Fleet Manager) and Device-Agent components for experimenting with MARGO APIs and running CLI scenarios.
+This setup creates a complete Sandbox environment with WFM (Workload Fleet Manager) and Device-Agent components for experimenting with MARGO APIs and running CLI scenarios.

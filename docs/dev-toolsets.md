@@ -1,7 +1,7 @@
 ##### [Back To Main](../README.md)
 ## 🛠 Development Toolsets used in Sandbox
 
-Here are all the development toolsets used and their purposes:
+Development toolsets used and their purposes:
 
 ---
 
@@ -65,8 +65,8 @@ Here are all the development toolsets used and their purposes:
 #### Gogs
 - **Uses**:
   - Git repository hosting
-  - Management of workload packages as per margo defined specification
-  - Nextcloud, Nginx and Custom OTEL workload packages are getting uploaded to Gogs while environment setup. These [Margo Packages](../poc/tests/artefacts) are based on margo application description specification 
+  - Management of workload packages as per MARGO defined specification
+  - Nextcloud, Nginx and Custom OTEL workload packages are  uploaded to Gogs while environment setup. These [Margo Packages](../poc/tests/artefacts) are based on MARGO application description specification 
   - API-based repository creation and management
 
 ---
@@ -117,7 +117,7 @@ Here are all the development toolsets used and their purposes:
   - OAuth/OIDC authentication
   - User federation and SSO
 
-  **Note : Keycloak is not currently being used. Server side TLS is used and client establishes initial trust using rootCA/public certificates then server assigns an unique client-id. This is as per approved margo SUP.** 
+  **Note: Keycloak is not currently being used. Server-side TLS is used and the client establishes initial trust using rootCA/public certificates then server assigns a unique client-id. This is as per approved MARGO SUP.** 
 
 #### OpenSSL
 - **Uses**:
@@ -141,7 +141,7 @@ Here are all the development toolsets used and their purposes:
   - Building Symphony UI components
   - JavaScript dependency management
   
-  **Note : Symphony UI not used. Application and workload LCM operations are performed using the script /pipeline/wfm-cli.sh**
+  **Note: Symphony UI is not used. Application, deployment and workload LCM operations are performed using the script /pipeline/wfm-cli.sh which we call it as EasyCLI implemented as a wrapper on top of Maestro CLI**
 
 #### curl & wget
 - **Uses**:
@@ -187,6 +187,6 @@ Here are all the development toolsets used and their purposes:
 - **Uses**:
   - Custom telemetry application.
   - Test application for deploying a custom application with telemetry capabilities.
-  - This is a sample online ordering application written in golang which sends metrics and traces to OpenTelemetry collector. This application is defined as margo specified application package and deployed as workload on device along with collector. The margo package and application source code is available at [Custom OTEL](../poc/tests/artefacts/custom-otel-helm-app)   
+  - This is a sample online ordering application written in GO language which sends metrics and traces to OpenTelemetry collector. This application is defined as MARGO-specified application package and deployed as a workload on device along with the collector. The MARGO package and application source code is available at [Custom OTEL](../poc/tests/artefacts/custom-otel-helm-app)   
 
   - Demonstration of observability integration

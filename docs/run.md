@@ -1,10 +1,10 @@
 ##### [Back To Main](../README.md)
-## Running the EasyCLI script
+## Running the EasyCLI Script
 
 This guide helps you get started with the WFM CLI script to interact with the Workload Fleet Manager (WFM). This is implemented on top of Eclipse Symphony's Maestro CLI.
 
 ### Interactive Mode (Recommended)
-Needs to be ran at WFM VM
+Needs to be run on the WFM VM
 ```bash
 chmod +x wfm-cli.sh
 ./wfm-cli.sh

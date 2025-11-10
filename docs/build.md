@@ -14,7 +14,7 @@
   1. **Setup Prerequisites**
      ```bash
      # Install basic utilities, Go, Docker, Helm, k3s etc
-     ./wfm.sh  # Choose option 1: Pre-requisites Setup
+     ./wfm.sh  # Choose **option 1: Pre-requisites: Setup**
      ```
 
   2. **Configure Infrastructure Services**

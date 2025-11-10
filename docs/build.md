@@ -28,6 +28,14 @@
      # This needs to be run on WFM VM
      ./wfm.sh  # Choose option 3: Symphony Start
      ```
+  4. **Configuring container registry mirror for k3s/Docker**
+      ```bash
+     # This needs to be run on WFM VM
+     ./wfm.sh  # Choose 7) Registry-K3s: Add-Pull-Secrets
+      # provide container registry URL - http://<WFM_VM-IP>:<Registry-port>
+      # provide Registry username
+      # provide Registry password
+     ```
 
   4. **Setup Device Agent** (Choose deployment method either Docker or K3s device)
      ```bash

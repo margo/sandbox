@@ -31,19 +31,21 @@ In order to deploy the Sandbox, clone the [MARGO repository](https://github.com/
      ```  
      ```bash
      
-  **3.2** Generate certs on K3s-Device-VM.   
+  **3.2** Generate certs on K3s-Device-VM.
+   ```bash
     # This should be executed on device-agent VM after installing pre-req (option 1:Install-prerequisites)
     # Choose below options to generate RSA and ECDSA certificates
       Option 12) create_device_rsa_certs
       option 13) create_device_ecdsa_certs
-
+    ```
   **3.3** Copy ca-crt.pem from WFM-VM to K3s-Device-VM.
+   ```bash
     # ca-crt.pem is generated after the synphony-api is started on WFM-VM (option 3 - Symphony: Start)
        Locate the ca-cert.pem on the WFM-VM at : _cd $HOME/symphony/api/certificates_
     # Copy the ca-crt.pem file to the following destination paths on the Device VM:
        For Docker Compose–based Device-Agent: : cd $HOME/dev-repo/docker-compose/config
        For K3s-based Device-Agent: : $HOME/certs
-      
+   ```bash 
   **3.4** Deploy containerized instance of Device Agent on Docker device.
     
     ```bash  

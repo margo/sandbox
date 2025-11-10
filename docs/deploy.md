@@ -25,18 +25,32 @@ In order to deploy the Sandbox, clone the [MARGO repository](https://github.com/
 
   **3.1** Deploy containerized instance of Symphony API on WFM VM.
    
-    ```bash   
-    # Choose option 3: Symphony Start
+     ```bash   
+      # Choose option 3: Symphony: Start
       ./wfm.sh  
-    ```  
-  
-  **3.2** Deploy containerized instance of Device Agent on Docker device.
+     ```  
+     ```bash
+     
+  **3.2** Generate certs on K3s-Device-VM.   
+    # This should be executed on device-agent VM after installing pre-req (option 1:Install-prerequisites)
+    # Choose below options to generate RSA and ECDSA certificates
+      Option 12) create_device_rsa_certs
+      option 13) create_device_ecdsa_certs
+
+  **3.3** Copy ca-crt.pem from WFM-VM to K3s-Device-VM.
+    # ca-crt.pem is generated after the synphony-api is started on WFM-VM (option 3 - Symphony: Start)
+       Locate the ca-cert.pem on the WFM-VM at : _cd $HOME/symphony/api/certificates_
+    # Copy the ca-crt.pem file to the following destination paths on the Device VM:
+       For Docker Compose–based Device-Agent: : cd $HOME/dev-repo/docker-compose/config
+       For K3s-based Device-Agent: : $HOME/certs
+      
+  **3.4** Deploy containerized instance of Device Agent on Docker device.
     
     ```bash  
     # Choose option 3: Device-agent-Start(docker-compose-device)
       ./device-agent.sh  
     ```
-  **3.3** Deploy containerized instance of Device Agent on k3s device.
+  **3.5** Deploy containerized instance of Device Agent on k3s device.
    
     ```bash
     # Choose option 5: Device-agent-Start(k3s-device)

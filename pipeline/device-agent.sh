@@ -692,6 +692,8 @@ install_prerequisites() {
   install_docker_compose_v2 
   clone_dev_repo
   setup_k3s
+  add_container_registry_mirror_to_k3s
+  echo 'prerequisites installation completed.'
 }
 
 
@@ -1016,17 +1018,13 @@ show_menu() {
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
-    3) start_device_agent_docker ;;
-    4) stop_device_agent_docker ;;
-    5) start_device_agent_kubernetes ;;
-    6) stop_device_agent_kubernetes ;;
-    7) show_status ;;
-    8) install_otel_collector_promtail ;;
-    9) uninstall_otel_collector_promtail ;;
-    10) add_container_registry_mirror_to_k3s;;
-    11) cleanup_residual;;
-    12) create_device_rsa_certs ;;
-    13) create_device_ecdsa_certs ;;
+    3) start_device_agent ;;
+    4) stop_device_agent ;;
+    5) show_status ;;
+    6) install_otel_collector_promtail ;;
+    7) uninstall_otel_collector_promtail ;;
+    #8) add_container_registry_mirror_to_k3s;;
+    9) cleanup_residual;;
     *) echo "Invalid choice" ;;
   esac
 }
@@ -1036,4 +1034,17 @@ show_menu() {
 # ----------------------------
 if [ -z "$1" ]; then
   show_menu
+else
+  case $1 in
+    start) start_device_agent ;;
+    stop) stop_device_agent ;;
+    install_prerequisites) install_prerequisites;;
+    uninstall_prerequisites) uninstall_prerequisites;;
+    status) show_status ;;
+    install_otel_collector_promtail) install_otel_collector_promtail ;;
+    uninstall_otel_collector_promtail) uninstall_otel_collector_promtail ;;
+    #add_container_registry_mirror_to_k3s) add_container_registry_mirror_to_k3s ;;
+    cleanup_residual) cleanup_residual ;;
+    *) echo "Usage: $0 {start|stop|status|install_prerequisites|uninstall_prerequisites|install_otel_collector_promtail|uninstall_otel_collector_promtail|cleanup_residual}" ;;
+  esac
 fi

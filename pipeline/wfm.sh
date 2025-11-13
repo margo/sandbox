@@ -1824,7 +1824,7 @@ else
     Jaeger_Prometheus_Grafana_Loki-Installation) observability_stack_install ;;
     Jaeger_Prometheus_Grafana_Loki-Uninstallation) observability_stack_uninstall ;;
     Teardown-Environment) uninstall_prerequisites ;;
-    Add-Container-Registry-Mirror-To-K3s) add_container_registry_mirror_to_k3s;;
+    #Add-Container-Registry-Mirror-To-K3s) add_container_registry_mirror_to_k3s;;
     *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites|observability_stack_install|observability_stack_uninstall}"; exit 1 ;;
   esac
 }

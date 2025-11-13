@@ -1794,7 +1794,7 @@ show_menu() {
   echo "4) Symphony: Stop"
   echo "5) ObeservabiliyStack: Start"
   echo "6) ObeservabiliyStack: Stop"
-  echo "7) Registry-K3s: Add-Pull-Secrets"
+  #echo "7) Registry-K3s: Add-Pull-Secrets"
   # echo "8) Advanced: Setup"
   # echo "9) Advanced: Cleanup"
   read -p "Enter choice [1-7]: " choice

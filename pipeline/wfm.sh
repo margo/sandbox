@@ -32,6 +32,12 @@ EXPOSED_KEYCLOAK_PORT="${EXPOSED_KEYCLOAK_PORT:-8083}"
 EXPOSED_GOGS_IP="${EXPOSED_GOGS_IP:-127.0.0.1}"
 EXPOSED_GOGS_PORT="${EXPOSED_GOGS_PORT:-8084}"
 
+#--- Registry settings (can be overridden via env)
+EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_USER="${REGISTRY_USER:-admin}"
+REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
+
 # variables for observability stack
 NAMESPACE_OBSERVABILITY="observability"
 JAEGER_RELEASE="jaeger"
@@ -841,124 +847,82 @@ observability_stack_uninstall(){
 
 add_container_registry_mirror_to_k3s() {
   echo "Configuring container registry mirror for k3s..."
-  
-  # Ask for container registry URL or default to https://registry-1.docker.io
-  read -p "Enter container registry URL [https://registry-1.docker.io]: " registry_url
-  registry_url=${registry_url:-"https://registry-1.docker.io"}
-  
-  # Ask for registry username, no default
-  read -p "Enter registry username: " registry_user
-  if [ -z "$registry_user" ]; then
-    echo "❌ Registry username is required"
-    return 1
-  fi
-  
-  # Ask for registry password, no default (hidden input)
-  read -s -p "Enter registry password: " registry_password
-  echo  # New line after hidden input
-  if [ -z "$registry_password" ]; then
-    echo "❌ Registry password is required"
-    return 1
-  fi
-  
-  # Create k3s directory if it doesn't exist
+
+  # ---------------------------------------------------
+  # Load registry settings from environment variables
+  # ---------------------------------------------------
+  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+  registry_user="${REGISTRY_USER:-admin}"
+  registry_password="${REGISTRY_PASS:-Harbor12345}"
+
+  echo "Using registry mirror: $registry_url"
+  echo "Using registry credentials: $registry_user / ******"
+
+  # ---------------------------------------------------
+  # Create k3s directory if needed
+  # ---------------------------------------------------
   sudo mkdir -p /var/lib/rancher/k3s
-  
-  # Backup existing registries.yml if it exists
+  sudo mkdir -p /etc/rancher/k3s
+
+  # Backup existing registries if present
   if [ -f /var/lib/rancher/k3s/registries.yml ]; then
     sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yml.backup.$(date +%s)
-    echo "✅ Backed up existing registries.yml"
+    echo "✅ Backed up /var/lib/rancher/k3s/registries.yml"
   fi
-  
-  # Add docker registry mirror and credentials in /var/lib/rancher/k3s
-  cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml
+
+  # ---------------------------------------------------
+  # Write the registry config
+  # ---------------------------------------------------
+  cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
 mirrors:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
+  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
     endpoint:
-      - "$registry_url"
+      - "${registry_url}"
 
 configs:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
+  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
     auth:
-      username: "$registry_user"
-      password: "$registry_password"
+      username: "${registry_user}"
+      password: "${registry_password}"
     tls:
-    insecure_skip_verify: true
+      insecure_skip_verify: true
 EOF
 
-  cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yaml
-mirrors:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    endpoint:
-      - "$registry_url"
+  sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yaml
+  sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yml
+  sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
 
-configs:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    auth:
-      username: "$registry_user"
-      password: "$registry_password"
-    tls:
-    insecure_skip_verify: true
-EOF
+  echo "✅ Created k3s registry mirror configuration"
 
-# Add docker registry mirror and credentials in /etc/rancher/k3s
-cat <<EOF | sudo tee /etc/rancher/k3s/registries.yaml
-mirrors:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    endpoint:
-      - "$registry_url"
-
-configs:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    auth:
-      username: "$registry_user"
-      password: "$registry_password"
-EOF
-
-cat <<EOF | sudo tee /etc/rancher/k3s/registries.yml
-mirrors:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    endpoint:
-      - "$registry_url"
-
-configs:
-  "$EXPOSED_HARBOR_IP:$EXPOSED_HARBOR_PORT":
-    auth:
-      username: "$registry_user"
-      password: "$registry_password"
-EOF
-
-  echo "✅ Created k3s registries configuration"
-  
-  # Restart k3s to apply changes
-  echo "Restarting k3s to apply registry changes..."
+  # ---------------------------------------------------
+  # Restart k3s
+  # ---------------------------------------------------
+  echo "Restarting k3s..."
   if sudo systemctl restart k3s; then
     echo "✅ k3s restarted successfully"
-    
-    # Wait for k3s to be ready
-    echo "Waiting for k3s to be ready..."
-    for i in {1..30}; do
-      if sudo systemctl is-active --quiet k3s; then
-        echo "✅ k3s is active and running"
-        break
-      else
-        echo "Waiting for k3s... ($i/30)"
-        sleep 2
-      fi
-    done
-    
-    # Verify k3s is working
-    if sudo k3s kubectl get nodes >/dev/null 2>&1; then
-      echo "✅ k3s cluster is responding"
-    else
-      echo "⚠️ k3s cluster may not be fully ready yet"
-    fi
   else
     echo "❌ Failed to restart k3s"
     return 1
   fi
-  
-  echo "✅ Container registry mirror configuration completed"
+
+  # Wait for k3s active
+  echo "Waiting for k3s to come up..."
+  for i in {1..30}; do
+    if sudo systemctl is-active --quiet k3s; then
+      echo "✅ k3s is running"
+      break
+    fi
+    sleep 2
+  done
+
+  echo "Checking cluster..."
+  if sudo k3s kubectl get nodes >/dev/null 2>&1; then
+    echo "✅ k3s cluster is responding"
+  else
+    echo "⚠️ k3s cluster not ready yet"
+  fi
+
+  echo "✅ Registry mirror configuration completed."
 }
 
 # ----------------------------
@@ -1511,7 +1475,7 @@ install_prerequisites() {
   clone_symphony_repo
   clone_dev_repo
   
-  add_container_registry_mirror_to_k3s  
+  add_container_registry_mirror_to_k3s
   #setup_keycloak
   #update_keycloak_config
   
@@ -1550,7 +1514,6 @@ start_symphony() {
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-    echo "Building Symphony API container..."
     
     # Check for required environment variables
     if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
@@ -1567,54 +1530,52 @@ start_symphony_api_container(){
     echo "Stopping and removing existing symphony-api-container if present..."
     docker stop symphony-api-container 2>/dev/null || true
     docker rm symphony-api-container 2>/dev/null || true
+    pkill -f "symphony-api" 2>/dev/null || true
     
-    # Remove existing image if present
-   # echo "Removing existing margo-symphony-api:latest image if present..."
-   # docker rmi margo-symphony-api:latest 2>/dev/null || true
-    
-
-
-
-
-    # Create credential files
-    echo "$GITHUB_USER" > github_username.txt
-    echo "$GITHUB_TOKEN" > github_token.txt
-
-    # Build with secrets
-    # docker build \
-    #   --secret id=github_username,src=github_username.txt \
-    #   --secret id=github_token,src=github_token.txt \
-    #   -t margo-symphony-api:latest \
-    #   .. -f Dockerfile
-
-    # Clean up credential files
-    rm github_username.txt github_token.txt
-    
-    
-    
-    if [ $? -eq 0 ]; then
-        echo "Symphony API container built successfully with tag: margo-symphony-api:latest"
+    # Check if image already exists
+    if docker image inspect margo-symphony-api:latest >/dev/null 2>&1; then
+        echo "✅ Image margo-symphony-api:latest already exists, skipping build"
+    else
+        echo "🔨 Building Symphony API container..."
         
-        # Run the container
-        echo "Starting Symphony API container..."
-        docker run -dit --name symphony-api-container \
-            -p 8082:8082 \
-            -e LOG_LEVEL=Debug \
-            -v "$HOME/symphony/api/certificates:/certificates" \
-            -v "$HOME/symphony/api":/configs \
-            -e CONFIG=symphony-api-margo.json \
-            margo-symphony-api:latest
-            
-        if [ $? -eq 0 ]; then
-            echo "Symphony API container started successfully"
-            echo "Container is running on port 8082"
-            echo "Container name: symphony-api-container"
-        else
-            echo "Failed to start Symphony API container"
+        # Create credential files
+        echo "$GITHUB_USER" > github_username.txt
+        echo "$GITHUB_TOKEN" > github_token.txt
+
+        # Build with secrets
+        docker build \
+          --secret id=github_username,src=github_username.txt \
+          --secret id=github_token,src=github_token.txt \
+          -t margo-symphony-api:latest \
+          .. -f Dockerfile
+
+        # Clean up credential files
+        rm github_username.txt github_token.txt
+        
+        if [ $? -ne 0 ]; then
+            echo "❌ Failed to build Symphony API container"
             return 1
         fi
+        
+        echo "✅ Symphony API container built successfully with tag: margo-symphony-api:latest"
+    fi
+    
+    # Run the container
+    echo "🚀 Starting Symphony API container..."
+    docker run -dit --name symphony-api-container \
+        -p 8082:8082 \
+        -e LOG_LEVEL=Debug \
+        -v "$HOME/symphony/api/certificates:/certificates" \
+        -v "$HOME/symphony/api":/configs \
+        -e CONFIG=symphony-api-margo.json \
+        margo-symphony-api:latest
+        
+    if [ $? -eq 0 ]; then
+        echo "✅ Symphony API container started successfully"
+        echo "📡 Container is running on port 8082"
+        echo "🏷️  Container name: symphony-api-container"
     else
-        echo "Failed to build Symphony API container"
+        echo "❌ Failed to start Symphony API container"
         return 1
     fi
 }
@@ -1800,11 +1761,11 @@ show_menu() {
   read -p "Enter choice [1-7]: " choice
   case $choice in
     1) install_prerequisites ;;
-    2) start_symphony ;;
-    3) stop_symphony ;;
-    4) observability_stack_install ;;
-    5) observability_stack_uninstall ;;
-    6) uninstall_prerequisites ;;
+    2) uninstall_prerequisites ;;
+    3) start_symphony ;;
+    4) stop_symphony ;;
+    5) observability_stack_install ;;
+    6) observability_stack_uninstall ;;
     #7) add_container_registry_mirror_to_k3s;;
     *) echo "⚠️ Invalid choice"; exit 1 ;;
   esac
@@ -1816,15 +1777,4 @@ show_menu() {
 # Update the main script execution section
 if [[ -z "$1" ]]; then
   show_menu
-else
-  case "$1" in
-    Prepare-Environment) install_prerequisites ;;
-    Symphony-Start) start_symphony ;;
-    Symphony-Stop) stop_symphony ;;
-    Jaeger_Prometheus_Grafana_Loki-Installation) observability_stack_install ;;
-    Jaeger_Prometheus_Grafana_Loki-Uninstallation) observability_stack_uninstall ;;
-    Teardown-Environment) uninstall_prerequisites ;;
-    #Add-Container-Registry-Mirror-To-K3s) add_container_registry_mirror_to_k3s;;
-    *) echo "Usage: $0 {prepare-environment|symphony-start|symphony-stop|uninstall-prerequisites|observability_stack_install|observability_stack_uninstall}"; exit 1 ;;
-  esac
-}
+fi

@@ -164,7 +164,7 @@ clone_dev_repo() {
 # ----------------------------
 update_agent_sbi_url() {
   echo 'Updating wfm.sbiUrl in agent config ...'
-  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_IP:$WFM_PORT/v1alpha2/margo/sbi/v1|" "$HOME/dev-repo/poc/device/agent/config/config.yaml"
+  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_IP:$WFM_PORT/v1alpha2/margo|" "$HOME/dev-repo/poc/device/agent/config/config.yaml"
 }
 
 # ----------------------------
@@ -933,9 +933,6 @@ create_device_rsa_certs() {
   openssl req -new -x509 -key device-private.key -out device-public.crt -days 365 \
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ RSA Cert generation has been completed."
-
-  #echo "Copying RSA Certs in dev-repo"
-  #cp device-private.key device-public.crt "$HOME/dev-repo/docker-compose/config/"
 }
 
 create_device_ecdsa_certs() {
@@ -957,9 +954,6 @@ create_device_ecdsa_certs() {
   openssl req -new -x509 -key device-ecdsa.key -out device-ecdsa.crt -days 365 \
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ ECDSA Cert generation has been completed."
-
-  #echo "Copying ECDSA Certs in dev-repo"
-  #cp device-ecdsa.key device-ecdsa.crt "$HOME/dev-repo/docker-compose/config/"
 }
 
 

@@ -368,22 +368,18 @@ start_device_agent_docker_service() {
   cd "$HOME/dev-repo/docker-compose"
   mkdir -p config
   
-  if [ -d "$HOME/certs" ] && [ "$(ls -A "$HOME/certs")" ]; then
-    cp "$HOME"/certs/* ../poc/device/agent/config/
-    echo "Copied certs from \$HOME/certs to ../poc/device/agent/config/"
+ if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
+    echo "Creating TLS secrets..."
+    cp "$HOME/certs/device-private.key"  ./config
+    cp "$HOME/certs/device-public.crt"   ./config
+    cp "$HOME/certs/device-ecdsa.key"    ./config
+    cp "$HOME/certs/device-ecdsa.crt"    ./config
+    cp "$HOME/certs/ca-cert.pem"         ./config
+    echo "Copied certs from \$HOME/certs to ./config"
       else
-    echo "No certs found or directory missing: \$HOME/certs"
+    echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
+        return 1 
   fi
-
-
-  cp ../poc/device/agent/config/device-private.key ./config/
-  cp ../poc/device/agent/config/device-public.crt ./config/
-  cp ../poc/device/agent/config/device-ecdsa.key ./config/
-  cp ../poc/device/agent/config/device-ecdsa.crt ./config/
-   
-  cp ../poc/device/agent/config/capabilities.json ./config/
-  cp ../poc/device/agent/config/config.yaml ./config/
-
 
   mkdir -p data
   enable_docker_runtime
@@ -476,7 +472,7 @@ build_start_device_agent_k3s_service() {
     enable_kubernetes_runtime
     
     # Step 5: Create secrets 
-    if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ]; then
+    if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
         echo "Creating TLS secrets..."
    							 
         kubectl delete secret device-agent-certs --namespace=default 2>/dev/null || true
@@ -496,7 +492,8 @@ build_start_device_agent_k3s_service() {
             return 1
         fi
     else
-        echo "⚠️ Certificates not found in $HOME/certs, skipping TLS secret creation"
+        echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
+        return 1 
     fi
 
     # Step 5.1: Create Helm registry config secret (For ghcr.io access)
@@ -1059,6 +1056,13 @@ cleanup_residual() {
 
 create_device_rsa_certs() {
   CERT_DIR="$HOME/certs"
+
+  # If certs exists but is not a directory, remove it
+  if [ -e "$CERT_DIR" ] && [ ! -d "$CERT_DIR" ]; then
+    echo "[WARNING] $CERT_DIR exists but is not a directory — removing."
+    rm -f "$CERT_DIR"
+  fi
+
   mkdir -p "$CERT_DIR"
   cd "$CERT_DIR" || exit 1
 

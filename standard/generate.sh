@@ -3,7 +3,8 @@
 set -e
 
 # Configuration
-WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
+#WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
+WFM_SBI_SPEC=("https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml")
 OUTPUT_DIR="./generatedCode"
 WFM_SBI_PACKAGE_NAME="github.com/margo/sandbox/standard/generatedCode/wfm"
 

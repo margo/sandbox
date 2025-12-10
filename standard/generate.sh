@@ -1,10 +1,15 @@
 #!/bin/bash
-
 set -e
+export PATH="$PATH:$HOME/go/bin"
 
 # Configuration
 #WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
-WFM_SBI_SPEC=("https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml")
+
+TMP_SPEC="./spec/wfm-sbi.yaml"
+curl -sSL \
+  -o "$TMP_SPEC" \
+  "https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml"
+WFM_SBI_SPEC=("$TMP_SPEC")
 OUTPUT_DIR="./generatedCode"
 WFM_SBI_PACKAGE_NAME="github.com/margo/sandbox/standard/generatedCode/wfm"
 

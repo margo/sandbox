@@ -5,11 +5,10 @@ export PATH="$PATH:$HOME/go/bin"
 # Configuration
 #WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
 
-TMP_SPEC="./spec/wfm-sbi.yaml"
-curl -sSL \
-  -o "$TMP_SPEC" \
+TMP_SPEC=$(mktemp /tmp/wfm-sbi-tmp-XXXXXX.yaml)
+curl -sSL -o "$TMP_SPEC" \
   "https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml"
-WFM_SBI_SPEC=("$TMP_SPEC")
+WFM_SBI_SPEC="$TMP_SPEC"
 OUTPUT_DIR="./generatedCode"
 WFM_SBI_PACKAGE_NAME="github.com/margo/sandbox/standard/generatedCode/wfm"
 
@@ -73,17 +72,21 @@ main() {
     generate_code
     
     echo "Generated files:"
-    echo "- Models: $OUTPUT_DIR/models/"
-    echo "- Client: $OUTPUT_DIR/client/"
-    # echo "- Server: $OUTPUT_DIR/server/"
+    echo "- Models: $OUTPUT_DIR/wfm/sbi/models.go"
+    echo "- Client: $OUTPUT_DIR/wfm/sbi/client.go"
+
     
     # Verify the imports work
     log_info "Verifying generated code..."
-    for dir in models client; do
-        if [ -d "$OUTPUT_DIR/$dir" ]; then
-            (cd "$OUTPUT_DIR/$dir" && go build . && log_success "$dir builds successfully") || log_error "$dir failed to build"
-        fi
-    done
+    if (cd "$OUTPUT_DIR/wfm/sbi" && go build .); then
+        log_success "Generated code builds successfully"
+    else
+        log_error "Generated code failed to build"
+        exit 1
+    fi
 }
 
 main "$@"
+
+#Delete temporary spec file
+rm -f "$TMP_SPEC"

@@ -80,9 +80,8 @@ The repository is divided into three main parts. You can find more details here 
 | Supporting Infrastructure | Helm | 3.15.1 |
 | Supporting Infrastructure | Go | 1.23.2 / 1.24.4 |
 | Supporting Infrastructure | Docker | Latest (from get.docker.com) |
-| Supporting Infrastructure | Docker Compose | V2 (latest) |
+| Supporting Infrastructure | Docker Compose | v2.24.6 |
 | Supporting Infrastructure | K3s | Latest (from get.k3s.io) |
-| Supporting Infrastructure | Rust | Latest (from rustup) |
 | Supporting Infrastructure | Node.js/NPM | System default |
 | System Utilities | curl | System default |
 | System Utilities | git | System default |

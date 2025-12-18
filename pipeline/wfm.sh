@@ -1591,13 +1591,12 @@ generate_server_certs() {
     chmod 600 "$server_key"
 }
 install_vim() {
-  echo "[INFO] Checking if Vim editor is installed..."
+  echo "🔄 Installing Vim..."
   if command -v vim >/dev/null 2>&1; then
-    echo "[INFO] Vim is already installed."
+    echo "⚡️ Vim already installed, skipping installation"
     return
   fi
 
-  echo "[INFO] Installing Vim..."
   if command -v apt >/dev/null 2>&1; then
     sudo apt update -y
     sudo apt install -y vim
@@ -1605,7 +1604,7 @@ install_vim() {
     sudo yum install -y vim || sudo dnf install -y vim
   fi
 
-  echo "[SUCCESS] Vim installed and ready to use."
+  echo "✅ Vim installation completed."
 }
 
 

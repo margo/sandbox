@@ -91,15 +91,14 @@ install_basic_utilities() {
 }
 
 install_redis() {
-  echo "Installing Redis..."
-  
   local REDIS_VERSION="7.0.15"  # Stable version
   
+  echo "🔄 Installing Redis ${REDIS_VERSION}..."
+
   if command -v redis-server >/dev/null 2>&1; then
-    echo "✅ Redis is already installed."
-    redis-server --version
+    REDIS_VERSION="$(redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
+    echo "⚡️ Redis ${REDIS_VERSION} already installed, skipping installation"
   else
-    echo "🔄 Installing Redis ${REDIS_VERSION}..."
     sudo apt update
     sudo apt install -y redis-server=${REDIS_VERSION}-* || \
     sudo apt install -y redis-server  # Fallback to latest if specific version unavailable
@@ -107,8 +106,8 @@ install_redis() {
     sudo systemctl enable redis-server
     sudo systemctl start redis-server
 
-    echo "✅ Redis installation completed."
-    redis-server --version
+    REDIS_VERSION="$(redis-server --version)"
+    echo "✅ Redis ${REDIS_VERSION} installed"
   fi
 }
 

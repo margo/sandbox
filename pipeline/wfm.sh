@@ -299,21 +299,30 @@ install_oras() {
 # ----------------------------
 clone_symphony_repo() {
   cd "$HOME"
-  echo 'Cloning symphony...'
-  sudo rm -rf "$HOME/symphony"
-  git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
+  echo '🔄 Cloning symphony...'
+  if ! test -d "$HOME/symphony/.git" ; then
+    rm -rf "$HOME/symphony"
+    git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
+  fi
   cd "$HOME/symphony"
+  git fetch origin ${SYMPHONY_BRANCH}
   git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
-  echo "symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
+  git pull
+  echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
 }
 
 clone_dev_repo() {
   cd "$HOME"
-  sudo rm -rf "$HOME/sandbox"
-  git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+  echo '🔄 Cloning sandbox...'
+  if ! test -d "$HOME/sandbox/.git" ; then
+    rm -rf "$HOME/sandbox"
+    git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+  fi
   cd "$HOME/sandbox"
+  git fetch origin ${DEV_REPO_BRANCH}
   git checkout ${DEV_REPO_BRANCH} || echo 'Branch ${DEV_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${DEV_REPO_BRANCH} done"
+  git pull
+  echo "✅ sandbox repo checkout to branch ${DEV_REPO_BRANCH} done"
 }
 
 # ----------------------------

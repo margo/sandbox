@@ -274,11 +274,11 @@ install_docker_and_compose() {
 
 
 install_oras() {
-  echo "Installing ORAS CLI..."
+  echo "🔄 Installing ORAS CLI..."
   
   if command -v oras >/dev/null 2>&1; then
-    echo "✅ ORAS is already installed."
-    oras version
+    ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
+    echo "⚡️ ORAS ${ORAS_VERSION} already installed, skipping installation"
     return 0
   fi
   
@@ -289,8 +289,8 @@ install_oras() {
   sudo mv oras /usr/local/bin/
   rm "oras_${ORAS_VERSION}_linux_amd64.tar.gz"
   
-  echo "✅ ORAS installed successfully"
-  oras version
+  ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
+  echo "✅ ORAS ${ORAS_VERSION} installed"
 }
 
 

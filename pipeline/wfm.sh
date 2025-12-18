@@ -325,7 +325,7 @@ clone_symphony_repo() {
   cd "$HOME"   
   if ! test -d "$HOME/symphony/.git" ; then
     rm -rf "$HOME/symphony"     
-    echo "Cloning symphony branch: $SYMPHONY_BRANCH"
+    echo "🔄 Cloning symphony branch: $SYMPHONY_BRANCH"
     if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
       git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
     else
@@ -343,7 +343,7 @@ clone_dev_repo() {
  cd "$HOME"
  if ! test -d "$HOME/sandbox/.git" ; then
     rm -rf "$HOME/sandbox"
-    echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
+    echo "🔄 Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
     if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
       git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
     else
@@ -353,7 +353,7 @@ clone_dev_repo() {
   cd "$HOME/sandbox"
   git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
   git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+  echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 
 # ----------------------------

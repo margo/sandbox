@@ -7,30 +7,34 @@ export PATH="$PATH:/usr/local/go/bin"
 # ----------------------------
 
 load_device_agent_env() {
+  local device="${1:-}"
   local env_file=""
 
-  if [[ -n "$DEVICE_AGENT_ENV_FILE" && -f "$DEVICE_AGENT_ENV_FILE" ]]; then
-    env_file="$DEVICE_AGENT_ENV_FILE"
-  elif [[ -f "$SCRIPT_DIR/device-agent_k3s.env" ]]; then
-    env_file="$SCRIPT_DIR/device-agent_k3s.env"
-  elif [[ -f "$SCRIPT_DIR/device-agent_docker.env" ]]; then
-    env_file="$SCRIPT_DIR/device-agent_docker.env"
-  elif [[ -f "$PWD/device-agent_k3s.env" ]]; then
-    env_file="$PWD/device-agent_k3s.env"
-  elif [[ -f "$PWD/device-agent_docker.env" ]]; then
-    env_file="$PWD/device-agent_docker.env"
+  SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)}"
+  if [[ -z "$device" ]]; then
+    device="${DEVICE_TYPE:-k3s}"
   fi
-
-  if [[ -z "$env_file" ]]; then
-    echo "[WARN] Device agent env not found"
+  device="$(tr '[:upper:]' '[:lower:]' <<< "$device")"
+  if [[ "$device" != "docker" && "$device" != "k3s" ]]; then
+    echo "[ERROR] Invalid device type: '$device' (expected 'docker' or 'k3s')"
     return 1
   fi
-
+  env_file="$SCRIPT_DIR/device-agent_${device}.env"
+  if [[ ! -f "$env_file" && -f "$PWD/device-agent_${device}.env" ]]; then
+    env_file="$PWD/device-agent_${device}.env"
+  fi
+  if [[ ! -f "$env_file" ]]; then
+    echo "[WARN] Env file not found for device type '$device': $env_file"
+    return 1
+  fi
   echo "[INFO] Loading device agent environment: $env_file"
+  echo "[INFO] Device type selected: $device"
   # shellcheck disable=SC1090
   source "$env_file"
+  export DEVICE_TYPE="$device"
+  return 0
 }
-load_device_agent_env || true
+load_device_agent_env "$1" || true
 
 # ----------------------------
 # Environment & Validation Functions
@@ -1443,6 +1447,4 @@ show_menu() {
 # ----------------------------
 # Main Script Execution
 # ----------------------------
-if [ -z "$1" ]; then
-  show_menu
-fi
+ show_menu

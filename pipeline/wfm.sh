@@ -173,61 +173,62 @@ install_docker_and_compose() {
   local UBUNTU_CODENAME=$(lsb_release -cs)  # Gets 'noble' for Ubuntu 24.04
   
   # Install Docker if not present or wrong version
-  if ! command -v docker >/dev/null 2>&1; then
+  echo "🔄 Installing Docker..."
+  if command -v docker >/dev/null 2>&1; then
+    CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
+    echo "⚡️ Docker ${CURRENT_DOCKER_VERSION} already installed, skipping installation"
+    
+    # Check if correct version is installed
+    if [ "$CURRENT_DOCKER_VERSION" != "$DOCKER_VERSION" ]; then
+      echo "⚠️  Current Docker version: $CURRENT_DOCKER_VERSION (expected: $DOCKER_VERSION)"
+      echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
+    fi
+  else
     echo "Docker not found. Installing Docker ${DOCKER_VERSION}..."
     
     # Remove old Docker packages
-    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+    sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
     
     # Add Docker's official GPG key and repository
-    apt-get update
-    apt-get install -y ca-certificates curl
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-    chmod a+r /etc/apt/keyrings/docker.asc
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
     
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      ${UBUNTU_CODENAME} stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      ${UBUNTU_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     
-    apt-get update
+    sudo apt-get update
     
     # Install specific Docker version
-    apt-get install -y \
+    sudo apt-get install -y \
       docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
     
     # Add user to docker group
-    usermod -aG docker $USER
+    sudo usermod -aG docker $USER
     
-    echo "✅ Docker ${DOCKER_VERSION} installed successfully"
-  else
-    echo 'Docker already installed.'
-    
-    # Check if correct version is installed
-    CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
-    if [ "$CURRENT_DOCKER_VERSION" != "$DOCKER_VERSION" ]; then
-      echo "⚠️  Current Docker version: $CURRENT_DOCKER_VERSION (expected: $DOCKER_VERSION)"
-      echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
-    fi
+    echo "✅ Docker ${DOCKER_VERSION} installed"
   fi
 
+  echo "🔄 Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
   # Install specific Docker Compose plugin version
-  if ! apt list --installed 2>/dev/null | grep -q docker-compose-plugin; then
-    echo "Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
-    apt-get update
-    apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
-  else
-    echo 'Docker Compose plugin already installed.'
+  if dpkg -s docker-compose-plugin >/dev/null ; then
+    CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
+    echo "⚡️ Docker Compose ${CURRENT_COMPOSE_VERSION} already installed, skipping installation"
     
     # Check if correct version is installed
-    CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
     if [ "$CURRENT_COMPOSE_VERSION" != "$DOCKER_COMPOSE_VERSION" ]; then
       echo "⚠️  Current Docker Compose version: v$CURRENT_COMPOSE_VERSION (expected: v$DOCKER_COMPOSE_VERSION)"
       echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
     fi
+  else
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
   fi
   
   # CRITICAL: Remove old standalone docker-compose binaries to avoid conflicts
@@ -265,7 +266,7 @@ install_docker_and_compose() {
   
   # Prevent automatic updates (optional)
   echo "🔒 Holding Docker packages at current versions..."
-  apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
+  sudo apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
   echo "ℹ️  To allow updates later, run: apt-mark unhold docker-ce docker-ce-cli docker-compose-plugin"
 }
 

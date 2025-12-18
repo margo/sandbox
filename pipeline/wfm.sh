@@ -146,20 +146,21 @@ install_helm() {
 
 install_go() {
   cd $HOME
-  if which go >/dev/null 2>&1; then
-    echo 'Go already installed, skipping installation';
-    go version;
+  echo "🔄 Installing Go..."
+  if [[ "$PATH" != *"/usr/local/go/bin"* ]] ; then
+    export PATH=$PATH:/usr/local/go/bin
+  fi
+  if command -v go >/dev/null 2>&1; then
+    GO_VERSION="$(go version | cut -d ' ' -f 3 | cut -c 3-)"
+    echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
-    echo 'Go not found, installing...';
-    rm -rf /usr/local/go /usr/bin/go
-    wget "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" -O go.tar.gz;
-    tar -C /usr/local -xzf go.tar.gz;
+    sudo rm -rf /usr/local/go /usr/bin/go
+    wget "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" -O go.tar.gz
+    sudo tar -C /usr/local -xzf go.tar.gz
     rm go.tar.gz
-    export PATH=$PATH:/usr/local/go/bin;
-    # echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-    # source ~/.bashrc
-    which go;
-    go version;
+    which go
+    go version
+    echo "✅ Go installed"
   fi
 }
 

@@ -1623,12 +1623,22 @@ install_and_enable_ssh() {
     return 1
   fi
 
-  echo "[INFO] Installing OpenSSH Server..."
+  echo "🔄 Installing OpenSSH Server..."
   if [ "$OS" = "debian" ]; then
-    sudo apt update -y
-    sudo apt install -y openssh-server
+    if dpkg -s openssh-server >/dev/null ; then
+      echo "⚡️ OpenSSH Server already installed, skipping installation"
+    else
+      sudo apt update -y
+      sudo apt install -y openssh-server
+      echo "✅ OpenSSH Server installation completed."
+    fi
   else
-    sudo yum install -y openssh-server || sudo dnf install -y openssh-server
+    if rpm -q openssh-server >/dev/null ; then
+      echo "⚡️ OpenSSH Server already installed, skipping installation"
+    else
+      sudo yum install -y openssh-server || sudo dnf install -y openssh-server
+      echo "✅ OpenSSH Server installation completed."
+    fi
   fi
 
   echo "[INFO] Enabling and starting SSH service..."
@@ -1643,7 +1653,7 @@ install_and_enable_ssh() {
   sudo systemctl restart "$UNIT"
 
   echo "[INFO] Verifying SSH status:"
-  sudo sudo systemctl status ssh --no-pager || sudo systemctl status sshd
+  sudo systemctl status ssh --no-pager || systemctl status sshd
   echo "[SUCCESS] SSH service installed and running."
 }
 

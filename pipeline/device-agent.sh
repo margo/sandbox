@@ -1,6 +1,37 @@
 #!/bin/bash
 set -e
 export PATH="$PATH:/usr/local/go/bin"
+
+# ----------------------------
+# Load environment file 
+# ----------------------------
+
+load_device_agent_env() {
+  local env_file=""
+
+  if [[ -n "$DEVICE_AGENT_ENV_FILE" && -f "$DEVICE_AGENT_ENV_FILE" ]]; then
+    env_file="$DEVICE_AGENT_ENV_FILE"
+  elif [[ -f "$SCRIPT_DIR/device-agent_k3s.env" ]]; then
+    env_file="$SCRIPT_DIR/device-agent_k3s.env"
+  elif [[ -f "$SCRIPT_DIR/device-agent_docker.env" ]]; then
+    env_file="$SCRIPT_DIR/device-agent_docker.env"
+  elif [[ -f "$PWD/device-agent_k3s.env" ]]; then
+    env_file="$PWD/device-agent_k3s.env"
+  elif [[ -f "$PWD/device-agent_docker.env" ]]; then
+    env_file="$PWD/device-agent_docker.env"
+  fi
+
+  if [[ -z "$env_file" ]]; then
+    echo "[WARN] Device agent env not found"
+    return 1
+  fi
+
+  echo "[INFO] Loading device agent environment: $env_file"
+  # shellcheck disable=SC1090
+  source "$env_file"
+}
+load_device_agent_env || true
+
 # ----------------------------
 # Environment & Validation Functions
 # ----------------------------
@@ -84,9 +115,6 @@ install_basic_utilities() {
     echo "ℹ️ Skipping Helm installation for docker device type"
   fi
 }
-
-
-
 
 install_docker_and_compose() {
   cd $HOME
@@ -422,6 +450,42 @@ build_device_agent_docker() {
 # Device Workload Fleet Management Client Service Functions
 # ----------------------------
 
+create_device_agent_systemd_service() {
+  echo "🔧 Creating systemd service for device-agent auto-start..."
+  
+  # Get the actual docker-compose directory path
+  local compose_dir="$HOME/sandbox/docker-compose"
+  
+  # Create systemd service file
+sudo tee /etc/systemd/system/device-agent.service > /dev/null <<EOF
+  [Unit]
+  Description=Margo Device Agent
+  Requires=docker.service
+  After=docker.service network-online.target
+  Wants=network-online.target
+
+  [Service]
+  Type=oneshot
+  RemainAfterExit=yes
+  WorkingDirectory=${compose_dir}
+  ExecStartPre=/bin/sleep 10
+  ExecStart=/usr/bin/docker compose up -d
+  ExecStop=/usr/bin/docker compose down
+  TimeoutStartSec=0
+
+  [Install]
+  WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service
+  sudo systemctl daemon-reload
+  sudo systemctl enable device-agent.service
+  
+  echo "✅ Device-agent systemd service created and enabled"
+  echo "📋 Service will start device-agent automatically on boot"
+  echo "📁 Working directory: ${compose_dir}"
+}
+
 start_device_agent_docker_service() {
   echo 'Starting workload-fleet-management-client...'
   cd "$HOME/sandbox/docker-compose"
@@ -446,8 +510,10 @@ start_device_agent_docker_service() {
   mkdir -p data
   enable_docker_runtime
   docker compose up -d
-}
 
+  #systemd service for auto-start if vm reboots
+  create_device_agent_systemd_service
+}
 
 stop_device_agent_service_docker() {
   echo "Stopping workload-fleet-management-client..."

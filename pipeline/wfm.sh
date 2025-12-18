@@ -2,6 +2,38 @@
 set -e
 
 # ----------------------------
+# Load environment file
+# ----------------------------
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
+load_wfm_env() {
+  local env_file=""
+
+  if [[ -n "$WFM_ENV_FILE" && -f "$WFM_ENV_FILE" ]]; then
+    env_file="$WFM_ENV_FILE"
+  elif [[ -f "$SCRIPT_DIR/wfm.env" ]]; then
+    env_file="$SCRIPT_DIR/wfm.env"
+  elif [[ -f "$PWD/wfm.env" ]]; then
+    env_file="$PWD/wfm.env"
+  elif [[ -f "$HOME/wfm.env" ]]; then
+    env_file="$HOME/wfm.env"
+  elif [[ -n "$SUDO_USER" && -f "/home/$SUDO_USER/wfm.env" ]]; then
+    env_file="/home/$SUDO_USER/wfm.env"
+  fi
+
+  if [[ -z "$env_file" ]]; then
+    echo "[WARN] No wfm.env found"
+    return 1
+  fi
+
+  echo "[INFO] Loading WFM environment: $env_file"
+  # shellcheck disable=SC1090
+  source "$env_file"
+}
+load_wfm_env || true
+
+
+# ----------------------------
 # Environment & Validation
 # ----------------------------
 
@@ -24,8 +56,6 @@ EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 #--- device node IPs (can be overridden via env) for prometheus to scrape metrics
 # Format: "IP1:PORT1,IP2:PORT2" or just "IP1,IP2" (defaults to port 30999 for k3s)
 DEVICE_NODE_IPS="${DEVICE_NODE_IPS:-127.0.0.1:30999}"
-
-
 
 #--- Registry settings (can be overridden via env)
 REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
@@ -302,24 +332,142 @@ clone_dev_repo() {
 # Service Setup Functions
 # ----------------------------
 
+create_harbor_systemd_service() {
+  echo "🔧 Creating systemd service for Harbor auto-start..."
+  
+  # Get the actual harbor directory path (not using $HOME variable)
+  local harbor_dir="$HOME/sandbox/pipeline/harbor"
+  
+  # Create systemd service file with absolute path
+  sudo tee /etc/systemd/system/harbor.service > /dev/null <<EOF
+  [Unit]
+  Description=Harbor Container Registry
+  Requires=docker.service
+  After=docker.service network-online.target
+  Wants=network-online.target
 
+  [Service]
+  Type=oneshot
+  RemainAfterExit=yes
+  WorkingDirectory=${harbor_dir}
+  ExecStartPre=/bin/sleep 10
+  ExecStart=/usr/bin/docker compose up -d
+  ExecStop=/usr/bin/docker compose down
+  TimeoutStartSec=0
+
+  [Install]
+  WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service
+  sudo systemctl daemon-reload
+  sudo systemctl enable harbor.service
+  
+  echo "✅ Harbor systemd service created and enabled"
+  echo "📋 Service will start Harbor automatically on boot"
+  echo "📁 Working directory: ${harbor_dir}"
+}
+
+
+configure_harbor_restart_policy() {
+  local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
+  
+  if [ ! -f "$compose_file" ]; then
+    echo "⚠️ docker-compose.yml not found, will be generated during install"
+    return 0
+  fi
+  
+  echo "🔧 Replacing restart policies in docker-compose.yml..."
+  
+  # Backup original file
+  cp "$compose_file" "${compose_file}.backup.$(date +%s)"
+  
+  # Replace "restart: always" with "restart: unless-stopped"
+  sed -i 's/^\s*restart:\s*always/    restart: unless-stopped/g' "$compose_file"
+  
+  echo "✅ Restart policies replaced with unless-stopped"
+  
+  # Verify the changes - should show only one restart per service
+  echo "📋 Verifying restart policies in docker-compose.yml:"
+  grep "restart:" "$compose_file"
+}
+
+
+
+# ----------------------------
+# Service Setup Functions
+# ----------------------------
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
     echo 'Harbor is already running, skipping startup.'
   else
     cd "$HOME/sandbox/pipeline/harbor"
-    #Update harbor.yml with EXPOSED_HARBOR_IP
+    
+    # Update harbor.yml with EXPOSED_HARBOR_IP
     sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
-    echo 'Starting Harbor...'
+    
+    echo 'Preparing Harbor configuration...'
     sudo chmod +x install.sh prepare common.sh
-    sudo bash install.sh
+    
+    # Run prepare to generate docker-compose.yml
+    sudo ./prepare
+    
+    # Add restart policies to docker-compose.yml BEFORE starting
+    configure_harbor_restart_policy
+    
+    # Start Harbor - ensure clean state
+    echo 'Starting Harbor with restart policies...'
+    sudo docker compose down --remove-orphans 2>/dev/null || true
+    sudo docker compose up -d
+    
+    # Force update restart policies on all containers
+    echo '🔧 Applying restart policies to running containers...'
+    sleep 5
+    for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
+      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+        docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
+      fi
+    done
+    
+    echo 'Waiting for Harbor to initialize...'
+    sleep 15
+    
     docker ps
-    sleep 10
-    docker ps | grep harbor || echo 'Harbor did not start properly'
+    
+    # Verify all containers are running
+    echo ""
+    echo "📊 Harbor container status:"
+    docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
+    
+    # Verify restart policies
+    echo ""
+    echo "📋 Verifying restart policies:"
+    for container in nginx registry registryctl redis $(docker ps -a --filter "name=harbor-" --format "{{.Names}}"); do
+      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+        docker inspect --format='{{.Name}}: {{.HostConfig.RestartPolicy.Name}}' "$container"
+      fi
+    done
+    
+    # Create systemd service for auto-start on boot
+    create_harbor_systemd_service
+    
+    # Final health check
+    echo ""
+    echo "⏳ Waiting for all containers to be healthy (this may take 1-2 minutes)..."
+    sleep 45
+    
+    healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
+    total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
+    
+    echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
+    
+    if [ "$healthy_count" -eq "$total_count" ] && [ "$total_count" -eq 9 ]; then
+      echo "✅ All Harbor containers are running and healthy!"
+    else
+      echo "⚠️ Some containers may still be initializing. Check with: docker ps | grep harbor"
+    fi
   fi
 }
-
-
 
 # ----------------------------
 # OCI Application Package Push Functions (NEW - replaces Git push)
@@ -742,6 +890,125 @@ install_grafana() {
   echo "🔐 Login with username: admin and password: admin"
 }
 
+create_observability_systemd_service() {
+  local obs_dir="$HOME/sandbox/pipeline/observability"
+  local start_script="$obs_dir/start_observability.sh"
+  local unit_file="/etc/systemd/system/observability.service"
+
+  mkdir -p "$obs_dir"
+
+  cat > "$start_script" <<'EOF'
+#!/bin/bash
+set -e
+
+# If present, source the global wfm env to pick up EXPOSED_* and release names.
+WFM_ENV="$HOME/sandbox/pipeline/wfm.env"
+[ -f "$WFM_ENV" ] && source "$WFM_ENV"
+
+# Defaults (if not provided via env)
+NAMESPACE="${NAMESPACE_OBSERVABILITY:-observability}"
+JAEGER_RELEASE="${JAEGER_RELEASE:-jaeger}"
+PROM_RELEASE="${PROM_RELEASE:-prometheus}"
+GRAFANA_RELEASE="${GRAFANA_RELEASE:-grafana}"
+LOKI_RELEASE="${LOKI_RELEASE:-loki}"
+
+cd "$HOME/sandbox/pipeline/observability" || exit 0
+
+# Ensure helm repos are available
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts >/dev/null 2>&1 || true
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
+helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
+helm repo update >/dev/null 2>&1 || true
+
+case "$1" in
+  start|restart|enable)
+    # Create namespace if needed
+    kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE" >/dev/null 2>&1 || true
+
+    # Jaeger
+    helm upgrade --install "$JAEGER_RELEASE" jaegertracing/jaeger \
+      --version 3.4.1 \
+      --namespace "$NAMESPACE" \
+      --set agent.enabled=false \
+      --set collector.enabled=true \
+      --set collector.otlp.enabled=true \
+      --set collector.service.type=NodePort \
+      --set collector.service.nodePort=30417 \
+      --set query.enabled=true \
+      --set query.service.type=NodePort \
+      --set query.service.nodePort=32500 || true
+
+    # Prometheus - attempt to reuse local values file if present, otherwise install default
+    if [ -f prometheus-values.yaml ]; then
+      helm upgrade --install "$PROM_RELEASE" prometheus-community/prometheus -n "$NAMESPACE" -f prometheus-values.yaml || true
+    else
+      helm upgrade --install "$PROM_RELEASE" prometheus-community/prometheus \
+        --namespace "$NAMESPACE" \
+        --set server.service.type=NodePort \
+        --set server.service.nodePort=30900 || true
+    fi
+
+    # Grafana
+    helm upgrade --install "$GRAFANA_RELEASE" grafana/grafana \
+      --version 10.3.0 \
+      --namespace "$NAMESPACE" \
+      --set service.type=NodePort \
+      --set service.nodePort=32000 \
+      --set adminPassword='admin' \
+      --set persistence.enabled=false || true
+
+    # Loki
+    helm upgrade --install "$LOKI_RELEASE" grafana/loki \
+      --version 6.46.0 \
+      --namespace "$NAMESPACE" -f <(cat <<YAML
+deploymentMode: SingleBinary
+loki:
+  auth_enabled: false
+YAML
+) || true
+
+    # Give k8s a short moment to reconcile
+    sleep 5
+    ;;
+  stop|disable)
+    # uninstall is optional - here we just leave components but allow 'stop' to do nothing
+    echo "observability.service stop requested (no-op). To uninstall, run helm uninstall manually."
+    ;;
+  *)
+    echo "Usage: $0 {start|restart|stop|enable|disable}"
+    exit 2
+    ;;
+esac
+EOF
+
+  chmod +x "$start_script"
+
+  # Write systemd unit
+  sudo tee "$unit_file" > /dev/null <<EOF
+[Unit]
+Description=Margo Observability Stack (Jaeger, Prometheus, Grafana, Loki)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${obs_dir}
+ExecStart=/bin/bash ${start_script} start
+ExecStop=/bin/bash ${start_script} stop
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable observability.service
+  sudo systemctl start observability.service || true
+
+  echo "✅ Observability systemd service created and enabled: $unit_file"
+}
+
 observability_stack_install(){
 echo "Observability stack installation started"
 
@@ -758,10 +1025,12 @@ echo "collector-scrape-cm-change.txt file found, proceeding..."
   install_prometheus
   install_grafana
   install_loki
+
+  # create systemd service so observability stack starts on boot
+  create_observability_systemd_service
+
 echo "Observability stack installation completed"
 }
-
-
 
 observability_stack_uninstall(){
     echo "Observability stack uninstall started"
@@ -799,23 +1068,11 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
-  registry_password="${REGISTRY_PASS:-Harbor12345}"
-
-										 
-												   
-								  
-											
-			
-	
-										 
-														
+  registry_password="${REGISTRY_PASS:-Harbor12345}"													
   echo "Using registry mirror: $registry_url"
   echo "Using registry credentials: $registry_user / ******"
   # ---------------------------------------------------
 											
-			
-	
-
   # Create k3s directory if needed
   # ---------------------------------------------------
   sudo mkdir -p /var/lib/rancher/k3s
@@ -1287,15 +1544,11 @@ install_prerequisites() {
   setup_k3s
   install_redis
   install_oras  
-  
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
-  
-   
   setup_harbor
   build_custom_otel_container_images
-  
   echo ""
   echo "-----------------------------------------------------------------------"
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry(i.e. harbor)..."
@@ -1338,10 +1591,71 @@ start_symphony() {
   start_symphony_api_container
 }
 
+create_symphony_api_systemd_service() {
+  echo "🔧 Creating systemd service for Symphony API auto-start..."
+  
+  # Get the actual symphony api directory path
+  local symphony_dir="$HOME/symphony/api"
+  
+  # Create systemd service file with absolute path
+  sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
+[Unit]
+Description=Margo Symphony API Server
+Requires=docker.service redis-server.service
+After=docker.service redis-server.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+WorkingDirectory=${symphony_dir}
+ExecStartPre=/bin/sleep 15
+ExecStartPre=-/usr/bin/docker stop symphony-api-container
+ExecStartPre=-/usr/bin/docker rm symphony-api-container
+ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
+    --network host \
+    -p 8082:8082 \
+    -e LOG_LEVEL=Debug \
+    -v ${symphony_dir}/certificates:/certificates \
+    -v ${symphony_dir}:/configs \
+    -e CONFIG=symphony-api-margo.json \
+    margo-symphony-api:latest
+ExecStop=/usr/bin/docker stop symphony-api-container
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service
+  sudo systemctl daemon-reload
+  sudo systemctl enable symphony-api.service
+  
+  echo "✅ Symphony API systemd service created and enabled"
+  echo "📋 Service will start Symphony API automatically on boot"
+  echo "📁 Working directory: ${symphony_dir}"
+}
+
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
 	  echo "Building Symphony API container..."																			   
+
+     
+    # Check for required environment variables
+    if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+        echo "Error: GITHUB_USER and GITHUB_TOKEN environment variables must be set"
+        echo "Current values:"
+        echo "  GITHUB_USER: ${GITHUB_USER:-'(not set)'}"
+        echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:-'(not set)'}"
+        return 1
+    fi
+    
+    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
+    go env -w GOPRIVATE="github.com/margo/*";
+    echo "Using GitHub credentials for user: $GITHUB_USER"
 
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
@@ -1394,6 +1708,9 @@ start_symphony_api_container(){
         echo "✅ Symphony API container started successfully"
         echo "📡 Container is running on port 8082"
         echo "🏷️  Container name: symphony-api-container"
+
+        # Create systemd service for auto-start on boot
+        create_symphony_api_systemd_service
     else
         echo "❌ Failed to start Symphony API container"
         return 1
@@ -1434,8 +1751,6 @@ stop_symphony() {
     echo 'ℹ️ Redis data preserved'
   fi
 }
-
-
 
 # Collect certificate information
 collect_certs_info() {

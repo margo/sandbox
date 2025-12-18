@@ -116,9 +116,9 @@ install_redis() {
 install_helm() {
   cd $HOME
   if [ "${INSTALL_HELM_V3_15_1}" == "true" ]; then
-    echo "Helm Setup"
+    echo "🔄 Installing Helm..."
     if command -v helm >/dev/null 2>&1 && [[ "$(helm version --short | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" == "${HELM_VERSION}" ]]; then
-        echo "Helm version ${HELM_VERSION} is already installed. Skipping."
+        echo "⚡️ Helm version ${HELM_VERSION} already installed, skipping installation"
     else
         echo "Downloading Helm version ${HELM_VERSION}..."
         if ! wget -q "https://get.helm.sh/${HELM_TAR}" ; then
@@ -139,6 +139,7 @@ install_helm() {
         echo "Cleaning up..."
         rm "${HELM_TAR}"
         rm -rf linux-amd64/
+        echo '✅ Basic utilities installed'
     fi
   fi
 }

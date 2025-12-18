@@ -1257,14 +1257,16 @@ install_k3s_dependencies() {
 }
 
 install_k3s() {
-  if ! check_k3s_installed; then
-    echo "Installing k3s ${K3S_VERSION}..."
+  echo "🔄 Installing k3s ${K3S_VERSION}..."
+  if check_k3s_installed; then
+    echo "⚡️ k3s ${K3S_VERSION} already installed, skipping installation"
+  else
     install_k3s_dependencies
     
     # Install specific k3s version
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${K3S_VERSION}" sh -
     
-    echo "✅ k3s ${K3S_VERSION} installed successfully"
+    echo "✅ k3s ${K3S_VERSION} installed"
   fi
 }
 
@@ -1272,11 +1274,6 @@ verify_k3s_status() {
   echo 'Verifying k3s status...'
   sudo systemctl status k3s --no-pager || true
   sudo k3s kubectl get nodes || true
-  
-  # Show installed version
-  echo ""
-  echo "Installed k3s version:"
-  k3s --version | head -1
 }
 
 

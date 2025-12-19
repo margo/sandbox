@@ -869,7 +869,7 @@ delete_instance() {
 # ----------------------------
 show_menu() {
   clear
-  echo "🎛️  WFM CLI Interactive Interface"
+  echo "🎛️  WFM CLI Interactive Interface(easy-CLI)"
   echo "================================="
   echo "Choose an option:"
   echo "1) 📦 List Application Package"

@@ -27,7 +27,7 @@ load_device_agent_env() {
     echo "[WARN] Env file not found for device type '$device': $env_file"
     return 1
   fi
-  echo "[INFO] Loading device agent environment: $env_file"
+  #echo "[INFO] Loading device agent environment: $env_file"
   echo "[INFO] Device type selected: $device"
   # shellcheck disable=SC1090
   source "$env_file"
@@ -1410,7 +1410,14 @@ create_device_ecdsa_certs() {
 										 
 																			   
 }
+pause() {
+  echo
+  read -rp "Press Enter to continue..." _
+}
 
+# ----------------------------
+# Menu Functions
+# ----------------------------
 
 show_menu() {
   echo "Choose an option:"
@@ -1426,7 +1433,8 @@ show_menu() {
   echo "10) cleanup-residual"
   echo "11) create_device_rsa_certs"
   echo "12) create_device_ecdsa_certs"
-  read -rp "Enter choice [1-12]: " choice
+  echo "13) Exit"
+  read -rp "Enter choice [1-13]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
@@ -1440,11 +1448,44 @@ show_menu() {
     10) cleanup_residual;;
     11) create_device_rsa_certs ;;
     12) create_device_ecdsa_certs ;;
+    13) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
+
+  pause
 }
 
 # ----------------------------
 # Main Script Execution
 # ----------------------------
- show_menu
+ main_loop() {
+  while true; do
+    show_menu
+  done
+}
+
+if [[ -z "$1" || "$1" == "docker" || "$1" == "k3s" ]]; then
+  main_loop
+else
+  case "$1" in
+    install) install_prerequisites ;;
+    uninstall) uninstall_prerequisites ;;
+    start-docker) start_device_agent_docker ;;
+    stop-docker) stop_device_agent_docker ;;
+    start-k3s) start_device_agent_kubernetes ;;
+    stop-k3s) stop_device_agent_kubernetes ;;
+    status) show_status ;;
+    otel-install) install_otel_collector_promtail_wrapper ;;
+    otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
+    cleanup) cleanup_residual ;;
+    create-rsa-certs) create_device_rsa_certs ;;
+    create-ecdsa-certs) create_device_ecdsa_certs ;;
+
+    *)
+      echo "Usage:"
+      echo "  $0 [docker|k3s]"
+      echo "  DEVICE_TYPE=docker $0"
+      exit 1
+      ;;
+  esac
+fi

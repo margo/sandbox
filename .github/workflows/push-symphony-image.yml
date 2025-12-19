@@ -23,12 +23,12 @@ jobs:
        with:
          registry: ghcr.io
          username: ${{ github.actor }}
-         password: ${{ secrets.GITHUB_TOKEN }}
+         password: ${{ secrets.TOKEN_GITHUB }}
      - name: Make push script executable
        run: chmod +x pipeline/push-symphony-image.sh
      - name: Build & Push Symphony API Image
        env:
-         GITHUB_USER: ${{ github.repository_owner }}
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         USER_GITHUB: ${{ github.repository_owner }}
+         TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB}}
        run: |
          ./pipeline/push-symphony-image.sh

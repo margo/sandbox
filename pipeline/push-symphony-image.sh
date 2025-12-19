@@ -12,11 +12,11 @@ cd "$REPO_ROOT"
 # --------------------------------------------------
 # Required environment variables
 # --------------------------------------------------
-: "${GITHUB_USER:?Set GITHUB_USER}"
-: "${GITHUB_TOKEN:?Set GITHUB_TOKEN}"
+: "${USER_GITHUB:?Set USER_GITHUB}"
+: "${TOKEN_GITHUB:?Set TOKEN_GITHUB}"
 
 REGISTRY="ghcr.io"
-OWNER="$GITHUB_USER"
+OWNER="$USER_GITHUB"
 IMAGE="symphony-api"
 IMAGE_BASE="$REGISTRY/$OWNER/$IMAGE"
 
@@ -46,8 +46,8 @@ docker buildx build \
   --push \
   --cache-from type=gha \
   --cache-to type=gha,mode=max \
-  --secret id=github_username,env=GITHUB_USER \
-  --secret id=github_token,env=GITHUB_TOKEN \
+  --secret id=github_username,env=USER_GITHUB \
+  --secret id=github_token,env=TOKEN_GITHUB \
   --tag "$IMAGE_BASE:latest" \
   --tag "$IMAGE_BASE:$GIT_SHA" \
   -f "$DOCKERFILE" \

@@ -4,30 +4,16 @@ set -e
 # ----------------------------
 # Load environment file
 # ----------------------------
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 load_wfm_env() {
-  local env_file=""
+  local env_file="$SCRIPT_DIR/wfm.env"
 
-  if [[ -n "$WFM_ENV_FILE" && -f "$WFM_ENV_FILE" ]]; then
-    env_file="$WFM_ENV_FILE"
-  elif [[ -f "$SCRIPT_DIR/wfm.env" ]]; then
-    env_file="$SCRIPT_DIR/wfm.env"
-  elif [[ -f "$PWD/wfm.env" ]]; then
-    env_file="$PWD/wfm.env"
-  elif [[ -f "$HOME/wfm.env" ]]; then
-    env_file="$HOME/wfm.env"
-  elif [[ -n "$SUDO_USER" && -f "/home/$SUDO_USER/wfm.env" ]]; then
-    env_file="/home/$SUDO_USER/wfm.env"
-  fi
-
-  if [[ -z "$env_file" ]]; then
-    echo "[WARN] No wfm.env found"
+  if [[ ! -f "$env_file" ]]; then
+    echo "[WARN] wfm.env not found at: $env_file"
     return 1
   fi
 
-  echo "[INFO] Loading WFM environment: $env_file"
-  # shellcheck disable=SC1090
+  echo "[INFO] Loading environment from: $env_file"
   source "$env_file"
 }
 load_wfm_env || true
@@ -890,146 +876,24 @@ install_grafana() {
   echo "🔐 Login with username: admin and password: admin"
 }
 
-create_observability_systemd_service() {
-  local obs_dir="$HOME/sandbox/pipeline/observability"
-  local start_script="$obs_dir/start_observability.sh"
-  local unit_file="/etc/systemd/system/observability.service"
-
-  mkdir -p "$obs_dir"
-
-  cat > "$start_script" <<'EOF'
-#!/bin/bash
-set -e
-
-# If present, source the global wfm env to pick up EXPOSED_* and release names.
-WFM_ENV="$HOME/sandbox/pipeline/wfm.env"
-[ -f "$WFM_ENV" ] && source "$WFM_ENV"
-
-# Defaults (if not provided via env)
-NAMESPACE="${NAMESPACE_OBSERVABILITY:-observability}"
-JAEGER_RELEASE="${JAEGER_RELEASE:-jaeger}"
-PROM_RELEASE="${PROM_RELEASE:-prometheus}"
-GRAFANA_RELEASE="${GRAFANA_RELEASE:-grafana}"
-LOKI_RELEASE="${LOKI_RELEASE:-loki}"
-
-cd "$HOME/sandbox/pipeline/observability" || exit 0
-
-# Ensure helm repos are available
-helm repo add jaegertracing https://jaegertracing.github.io/helm-charts >/dev/null 2>&1 || true
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
-helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
-helm repo update >/dev/null 2>&1 || true
-
-case "$1" in
-  start|restart|enable)
-    # Create namespace if needed
-    kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE" >/dev/null 2>&1 || true
-
-    # Jaeger
-    helm upgrade --install "$JAEGER_RELEASE" jaegertracing/jaeger \
-      --version 3.4.1 \
-      --namespace "$NAMESPACE" \
-      --set agent.enabled=false \
-      --set collector.enabled=true \
-      --set collector.otlp.enabled=true \
-      --set collector.service.type=NodePort \
-      --set collector.service.nodePort=30417 \
-      --set query.enabled=true \
-      --set query.service.type=NodePort \
-      --set query.service.nodePort=32500 || true
-
-    # Prometheus - attempt to reuse local values file if present, otherwise install default
-    if [ -f prometheus-values.yaml ]; then
-      helm upgrade --install "$PROM_RELEASE" prometheus-community/prometheus -n "$NAMESPACE" -f prometheus-values.yaml || true
-    else
-      helm upgrade --install "$PROM_RELEASE" prometheus-community/prometheus \
-        --namespace "$NAMESPACE" \
-        --set server.service.type=NodePort \
-        --set server.service.nodePort=30900 || true
-    fi
-
-    # Grafana
-    helm upgrade --install "$GRAFANA_RELEASE" grafana/grafana \
-      --version 10.3.0 \
-      --namespace "$NAMESPACE" \
-      --set service.type=NodePort \
-      --set service.nodePort=32000 \
-      --set adminPassword='admin' \
-      --set persistence.enabled=false || true
-
-    # Loki
-    helm upgrade --install "$LOKI_RELEASE" grafana/loki \
-      --version 6.46.0 \
-      --namespace "$NAMESPACE" -f <(cat <<YAML
-deploymentMode: SingleBinary
-loki:
-  auth_enabled: false
-YAML
-) || true
-
-    # Give k8s a short moment to reconcile
-    sleep 5
-    ;;
-  stop|disable)
-    # uninstall is optional - here we just leave components but allow 'stop' to do nothing
-    echo "observability.service stop requested (no-op). To uninstall, run helm uninstall manually."
-    ;;
-  *)
-    echo "Usage: $0 {start|restart|stop|enable|disable}"
-    exit 2
-    ;;
-esac
-EOF
-
-  chmod +x "$start_script"
-
-  # Write systemd unit
-  sudo tee "$unit_file" > /dev/null <<EOF
-[Unit]
-Description=Margo Observability Stack (Jaeger, Prometheus, Grafana, Loki)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=${obs_dir}
-ExecStart=/bin/bash ${start_script} start
-ExecStop=/bin/bash ${start_script} stop
-TimeoutStartSec=0
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  sudo systemctl daemon-reload
-  sudo systemctl enable observability.service
-  sudo systemctl start observability.service || true
-
-  echo "✅ Observability systemd service created and enabled: $unit_file"
-}
-
 observability_stack_install(){
-echo "Observability stack installation started"
+  echo "Observability stack installation started"
 
-# Check if collector-scrape-cm-change.txt file exists
-if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
-    echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
-    echo "Please ensure the file exists before proceeding."
-    exit 1
-fi
+  # Check if collector-scrape-cm-change.txt file exists
+  if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
+      echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
+      echo "Please ensure the file exists before proceeding."
+      exit 1
+  fi
 
-echo "collector-scrape-cm-change.txt file found, proceeding..."
-  create_observability_namespace
-  install_jaeger
-  install_prometheus
-  install_grafana
-  install_loki
+  echo "collector-scrape-cm-change.txt file found, proceeding..."
+    create_observability_namespace
+    install_jaeger
+    install_prometheus
+    install_grafana
+    install_loki
 
-  # create systemd service so observability stack starts on boot
-  create_observability_systemd_service
-
-echo "Observability stack installation completed"
+  echo "Observability stack installation completed"
 }
 
 observability_stack_uninstall(){

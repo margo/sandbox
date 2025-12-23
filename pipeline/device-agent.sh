@@ -5,34 +5,31 @@ export PATH="$PATH:/usr/local/go/bin"
 # ----------------------------
 # Load environment file 
 # ----------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 load_device_agent_env() {
   local device="${1:-}"
-  local env_file=""
 
-  SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)}"
   if [[ -z "$device" ]]; then
     device="${DEVICE_TYPE:-k3s}"
   fi
-  device="$(tr '[:upper:]' '[:lower:]' <<< "$device")"
+  device="${device,,}"
+
   if [[ "$device" != "docker" && "$device" != "k3s" ]]; then
-    echo "[ERROR] Invalid device type: '$device' (expected 'docker' or 'k3s')"
+    echo "[ERROR] Invalid device type: '$device' (expected: docker or k3s)"
     return 1
   fi
-  env_file="$SCRIPT_DIR/device-agent_${device}.env"
-  if [[ ! -f "$env_file" && -f "$PWD/device-agent_${device}.env" ]]; then
-    env_file="$PWD/device-agent_${device}.env"
-  fi
+  local env_file="$SCRIPT_DIR/device-agent_${device}.env"
+
   if [[ ! -f "$env_file" ]]; then
-    echo "[WARN] Env file not found for device type '$device': $env_file"
+    echo "[ERROR] Env file not found: $env_file"
     return 1
   fi
-  #echo "[INFO] Loading device agent environment: $env_file"
+
   echo "[INFO] Device type selected: $device"
-  # shellcheck disable=SC1090
+  #echo "[INFO] Loading environment: $env_file"
   source "$env_file"
   export DEVICE_TYPE="$device"
-  return 0
 }
 load_device_agent_env "$1" || true
 
@@ -1144,6 +1141,41 @@ create_observability_namespace() {
     fi
 }
 
+create_observability_systemd_service() {
+  echo "🔧 Creating systemd service for observability (OTEL + Promtail) auto-start..."
+
+  local obs_dir="$HOME/sandbox/pipeline/observability"
+
+  # Create systemd unit file
+  sudo tee /etc/systemd/system/observability.service > /dev/null <<EOF
+[Unit]
+Description=Margo Observability Stack (OTEL Collector + Promtail)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${obs_dir}
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/docker compose -f docker-compose-observability.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose-observability.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service so it runs at boot
+  sudo systemctl daemon-reload
+  sudo systemctl enable observability.service
+
+  echo "✅ Observability systemd service created and enabled"
+  echo "📋 Service will run: /usr/bin/docker compose -f docker-compose-observability.yml up -d"
+  echo "📁 Working directory: ${obs_dir}"
+}
+
 install_otel_collector_promtail_docker() {
   echo "Installing OTEL Collector v0.140.0 and Promtail v2.9.10 as Docker containers..."
   cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
@@ -1289,6 +1321,9 @@ EOF
 
   # Start the observability stack
   docker compose -f docker-compose-observability.yml up -d
+  
+  # Create & enable systemd unit to start this stack on reboot
+  create_observability_systemd_service
   
   echo "✅ OTEL Collector v0.140.0 and Promtail v2.9.10 installed"
   echo "📡 OTLP gRPC: localhost:4317"

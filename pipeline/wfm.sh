@@ -18,7 +18,6 @@ load_wfm_env() {
 }
 load_wfm_env || true
 
-
 # ----------------------------
 # Environment & Validation
 # ----------------------------
@@ -1505,21 +1504,7 @@ EOF
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-	  echo "Building Symphony API container..."																			   
-
-     
-    # Check for required environment variables
-    if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
-        echo "Error: GITHUB_USER and GITHUB_TOKEN environment variables must be set"
-        echo "Current values:"
-        echo "  GITHUB_USER: ${GITHUB_USER:-'(not set)'}"
-        echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:-'(not set)'}"
-        return 1
-    fi
-    
-    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
-    go env -w GOPRIVATE="github.com/margo/*";
-    echo "Using GitHub credentials for user: $GITHUB_USER"
+	  echo "Building Symphony API container..."
 
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
@@ -1551,8 +1536,6 @@ start_symphony_api_container(){
             echo "❌ Failed to build Symphony API container"
             return 1
         fi
-        
-	   
         echo "✅ Symphony API container built successfully with tag: margo-symphony-api:latest"
     fi
     
@@ -1579,7 +1562,6 @@ start_symphony_api_container(){
         echo "❌ Failed to start Symphony API container"
         return 1
     fi
- 
 }
 
 

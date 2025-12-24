@@ -1200,11 +1200,11 @@ install_otel_collector_promtail_docker() {
   echo "Installing OTEL Collector v0.140.0 and Promtail v2.9.10 as Docker containers..."
   cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
   
-  # Fix Docker socket permissions for OTEL Collector access
-  echo "Setting Docker socket permissions..."
-  sudo chmod 666 /var/run/docker.sock
+  # Get docker group GID for proper permissions
+  DOCKER_GID=$(getent group docker | cut -d: -f3)
+  echo "Docker group GID: $DOCKER_GID"
   
-  # Create docker-compose.yml for observability stack
+  # Create docker-compose.yml for observability stack with proper permissions
   cat <<EOF > docker-compose-observability.yml
 version: '3.8'
 
@@ -1223,6 +1223,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.140.0
     container_name: otel-collector
+    user: "0:${DOCKER_GID}"  # Run as root with docker group access
     volumes:
       - ./otel-collector-config.yml:/etc/otel/config.yml
       - /var/run/docker.sock:/var/run/docker.sock
@@ -1350,8 +1351,9 @@ EOF
   echo "📡 OTLP HTTP: localhost:4318"
   echo "📊 Prometheus metrics: localhost:8899"
   echo "🔍 Traces sent to Jaeger at: ${WFM_IP}:4317"
-  
+  echo "🔒 Docker socket access configured with group permissions (survives reboots)"
 }
+
 
 
 install_otel_collector_promtail_wrapper() {

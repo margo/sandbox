@@ -14,25 +14,11 @@
 - Ubuntu or Debian operating system (**ubuntu-24.04.3-desktop-amd64 or server**) (you can check by doing ```cat /etc/os-release```)
    - Virtual Machine Manager (4.1.0 tested)
 - Internet connection
-- GitHub account with access to sandbox repository
-- GitHub access token - [Generate PAT](#prerequisites)
 - All VMs must be able to talk to each other (same network with static IP addresses)
 
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh'). 
 ---
-## Prerequisites
 
-### Generating Personal Access Token
-1. Login to Github account
-2. Select profile picture, then Settings
-3. Select 'Developer settings' (last selection in the list)
-4. Select 'Personal access tokens' then 'Tokens (classic)'
-5. Select 'Generate new token' --> 'Generate new token (classic)'
-6. Add Note to remember the token and select all `repo`, `admin:org` `project` checkboxes in Select scopes section
-7. Select Generate token button at bottom.
-8. Copy and store token **Ensure you copy at this stage as it won't be displayed again**
-
----
 
 ## Step 1: Get the Code
 
@@ -114,7 +100,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 2. **Install Basic Tools**
    ```bash
-   source wfm.env && sudo -E bash wfm.sh
+    sudo -E bash wfm.sh
    ```
    - A menu will appear
    - Type `1` and press Enter
@@ -129,7 +115,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 4. **Start the Workload Fleet Manager**
    ```bash
-   source wfm.env && sudo -E bash wfm.sh
+    sudo -E bash wfm.sh
    ```
    - Type `3` and press Enter
    - Choose: `Option 3: Symphony Start`
@@ -138,7 +124,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 5. **Add Monitoring Tools**
    ```bash
-   source wfm.env && sudo -E bash wfm.sh
+    sudo -E bash wfm.sh
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: ObservabilityStack Start`
@@ -163,7 +149,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    
    Based on the device type, select **k3s** or **docker** while sourcing the environment variables. For example:
    ```bash
-   source device-agent_k3s.env && sudo -E bash device-agent.sh
+   sudo -E bash device-agent.sh docker # for docker-compose device
+   sudo -E bash device-agent.sh k3s    # for k3s device
    ```
    - Type `1` and press Enter
    - Choose: `Option 1: Install-prerequisites`
@@ -172,7 +159,8 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 4. **Create Security Certificates**
    ```bash
-   source device-agent_k3s.env && sudo -E bash device-agent.sh
+    sudo -E bash device-agent.sh docker # for docker-compose device
+    sudo -E bash device-agent.sh k3s    # for k3s device
    ```
    - First, type `11` and press Enter to choose: `Option 11: create_device_rsa_certs`
    - Then run the command again and type `12` and press Enter to choose: `Option 12: create_device_ecdsa_certs`
@@ -232,14 +220,14 @@ You need to copy a security file from the WFM VM to each Device VM.
 
 2. **Start the device's Workload Fleet Management Client**
    ```bash
-   source device-agent_docker.env && sudo -E bash device-agent.sh
+    sudo -E bash device-agent.sh docker
    ```
    - Type `3` and press Enter
    - Choose: `Option 3: Device-agent-Start(docker-compose-device)`
 
 3. **Check device status**
    ```bash
-   source device-agent_docker.env && sudo -E bash device-agent.sh
+    sudo -E bash device-agent.sh docker
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
@@ -260,14 +248,14 @@ You need to copy a security file from the WFM VM to each Device VM.
 
 2. **Start the device's Workload Fleet Management Client**
    ```bash
-   source device-agent_k3s.env && sudo -E bash device-agent.sh
+    sudo -E bash device-agent.sh k3s
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: Device-agent-Start(k3s-device)`
 
 3. **Check device status**
    ```bash
-   source device-agent_k3s.env && sudo -E bash device-agent.sh
+    sudo -E bash device-agent.sh k3s
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
@@ -288,7 +276,8 @@ You need to copy a security file from the WFM VM to each Device VM.
 On each Device VM:
 ```bash
 cd $HOME/workspace/sandbox/pipeline
-source device-agent_k3s.env && sudo -E bash device-agent.sh
+ sudo -E bash device-agent.sh docker # for docker-compose device
+ sudo -E bash device-agent.sh k3s    # for k3s device
 ```
 - Type `8` and press Enter
 - Choose: `Option 8: otel-collector-promtail-installation`
@@ -308,7 +297,7 @@ On the WFM VM:
 
 2. **Run the Easy CLI script**
    ```bash
-   source wfm.env && sudo -E bash wfm-cli.sh
+    sudo -E bash wfm-cli.sh
    ```
 
 3. **Interactive Menu Interface**

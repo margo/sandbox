@@ -11,14 +11,33 @@ load_device_agent_env() {
   local device="${1:-}"
 
   if [[ -z "$device" ]]; then
-    device="${DEVICE_TYPE:-k3s}"
+    # Prompt user for device type instead of defaulting to k3s
+    echo "Please select device type:"
+    echo "  1) docker"
+    echo "  2) k3s"
+    read -p "Enter choice [1-2]: " choice
+    
+    case "$choice" in
+      1)
+        device="docker"
+        ;;
+      2)
+        device="k3s"
+        ;;
+      *)
+        echo "[ERROR] Invalid choice: '$choice' (expected: 1 or 2)"
+        return 1
+        ;;
+    esac
   fi
+  
   device="${device,,}"
 
   if [[ "$device" != "docker" && "$device" != "k3s" ]]; then
     echo "[ERROR] Invalid device type: '$device' (expected: docker or k3s)"
     return 1
   fi
+  
   local env_file="$SCRIPT_DIR/device-agent_${device}.env"
 
   if [[ ! -f "$env_file" ]]; then
@@ -31,6 +50,7 @@ load_device_agent_env() {
   source "$env_file"
   export DEVICE_TYPE="$device"
 }
+
 load_device_agent_env "$1" || true
 
 # ----------------------------
@@ -517,7 +537,7 @@ start_device_agent_docker_service() {
 }
 
 stop_device_agent_service_docker() {
-  echo "Stopping workload-fleet-management-client..."
+  
   cd "$HOME/sandbox/docker-compose"
   docker compose down
   
@@ -933,7 +953,7 @@ start_device_agent_kubernetes() {
 }
 
 stop_device_agent_docker() {
-  echo "Stopping workload-fleet-management-client on VM2 ($VM2_HOST)..."
+  echo "Stopping workload-fleet-management-client ..."
   stop_device_agent_service_docker
   echo "Device's Workload Fleet Management Client stopped"
 }

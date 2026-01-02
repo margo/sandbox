@@ -26,7 +26,7 @@ jobs:
          password: ${{ secrets.TOKEN_GITHUB }}
      - name: Make push script executable
        run: chmod +x pipeline/push-symphony-image.sh
-     - name: Build & Push Symphony API Image
+     - name: Build & Push Symphony API Images
        env:
          USER_GITHUB: ${{ github.repository_owner }}
          TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB}}

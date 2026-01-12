@@ -305,9 +305,9 @@ install_oras() {
 # ----------------------------
 clone_symphony_repo() {
  cd "$HOME"
- echo 'Cloning symphony...'
  sudo rm -rf "$HOME/symphony"
- if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
+ echo "Cloning symphony branch: $SYMPHONY_BRANCH"
+  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
    git clone \
      --branch "${SYMPHONY_BRANCH}" \
      --depth 1 \
@@ -326,6 +326,7 @@ https://github.com/margo/symphony.git \
 clone_dev_repo() {
  cd "$HOME"
  sudo rm -rf "$HOME/sandbox"
+ echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
    git clone \
      --branch "${SANDBOX_REPO_BRANCH}" \

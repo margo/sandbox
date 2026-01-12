@@ -1,0 +1,27 @@
+name: Build & Push Workload Fleet Management Client Image
+on:
+ push:
+   branches:
+     - prebuilt-images-ghcr
+permissions:
+ contents: read
+ packages: write
+jobs:
+ build-and-push:
+   runs-on: ubuntu-latest
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v4
+     - name: Set up Docker Buildx
+       uses: docker/setup-buildx-action@v3
+     - name: Verify Docker
+       run: docker --version
+     - name: Build & push image to GHCR
+       env:
+         # GitHub org or username
+         GITHUB_ORG: margo
+         # Automatically provided by GitHub Actions
+         GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+       run: |
+         chmod +x pipeline/build-workload-fleet-client.sh
+         ./pipeline/build-workload-fleet-client.sh

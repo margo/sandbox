@@ -304,32 +304,40 @@ install_oras() {
 # Repository Functions
 # ----------------------------
 clone_symphony_repo() {
-  cd "$HOME"
-  echo 'Cloning symphony...'
-  sudo rm -rf "$HOME/symphony"
- if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
-    git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
-  else
-    git clone --depth 1 "https://github.com/margo/symphony.git" "$HOME/symphony"
-  fi
-  cd "$HOME/symphony"
-  git fetch --depth 1 origin ${SYMPHONY_BRANCH}:${SYMPHONY_BRANCH} || echo 'Unable to fetch ${SYMPHONY_BRANCH}'
-  git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
-  echo "symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
+ cd "$HOME"
+ echo 'Cloning symphony...'
+ sudo rm -rf "$HOME/symphony"
+ if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
+   git clone \
+     --branch "${SYMPHONY_BRANCH}" \
+     --depth 1 \
+     "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" \
+     "$HOME/symphony"
+ else
+   git clone \
+     --branch "${SYMPHONY_BRANCH}" \
+     --depth 1 \
+https://github.com/margo/symphony.git \
+     "$HOME/symphony"
+ fi
+ echo "symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
 }
 
 clone_dev_repo() {
-  cd "$HOME"
-  sudo rm -rf "$HOME/sandbox"
-    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
-    git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
-  else
-    git clone --depth 1 "https://github.com/margo/sandbox.git"
-  fi
-  cd "$HOME/sandbox"
-  git fetch --depth 1 origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
-  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+ cd "$HOME"
+ sudo rm -rf "$HOME/sandbox"
+ if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
+   git clone \
+     --branch "${SANDBOX_REPO_BRANCH}" \
+     --depth 1 \
+     "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+ else
+   git clone \
+     --branch "${SANDBOX_REPO_BRANCH}" \
+     --depth 1 \
+https://github.com/margo/sandbox.git
+ fi
+ echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 
 # ----------------------------

@@ -26,7 +26,7 @@ jobs:
       - name: Build & push image to GHCR
         env:
           GITHUB_ORG: margo
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB}}
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
           chmod +x pipeline/build-workload-fleet-client.sh

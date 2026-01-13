@@ -5,6 +5,8 @@ on:
     branches:
       - prebuilt-images-ghcr
 
+  workflow_dispatch:
+
 permissions:
   contents: read
   packages: write

@@ -270,13 +270,16 @@ clone_dev_repo() {
   echo "Cloning sandbox on ($VM2_HOST)..."
   cd $HOME
   sudo rm -rf sandbox
-  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
-    git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+  echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
+ if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+    git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
   else
-    git clone "https://github.com/margo/sandbox.git"
+    git clone --depth 1 "https://github.com/margo/sandbox.git"
   fi
-  cd sandbox
-  git checkout ${SANDBOX_REPO_BRANCH}
+  cd "$HOME/sandbox"
+  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
+  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
+  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
   cd ..
 }
 

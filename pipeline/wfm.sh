@@ -232,11 +232,15 @@ install_docker_and_compose() {
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
-    
-    # Add user to docker group
-    sudo usermod -aG docker $USER
-    
+
     echo "✅ Docker ${DOCKER_VERSION} installed"
+
+    # Add user to docker group, if missing
+    if ! groups | grep -w "docker" &>/dev/null ; then
+        sudo usermod -aG docker $USER
+        echo "🚨 User added to group 'docker'! You need to restart the installation from a new bash session to have it activatived."
+        exit
+    fi
   fi
 
   echo "🔄 Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."

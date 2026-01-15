@@ -2,6 +2,27 @@
 set -e
 
 # ----------------------------
+# Load environment file
+# ----------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+load_wfm_env() {
+   local env_file="$SCRIPT_DIR/wfm.env"
+
+  if [[ ! -f "$env_file" ]]; then
+    echo "[WARN] wfm.env not found at: $env_file"
+    return 1
+  fi
+
+  echo "[INFO] Loading environment from: $env_file"
+  set -a
+  source "$env_file"
+  set +a
+  
+}
+
+load_wfm_env || true
+
+# ----------------------------
 # Environment & Validation
 # ----------------------------
 
@@ -11,7 +32,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 #--- branch details (can be overridden via env)
 SYMPHONY_BRANCH="${SYMPHONY_BRANCH:-main}"
-DEV_REPO_BRANCH="${DEV_REPO_BRANCH:-main}"
+SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
 
 #--- harbor settings (can be overridden via env)
 EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
@@ -24,8 +45,6 @@ EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 #--- device node IPs (can be overridden via env) for prometheus to scrape metrics
 # Format: "IP1:PORT1,IP2:PORT2" or just "IP1,IP2" (defaults to port 30999 for k3s)
 DEVICE_NODE_IPS="${DEVICE_NODE_IPS:-127.0.0.1:30999}"
-
-
 
 #--- Registry settings (can be overridden via env)
 REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
@@ -42,9 +61,8 @@ PROM_RELEASE="prometheus"
 GRAFANA_RELEASE="grafana"
 LOKI_RELEASE="loki"
 
-# the directory to generate and store ssl certs in
+# Directory to generate and store ssl certs for symphony API
 CERT_DIR="$HOME/symphony/api/certificates"
-
 
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"  
@@ -66,7 +84,6 @@ success() {
 # ----------------------------
 GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
-
 SYMPHONY_IMAGE="margo-symphony-api"
 SYMPHONY_TAG="latest"
 SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
@@ -261,8 +278,6 @@ install_docker_and_compose() {
   apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
   echo "ℹ️  To allow updates later, run: apt-mark unhold docker-ce docker-ce-cli docker-compose-plugin"
 }
-
-
 
 
 install_oras() {
@@ -1301,7 +1316,6 @@ install_prerequisites() {
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
-  
    
   setup_harbor
   build_custom_otel_container_images
@@ -1351,7 +1365,7 @@ start_symphony() {
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-	  echo "Building Symphony API container..."																			   
+	  echo "Using Symphony API image from GHCR..."																			   
 
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
@@ -1360,20 +1374,18 @@ start_symphony_api_container(){
 	  pkill -f "symphony-api" 2>/dev/null || true										   
     
     # Check if image already exists
-
-    echo "🔍 Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
-
+    echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
     if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
-      echo "✅ Image exists in GHCR"
+      echo "Image exists in GHCR"
     else
-      echo "❌ Image does NOT exist in GHCR"
-      echo "👉 This should not happen if GitHub Actions ran successfully"
+      echo "Image does NOT exist in GHCR"
+      return 1
     fi  
 
     # Pull the image
+    echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
     docker pull "${SYMPHONY_IMAGE_REF}"
 
-    
     # Run the container
     echo "🚀 Starting Symphony API container..."
 
@@ -1384,19 +1396,20 @@ start_symphony_api_container(){
         -v "$HOME/symphony/api/certificates:/certificates" \
         -v "$HOME/symphony/api":/configs \
         -e CONFIG=symphony-api-margo.json \
-        ghcr.io/margo/margo-symphony-api:latest
+        "${SYMPHONY_IMAGE_REF}"
         
-    if [ $? -eq 0 ]; then
+    # Verify container is running
+    if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
         echo "✅ Symphony API container started successfully"
-        echo "📡 Container is running on port 8082"
+        echo "📡 Container is running on port 8082 (host network)"
         echo "🏷️  Container name: symphony-api-container"
     else
         echo "❌ Failed to start Symphony API container"
+        docker logs symphony-api-container || true
         return 1
     fi
  
 }
-
 
 stop_symphony() {
   echo "Stopping and removing Symphony API container..."
@@ -1430,7 +1443,6 @@ stop_symphony() {
     echo 'ℹ️ Redis data preserved'
   fi
 }
-
 
 
 # Collect certificate information
@@ -1619,7 +1631,6 @@ install_and_enable_ssh() {
   sudo sudo systemctl status ssh --no-pager || sudo systemctl status sshd
   echo "[SUCCESS] SSH service installed and running."
 }
-
 
 
 # Update the show_menu function to include uninstall option														   

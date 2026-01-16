@@ -93,6 +93,15 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 
+# ----------------------------
+# GHCR Image References
+# ----------------------------
+GHCR_REGISTRY="ghcr.io"
+GHCR_ORG="margo"
+SYMPHONY_IMAGE="margo-symphony-api"
+SYMPHONY_TAG="latest"
+SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
+
 export GOINSECURE='github.com/margo/*'
 export GONOPROXY='github.com/margo/*'
 export GONOSUMDB='github.com/margo/*'
@@ -463,16 +472,30 @@ enable_docker_runtime() {
 # ----------------------------
 build_device_agent_docker() {
   cd "$HOME/sandbox"
-  echo 'Checking if workload-fleet-management-client image already exists...'
+  echo 'Checking if workload-fleet-management-client image already exists in GHCR...'
 
-# Check if the image exists
-  if docker images -q margo.org/workload-fleet-management-client:latest | grep -q .; then
-    echo "workload-fleet-management-client image already exists. Skipping build."
+  # Check if image already exists
+  echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
+  if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
+    echo "Image exists in GHCR"
   else
-    echo 'Building workload-fleet-management-client...'
-    docker build -f poc/device/agent/Dockerfile . -t margo.org/workload-fleet-management-client:latest
-  fi
-  echo 'workload-fleet-management-client image build complete.'     
+    echo "Image does NOT exist in GHCR"
+    return 1
+  fi  
+
+  echo "⬇️ Pulling image from GHCR..."
+  docker pull "${SYMPHONY_IMAGE_REF}" || return 1
+
+  echo "✅ Image ready locally: ${SYMPHONY_IMAGE_REF}"
+  
+# Check if the image exists
+  # if docker images -q margo.org/workload-fleet-management-client:latest | grep -q .; then
+  #   echo "workload-fleet-management-client image already exists. Skipping build."
+  # else
+  #   echo 'Building workload-fleet-management-client...'
+  #   docker build -f poc/device/agent/Dockerfile . -t margo.org/workload-fleet-management-client:latest
+  # fi
+  # echo 'workload-fleet-management-client image build complete.'     
 }
 
 

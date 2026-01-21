@@ -100,7 +100,7 @@ GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
 SYMPHONY_IMAGE="margo-symphony-api"
 SYMPHONY_TAG="latest"
-SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
+workload_Fleet_Management_Client_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
 
 export GOINSECURE='github.com/margo/*'
 export GONOPROXY='github.com/margo/*'
@@ -475,8 +475,8 @@ build_device_agent_docker() {
   echo 'Checking if workload-fleet-management-client image already exists in GHCR...'
 
   # Check if image already exists
-  echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
-  if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
+  echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
+  if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
     echo "Image exists in GHCR"
   else
     echo "Image does NOT exist in GHCR"
@@ -484,9 +484,9 @@ build_device_agent_docker() {
   fi  
 
   echo "⬇️ Pulling image from GHCR..."
-  docker pull "${SYMPHONY_IMAGE_REF}" || return 1
+  docker pull "${workload_Fleet_Management_Client_IMAGE_REF}" || return 1
 
-  echo "✅ Image ready locally: ${SYMPHONY_IMAGE_REF}"
+  echo "✅ Image ready locally: ${workload_Fleet_Management_Client_IMAGE_REF}"
   
 # Check if the image exists
   # if docker images -q margo.org/workload-fleet-management-client:latest | grep -q .; then

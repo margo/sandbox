@@ -334,6 +334,7 @@ clone_symphony_repo() {
     fi
   fi
   cd "$HOME/symphony"
+  git fetch --depth 1 --update-head-ok origin ${SYMPHONY_BRANCH}:${SYMPHONY_BRANCH}
   git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
   git pull
   echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
@@ -351,31 +352,145 @@ clone_dev_repo() {
     fi
  fi
   cd "$HOME/sandbox"
-  git checkout ${DEV_REPO_BRANCH} || echo 'Branch ${DEV_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${DEV_REPO_BRANCH} done"
-}
+  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
+  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
+  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+
 
 # ----------------------------
 # Service Setup Functions
 # ----------------------------
 
+create_harbor_systemd_service() {
+  echo "🔧 Creating systemd service for Harbor auto-start..."
+  
+  # Get the actual harbor directory path (not using $HOME variable)
+  local harbor_dir="$HOME/sandbox/pipeline/harbor"
+  
+  # Create systemd service file with absolute path
+  sudo tee /etc/systemd/system/harbor.service > /dev/null <<EOF
+  [Unit]
+  Description=Harbor Container Registry
+  Requires=docker.service
+  After=docker.service network-online.target
+  Wants=network-online.target
+
+  [Service]
+  Type=oneshot
+  RemainAfterExit=yes
+  WorkingDirectory=${harbor_dir}
+  ExecStartPre=/bin/sleep 10
+  ExecStart=/usr/bin/docker compose up -d
+  ExecStop=/usr/bin/docker compose down
+  TimeoutStartSec=0
+
+  [Install]
+  WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service
+  sudo systemctl daemon-reload
+  sudo systemctl enable harbor.service
+  
+  echo "✅ Harbor systemd service created and enabled"
+  echo "📋 Service will start Harbor automatically on boot"
+  echo "📁 Working directory: ${harbor_dir}"
+}
+
+configure_harbor_restart_policy() {
+  local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
+  
+  if [ ! -f "$compose_file" ]; then
+    echo "⚠️ docker-compose.yml not found, will be generated during install"
+    return 0
+  fi
+  
+  echo "🔧 Replacing restart policies in docker-compose.yml..."
+  
+  # Backup original file
+  cp "$compose_file" "${compose_file}.backup.$(date +%s)"
+  
+  # Replace "restart: always" with "restart: unless-stopped"
+  sed -i 's/^\s*restart:\s*always/    restart: unless-stopped/g' "$compose_file"
+  
+  echo "✅ Restart policies replaced with unless-stopped"
+  
+  # Verify the changes - should show only one restart per service
+  echo "📋 Verifying restart policies in docker-compose.yml:"
+  grep "restart:" "$compose_file"
+}
 
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
     echo 'Harbor is already running, skipping startup.'
   else
     cd "$HOME/sandbox/pipeline/harbor"
-    #Update harbor.yml with EXPOSED_HARBOR_IP
+    
+    # Update harbor.yml with EXPOSED_HARBOR_IP
     sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
-    echo 'Starting Harbor...'
+    
+    echo 'Preparing Harbor configuration...'
     sudo chmod +x install.sh prepare common.sh
-    sudo bash install.sh
+    
+    # Run prepare to generate docker-compose.yml
+    sudo ./prepare
+    
+    # Add restart policies to docker-compose.yml BEFORE starting
+    configure_harbor_restart_policy
+    
+    # Start Harbor - ensure clean state
+    echo 'Starting Harbor with restart policies...'
+    sudo docker compose down --remove-orphans 2>/dev/null || true
+    sudo docker compose up -d
+    
+    # Force update restart policies on all containers
+    echo '🔧 Applying restart policies to running containers...'
+    sleep 5
+    for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
+      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+        docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
+      fi
+    done
+    
+    echo 'Waiting for Harbor to initialize...'
+    sleep 15
+    
     docker ps
-    sleep 10
-    docker ps | grep harbor || echo 'Harbor did not start properly'
+    
+    # Verify all containers are running
+    echo ""
+    echo "📊 Harbor container status:"
+    docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
+    
+    # Verify restart policies
+    echo ""
+    echo "📋 Verifying restart policies:"
+    for container in nginx registry registryctl redis $(docker ps -a --filter "name=harbor-" --format "{{.Names}}"); do
+      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+        docker inspect --format='{{.Name}}: {{.HostConfig.RestartPolicy.Name}}' "$container"
+      fi
+    done
+    
+    # Create systemd service for auto-start on boot
+    create_harbor_systemd_service
+    
+    # Final health check
+    echo ""
+    echo "⏳ Waiting for all containers to be healthy (this may take 1-2 minutes)..."
+    sleep 45
+    
+    healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
+    total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
+    
+    echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
+    
+    if [ "$healthy_count" -eq "$total_count" ] && [ "$total_count" -eq 9 ]; then
+      echo "✅ All Harbor containers are running and healthy!"
+    else
+      echo "⚠️ Some containers may still be initializing. Check with: docker ps | grep harbor"
+    fi
   fi
 }
-
 
 
 # ----------------------------
@@ -1335,7 +1450,7 @@ install_prerequisites() {
   install_basic_utilities
   install_go
   install_vim
-  install_and_enable_ssh
+  #install_and_enable_ssh
   install_docker_and_compose
   add_insecure_registry_to_daemon
   setup_k3s
@@ -1370,25 +1485,66 @@ start_symphony() {
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
-
-  # Check for required environment variables
-  if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
-      echo "Error: GITHUB_USER and GITHUB_TOKEN environment variables must be set"
-      echo "Current values:"
-      echo "  GITHUB_USER: ${GITHUB_USER:-'(not set)'}"
-      echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:-'(not set)'}"
-      return 1
-  fi
   
-  git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
+  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+    git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
+    echo "Using GitHub credentials for user: $GITHUB_USER"
+  fi
+
   go env -w GOPRIVATE="github.com/margo/*";
-  echo "Using GitHub credentials for user: $GITHUB_USER"
 
   # Build phase
   build_maestro_cli   
   # verify_symphony_api
   enable_tls_in_symphony_api
   start_symphony_api_container
+}
+
+create_symphony_api_systemd_service() {
+  echo "🔧 Creating systemd service for Symphony API auto-start..."
+  
+  # Get the actual symphony api directory path
+  local symphony_dir="$HOME/symphony/api"
+  
+  # Create systemd service file with absolute path
+  sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
+[Unit]
+Description=Margo Symphony API Server
+Requires=docker.service redis-server.service
+After=docker.service redis-server.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+WorkingDirectory=${symphony_dir}
+ExecStartPre=/bin/sleep 15
+ExecStartPre=-/usr/bin/docker stop symphony-api-container
+ExecStartPre=-/usr/bin/docker rm symphony-api-container
+ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
+    --network host \
+    -p 8082:8082 \
+    -e LOG_LEVEL=Debug \
+    -v ${symphony_dir}/certificates:/certificates \
+    -v ${symphony_dir}:/configs \
+    -e CONFIG=symphony-api-margo.json \
+    margo-symphony-api:latest
+ExecStop=/usr/bin/docker stop symphony-api-container
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Reload systemd and enable the service
+  sudo systemctl daemon-reload
+  sudo systemctl enable symphony-api.service
+  
+  echo "✅ Symphony API systemd service created and enabled"
+  echo "📋 Service will start Symphony API automatically on boot"
+  echo "📁 Working directory: ${symphony_dir}"
 }
 
 start_symphony_api_container(){
@@ -1432,6 +1588,8 @@ start_symphony_api_container(){
         echo "✅ Symphony API container started successfully"
         echo "📡 Container is running on port 8082 (host network)"
         echo "🏷️  Container name: symphony-api-container"
+         # Create systemd service for auto-start on boot
+        create_symphony_api_systemd_service
     else
         echo "❌ Failed to start Symphony API container"
         docker logs symphony-api-container || true
@@ -1670,9 +1828,10 @@ install_and_enable_ssh() {
   echo "[SUCCESS] SSH service installed and running."
 }
 
-
-# Update the show_menu function to include uninstall option														   
+# Update the show_menu function to include uninstall option	
 show_menu() {
+  clear
+  load_wfm_env || true
   echo "Choose an option:"
   echo "1) PreRequisites: Setup"
   echo "2) PreRequisites: Cleanup"
@@ -1680,7 +1839,8 @@ show_menu() {
   echo "4) Symphony: Stop"
   echo "5) ObservabilityStack: Start"
   echo "6) ObservabilityStack: Stop"
-  read -p "Enter choice [1-6]: " choice
+  echo "7) Exit"
+  read -p "Enter choice [1-7]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
@@ -1688,14 +1848,22 @@ show_menu() {
     4) stop_symphony ;;
     5) observability_stack_install ;;
     6) observability_stack_uninstall ;;
-    *) echo "⚠️ Invalid choice"; exit 1 ;;
+    7) echo "👋 Goodbye!"; exit 0 ;;
+    *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
+  
+  pause
 }
 
 # ----------------------------
 # Main Script Execution
 # ----------------------------
-# Update the main script execution section
+main_loop() {
+  while true; do
+    show_menu
+  done
+}
+
 if [[ -z "$1" ]]; then
   main_loop
 else

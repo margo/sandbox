@@ -78,6 +78,10 @@ success() {
     echo "✅ $1"
 }
 
+pause() {
+  echo
+  read -rp "Press Enter to continue..." _
+}
 
 # ----------------------------
 # GHCR Image References
@@ -355,7 +359,7 @@ clone_dev_repo() {
   git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
   git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
   echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
-
+}
 
 # ----------------------------
 # Service Setup Functions

@@ -49,11 +49,6 @@ You need to download the setup files to all three VMs. Follow these steps on **e
         pipeline/*.env
    git checkout main
    ```
-   
-**Note:** Repeat these steps on all three VMs (WFM VM, K3s Device VM, and Docker Device VM).
-
-**Important:** We're using `$HOME/workspace/sandbox` instead of `$HOME/sandbox` because the automation scripts will clone their own copies to `$HOME`. This keeps your working copy separate from the automated setup.
-
 ---
 
 ## Step 2: Set Up Environment

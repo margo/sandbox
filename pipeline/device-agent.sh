@@ -85,7 +85,6 @@ NAMESPACE_OBSERVABILITY="observability"
 PROMTAIL_RELEASE="promtail"
 OTEL_RELEASE="otel-collector"
 
-
 # Pinned software versions (can be overridden via env)
 DOCKER_VERSION="${DOCKER_VERSION:-29.1.2}"
 DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
@@ -98,9 +97,9 @@ K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 # ----------------------------
 GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
-SYMPHONY_IMAGE="margo-symphony-api"
-SYMPHONY_TAG="latest"
-workload_Fleet_Management_Client_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
+workload_Fleet_Management_Client_IMAGE="margo.org/workload-fleet-management-client"
+workload_Fleet_Management_Client_IMAGE_TAG="latest"
+workload_Fleet_Management_Client_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${workload_Fleet_Management_Client_IMAGE}:${workload_Fleet_Management_Client_IMAGE_TAG}"
 
 export GOINSECURE='github.com/margo/*'
 export GONOPROXY='github.com/margo/*'
@@ -487,15 +486,7 @@ build_device_agent_docker() {
   docker pull "${workload_Fleet_Management_Client_IMAGE_REF}" || return 1
 
   echo "✅ Image ready locally: ${workload_Fleet_Management_Client_IMAGE_REF}"
-  
-# Check if the image exists
-  # if docker images -q margo.org/workload-fleet-management-client:latest | grep -q .; then
-  #   echo "workload-fleet-management-client image already exists. Skipping build."
-  # else
-  #   echo 'Building workload-fleet-management-client...'
-  #   docker build -f poc/device/agent/Dockerfile . -t margo.org/workload-fleet-management-client:latest
-  # fi
-  # echo 'workload-fleet-management-client image build complete.'     
+     
 }
 
 

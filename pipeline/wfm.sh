@@ -61,9 +61,8 @@ PROM_RELEASE="prometheus"
 GRAFANA_RELEASE="grafana"
 LOKI_RELEASE="loki"
 
-# the directory to generate and store ssl certs in
+# Directory to generate and store ssl certs for symphony API
 CERT_DIR="$HOME/symphony/api/certificates"
-
 
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"  
@@ -79,11 +78,15 @@ success() {
     echo "✅ $1"
 }
 
-pause() {
-  echo
-  read -rp "Press Enter to continue..." _
-}
 
+# ----------------------------
+# GHCR Image References
+# ----------------------------
+GHCR_REGISTRY="ghcr.io"
+GHCR_ORG="margo"
+SYMPHONY_IMAGE="margo-symphony-api"
+SYMPHONY_TAG="latest"
+SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
 
 # ----------------------------
 # Installation Functions
@@ -295,8 +298,6 @@ install_docker_and_compose() {
 }
 
 
-
-
 install_oras() {
   echo "🔄 Installing ORAS CLI..."
   
@@ -333,7 +334,6 @@ clone_symphony_repo() {
     fi
   fi
   cd "$HOME/symphony"
-  git fetch --depth 1 --update-head-ok origin ${SYMPHONY_BRANCH}:${SYMPHONY_BRANCH}
   git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
   git pull
   echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
@@ -351,151 +351,32 @@ clone_dev_repo() {
     fi
  fi
   cd "$HOME/sandbox"
-  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
-  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+  git checkout ${DEV_REPO_BRANCH} || echo 'Branch ${DEV_REPO_BRANCH} not found'
+  echo "sandbox repo checkout to branch ${DEV_REPO_BRANCH} done"
 }
 
 # ----------------------------
 # Service Setup Functions
 # ----------------------------
 
-create_harbor_systemd_service() {
-  echo "🔧 Creating systemd service for Harbor auto-start..."
-  
-  # Get the actual harbor directory path (not using $HOME variable)
-  local harbor_dir="$HOME/sandbox/pipeline/harbor"
-  
-  # Create systemd service file with absolute path
-  sudo tee /etc/systemd/system/harbor.service > /dev/null <<EOF
-  [Unit]
-  Description=Harbor Container Registry
-  Requires=docker.service
-  After=docker.service network-online.target
-  Wants=network-online.target
 
-  [Service]
-  Type=oneshot
-  RemainAfterExit=yes
-  WorkingDirectory=${harbor_dir}
-  ExecStartPre=/bin/sleep 10
-  ExecStart=/usr/bin/docker compose up -d
-  ExecStop=/usr/bin/docker compose down
-  TimeoutStartSec=0
-
-  [Install]
-  WantedBy=multi-user.target
-EOF
-
-  # Reload systemd and enable the service
-  sudo systemctl daemon-reload
-  sudo systemctl enable harbor.service
-  
-  echo "✅ Harbor systemd service created and enabled"
-  echo "📋 Service will start Harbor automatically on boot"
-  echo "📁 Working directory: ${harbor_dir}"
-}
-
-
-configure_harbor_restart_policy() {
-  local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
-  
-  if [ ! -f "$compose_file" ]; then
-    echo "⚠️ docker-compose.yml not found, will be generated during install"
-    return 0
-  fi
-  
-  echo "🔧 Replacing restart policies in docker-compose.yml..."
-  
-  # Backup original file
-  cp "$compose_file" "${compose_file}.backup.$(date +%s)"
-  
-  # Replace "restart: always" with "restart: unless-stopped"
-  sed -i 's/^\s*restart:\s*always/    restart: unless-stopped/g' "$compose_file"
-  
-  echo "✅ Restart policies replaced with unless-stopped"
-  
-  # Verify the changes - should show only one restart per service
-  echo "📋 Verifying restart policies in docker-compose.yml:"
-  grep "restart:" "$compose_file"
-}
-
-
-
-# ----------------------------
-# Service Setup Functions
-# ----------------------------
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
     echo 'Harbor is already running, skipping startup.'
   else
     cd "$HOME/sandbox/pipeline/harbor"
-    
-    # Update harbor.yml with EXPOSED_HARBOR_IP
+    #Update harbor.yml with EXPOSED_HARBOR_IP
     sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
-    
-    echo 'Preparing Harbor configuration...'
+    echo 'Starting Harbor...'
     sudo chmod +x install.sh prepare common.sh
-    
-    # Run prepare to generate docker-compose.yml
-    sudo ./prepare
-    
-    # Add restart policies to docker-compose.yml BEFORE starting
-    configure_harbor_restart_policy
-    
-    # Start Harbor - ensure clean state
-    echo 'Starting Harbor with restart policies...'
-    sudo docker compose down --remove-orphans 2>/dev/null || true
-    sudo docker compose up -d
-    
-    # Force update restart policies on all containers
-    echo '🔧 Applying restart policies to running containers...'
-    sleep 5
-    for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
-      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
-        docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
-      fi
-    done
-    
-    echo 'Waiting for Harbor to initialize...'
-    sleep 15
-    
+    sudo bash install.sh
     docker ps
-    
-    # Verify all containers are running
-    echo ""
-    echo "📊 Harbor container status:"
-    docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
-    
-    # Verify restart policies
-    echo ""
-    echo "📋 Verifying restart policies:"
-    for container in nginx registry registryctl redis $(docker ps -a --filter "name=harbor-" --format "{{.Names}}"); do
-      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
-        docker inspect --format='{{.Name}}: {{.HostConfig.RestartPolicy.Name}}' "$container"
-      fi
-    done
-    
-    # Create systemd service for auto-start on boot
-    create_harbor_systemd_service
-    
-    # Final health check
-    echo ""
-    echo "⏳ Waiting for all containers to be healthy (this may take 1-2 minutes)..."
-    sleep 45
-    
-    healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
-    total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
-    
-    echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
-    
-    if [ "$healthy_count" -eq "$total_count" ] && [ "$total_count" -eq 9 ]; then
-      echo "✅ All Harbor containers are running and healthy!"
-    else
-      echo "⚠️ Some containers may still be initializing. Check with: docker ps | grep harbor"
-    fi
+    sleep 10
+    docker ps | grep harbor || echo 'Harbor did not start properly'
   fi
 }
+
+
 
 # ----------------------------
 # OCI Application Package Push Functions (NEW - replaces Git push)
@@ -919,24 +800,25 @@ install_grafana() {
 }
 
 observability_stack_install(){
-  echo "Observability stack installation started"
+echo "Observability stack installation started"
 
-  # Check if collector-scrape-cm-change.txt file exists
-  if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
-      echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
-      echo "Please ensure the file exists before proceeding."
-      exit 1
-  fi
+# Check if collector-scrape-cm-change.txt file exists
+if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
+    echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
+    echo "Please ensure the file exists before proceeding."
+    exit 1
+fi
 
-  echo "collector-scrape-cm-change.txt file found, proceeding..."
-    create_observability_namespace
-    install_jaeger
-    install_prometheus
-    install_grafana
-    install_loki
-
-  echo "Observability stack installation completed"
+echo "collector-scrape-cm-change.txt file found, proceeding..."
+  create_observability_namespace
+  install_jaeger
+  install_prometheus
+  install_grafana
+  install_loki
+echo "Observability stack installation completed"
 }
+
+
 
 observability_stack_uninstall(){
     echo "Observability stack uninstall started"
@@ -974,11 +856,23 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
-  registry_password="${REGISTRY_PASS:-Harbor12345}"													
+  registry_password="${REGISTRY_PASS:-Harbor12345}"
+
+										 
+												   
+								  
+											
+			
+	
+										 
+														
   echo "Using registry mirror: $registry_url"
   echo "Using registry credentials: $registry_user / ******"
   # ---------------------------------------------------
 											
+			
+	
+
   # Create k3s directory if needed
   # ---------------------------------------------------
   sudo mkdir -p /var/lib/rancher/k3s
@@ -989,6 +883,22 @@ add_container_registry_mirror_to_k3s() {
     sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yml.backup.$(date +%s)
     echo "✅ Backed up /var/lib/rancher/k3s/registries.yml"
   fi
+
+																	  
+														  
+		
+											
+			 
+					   
+
+		
+											
+		 
+								
+									
+		
+							  
+   
 
   # ---------------------------------------------------
   # Write the registry config
@@ -1008,13 +918,37 @@ configs:
       insecure_skip_verify: true
 EOF
 
+																
+													 
+		
+											
+			 
+					   
+
+		
+											
+		 
+								
+									
+   
+
   sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yaml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
+											
+			 
+					   
 
   echo "✅ Created k3s registry mirror configuration"
- # ---------------------------------------------------				
- 							
+ # ---------------------------------------------------
+		 
+								
+									
+   
+
+  # ---------------------------------------------------
+						
+								
   echo "Restarting k3s..."
   if sudo systemctl restart k3s; then
     echo "✅ k3s restarted successfully"
@@ -1290,7 +1224,7 @@ add_insecure_registry_to_daemon() {
 EOF
   
   echo "✅ Configured insecure registry: $registry_url"
-				 
+							 
 					  
   
   # Validate JSON
@@ -1372,6 +1306,7 @@ verify_k3s_status() {
   sudo k3s kubectl get nodes || true
 }
 
+
 setup_kubeconfig() {
   echo 'Setting up kubeconfig...'
   mkdir -p "$HOME/.kube"
@@ -1390,6 +1325,8 @@ setup_k3s() {
   echo "✅ k3s ${K3S_VERSION} setup complete"
 }
 
+
+
 # ----------------------------
 # Main Orchestration Functions
 # ----------------------------
@@ -1398,17 +1335,20 @@ install_prerequisites() {
   install_basic_utilities
   install_go
   install_vim
-  #install_and_enable_ssh
+  install_and_enable_ssh
   install_docker_and_compose
   add_insecure_registry_to_daemon
   setup_k3s
   install_redis
   install_oras  
+  
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
+   
   setup_harbor
   build_custom_otel_container_images
+  
   echo ""
   echo "-----------------------------------------------------------------------"
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry(i.e. harbor)..."
@@ -1430,13 +1370,19 @@ start_symphony() {
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
-  
-  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
-    git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
-    echo "Using GitHub credentials for user: $GITHUB_USER"
-  fi
 
+  # Check for required environment variables
+  if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+      echo "Error: GITHUB_USER and GITHUB_TOKEN environment variables must be set"
+      echo "Current values:"
+      echo "  GITHUB_USER: ${GITHUB_USER:-'(not set)'}"
+      echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:-'(not set)'}"
+      return 1
+  fi
+  
+  git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
   go env -w GOPRIVATE="github.com/margo/*";
+  echo "Using GitHub credentials for user: $GITHUB_USER"
 
   # Build phase
   build_maestro_cli   
@@ -1445,57 +1391,10 @@ start_symphony() {
   start_symphony_api_container
 }
 
-create_symphony_api_systemd_service() {
-  echo "🔧 Creating systemd service for Symphony API auto-start..."
-  
-  # Get the actual symphony api directory path
-  local symphony_dir="$HOME/symphony/api"
-  
-  # Create systemd service file with absolute path
-  sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
-[Unit]
-Description=Margo Symphony API Server
-Requires=docker.service redis-server.service
-After=docker.service redis-server.service network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-RemainAfterExit=yes
-WorkingDirectory=${symphony_dir}
-ExecStartPre=/bin/sleep 15
-ExecStartPre=-/usr/bin/docker stop symphony-api-container
-ExecStartPre=-/usr/bin/docker rm symphony-api-container
-ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
-    --network host \
-    -p 8082:8082 \
-    -e LOG_LEVEL=Debug \
-    -v ${symphony_dir}/certificates:/certificates \
-    -v ${symphony_dir}:/configs \
-    -e CONFIG=symphony-api-margo.json \
-    margo-symphony-api:latest
-ExecStop=/usr/bin/docker stop symphony-api-container
-TimeoutStartSec=0
-Restart=on-failure
-RestartSec=10s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  # Reload systemd and enable the service
-  sudo systemctl daemon-reload
-  sudo systemctl enable symphony-api.service
-  
-  echo "✅ Symphony API systemd service created and enabled"
-  echo "📋 Service will start Symphony API automatically on boot"
-  echo "📁 Working directory: ${symphony_dir}"
-}
-
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-	  echo "Building Symphony API container..."
+	  echo "Using Symphony API image from GHCR..."																			   
 
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
@@ -1504,38 +1403,18 @@ start_symphony_api_container(){
 	  pkill -f "symphony-api" 2>/dev/null || true										   
     
     # Check if image already exists
-    if docker image inspect margo-symphony-api:latest >/dev/null 2>&1; then
-        echo "✅ Image margo-symphony-api:latest already exists, skipping build"
+    echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
+    if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
+      echo "Image exists in GHCR"
     else
-        echo "🔨 Building Symphony API container..."
-        
-        if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
-          # Create credential files
-          echo "$GITHUB_USER" > github_username.txt
-          echo "$GITHUB_TOKEN" > github_token.txt
-          # Build with secrets
-          docker build \
-            --secret id=github_username,src=github_username.txt \
-            --secret id=github_token,src=github_token.txt \
-            -t margo-symphony-api:latest \
-            .. -f Dockerfile
+      echo "Image does NOT exist in GHCR"
+      return 1
+    fi  
 
-          # Clean up credential files
-          rm github_username.txt github_token.txt
-        else
-          # Build with secrets
-          docker build \
-            -t margo-symphony-api:latest \
-            .. -f Dockerfile
-        fi
-        
-        if [ $? -ne 0 ]; then
-            echo "❌ Failed to build Symphony API container"
-            return 1
-        fi
-        echo "✅ Symphony API container built successfully with tag: margo-symphony-api:latest"
-    fi
-    
+    # Pull the image
+    echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
+    docker pull "${SYMPHONY_IMAGE_REF}"
+
     # Run the container
     echo "🚀 Starting Symphony API container..."
 
@@ -1546,21 +1425,20 @@ start_symphony_api_container(){
         -v "$HOME/symphony/api/certificates:/certificates" \
         -v "$HOME/symphony/api":/configs \
         -e CONFIG=symphony-api-margo.json \
-        margo-symphony-api:latest
+        "${SYMPHONY_IMAGE_REF}"
         
-    if [ $? -eq 0 ]; then
+    # Verify container is running
+    if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
         echo "✅ Symphony API container started successfully"
-        echo "📡 Container is running on port 8082"
+        echo "📡 Container is running on port 8082 (host network)"
         echo "🏷️  Container name: symphony-api-container"
-
-        # Create systemd service for auto-start on boot
-        create_symphony_api_systemd_service
     else
         echo "❌ Failed to start Symphony API container"
+        docker logs symphony-api-container || true
         return 1
     fi
+ 
 }
-
 
 stop_symphony() {
   echo "Stopping and removing Symphony API container..."
@@ -1594,6 +1472,7 @@ stop_symphony() {
     echo 'ℹ️ Redis data preserved'
   fi
 }
+
 
 # Collect certificate information
 collect_certs_info() {
@@ -1741,6 +1620,7 @@ install_vim() {
   echo "✅ Vim installation completed."
 }
 
+
 install_and_enable_ssh() {
   echo "[INFO] Checking OS type..."
   
@@ -1790,10 +1670,9 @@ install_and_enable_ssh() {
   echo "[SUCCESS] SSH service installed and running."
 }
 
+
 # Update the show_menu function to include uninstall option														   
 show_menu() {
-  clear
-  load_wfm_env || true
   echo "Choose an option:"
   echo "1) PreRequisites: Setup"
   echo "2) PreRequisites: Cleanup"
@@ -1801,8 +1680,7 @@ show_menu() {
   echo "4) Symphony: Stop"
   echo "5) ObservabilityStack: Start"
   echo "6) ObservabilityStack: Stop"
-  echo "7) Exit"
-  read -p "Enter choice [1-7]: " choice
+  read -p "Enter choice [1-6]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
@@ -1810,22 +1688,14 @@ show_menu() {
     4) stop_symphony ;;
     5) observability_stack_install ;;
     6) observability_stack_uninstall ;;
-    7) echo "👋 Goodbye!"; exit 0 ;;
-    *) echo "⚠️ Invalid choice"; sleep 2 ;;
+    *) echo "⚠️ Invalid choice"; exit 1 ;;
   esac
-  
-  pause
 }
 
 # ----------------------------
 # Main Script Execution
 # ----------------------------
-main_loop() {
-  while true; do
-    show_menu
-  done
-}
-
+# Update the main script execution section
 if [[ -z "$1" ]]; then
   main_loop
 else

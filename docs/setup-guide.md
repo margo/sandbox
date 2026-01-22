@@ -20,9 +20,9 @@
 ---
 
 
-## Step 1: Get the Code
+## Step 1: Get the Setup Files
 
-You need to download the sandbox code to all three VMs. Follow these steps on **each VM**:
+You need to download the setup files to all three VMs. Follow these steps on **each VM**:
 
 1. **Open Terminal**
    - On your WFM VM, open the terminal/command line application
@@ -39,20 +39,20 @@ You need to download the sandbox code to all three VMs. Follow these steps on **
    cd $HOME/workspace
    ```
 
-4. **Download the Repository**
+4. **Download the Setup Files**
    ```bash
-   git clone https://github.com/margo/sandbox.git
+   git clone --filter=blob:none --sparse https://github.com/margo/sandbox.git
+   cd sandbox
+   git sparse-checkout init --no-cone
+   git sparse-checkout set \
+        pipeline/*.sh \
+        pipeline/*.env
+   git checkout main
    ```
    
-5. **Navigate to the Downloaded Folder**
-   ```bash
-   cd sandbox
-   ```
-
 **Note:** Repeat these steps on all three VMs (WFM VM, K3s Device VM, and Docker Device VM).
 
 **Important:** We're using `$HOME/workspace/sandbox` instead of `$HOME/sandbox` because the automation scripts will clone their own copies to `$HOME`. This keeps your working copy separate from the automated setup.
-
 
 ---
 

@@ -97,20 +97,35 @@ install_basic_utilities() {
   HELM_TAR="helm-v${HELM_VERSION}-linux-amd64.tar.gz"
   HELM_BIN_DIR="/usr/local/bin"
 
-  apt update && apt install -y curl dos2unix build-essential gcc libc6-dev jq
+  PACKAGES="curl dos2unix build-essential gcc libc6-dev jq"
+
+  echo "🔄 Installing Basic utilities..."
+  INSTALLATION_NEEDED="false"
+  for pkg in $PACKAGES ; do
+    if ! dpkg -s $pkg >/dev/null ; then
+      INSTALLATION_NEEDED="true"
+      break
+    fi
+  done
+  if [[ "${INSTALLATION_NEEDED}" == "true" ]] ; then
+    sudo apt update && sudo apt install -y curl dos2unix build-essential gcc libc6-dev jq
+    echo "✅ Basic utilities installed"
+  else
+    echo "⚡️ Basic utilities already installed, skipping installation"
+  fi
+
   install_helm
 }
 
 install_redis() {
-  echo "Installing Redis..."
-  
   local REDIS_VERSION="7.0.15"  # Stable version
   
+  echo "🔄 Installing Redis ${REDIS_VERSION}..."
+
   if command -v redis-server >/dev/null 2>&1; then
-    echo "✅ Redis is already installed."
-    redis-server --version
+    REDIS_VERSION="$(redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
+    echo "⚡️ Redis ${REDIS_VERSION} already installed, skipping installation"
   else
-    echo "🔄 Installing Redis ${REDIS_VERSION}..."
     sudo apt update
     sudo apt install -y redis-server=${REDIS_VERSION}-* || \
     sudo apt install -y redis-server  # Fallback to latest if specific version unavailable
@@ -118,8 +133,8 @@ install_redis() {
     sudo systemctl enable redis-server
     sudo systemctl start redis-server
 
-    echo "✅ Redis installation completed."
-    redis-server --version
+    REDIS_VERSION="$(redis-server --version)"
+    echo "✅ Redis ${REDIS_VERSION} installed"
   fi
 }
 
@@ -128,9 +143,9 @@ install_redis() {
 install_helm() {
   cd $HOME
   if [ "${INSTALL_HELM_V3_15_1}" == "true" ]; then
-    echo "Helm Setup"
+    echo "🔄 Installing Helm..."
     if command -v helm >/dev/null 2>&1 && [[ "$(helm version --short | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" == "${HELM_VERSION}" ]]; then
-        echo "Helm version ${HELM_VERSION} is already installed. Skipping."
+        echo "⚡️ Helm version ${HELM_VERSION} already installed, skipping installation"
     else
         echo "Downloading Helm version ${HELM_VERSION}..."
         if ! wget -q "https://get.helm.sh/${HELM_TAR}" ; then
@@ -151,26 +166,28 @@ install_helm() {
         echo "Cleaning up..."
         rm "${HELM_TAR}"
         rm -rf linux-amd64/
+        echo '✅ Basic utilities installed'
     fi
   fi
 }
 
 install_go() {
   cd $HOME
-  if which go >/dev/null 2>&1; then
-    echo 'Go already installed, skipping installation';
-    go version;
+  echo "🔄 Installing Go..."
+  if [[ "$PATH" != *"/usr/local/go/bin"* ]] ; then
+    export PATH=$PATH:/usr/local/go/bin
+  fi
+  if command -v go >/dev/null 2>&1; then
+    GO_VERSION="$(go version | cut -d ' ' -f 3 | cut -c 3-)"
+    echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
-    echo 'Go not found, installing...';
-    rm -rf /usr/local/go /usr/bin/go
-    wget "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" -O go.tar.gz;
-    tar -C /usr/local -xzf go.tar.gz;
+    sudo rm -rf /usr/local/go /usr/bin/go
+    wget "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" -O go.tar.gz
+    sudo tar -C /usr/local -xzf go.tar.gz
     rm go.tar.gz
-    export PATH=$PATH:/usr/local/go/bin;
-    # echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-    # source ~/.bashrc
-    which go;
-    go version;
+    which go
+    go version
+    echo "✅ Go installed"
   fi
 }
 
@@ -183,61 +200,62 @@ install_docker_and_compose() {
   local UBUNTU_CODENAME=$(lsb_release -cs)  # Gets 'noble' for Ubuntu 24.04
   
   # Install Docker if not present or wrong version
-  if ! command -v docker >/dev/null 2>&1; then
+  echo "🔄 Installing Docker..."
+  if command -v docker >/dev/null 2>&1; then
+    CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
+    echo "⚡️ Docker ${CURRENT_DOCKER_VERSION} already installed, skipping installation"
+    
+    # Check if correct version is installed
+    if [ "$CURRENT_DOCKER_VERSION" != "$DOCKER_VERSION" ]; then
+      echo "⚠️  Current Docker version: $CURRENT_DOCKER_VERSION (expected: $DOCKER_VERSION)"
+      echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
+    fi
+  else
     echo "Docker not found. Installing Docker ${DOCKER_VERSION}..."
     
     # Remove old Docker packages
-    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+    sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
     
     # Add Docker's official GPG key and repository
-    apt-get update
-    apt-get install -y ca-certificates curl
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-    chmod a+r /etc/apt/keyrings/docker.asc
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
     
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      ${UBUNTU_CODENAME} stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      ${UBUNTU_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     
-    apt-get update
+    sudo apt-get update
     
     # Install specific Docker version
-    apt-get install -y \
+    sudo apt-get install -y \
       docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
     
     # Add user to docker group
-    usermod -aG docker $USER
+    sudo usermod -aG docker $USER
     
-    echo "✅ Docker ${DOCKER_VERSION} installed successfully"
-  else
-    echo 'Docker already installed.'
-    
-    # Check if correct version is installed
-    CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
-    if [ "$CURRENT_DOCKER_VERSION" != "$DOCKER_VERSION" ]; then
-      echo "⚠️  Current Docker version: $CURRENT_DOCKER_VERSION (expected: $DOCKER_VERSION)"
-      echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
-    fi
+    echo "✅ Docker ${DOCKER_VERSION} installed"
   fi
 
+  echo "🔄 Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
   # Install specific Docker Compose plugin version
-  if ! apt list --installed 2>/dev/null | grep -q docker-compose-plugin; then
-    echo "Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
-    apt-get update
-    apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
-  else
-    echo 'Docker Compose plugin already installed.'
+  if dpkg -s docker-compose-plugin >/dev/null ; then
+    CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
+    echo "⚡️ Docker Compose ${CURRENT_COMPOSE_VERSION} already installed, skipping installation"
     
     # Check if correct version is installed
-    CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
     if [ "$CURRENT_COMPOSE_VERSION" != "$DOCKER_COMPOSE_VERSION" ]; then
       echo "⚠️  Current Docker Compose version: v$CURRENT_COMPOSE_VERSION (expected: v$DOCKER_COMPOSE_VERSION)"
       echo "ℹ️  To upgrade/downgrade, run: apt-get install docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}"
     fi
+  else
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
   fi
   
   # CRITICAL: Remove old standalone docker-compose binaries to avoid conflicts
@@ -275,17 +293,17 @@ install_docker_and_compose() {
   
   # Prevent automatic updates (optional)
   echo "🔒 Holding Docker packages at current versions..."
-  apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
+  sudo apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
   echo "ℹ️  To allow updates later, run: apt-mark unhold docker-ce docker-ce-cli docker-compose-plugin"
 }
 
 
 install_oras() {
-  echo "Installing ORAS CLI..."
+  echo "🔄 Installing ORAS CLI..."
   
   if command -v oras >/dev/null 2>&1; then
-    echo "✅ ORAS is already installed."
-    oras version
+    ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
+    echo "⚡️ ORAS ${ORAS_VERSION} already installed, skipping installation"
     return 0
   fi
   
@@ -296,8 +314,8 @@ install_oras() {
   sudo mv oras /usr/local/bin/
   rm "oras_${ORAS_VERSION}_linux_amd64.tar.gz"
   
-  echo "✅ ORAS installed successfully"
-  oras version
+  ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
+  echo "✅ ORAS ${ORAS_VERSION} installed"
 }
 
 
@@ -305,19 +323,33 @@ install_oras() {
 # Repository Functions
 # ----------------------------
 clone_symphony_repo() {
-  cd "$HOME"
-  echo 'Cloning symphony...'
-  sudo rm -rf "$HOME/symphony"
-  git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
+  cd "$HOME"   
+  if ! test -d "$HOME/symphony/.git" ; then
+    rm -rf "$HOME/symphony"     
+    echo "Cloning symphony branch: $SYMPHONY_BRANCH"
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+      git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
+    else
+      git clone --depth 1 "https://github.com/margo/symphony.git" "$HOME/symphony"
+    fi
+  fi
   cd "$HOME/symphony"
   git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
-  echo "symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
+  git pull
+  echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
 }
 
 clone_dev_repo() {
-  cd "$HOME"
-  sudo rm -rf "$HOME/sandbox"
-  git clone "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+ cd "$HOME"
+ if ! test -d "$HOME/sandbox/.git" ; then
+    rm -rf "$HOME/sandbox"
+    echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+      git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+    else
+      git clone --depth 1 "https://github.com/margo/sandbox.git"
+    fi
+ fi
   cd "$HOME/sandbox"
   git checkout ${DEV_REPO_BRANCH} || echo 'Branch ${DEV_REPO_BRANCH} not found'
   echo "sandbox repo checkout to branch ${DEV_REPO_BRANCH} done"
@@ -1255,14 +1287,16 @@ install_k3s_dependencies() {
 }
 
 install_k3s() {
-  if ! check_k3s_installed; then
-    echo "Installing k3s ${K3S_VERSION}..."
+  echo "🔄 Installing k3s ${K3S_VERSION}..."
+  if check_k3s_installed; then
+    echo "⚡️ k3s ${K3S_VERSION} already installed, skipping installation"
+  else
     install_k3s_dependencies
     
     # Install specific k3s version
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${K3S_VERSION}" sh -
     
-    echo "✅ k3s ${K3S_VERSION} installed successfully"
+    echo "✅ k3s ${K3S_VERSION} installed"
   fi
 }
 
@@ -1270,11 +1304,6 @@ verify_k3s_status() {
   echo 'Verifying k3s status...'
   sudo systemctl status k3s --no-pager || true
   sudo k3s kubectl get nodes || true
-  
-  # Show installed version
-  echo ""
-  echo "Installed k3s version:"
-  k3s --version | head -1
 }
 
 
@@ -1575,13 +1604,12 @@ generate_server_certs() {
     chmod 600 "$server_key"
 }
 install_vim() {
-  echo "[INFO] Checking if Vim editor is installed..."
+  echo "🔄 Installing Vim..."
   if command -v vim >/dev/null 2>&1; then
-    echo "[INFO] Vim is already installed."
+    echo "⚡️ Vim already installed, skipping installation"
     return
   fi
 
-  echo "[INFO] Installing Vim..."
   if command -v apt >/dev/null 2>&1; then
     sudo apt update -y
     sudo apt install -y vim
@@ -1589,7 +1617,7 @@ install_vim() {
     sudo yum install -y vim || sudo dnf install -y vim
   fi
 
-  echo "[SUCCESS] Vim installed and ready to use."
+  echo "✅ Vim installation completed."
 }
 
 
@@ -1608,12 +1636,22 @@ install_and_enable_ssh() {
     return 1
   fi
 
-  echo "[INFO] Installing OpenSSH Server..."
+  echo "🔄 Installing OpenSSH Server..."
   if [ "$OS" = "debian" ]; then
-    sudo apt update -y
-    sudo apt install -y openssh-server
+    if dpkg -s openssh-server >/dev/null ; then
+      echo "⚡️ OpenSSH Server already installed, skipping installation"
+    else
+      sudo apt update -y
+      sudo apt install -y openssh-server
+      echo "✅ OpenSSH Server installation completed."
+    fi
   else
-    sudo yum install -y openssh-server || sudo dnf install -y openssh-server
+    if rpm -q openssh-server >/dev/null ; then
+      echo "⚡️ OpenSSH Server already installed, skipping installation"
+    else
+      sudo yum install -y openssh-server || sudo dnf install -y openssh-server
+      echo "✅ OpenSSH Server installation completed."
+    fi
   fi
 
   echo "[INFO] Enabling and starting SSH service..."
@@ -1628,7 +1666,7 @@ install_and_enable_ssh() {
   sudo systemctl restart "$UNIT"
 
   echo "[INFO] Verifying SSH status:"
-  sudo sudo systemctl status ssh --no-pager || sudo systemctl status sshd
+  sudo systemctl status ssh --no-pager || systemctl status sshd
   echo "[SUCCESS] SSH service installed and running."
 }
 
@@ -1659,5 +1697,19 @@ show_menu() {
 # ----------------------------
 # Update the main script execution section
 if [[ -z "$1" ]]; then
-  show_menu
+  main_loop
+else
+  load_wfm_env || true
+  case "$1" in
+    install) install_prerequisites ;;
+    uninstall) uninstall_prerequisites ;;
+    start) start_symphony ;;
+    stop) stop_symphony ;;
+    obs-install) observability_stack_install ;;
+    obs-uninstall) observability_stack_uninstall ;;
+    *)
+      echo "Usage: $0 {install|uninstall|start|stop|obs-install|obs-uninstall}"
+      exit 1
+      ;;
+  esac
 fi

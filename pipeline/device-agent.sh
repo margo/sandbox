@@ -280,14 +280,24 @@ clone_dev_repo() {
   sudo rm -rf sandbox
   echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
-    git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+    git clone \
+          --branch "$SANDBOX_REPO_BRANCH" \
+          --single-branch \
+          --depth 1 \
+          "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git" \
+          "$HOME/sandbox"   
   else
-    git clone --depth 1 "https://github.com/margo/sandbox.git"
+    git clone \
+          --branch "$SANDBOX_REPO_BRANCH" \
+          --single-branch \
+          --depth 1 \
+          "https://github.com/margo/sandbox.git" \
+          "$HOME/sandbox"
   fi
   cd "$HOME/sandbox"
-  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
-  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+  # git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
+  # git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
+  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done!"
   cd ..
 }
 

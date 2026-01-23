@@ -18,11 +18,11 @@ type AppDeploymentState struct {
 	Status sbi.DeploymentStatusManifest
 
 	// Added these fields for sync state management
-    AppId       string    `json:"appId"`
-    State       string    `json:"state"`
-    LastUpdated time.Time `json:"lastUpdated"`
-    Digest      *string   `json:"digest,omitempty"`
-    URL         *string   `json:"url,omitempty"`
+	AppId       string    `json:"appId"`
+	State       string    `json:"state"`
+	LastUpdated time.Time `json:"lastUpdated"`
+	Digest      *string   `json:"digest,omitempty"`
+	URL         *string   `json:"url,omitempty"`
 }
 
 type DeploymentRecord struct {
@@ -72,9 +72,9 @@ type DeviceSettingsRecord struct {
 	CanDeployCompose bool
 
 	// Added these new fields for sync state management
-    LastSyncedETag            string `json:"lastSyncedETag"`
-    LastSyncedManifestVersion uint64 `json:"lastSyncedManifestVersion"`
-    LastSyncedBundleDigest    string `json:"lastSyncedBundleDigest"`
+	LastSyncedETag            string `json:"lastSyncedETag"`
+	LastSyncedManifestVersion uint64 `json:"lastSyncedManifestVersion"`
+	LastSyncedBundleDigest    string `json:"lastSyncedBundleDigest"`
 }
 
 type DatabaseIfc interface {
@@ -95,11 +95,11 @@ type DatabaseIfc interface {
 	IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error)
 
 	GetLastSyncedETag() (string, error)
-    SetLastSyncedETag(etag string) error
-    GetLastSyncedManifestVersion() (uint64, error)
-    SetLastSyncedManifestVersion(version uint64) error
-    GetLastSyncedBundleDigest() (string, error)
-    SetLastSyncedBundleDigest(digest string) error
+	SetLastSyncedETag(etag string) error
+	GetLastSyncedManifestVersion() (uint64, error)
+	SetLastSyncedManifestVersion(version uint64) error
+	GetLastSyncedBundleDigest() (string, error)
+	SetLastSyncedBundleDigest(digest string) error
 }
 
 type Database struct {
@@ -117,64 +117,63 @@ type Database struct {
 
 // ETag management for efficient polling
 func (db *Database) GetLastSyncedETag() (string, error) {
-    db.mu.RLock()
-    defer db.mu.RUnlock()
-    
-    if db.deviceSettings.LastSyncedETag == "" {
-        return "", fmt.Errorf("No previous ETag found")
-    }
-    return db.deviceSettings.LastSyncedETag, nil
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if db.deviceSettings.LastSyncedETag == "" {
+		return "", fmt.Errorf("No previous ETag found")
+	}
+	return db.deviceSettings.LastSyncedETag, nil
 }
 
 func (db *Database) SetLastSyncedETag(etag string) error {
-    db.mu.Lock()
-    defer db.mu.Unlock()
-    
-    db.deviceSettings.LastSyncedETag = etag
-    db.TriggerDataPersist()
-    return nil
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.LastSyncedETag = etag
+	db.TriggerDataPersist()
+	return nil
 }
 
 // Manifest version management for rollback protection
 func (db *Database) GetLastSyncedManifestVersion() (uint64, error) {
-    db.mu.RLock()
-    defer db.mu.RUnlock()
-    
-    if db.deviceSettings.LastSyncedManifestVersion == 0 {
-        return 0, fmt.Errorf("no previous manifest version found")
-    }
-    return db.deviceSettings.LastSyncedManifestVersion, nil
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if db.deviceSettings.LastSyncedManifestVersion == 0 {
+		return 0, fmt.Errorf("no previous manifest version found")
+	}
+	return db.deviceSettings.LastSyncedManifestVersion, nil
 }
 
 func (db *Database) SetLastSyncedManifestVersion(version uint64) error {
-    db.mu.Lock()
-    defer db.mu.Unlock()
-    
-    db.deviceSettings.LastSyncedManifestVersion = version
-    db.TriggerDataPersist()
-    return nil
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.LastSyncedManifestVersion = version
+	db.TriggerDataPersist()
+	return nil
 }
 
 // Bundle digest management
 func (db *Database) GetLastSyncedBundleDigest() (string, error) {
-    db.mu.RLock()
-    defer db.mu.RUnlock()
-    
-    if db.deviceSettings.LastSyncedBundleDigest == "" {
-        return "", fmt.Errorf("no previous bundle digest found")
-    }
-    return db.deviceSettings.LastSyncedBundleDigest, nil
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if db.deviceSettings.LastSyncedBundleDigest == "" {
+		return "", fmt.Errorf("no previous bundle digest found")
+	}
+	return db.deviceSettings.LastSyncedBundleDigest, nil
 }
 
 func (db *Database) SetLastSyncedBundleDigest(digest string) error {
-    db.mu.Lock()
-    defer db.mu.Unlock()
-    
-    db.deviceSettings.LastSyncedBundleDigest = digest
-    db.TriggerDataPersist()
-    return nil
-}
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
+	db.deviceSettings.LastSyncedBundleDigest = digest
+	db.TriggerDataPersist()
+	return nil
+}
 
 func NewDatabase(dataDir string) *Database {
 	db := &Database{
@@ -303,19 +302,19 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 	// if record.DesiredState == nil || record.DesiredState.AppDeploymentYAMLHash != state.AppDeploymentYAMLHash {
 	record.DesiredState = &state
 	record.LastUpdated = time.Now()
-     // Store the digest and URL from the state
-	 if state.Digest != nil {
-        record.Digest = *state.Digest
-    }
-    if state.URL != nil {
-        record.URL = *state.URL
-    }
-    
-    db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
- 
-    db.TriggerDataPersist()
-    
-    return nil
+	// Store the digest and URL from the state
+	if state.Digest != nil {
+		record.Digest = *state.Digest
+	}
+	if state.URL != nil {
+		record.URL = *state.URL
+	}
+
+	db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
+
+	db.TriggerDataPersist()
+
+	return nil
 }
 
 func (db *Database) SetCurrentState(deploymentId string, state AppDeploymentState) {
@@ -393,52 +392,51 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 }
 
 func (db *Database) RemoveDeployment(deploymentId string) {
-    db.mu.Lock()
-    defer db.mu.Unlock()
-    
-    if record, exists := db.deployments[deploymentId]; exists {
-        delete(db.deployments, deploymentId)
-        db.notify(deploymentId, record, DeploymentChangeTypeRecordDeleted)
-        db.TriggerDataPersist()  
-    }
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if record, exists := db.deployments[deploymentId]; exists {
+		delete(db.deployments, deploymentId)
+		db.notify(deploymentId, record, DeploymentChangeTypeRecordDeleted)
+		db.TriggerDataPersist()
+	}
 }
 
 func (db *Database) NeedsReconciliation(deploymentId string) bool {
-    db.mu.RLock()
-    defer db.mu.RUnlock()
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 
-    record, exists := db.deployments[deploymentId]
-    if !exists || record.DesiredState == nil {
-        return false
-    }
+	record, exists := db.deployments[deploymentId]
+	if !exists || record.DesiredState == nil {
+		return false
+	}
 
-    if record.DesiredState.Status.Status.State == "REMOVED" {
-        return false
-    }
+	if record.DesiredState.Status.Status.State == "REMOVED" {
+		return false
+	}
 
-    // Check if desired and current states differ
-    if record.CurrentState == nil {
-        return true
-    }
+	// Check if desired and current states differ
+	if record.CurrentState == nil {
+		return true
+	}
 
-    // Compare the deployment status
-    if record.CurrentState.Status.Status.State != record.DesiredState.Status.Status.State {
-        return true
-    }
+	// Compare the deployment status
+	if record.CurrentState.Status.Status.State != record.DesiredState.Status.Status.State {
+		return true
+	}
 
-    // Compare the embedded AppDeploymentManifest specs by marshaling to JSON
-    currentSpecBytes, err1 := json.Marshal(record.CurrentState.AppDeploymentManifest.Spec)
-    desiredSpecBytes, err2 := json.Marshal(record.DesiredState.AppDeploymentManifest.Spec)
-    
-    if err1 != nil || err2 != nil {
-        // If marshaling fails, assume reconciliation is needed
-        return true
-    }
+	// Compare the embedded AppDeploymentManifest specs by marshaling to JSON
+	currentSpecBytes, err1 := json.Marshal(record.CurrentState.AppDeploymentManifest.Spec)
+	desiredSpecBytes, err2 := json.Marshal(record.DesiredState.AppDeploymentManifest.Spec)
 
-    // If specs are different, reconciliation is needed
-    return string(currentSpecBytes) != string(desiredSpecBytes)
+	if err1 != nil || err2 != nil {
+		// If marshaling fails, assume reconciliation is needed
+		return true
+	}
+
+	// If specs are different, reconciliation is needed
+	return string(currentSpecBytes) != string(desiredSpecBytes)
 }
-
 
 func (db *Database) GetDeviceSettings() (*DeviceSettingsRecord, error) {
 	return db.deviceSettings, nil

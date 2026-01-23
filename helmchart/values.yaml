@@ -1,5 +1,5 @@
 image:
-  repository: margo.org/workload-fleet-management-client
+  repository: ghcr.io/margo/margo.org/workload-fleet-management-client
   tag: latest
   pullPolicy: IfNotPresent
 

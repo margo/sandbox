@@ -297,7 +297,7 @@ clone_dev_repo() {
   cd "$HOME/sandbox"
   # git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
   # git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
-  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+  echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done!"
   cd ..
 }
 

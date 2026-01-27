@@ -4,5 +4,12 @@
   "features": {
     "ghcr.io/devcontainers/features/go:1": {}
   },
+  "customizations": {
+      "vscode": {
+          "extensions": [
+              "editorconfig.editorconfig"
+          ]
+      }
+  },
   "remoteUser": "vscode"
 }

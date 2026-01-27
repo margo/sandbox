@@ -14,7 +14,7 @@ body:
     id: description
     attributes:
       label: "Description"
-      description: "Describe the Task" 
+      description: "Describe the Task"
       placeholder: "Objective, Desired Outcome, Desired artifact updates"
     validations:
       required: true
@@ -41,7 +41,7 @@ body:
   - type: textarea
     id: related
     attributes:
-      label: "Related Tasks" 
+      label: "Related Tasks"
       description: "Which other tasks does this issue relate to, other than the parent Story"
       placeholder: "GitHub issue #1234 or None"
     validations:
@@ -51,7 +51,7 @@ body:
       value: |
         Describe the "Definition of Done", which can be presented or reviewed
         * The required technical documentation should be updated
-        * In case of any prototyping activity, the evaluation, design and outcomes need to be documented 
+        * In case of any prototyping activity, the evaluation, design and outcomes need to be documented
         * API updates need to be updated in swagger (or other) files
         * Test automation should be done to demonstrate the use-case
         * Code and documentation should be pulled into the release branch and the pull-request approved by the TWG
@@ -59,13 +59,13 @@ body:
     id: status
     attributes:
       label: "Status"
-      description: "Current status of task" 
+      description: "Current status of task"
       options:
         - Not Started
         - In Motion
         - Under Review
         - Accepted
-      default: 0 
+      default: 0
   - type: input
     id: "percent_done"
     attributes:
@@ -86,7 +86,7 @@ body:
     id: updated_artifacts
     attributes:
       label: "Updated artifacts"
-      description: "What all artifacts are updated" 
+      description: "What all artifacts are updated"
       options:
         - label: "API Documentation (Swagger)"
           required: false

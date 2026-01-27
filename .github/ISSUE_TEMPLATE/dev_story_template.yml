@@ -14,7 +14,7 @@ body:
     id: description
     attributes:
       label: "Description"
-      description: "Describe the use-case to be implemented, use the MARGO defined Personas to describe the use-case" 
+      description: "Describe the use-case to be implemented, use the MARGO defined Personas to describe the use-case"
       placeholder: "As a <MARGO-persona>, I want to <action> so that <outcome>"
     validations:
       required: true
@@ -41,7 +41,7 @@ body:
   - type: textarea
     id: requirements
     attributes:
-      label: "Related product requirements" 
+      label: "Related product requirements"
       description: "Which PM requirements in Github will this Story fulfill ?"
       placeholder: "GitHub issue #1234"
     validations:
@@ -51,7 +51,7 @@ body:
       value: |
         Describe the "Definition of Done", which might be a use-case demonstrated to the TWG
         * The required technical documentation should be updated
-        * In case of any prototyping activity, the evaluation, design and outcomes need to be documented 
+        * In case of any prototyping activity, the evaluation, design and outcomes need to be documented
         * API updates need to be updated in swagger (or other) files
         * Test automation should be done to demonstrate the use-case
         * Code and documentation should be pulled into the release branch and the pull-request approved by the TWG
@@ -62,7 +62,7 @@ body:
       description: "Describe the Definition of Done, which might be a use-case demonstrated to the TWG"
       placeholder: |
          * The required technical documentation should be updated
-         * In case of any prototyping activity, the evaluation, design and outcomes need to be documented 
+         * In case of any prototyping activity, the evaluation, design and outcomes need to be documented
          * API updates need to be updated in swagger (or other) files
          * Test automation should be done to demonstrate the use-case
          * Code and documentation should be pulled into the release branch and the pull-request approved by the TWG
@@ -80,7 +80,7 @@ body:
     id: impact
     attributes:
       label: "Impacted artifacts"
-      description: "What all artifacts are impacted ?" 
+      description: "What all artifacts are impacted ?"
       options:
         - label: "API Documentation (Swagger)"
           required: false

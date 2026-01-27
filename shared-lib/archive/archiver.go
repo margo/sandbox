@@ -9,9 +9,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
-	"sort"
 )
 
 type ArchiveFormats string
@@ -131,94 +131,93 @@ func (a *Archiver) CreateArchive() (archiveObject *os.File, digest string, size 
 
 // createTarGzArchive creates a tar.gz archive
 func (a *Archiver) createTarGzArchive(output *os.File) error {
-    //  Sort entries for deterministic ordering
-    a.sortEntries()
-    
-    // Create gzip writer with deterministic settings
-    gzipWriter := gzip.NewWriter(output)
-    gzipWriter.Header.Name = ""      //  Clear filename for reproducibility
-    gzipWriter.Header.Comment = ""   //  Clear comment for reproducibility
-    gzipWriter.Header.ModTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) //  Fixed timestamp
-    defer gzipWriter.Close()
+	//  Sort entries for deterministic ordering
+	a.sortEntries()
 
-    // Create tar writer
-    tarWriter := tar.NewWriter(gzipWriter)
-    defer tarWriter.Close()
+	// Create gzip writer with deterministic settings
+	gzipWriter := gzip.NewWriter(output)
+	gzipWriter.Header.Name = ""                                             //  Clear filename for reproducibility
+	gzipWriter.Header.Comment = ""                                          //  Clear comment for reproducibility
+	gzipWriter.Header.ModTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) //  Fixed timestamp
+	defer gzipWriter.Close()
 
-    // Add all entries to archive (now sorted)
-    for _, entry := range a.entries {
-        if entry.IsFile {
-            err := a.addFileToTar(tarWriter, entry.Name, entry.Path)
-            if err != nil {
-                return fmt.Errorf("failed to add file %s: %w", entry.Path, err)
-            }
-        } else {
-            err := a.addContentToTar(tarWriter, entry.Name, entry.Content)
-            if err != nil {
-                return fmt.Errorf("failed to add content %s: %w", entry.Name, err)
-            }
-        }
-    }
+	// Create tar writer
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
 
-    return nil
+	// Add all entries to archive (now sorted)
+	for _, entry := range a.entries {
+		if entry.IsFile {
+			err := a.addFileToTar(tarWriter, entry.Name, entry.Path)
+			if err != nil {
+				return fmt.Errorf("failed to add file %s: %w", entry.Path, err)
+			}
+		} else {
+			err := a.addContentToTar(tarWriter, entry.Name, entry.Content)
+			if err != nil {
+				return fmt.Errorf("failed to add content %s: %w", entry.Name, err)
+			}
+		}
+	}
+
+	return nil
 }
-
 
 // addFileToTar adds a file from filesystem to tar archive
 func (a *Archiver) addFileToTar(tarWriter *tar.Writer, nameInArchive, filePath string) error {
-    file, err := os.Open(filePath)
-    if err != nil {
-        return err
-    }
-    defer file.Close()
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-    fileInfo, err := file.Stat()
-    if err != nil {
-        return err
-    }
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
 
-    // Use fixed timestamp for reproducible archives
-    fixedTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Use fixed timestamp for reproducible archives
+	fixedTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 
-    // Create tar header
-    header := &tar.Header{
-        Name:    nameInArchive,
-        Size:    fileInfo.Size(),
-        Mode:    int64(fileInfo.Mode()),
-        ModTime: fixedTime,  
-    }
+	// Create tar header
+	header := &tar.Header{
+		Name:    nameInArchive,
+		Size:    fileInfo.Size(),
+		Mode:    int64(fileInfo.Mode()),
+		ModTime: fixedTime,
+	}
 
-    // Write header
-    if err := tarWriter.WriteHeader(header); err != nil {
-        return err
-    }
+	// Write header
+	if err := tarWriter.WriteHeader(header); err != nil {
+		return err
+	}
 
-    // Copy file content
-    _, err = io.Copy(tarWriter, file)
-    return err
+	// Copy file content
+	_, err = io.Copy(tarWriter, file)
+	return err
 }
 
 // Update addContentToTar to use fixed timestamps
 func (a *Archiver) addContentToTar(tarWriter *tar.Writer, nameInArchive string, content []byte) error {
-    // Use fixed timestamp for reproducible archives (Exact Bytes Rule)
-    fixedTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
-    
-    // Create tar header
-    header := &tar.Header{
-        Name:    nameInArchive,
-        Size:    int64(len(content)),
-        Mode:    0644,
-        ModTime: fixedTime,  // ✅ Fixed timestamp
-    }
+	// Use fixed timestamp for reproducible archives (Exact Bytes Rule)
+	fixedTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 
-    // Write header
-    if err := tarWriter.WriteHeader(header); err != nil {
-        return err
-    }
+	// Create tar header
+	header := &tar.Header{
+		Name:    nameInArchive,
+		Size:    int64(len(content)),
+		Mode:    0644,
+		ModTime: fixedTime, // ✅ Fixed timestamp
+	}
 
-    // Write content
-    _, err := tarWriter.Write(content)
-    return err
+	// Write header
+	if err := tarWriter.WriteHeader(header); err != nil {
+		return err
+	}
+
+	// Write content
+	_, err := tarWriter.Write(content)
+	return err
 }
 
 // calculateDigestAndSize calculates SHA256 digest and file size
@@ -269,7 +268,7 @@ func (a *Archiver) Cleanup() error {
 	return nil
 }
 func (a *Archiver) sortEntries() {
-    sort.Slice(a.entries, func(i, j int) bool {
-        return a.entries[i].Name < a.entries[j].Name
-    })
+	sort.Slice(a.entries, func(i, j int) bool {
+		return a.entries[i].Name < a.entries[j].Name
+	})
 }

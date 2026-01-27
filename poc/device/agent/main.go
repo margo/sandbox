@@ -145,7 +145,6 @@ func NewAgent(configPath string) (*Agent, error) {
 		return nil, err
 	}
 
-
 	if !isOnboarded {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

@@ -8,13 +8,13 @@ package wfm
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
+	nonStdWfmNbi "github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 	"io"
 	"log"
+	"net/http"
 	"time"
-	"crypto/tls"
-    "net/http"
-	nonStdWfmNbi "github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 )
 
 const (
@@ -66,18 +66,17 @@ func WithTimeout(timeout time.Duration) WFMCliOption {
 
 // WithInsecureTLS configures the client to skip TLS verification (development only)
 func WithInsecureTLS() WFMCliOption {
-    return func(cli *NbiApiClient) {
-        cli.httpClient = &http.Client{
-            Transport: &http.Transport{
-                TLSClientConfig: &tls.Config{
-                    InsecureSkipVerify: true, // Only for development
-                },
-            },
-            Timeout: cli.timeout,
-        }
-    }
+	return func(cli *NbiApiClient) {
+		cli.httpClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, // Only for development
+				},
+			},
+			Timeout: cli.timeout,
+		}
+	}
 }
-
 
 // WithLogger sets a custom logger for the client
 func WithLogger(logger *log.Logger) WFMCliOption {
@@ -108,10 +107,10 @@ func WithAuth() WFMCliOption {
 //	    WithTimeout(60*time.Second),
 //	    WithLogger(customLogger))
 func NewNbiHTTPCli(host string, port uint16, nbiBasePath *string, opts ...WFMCliOption) *NbiApiClient {
-    nbiBaseURLPath := northboundBaseURL
-    if nbiBasePath != nil {
-        nbiBaseURLPath = *nbiBasePath
-    }
+	nbiBaseURLPath := northboundBaseURL
+	if nbiBasePath != nil {
+		nbiBaseURLPath = *nbiBasePath
+	}
 
 	cli := &NbiApiClient{
 		serverAddress: fmt.Sprintf("%s:%d", host, port),
@@ -121,30 +120,28 @@ func NewNbiHTTPCli(host string, port uint16, nbiBasePath *string, opts ...WFMCli
 		httpClient:    &http.Client{Timeout: nbiDefaultTimeout},
 	}
 
-    // Apply options
-    for _, opt := range opts {
-        opt(cli)
-    }
+	// Apply options
+	for _, opt := range opts {
+		opt(cli)
+	}
 
-    return cli
+	return cli
 }
-
 
 // createClient creates a new API client with proper error handling
 func (cli *NbiApiClient) createNonStdNbiClient() (*nonStdWfmNbi.Client, error) {
-    client, err := nonStdWfmNbi.NewClient(cli.nbiBaseURL)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create API client: %w", err)
-    }
-    
-    // Configure the client to use our custom HTTP client
-    if cli.httpClient != nil {
-        client.Client = cli.httpClient
-    }
-    
-    return client, nil
-}
+	client, err := nonStdWfmNbi.NewClient(cli.nbiBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client: %w", err)
+	}
 
+	// Configure the client to use our custom HTTP client
+	if cli.httpClient != nil {
+		client.Client = cli.httpClient
+	}
+
+	return client, nil
+}
 
 // createContext creates a context with timeout
 func (cli *NbiApiClient) createContext() (context.Context, context.CancelFunc) {

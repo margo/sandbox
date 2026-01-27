@@ -9,7 +9,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
-//	"github.com/margo/sandbox/standard/pkg"
+	//	"github.com/margo/sandbox/standard/pkg"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/release"
 )
@@ -70,56 +70,54 @@ func (hm *DeploymentMonitor) checkAllDeployments() {
 }
 
 func (hm *DeploymentMonitor) checkDeployment(appID string) {
-    record, err := hm.database.GetDeployment(appID)
-    if err != nil || record.CurrentState == nil {
-        return
-    }
+	record, err := hm.database.GetDeployment(appID)
+	if err != nil || record.CurrentState == nil {
+		return
+	}
 
-    // Get the app deployment manifest directly
-    appDeployment := record.CurrentState.AppDeploymentManifest
+	// Get the app deployment manifest directly
+	appDeployment := record.CurrentState.AppDeploymentManifest
 
-   
-    if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
-        return
-    }
+	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
+		return
+	}
 
-    component := appDeployment.Spec.DeploymentProfile.Components[0]
-    helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
-    if err != nil {
-        hm.log.Warnw("Failed to convert component to Helm component", "appID", appID, "error", err)
-        return
-    }
+	component := appDeployment.Spec.DeploymentProfile.Components[0]
+	helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
+	if err != nil {
+		hm.log.Warnw("Failed to convert component to Helm component", "appID", appID, "error", err)
+		return
+	}
 
-    releaseName := fmt.Sprintf("%s-%s", helmComp.Name, appID[:8])
+	releaseName := fmt.Sprintf("%s-%s", helmComp.Name, appID[:8])
 
-    // Get Helm status
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	// Get Helm status
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    status, err := hm.helmClient.GetReleaseStatus(ctx, releaseName, "")
-    if err != nil {
-        // Release not found or error
-        componentStatus := sbi.ComponentStatus{
-            Name:  helmComp.Name,
-            State: sbi.ComponentStatusStateFailed,
-            // Fix the error assignment if needed
-            // Error: &sbi.Error{Message: err.Error()},
-        }
-        hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
-        return
-    }
+	status, err := hm.helmClient.GetReleaseStatus(ctx, releaseName, "")
+	if err != nil {
+		// Release not found or error
+		componentStatus := sbi.ComponentStatus{
+			Name:  helmComp.Name,
+			State: sbi.ComponentStatusStateFailed,
+			// Fix the error assignment if needed
+			// Error: &sbi.Error{Message: err.Error()},
+		}
+		hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
+		return
+	}
 
-    // Convert Helm status to component status
-    componentState := hm.convertHelmStatus(status.Status)
-    componentStatus := sbi.ComponentStatus{
-        Name:  helmComp.Name,
-        State: componentState,
-        Error: nil,
-    }
+	// Convert Helm status to component status
+	componentState := hm.convertHelmStatus(status.Status)
+	componentStatus := sbi.ComponentStatus{
+		Name:  helmComp.Name,
+		State: componentState,
+		Error: nil,
+	}
 
-    hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
+	hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
 }
-
 
 func (hm *DeploymentMonitor) convertHelmStatus(status release.Status) sbi.ComponentStatusState {
 	switch status {

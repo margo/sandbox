@@ -23,26 +23,26 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     if ! command_exists go; then
         log_error "Go is not installed. Please install Go."
         exit 1
     fi
-    
+
     log_success "Go is available: $(go version)"
-    
+
     if [ ! -f "$WFM_NBI_SPEC_FILE" ]; then
         log_error "OpenAPI spec file '$WFM_NBI_SPEC_FILE' not found!"
         exit 1
     fi
-    
+
     log_success "OpenAPI spec file found: $WFM_NBI_SPEC_FILE"
 
     # if [ ! -f "$WFM_SBI_SPEC_FILE" ]; then
     #     log_error "OpenAPI spec file '$WFM_SBI_SPEC_FILE' not found!"
     #     exit 1
     # fi
-    
+
     # log_success "OpenAPI spec file found: $WFM_SBI_SPEC_FILE"
 }
 
@@ -56,15 +56,15 @@ install_tools() {
 
 generate_code() {
     log_info "Generating Go code..."
-    
+
     # Clean and create output directory
     rm -rf "$OUTPUT_DIR"/wfm
     mkdir -p "$OUTPUT_DIR"/wfm/{sbi,nbi}
-    
+
     # Generate models first
     log_info "Generating models..."
     oapi-codegen -generate types,skip-prune -package nbi "$WFM_NBI_SPEC_FILE" > "$OUTPUT_DIR/wfm/nbi/models.go"
-    
+
     # Generate client
     log_info "Generating client..."
     oapi-codegen -generate client -package nbi "$WFM_NBI_SPEC_FILE" > "$OUTPUT_DIR/wfm/nbi/client.go"
@@ -72,28 +72,28 @@ generate_code() {
     # Generate models first
     # log_info "Generating models..."
     # oapi-codegen -generate types,skip-prune -package sbi "$WFM_SBI_SPEC_FILE" > "$OUTPUT_DIR/wfm/sbi/models.go"
-    
+
     # # Generate client
     # log_info "Generating client..."
     # oapi-codegen -generate client -package sbi "$WFM_SBI_SPEC_FILE" > "$OUTPUT_DIR/wfm/sbi/client.go"
-    
+
     # Generate server (optional)
     # log_info "Generating server..."
     # oapi-codegen -generate server -package server "$WFM_NBI_SPEC_FILE" > "$OUTPUT_DIR/server/server.go"
-    
+
     # Fix imports after generation
     # fix_imports_simple
-    
+
     # Initialize modules
     # (cd "$OUTPUT_DIR" && go mod init "$WFM_NBI_PACKAGE_NAME" && go mod tidy)
-    
+
     log_success "Code generation completed!"
 }
 
 # Alternative simpler approach for fixing imports
 # fix_imports_simple() {
 #     log_info "Fixing imports (simple approach)..."
-    
+
 #     # For client
 #     if [ -f "$OUTPUT_DIR/wfm/sbi/wfmNbiClient.go" ]; then
 #         # Check if import is missing
@@ -123,8 +123,8 @@ generate_code() {
 #             log_success "Added import to client"
 #         fi
 #     fi
-    
-#     # For server  
+
+#     # For server
 #     # if [ -f "$OUTPUT_DIR/server/server.go" ]; then
 #     #     if ! grep -q "\"$WFM_NBI_PACKAGE_NAME/models\"" "$OUTPUT_DIR/server/server.go"; then
 #     #         sed -i '/^package server$/a\\nimport . "'"$WFM_NBI_PACKAGE_NAME"'/models"' "$OUTPUT_DIR/server/server.go"
@@ -137,12 +137,12 @@ main() {
     check_prerequisites
     install_tools
     generate_code
-    
+
     echo "Generated files:"
     echo "- Models: $OUTPUT_DIR/models/"
     echo "- Client: $OUTPUT_DIR/client/"
     # echo "- Server: $OUTPUT_DIR/server/"
-    
+
     # Verify the imports work
     log_info "Verifying generated code..."
     for dir in models client; do

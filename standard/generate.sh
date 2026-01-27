@@ -26,14 +26,14 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     if ! command_exists go; then
         log_error "Go is not installed. Please install Go."
         exit 1
     fi
-    
+
     log_success "Go is available: $(go version)"
-    
+
     if [ ! -f "$WFM_SBI_SPEC" ]; then
         log_error "OpenAPI spec file '$WFM_SBI_SPEC' not found!"
         exit 1
@@ -50,7 +50,7 @@ install_tools() {
 
 generate_code() {
     log_info "Generating Go code..."
-    
+
     # Clean and create output directory
     rm -rf "$OUTPUT_DIR"/wfm
     mkdir -p "$OUTPUT_DIR"/wfm/sbi
@@ -58,11 +58,11 @@ generate_code() {
     # Generate models first
     log_info "Generating models..."
     oapi-codegen -generate types,skip-prune -package sbi "$WFM_SBI_SPEC" > "$OUTPUT_DIR/wfm/sbi/models.go"
-    
+
     # Generate client
     log_info "Generating client..."
     oapi-codegen -generate client -package sbi "$WFM_SBI_SPEC" > "$OUTPUT_DIR/wfm/sbi/client.go"
-    
+
     log_success "Code generation completed!"
 }
 
@@ -70,12 +70,12 @@ main() {
     check_prerequisites
     install_tools
     generate_code
-    
+
     echo "Generated files:"
     echo "- Models: $OUTPUT_DIR/wfm/sbi/models.go"
     echo "- Client: $OUTPUT_DIR/wfm/sbi/client.go"
 
-    
+
     # Verify the imports work
     log_info "Verifying generated code..."
     if (cd "$OUTPUT_DIR/wfm/sbi" && go build .); then

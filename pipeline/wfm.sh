@@ -6,7 +6,7 @@ set -e
 # ----------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 load_wfm_env() {
-   local env_file="$SCRIPT_DIR/wfm.env"
+  local env_file="$SCRIPT_DIR/wfm.env"
 
   if [[ ! -f "$env_file" ]]; then
     echo "[WARN] wfm.env not found at: $env_file"
@@ -17,7 +17,7 @@ load_wfm_env() {
   set -a
   source "$env_file"
   set +a
-  
+
 }
 
 load_wfm_env || true
@@ -66,7 +66,7 @@ CERT_DIR="$HOME/symphony/api/certificates"
 
 
 # Stable version as of December 2024
-K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"  
+K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 # ----------------------------
 # Utility Functions
 # ----------------------------
@@ -116,7 +116,7 @@ install_basic_utilities() {
 
 install_redis() {
   local REDIS_VERSION="7.0.15"  # Stable version
-  
+
   echo "🔄 Installing Redis ${REDIS_VERSION}..."
 
   if command -v redis-server >/dev/null 2>&1; then
@@ -190,18 +190,18 @@ install_go() {
 
 install_docker_and_compose() {
   cd $HOME
-  
+
   # Define pinned versions
   local DOCKER_VERSION="29.1.2"
   local DOCKER_COMPOSE_VERSION="5.0.0"
   local UBUNTU_CODENAME=$(lsb_release -cs)  # Gets 'noble' for Ubuntu 24.04
-  
+
   # Install Docker if not present or wrong version
   echo "🔄 Installing Docker..."
   if command -v docker >/dev/null 2>&1; then
     CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
     echo "⚡️ Docker ${CURRENT_DOCKER_VERSION} already installed, skipping installation"
-    
+
     # Check if correct version is installed
     if [ "$CURRENT_DOCKER_VERSION" != "$DOCKER_VERSION" ]; then
       echo "⚠️  Current Docker version: $CURRENT_DOCKER_VERSION (expected: $DOCKER_VERSION)"
@@ -209,33 +209,33 @@ install_docker_and_compose() {
     fi
   else
     echo "Docker not found. Installing Docker ${DOCKER_VERSION}..."
-    
+
     # Remove old Docker packages
     sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-    
+
     # Add Docker's official GPG key and repository
     sudo apt-get update
     sudo apt-get install -y ca-certificates curl
     sudo install -m 0755 -d /etc/apt/keyrings
     sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
-    
+
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
       ${UBUNTU_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
+
     sudo apt-get update
-    
+
     # Install specific Docker version
     sudo apt-get install -y \
       docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
-    
+
     # Add user to docker group
     sudo usermod -aG docker $USER
-    
+
     echo "✅ Docker ${DOCKER_VERSION} installed"
   fi
 
@@ -244,7 +244,7 @@ install_docker_and_compose() {
   if dpkg -s docker-compose-plugin >/dev/null ; then
     CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
     echo "⚡️ Docker Compose ${CURRENT_COMPOSE_VERSION} already installed, skipping installation"
-    
+
     # Check if correct version is installed
     if [ "$CURRENT_COMPOSE_VERSION" != "$DOCKER_COMPOSE_VERSION" ]; then
       echo "⚠️  Current Docker Compose version: v$CURRENT_COMPOSE_VERSION (expected: v$DOCKER_COMPOSE_VERSION)"
@@ -254,21 +254,21 @@ install_docker_and_compose() {
     sudo apt-get update
     sudo apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
   fi
-  
+
   # CRITICAL: Remove old standalone docker-compose binaries to avoid conflicts
   echo 'Cleaning up old docker-compose binaries...'
   rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
-  
+
   # Verify Docker version
   echo ""
   echo "Docker version:"
   docker version | grep -E "Version|API version" | head -4
-  
+
   # Verify Docker Compose version
   echo ""
   echo "Docker Compose version:"
   docker compose version
-  
+
   # Wait for Docker daemon to be active (max 30s)
   for i in $(seq 1 30); do
     if systemctl is-active --quiet docker; then
@@ -278,8 +278,8 @@ install_docker_and_compose() {
       echo "Waiting for Docker daemon to start... ($i/30)"
       sleep 1
     fi
-  done 
-  
+  done
+
   # Final verification
   if docker compose version >/dev/null 2>&1; then
     echo "✅ Docker ${DOCKER_VERSION} and Docker Compose v${DOCKER_COMPOSE_VERSION} ready"
@@ -287,7 +287,7 @@ install_docker_and_compose() {
     echo "❌ Docker Compose plugin not working properly"
     return 1
   fi
-  
+
   # Prevent automatic updates (optional)
   echo "🔒 Holding Docker packages at current versions..."
   sudo apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
@@ -299,20 +299,20 @@ install_docker_and_compose() {
 
 install_oras() {
   echo "🔄 Installing ORAS CLI..."
-  
+
   if command -v oras >/dev/null 2>&1; then
     ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
     echo "⚡️ ORAS ${ORAS_VERSION} already installed, skipping installation"
     return 0
   fi
-  
+
   cd /tmp
   ORAS_VERSION="1.1.0"
   wget "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
   tar -xzf "oras_${ORAS_VERSION}_linux_amd64.tar.gz"
   sudo mv oras /usr/local/bin/
   rm "oras_${ORAS_VERSION}_linux_amd64.tar.gz"
-  
+
   ORAS_VERSION="$(oras version | head -n 1 | cut -d ':' -f 2 | sed 's/[[:space:]]*//')"
   echo "✅ ORAS ${ORAS_VERSION} installed"
 }
@@ -322,11 +322,11 @@ install_oras() {
 # Repository Functions
 # ----------------------------
 clone_symphony_repo() {
-  cd "$HOME"   
+  cd "$HOME"
   if ! test -d "$HOME/symphony/.git" ; then
-    rm -rf "$HOME/symphony"     
+    rm -rf "$HOME/symphony"
     echo "Cloning symphony branch: $SYMPHONY_BRANCH"
-    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
       git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
     else
       git clone --depth 1 "https://github.com/margo/symphony.git" "$HOME/symphony"
@@ -340,16 +340,16 @@ clone_symphony_repo() {
 }
 
 clone_dev_repo() {
- cd "$HOME"
- if ! test -d "$HOME/sandbox/.git" ; then
+  cd "$HOME"
+  if ! test -d "$HOME/sandbox/.git" ; then
     rm -rf "$HOME/sandbox"
     echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
-    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
       git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
     else
       git clone --depth 1 "https://github.com/margo/sandbox.git"
     fi
- fi
+  fi
   cd "$HOME/sandbox"
   git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
   git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
@@ -362,10 +362,10 @@ clone_dev_repo() {
 
 create_harbor_systemd_service() {
   echo "🔧 Creating systemd service for Harbor auto-start..."
-  
+
   # Get the actual harbor directory path (not using $HOME variable)
   local harbor_dir="$HOME/sandbox/pipeline/harbor"
-  
+
   # Create systemd service file with absolute path
   sudo tee /etc/systemd/system/harbor.service > /dev/null <<EOF
   [Unit]
@@ -390,7 +390,7 @@ EOF
   # Reload systemd and enable the service
   sudo systemctl daemon-reload
   sudo systemctl enable harbor.service
-  
+
   echo "✅ Harbor systemd service created and enabled"
   echo "📋 Service will start Harbor automatically on boot"
   echo "📁 Working directory: ${harbor_dir}"
@@ -399,22 +399,22 @@ EOF
 
 configure_harbor_restart_policy() {
   local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
-  
+
   if [ ! -f "$compose_file" ]; then
     echo "⚠️ docker-compose.yml not found, will be generated during install"
     return 0
   fi
-  
+
   echo "🔧 Replacing restart policies in docker-compose.yml..."
-  
+
   # Backup original file
   cp "$compose_file" "${compose_file}.backup.$(date +%s)"
-  
+
   # Replace "restart: always" with "restart: unless-stopped"
   sed -i 's/^\s*restart:\s*always/    restart: unless-stopped/g' "$compose_file"
-  
+
   echo "✅ Restart policies replaced with unless-stopped"
-  
+
   # Verify the changes - should show only one restart per service
   echo "📋 Verifying restart policies in docker-compose.yml:"
   grep "restart:" "$compose_file"
@@ -430,24 +430,24 @@ setup_harbor() {
     echo 'Harbor is already running, skipping startup.'
   else
     cd "$HOME/sandbox/pipeline/harbor"
-    
+
     # Update harbor.yml with EXPOSED_HARBOR_IP
     sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
-    
+
     echo 'Preparing Harbor configuration...'
     sudo chmod +x install.sh prepare common.sh
-    
+
     # Run prepare to generate docker-compose.yml
     sudo ./prepare
-    
+
     # Add restart policies to docker-compose.yml BEFORE starting
     configure_harbor_restart_policy
-    
+
     # Start Harbor - ensure clean state
     echo 'Starting Harbor with restart policies...'
     sudo docker compose down --remove-orphans 2>/dev/null || true
     sudo docker compose up -d
-    
+
     # Force update restart policies on all containers
     echo '🔧 Applying restart policies to running containers...'
     sleep 5
@@ -456,17 +456,17 @@ setup_harbor() {
         docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
       fi
     done
-    
+
     echo 'Waiting for Harbor to initialize...'
     sleep 15
-    
+
     docker ps
-    
+
     # Verify all containers are running
     echo ""
     echo "📊 Harbor container status:"
     docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
-    
+
     # Verify restart policies
     echo ""
     echo "📋 Verifying restart policies:"
@@ -475,20 +475,20 @@ setup_harbor() {
         docker inspect --format='{{.Name}}: {{.HostConfig.RestartPolicy.Name}}' "$container"
       fi
     done
-    
+
     # Create systemd service for auto-start on boot
     create_harbor_systemd_service
-    
+
     # Final health check
     echo ""
     echo "⏳ Waiting for all containers to be healthy (this may take 1-2 minutes)..."
     sleep 45
-    
+
     healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
     total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
-    
+
     echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
-    
+
     if [ "$healthy_count" -eq "$total_count" ] && [ "$total_count" -eq 9 ]; then
       echo "✅ All Harbor containers are running and healthy!"
     else
@@ -503,23 +503,23 @@ setup_harbor() {
 
 push_nextcloud_to_oci() {
   echo "📦 Pushing Nextcloud application package to OCI Registry..."
-  
+
   local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
   local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
   local tag="latest"
-  
+
   cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
-  
+
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" --password-stdin --plain-http
-  
+
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
-  
+
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-  
+
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
     while IFS= read -r file; do
       if [ -f "$file" ]; then
@@ -527,13 +527,13 @@ push_nextcloud_to_oci() {
       fi
     done < <(find resources -type f 2>/dev/null)
   fi
-  
+
   echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --plain-http \
     "${files[@]}"
-  
+
   if [ $? -eq 0 ]; then
     echo "✅ Nextcloud package pushed to OCI Registry"
     echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
@@ -546,26 +546,26 @@ push_nextcloud_to_oci() {
 
 push_custom_otel_to_oci() {
   echo "📦 Pushing Custom OTEL application package to OCI Registry..."
-  
+
   local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
   local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
   local tag="latest"
-  
+
   cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
-  
+
   # Login to Harbor OCI Registry
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" --password-stdin --plain-http
-  
+
   # Check if margo.yaml exists
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
-  
+
   # Build file list for ORAS - start with margo.yaml
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-  
+
   # Add resource files if directory exists and has files
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
     while IFS= read -r file; do
@@ -574,14 +574,14 @@ push_custom_otel_to_oci() {
       fi
     done < <(find resources -type f 2>/dev/null)
   fi
-  
+
   # Push to OCI Registry with Margo-specific artifact type
   echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --plain-http \
     "${files[@]}"
-  
+
   if [ $? -eq 0 ]; then
     echo "✅ Custom OTEL package pushed to OCI Registry"
     echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
@@ -599,10 +599,10 @@ push_custom_otel_to_oci() {
 
 build_maestro_cli() {
   CLI_DIR="$HOME/symphony/cli";
-  if [ -d "$CLI_DIR" ]; then 
-    cd "$CLI_DIR"; 
-    go mod tidy; 
-    go build -o maestro; 
+  if [ -d "$CLI_DIR" ]; then
+    cd "$CLI_DIR";
+    go mod tidy;
+    go build -o maestro;
   fi
 }
 
@@ -610,7 +610,7 @@ build_maestro_cli() {
 enable_tls_in_symphony_api() {
   cd $HOME
   echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
-  collect_certs_info 
+  collect_certs_info
   generate_server_certs
   # replace value of "tls": false, to "tls": true
   sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
@@ -621,7 +621,7 @@ install_jaeger() {
   # Check if Jaeger Helm release exists and is healthy
   if helm status $JAEGER_RELEASE -n "$NAMESPACE_OBSERVABILITY" >/dev/null 2>&1; then
     echo "⚠️ Jaeger Helm release found, checking pod health..."
-     
+
   fi
 
   echo "🔄 Refreshing Jaeger Helm repo..."
@@ -694,7 +694,7 @@ install_jaeger() {
 # Function to create observability namespace
 create_observability_namespace() {
     echo "🔧 Checking observability namespace..."
-    
+
     if sudo kubectl get namespace $NAMESPACE_OBSERVABILITY >/dev/null 2>&1; then
         echo "✅ Namespace '$NAMESPACE_OBSERVABILITY' already exists"
     else
@@ -712,17 +712,17 @@ install_prometheus() {
   TARGETS_ARRAY="["
   if [ -n "$DEVICE_NODE_IPS" ]; then
     IFS=',' read -ra DEVICES <<< "$DEVICE_NODE_IPS"
-    
+
     for i in "${!DEVICES[@]}"; do
       device=$(echo "${DEVICES[$i]}" | xargs)
-      
+
       # Check if port is specified
       if [[ "$device" == *":"* ]]; then
         TARGET="'${device}'"
       else
         TARGET="'${device}:30999'"
       fi
-      
+
       # Add comma separator except for last item
       if [ $i -eq $((${#DEVICES[@]} - 1)) ]; then
         TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}"
@@ -786,17 +786,17 @@ patch_prometheus_configmap() {
   TARGETS_ARRAY="["
   if [ -n "$DEVICE_NODE_IPS" ]; then
     IFS=',' read -ra DEVICES <<< "$DEVICE_NODE_IPS"
-    
+
     for i in "${!DEVICES[@]}"; do
       device=$(echo "${DEVICES[$i]}" | xargs)
-      
+
       # Check if port is specified
       if [[ "$device" == *":"* ]]; then
         TARGET="'${device}'"
       else
         TARGET="'${device}:30999'"
       fi
-      
+
       # Add comma separator except for last item
       if [ $i -eq $((${#DEVICES[@]} - 1)) ]; then
         TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}"
@@ -808,16 +808,16 @@ patch_prometheus_configmap() {
   TARGETS_ARRAY="${TARGETS_ARRAY}]"
 
   echo "📡 Device targets: $TARGETS_ARRAY"
-  
+
   # Replace placeholder with targets array
   sed "s|__DEVICE_TARGETS__|${TARGETS_ARRAY}|g" "$CM_SOURCE" > "$CM_TARGET"
 
   echo "📄 Applying ConfigMap with force replace..."
-  
-  # Method 1: Force replace (recommended) 
+
+  # Method 1: Force replace (recommended)
   sudo kubectl replace -f "$CM_TARGET" --force --namespace "$NAMESPACE_OBSERVABILITY" || {
     echo "⚠️ Force replace failed, trying server-side apply..."
-    # Method 2: Server-side apply (handles conflicts better) 
+    # Method 2: Server-side apply (handles conflicts better)
     sudo kubectl apply -f "$CM_TARGET" --server-side --force-conflicts --namespace "$NAMESPACE_OBSERVABILITY" || {
       echo "⚠️ Server-side apply failed, trying delete and recreate..."
       # Method 3: Delete and recreate as last resort
@@ -881,7 +881,7 @@ EOF
   helm install $LOKI_RELEASE grafana/loki --version 6.46.0 -f loki-values.yaml --namespace $NAMESPACE_OBSERVABILITY
 
   echo "🔧 Patching Loki service to expose via NodePort 32100..."
- sudo kubectl patch svc loki -n $NAMESPACE_OBSERVABILITY \
+  sudo kubectl patch svc loki -n $NAMESPACE_OBSERVABILITY \
     --type='json' \
     -p='[
       {
@@ -952,16 +952,16 @@ observability_stack_uninstall(){
         fi
     done
 
-    
+
     # Wait for pods to be completely terminated
     echo "Waiting for pods to be terminated..."
-    
+
     # Wait for specific pods to be deleted
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=jaeger --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=grafana --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=loki --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=prometheus --timeout=300s || true
-    
+
     rm -f prometheus-values.yaml loki-values.yaml collector-scrape-cm-change.yaml
     echo "Observability stack uninstall completed"
 }
@@ -974,11 +974,11 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
-  registry_password="${REGISTRY_PASS:-Harbor12345}"													
+  registry_password="${REGISTRY_PASS:-Harbor12345}"
   echo "Using registry mirror: $registry_url"
   echo "Using registry credentials: $registry_user / ******"
   # ---------------------------------------------------
-											
+
   # Create k3s directory if needed
   # ---------------------------------------------------
   sudo mkdir -p /var/lib/rancher/k3s
@@ -1013,8 +1013,8 @@ EOF
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
 
   echo "✅ Created k3s registry mirror configuration"
- # ---------------------------------------------------				
- 							
+  # ---------------------------------------------------
+
   echo "Restarting k3s..."
   if sudo systemctl restart k3s; then
     echo "✅ k3s restarted successfully"
@@ -1029,13 +1029,13 @@ EOF
     if sudo systemctl is-active --quiet k3s; then
       echo "✅ k3s is running"
       break
-		  
-										 
-			   
+
+
+
     fi
-										 
+
     sleep 2
-		
+
   done
 
   echo "Checking cluster..."
@@ -1043,10 +1043,10 @@ EOF
     echo "✅ k3s cluster is responding"
   else
     echo "⚠️ k3s cluster not ready yet"
-	  
-	  
-									
-			
+
+
+
+
   fi
 
   echo "✅ Registry mirror configuration completed."
@@ -1058,39 +1058,39 @@ EOF
 # ----------------------------
 uninstall_prerequisites() {
   echo "Running complete uninstallation in reverse chronological order..."
-   
+
   # Step 1: Remove Symphony binaries and builds
   cleanup_symphony_builds
-    
+
   # Step 2: Remove cloned repositories
   remove_cloned_repositories
-  
+
   # Step 3: Uninstall Rust
   uninstall_rust
-  
+
   # Step 4: Uninstall Docker and Docker Compose
   uninstall_docker_compose
-  
+
   # Step 5: Uninstall Go
   uninstall_go
 
   # Step 6: Stop harbor service
   stop_harbor_service
-  
+
   # Step 7: Remove basic utilities and cleanup
   cleanup_basic_utilities
- 
+
   echo "Complete uninstallation finished"
 }
 
 
 cleanup_symphony_builds() {
   echo "1. Cleaning up Symphony builds..."
-  
+
   # Remove built binaries
   [ -f "$HOME/symphony/api/symphony-api" ] && rm -f "$HOME/symphony/api/symphony-api" && echo "✅ Removed symphony-api binary"
   [ -f "$HOME/symphony/cli/maestro" ] && rm -f "$HOME/symphony/cli/maestro" && echo "✅ Removed maestro CLI binary"
-  
+
   # Clean Rust build artifacts
   RUST_DIR="$HOME/symphony/api/pkg/apis/v1alpha1/providers/target/rust"
   if [ -d "$RUST_DIR/target" ]; then
@@ -1099,7 +1099,7 @@ cleanup_symphony_builds() {
 
   # remove the generated server cerificates as well
   rm -rf $CERT_DIR
-  
+
   # Clean Go build cache
   if command -v go >/dev/null 2>&1; then
     go clean -cache -modcache 2>/dev/null && echo "✅ Cleaned Go build cache"
@@ -1109,17 +1109,17 @@ cleanup_symphony_builds() {
 
 remove_cloned_repositories() {
   echo "2. Removing cloned repositories..."
-  
+
   # Remove sandbox
   [ -d "$HOME/sandbox" ] && sudo rm -rf "$HOME/sandbox" && echo "✅ Removed sandbox repository"
-  
+
   # Remove symphony repo
   [ -d "$HOME/symphony" ] && sudo rm -rf "$HOME/symphony" && echo "✅ Removed symphony repository"
 }
 
 uninstall_rust() {
   echo "3. Uninstalling Rust..."
-  
+
   if [ -d "$HOME/.cargo" ]; then
     # Remove Rust installation
     if command -v rustup >/dev/null 2>&1; then
@@ -1127,7 +1127,7 @@ uninstall_rust() {
     else
       rm -rf "$HOME/.cargo" "$HOME/.rustup" && echo "✅ Removed Rust directories manually"
     fi
-    
+
     # Remove from PATH in shell profiles
     sed -i '/\.cargo\/env/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
     echo "✅ Removed Rust from shell profiles"
@@ -1138,38 +1138,38 @@ uninstall_rust() {
 
 uninstall_docker_compose() {
   echo "4. Uninstalling Docker and Docker Compose..."
-  
+
   # Stop Docker daemon
   systemctl stop docker 2>/dev/null && echo "✅ Stopped Docker daemon"
   systemctl disable docker 2>/dev/null && echo "✅ Disabled Docker daemon"
-  
+
   # Remove Docker Compose
   [ -f "/usr/local/bin/docker-compose" ] && rm -f "/usr/local/bin/docker-compose" && echo "✅ Removed Docker Compose"
-  
+
   # Remove Docker (optional - uncomment if you want complete removal)
   # apt-get remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   # rm -rf /var/lib/docker /etc/docker
   # groupdel docker 2>/dev/null
   # echo "✅ Completely removed Docker"
-  
+
   echo "⚠️ Docker engine left installed (remove manually if needed)"
 }
 
 uninstall_go() {
   echo "5. Uninstalling Go..."
-  
+
   # Remove Go installation
   [ -d "/usr/local/go" ] && rm -rf "/usr/local/go" && echo "✅ Removed Go from /usr/local/go"
-  
+
   # Remove Go from PATH in shell profiles
   sed -i '/\/usr\/local\/go\/bin/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
-  
+
   # Remove GOPATH and other Go environment variables
   sed -i '/GOPATH\|GOROOT\|GOPRIVATE/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
-  
+
   # Clear Go environment for current session
   unset GOPATH GOROOT GOPRIVATE
-  
+
   echo "✅ Removed Go installation and environment variables"
 }
 
@@ -1192,16 +1192,16 @@ stop_harbor_service() {
 
 cleanup_basic_utilities() {
   echo "7. Final cleanup of basic utilities..."
-  
+
   # Remove temporary files
   rm -f /tmp/go.tar.gz /tmp/resp.json /tmp/headers.txt get-docker.sh 2>/dev/null && echo "✅ Removed temporary files"
-  
+
   # Clear exported variables
   unset EXPOSED_HARBOR_IP EXPOSED_HARBOR_PORT EXPOSED_SYMPHONY_IP EXPOSED_SYMPHONY_PORT
-  
+
   # Note: Not removing curl as it might be needed by system
   echo "⚠️ Basic utilities (curl) left installed as they may be system dependencies"
-  
+
   echo "✅ Environment cleanup completed"
   echo ""
   echo "🔄 Please restart your shell or run 'source ~/.bashrc' to apply PATH changes"
@@ -1215,97 +1215,97 @@ build_custom_otel_container_images() {
   docker build . -t "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
   echo "Ensuring Harbor registry login..."
   docker login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" -u admin -p Harbor12345
-  
+
   # Docker push them to the harbor registry
   echo "Pushing otel images to Harbor..."
   docker push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
-  
+
   OTEL_APP_CONTAINER_URL="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app"
   deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/helm/values.yaml"
   tag="latest"
-  
+
   echo "Preparing Helm chart..."
   cd "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code"
-  
-  # Read existing chart version 
+
+  # Read existing chart version
   CHART_FILE="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/helm/Chart.yaml"
   CHART_VERSION=$(grep "^version:" "$CHART_FILE" | awk '{print $2}')
-  
+
   echo "Using existing chart version: $CHART_VERSION"
-  
+
   # Replace placeholders in values.yaml
   echo "Replacing placeholders in values.yaml..."
   sed -i "s|{{REPOSITORY}}|$OTEL_APP_CONTAINER_URL|g" "$deploy_file" 2>/dev/null || true
   sed -i "s|{{TAG}}|$tag|g" "$deploy_file" 2>/dev/null || true
-  
+
   # Package and push chart with existing version
   echo "Packaging Helm chart version $CHART_VERSION..."
   helm package helm/
-  
+
   echo "Pushing chart to Harbor..."
   helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library" --plain-http
-  
+
   # Update margo.yaml in package directory with placeholders
   HELM_REPOSITORY="oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
   HELM_REVISION="$CHART_VERSION"
   helm_deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package/margo.yaml"
 
   echo "Updating margo.yaml with chart version $CHART_VERSION..."
-  
+
   # Only replace placeholders if they exist, don't modify existing values
   sed -i "s|{{HELM_REPOSITORY}}|$HELM_REPOSITORY|g" "$helm_deploy_file" 2>/dev/null || true
   sed -i "s|{{HELM_REVISION}}|$HELM_REVISION|g" "$helm_deploy_file" 2>/dev/null || true
-  
+
   echo "✅ Custom otel chart version $CHART_VERSION successfully pushed to Harbor"
   echo "📦 Chart: oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
   echo "🔄 Updated margo.yaml to reference version $CHART_VERSION"
-  
+
 }
 
 
 # Alternative simpler version without jq dependency
 add_insecure_registry_to_daemon() {
   echo "Configuring Docker daemon with insecure registry..."
-  
+
   local registry_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
   local daemon_config="/etc/docker/daemon.json"
-  
+
   # Stop Docker if running
   sudo systemctl stop docker docker.socket 2>/dev/null || true
-  
+
   # Create Docker directory
   sudo mkdir -p /etc/docker
-  
+
   # Backup existing config
   if [ -f "$daemon_config" ]; then
     sudo cp "$daemon_config" "$daemon_config.backup.$(date +%s)"
     echo "✅ Backed up existing daemon.json"
   fi
-  
+
   # Create daemon.json
   sudo tee "$daemon_config" > /dev/null <<EOF
 {
   "insecure-registries": ["$registry_url"]
 }
 EOF
-  
+
   echo "✅ Configured insecure registry: $registry_url"
-				 
-					  
-  
+
+
+
   # Validate JSON
   if ! jq . "$daemon_config" >/dev/null 2>&1; then
     echo "❌ Invalid JSON in daemon.json"
     sudo mv "$daemon_config.backup."* "$daemon_config" 2>/dev/null || true
     return 1
   fi
-  
+
   # Start Docker
   echo "Starting Docker daemon..."
   sudo systemctl daemon-reload
   sudo systemctl start docker
   sudo systemctl enable docker
-  
+
   # Wait for Docker
   for i in {1..30}; do
     if sudo systemctl is-active --quiet docker; then
@@ -1316,7 +1316,7 @@ EOF
     echo "Waiting for Docker... ($i/30)"
     sleep 2
   done
-  
+
   echo "❌ Docker failed to start"
   sudo journalctl -xeu docker.service --no-pager | tail -20
   return 1
@@ -1329,16 +1329,16 @@ EOF
 check_k3s_installed() {
   if command -v k3s >/dev/null 2>&1; then
     echo 'k3s already installed.'
-    
+
     # Check current version
     CURRENT_K3S_VERSION=$(k3s --version | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+\+k3s[0-9]+' | head -1)
     echo "Current k3s version: $CURRENT_K3S_VERSION"
-    
+
     if [ "$CURRENT_K3S_VERSION" != "$K3S_VERSION" ]; then
       echo "⚠️  Expected k3s version: $K3S_VERSION"
       echo "ℹ️  To upgrade/downgrade, uninstall current k3s and run installation again"
     fi
-    
+
     return 0
   else
     return 1
@@ -1358,10 +1358,10 @@ install_k3s() {
     echo "⚡️ k3s ${K3S_VERSION} already installed, skipping installation"
   else
     install_k3s_dependencies
-    
+
     # Install specific k3s version
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${K3S_VERSION}" sh -
-    
+
     echo "✅ k3s ${K3S_VERSION} installed"
   fi
 }
@@ -1386,7 +1386,7 @@ setup_k3s() {
   install_k3s
   verify_k3s_status
   setup_kubeconfig
-  
+
   echo "✅ k3s ${K3S_VERSION} setup complete"
 }
 
@@ -1403,7 +1403,7 @@ install_prerequisites() {
   add_insecure_registry_to_daemon
   setup_k3s
   install_redis
-  install_oras  
+  install_oras
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
@@ -1414,7 +1414,7 @@ install_prerequisites() {
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry(i.e. harbor)..."
   push_nextcloud_to_oci
   push_custom_otel_to_oci
-  
+
   echo "✅ Setup completed - TestBed Application packages now in OCI Registry!"
   echo "-----------------------------------------------------------------------"
   echo ""
@@ -1430,8 +1430,8 @@ start_symphony() {
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
-  
-  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+
+  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
     git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
     echo "Using GitHub credentials for user: $GITHUB_USER"
   fi
@@ -1439,7 +1439,7 @@ start_symphony() {
   go env -w GOPRIVATE="github.com/margo/*";
 
   # Build phase
-  build_maestro_cli   
+  build_maestro_cli
   # verify_symphony_api
   enable_tls_in_symphony_api
   start_symphony_api_container
@@ -1447,10 +1447,10 @@ start_symphony() {
 
 create_symphony_api_systemd_service() {
   echo "🔧 Creating systemd service for Symphony API auto-start..."
-  
+
   # Get the actual symphony api directory path
   local symphony_dir="$HOME/symphony/api"
-  
+
   # Create systemd service file with absolute path
   sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
 [Unit]
@@ -1486,7 +1486,7 @@ EOF
   # Reload systemd and enable the service
   sudo systemctl daemon-reload
   sudo systemctl enable symphony-api.service
-  
+
   echo "✅ Symphony API systemd service created and enabled"
   echo "📋 Service will start Symphony API automatically on boot"
   echo "📁 Working directory: ${symphony_dir}"
@@ -1495,20 +1495,20 @@ EOF
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-	  echo "Building Symphony API container..."
+    echo "Building Symphony API container..."
 
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
     docker stop symphony-api-container 2>/dev/null || true
     docker rm symphony-api-container 2>/dev/null || true
-	  pkill -f "symphony-api" 2>/dev/null || true										   
-    
+    pkill -f "symphony-api" 2>/dev/null || true
+
     # Check if image already exists
     if docker image inspect margo-symphony-api:latest >/dev/null 2>&1; then
         echo "✅ Image margo-symphony-api:latest already exists, skipping build"
     else
         echo "🔨 Building Symphony API container..."
-        
+
         if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
           # Create credential files
           echo "$GITHUB_USER" > github_username.txt
@@ -1528,14 +1528,14 @@ start_symphony_api_container(){
             -t margo-symphony-api:latest \
             .. -f Dockerfile
         fi
-        
+
         if [ $? -ne 0 ]; then
             echo "❌ Failed to build Symphony API container"
             return 1
         fi
         echo "✅ Symphony API container built successfully with tag: margo-symphony-api:latest"
     fi
-    
+
     # Run the container
     echo "🚀 Starting Symphony API container..."
 
@@ -1547,7 +1547,7 @@ start_symphony_api_container(){
         -v "$HOME/symphony/api":/configs \
         -e CONFIG=symphony-api-margo.json \
         margo-symphony-api:latest
-        
+
     if [ $? -eq 0 ]; then
         echo "✅ Symphony API container started successfully"
         echo "📡 Container is running on port 8082"
@@ -1564,24 +1564,24 @@ start_symphony_api_container(){
 
 stop_symphony() {
   echo "Stopping and removing Symphony API container..."
-  
+
   # Stop the container if running
   if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
     docker stop symphony-api-container && echo '✅ Symphony API container stopped'
   fi
-  
+
   # Remove the container if it exists
   if docker ps -a --format '{{.Names}}' | grep -q "symphony-api-container"; then
     docker rm symphony-api-container && echo '✅ Symphony API container removed'
   else
     echo 'ℹ️ Symphony API container not found'
   fi
-  
+
   # Prompt user to delete Redis data
   echo ""
   echo "⚠️  Warning: Deleting Redis data will require device re-onboarding"
   read -p "Do you want to delete Redis data? (y/n): " delete_redis
-  
+
   if [[ "$delete_redis" =~ ^[Yy]$ ]]; then
     echo "Flushing Redis data..."
     if redis-cli flushall; then
@@ -1607,7 +1607,7 @@ collect_certs_info() {
     DAYS="365"
     SAN_DOMAINS="${EXPOSED_SYMPHONY_IP:-localhost}"
     SAN_IPS="${EXPOSED_SYMPHONY_IP:-localhost}"
-       
+
     echo "Using certificate defaults with CN: $CN"
 }
 
@@ -1616,7 +1616,7 @@ collect_certs_info() {
 generate_config_for_certs() {
     local config_file="$1"
     local cert_type="$2"
-    
+
     # Create base config
     cat > "$config_file" << EOF
 [req]
@@ -1679,13 +1679,13 @@ generate_ca() {
     local ca_key="$CERT_DIR/ca-key.pem"
     local ca_cert="$CERT_DIR/ca-cert.pem"
     local ca_config="$CERT_DIR/ca.conf"
-    
+
     generate_config_for_certs "$ca_config" "ca"
-    
+
     openssl genrsa -out "$ca_key" 2048
     openssl req -new -x509 -key "$ca_key" -out "$ca_cert" -days "$DAYS" -config "$ca_config"
     chmod 600 "$ca_key"
-    
+
     success "CA generated: $ca_cert"
 }
 
@@ -1696,7 +1696,7 @@ generate_server_certs() {
         echo "Error: Failed to create directory $CERT_DIR"
         return 1
     fi
-    
+
     if [[ ! -w "$CERT_DIR" ]]; then
         echo "Error: Cannot write to $CERT_DIR"
         return 1
@@ -1707,10 +1707,10 @@ generate_server_certs() {
     local server_config="$CERT_DIR/server.conf"
     generate_ca
     generate_config_for_certs "$server_config" "server"
-    
+
     openssl genrsa -out "$server_key" 2048
     openssl req -new -key "$server_key" -out "$server_csr" -config "$server_config"
-    
+
     if [[ -f "$CERT_DIR/ca-cert.pem" ]]; then
         openssl x509 -req -in "$server_csr" -CA "$CERT_DIR/ca-cert.pem" -CAkey "$CERT_DIR/ca-key.pem" \
             -CAcreateserial -out "$server_cert" -days "$DAYS" -extensions v3_req -extfile "$server_config"
@@ -1720,7 +1720,7 @@ generate_server_certs() {
             -extensions v3_req -extfile "$server_config"
         success "Self-signed server certificate: $server_cert"
     fi
-    
+
     rm -f "$server_csr"
     chmod 600 "$server_key"
 }
@@ -1743,7 +1743,7 @@ install_vim() {
 
 install_and_enable_ssh() {
   echo "[INFO] Checking OS type..."
-  
+
   # Detect package manager
   if command -v apt >/dev/null 2>&1; then
     OS="debian"
@@ -1790,7 +1790,7 @@ install_and_enable_ssh() {
   echo "[SUCCESS] SSH service installed and running."
 }
 
-# Update the show_menu function to include uninstall option														   
+# Update the show_menu function to include uninstall option
 show_menu() {
   clear
   load_wfm_env || true
@@ -1813,7 +1813,7 @@ show_menu() {
     7) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
-  
+
   pause
 }
 

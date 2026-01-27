@@ -43,7 +43,7 @@ docker push 172.19.59.148:8081/library/nginx:1.25.0
 
 ```bash
 # To push Helm Chart (. is the current directory where all helmcharts are present navigate to the directory and run below commands)
-helm package . 
+helm package .
 helm push nginx-helm-1.0.0.tgz oci://172.19.59.148:8081/library --plain-http
 ```
 
@@ -62,5 +62,5 @@ oras push 172.19.59.148:8081/library/nginx-helm-app-package:latest \
   resources/description.md:text/markdown \
   resources/license.md:text/markdown \
   resources/margo.jpg:image/jpeg \
-  resources/release-notes.md:text/markdown  
+  resources/release-notes.md:text/markdown
 ```

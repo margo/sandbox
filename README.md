@@ -19,11 +19,11 @@
 ---
 
 ### Introduction
-Welcome to the Margo project's Code-first Sandbox! 
-The [Margo](https://margo.org/) initiative defines mechanisms for interoperable fleet management of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit. Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes. 
+Welcome to the Margo project's Code-first Sandbox!
+The [Margo](https://margo.org/) initiative defines mechanisms for interoperable fleet management of edge applications/workloads and devices. It will deliver on the interoperability promise through an open standard, a reference implementation, and a comprehensive compliance testing toolkit. Margo unlocks barriers to innovation in complex multi-vendor environments and accelerates digital transformation for organizations of all sizes.
 
-This project provides an open-source, sandbox implementation of the Margo specified interfaces and workflows. The objective is to allow interested users to experiment with the interfaces and APIs and provide feedback to improve the Margo specifications. This project is by no means intended for "commercial adoption". The [Specification Enhancements](https://github.com/margo/specification-enhancements?tab=readme-ov-file) process relies on the Code-first sandbox to enable fully specified contributions to the specification. 
- 
+This project provides an open-source, sandbox implementation of the Margo specified interfaces and workflows. The objective is to allow interested users to experiment with the interfaces and APIs and provide feedback to improve the Margo specifications. This project is by no means intended for "commercial adoption". The [Specification Enhancements](https://github.com/margo/specification-enhancements?tab=readme-ov-file) process relies on the Code-first sandbox to enable fully specified contributions to the specification.
+
 Before you get started, please spend some time to understand the [Structure of the Repository](#structure-of-the-repository) first.
 
 The project follows a Release schedule tied with the Margo specification releases. Please look at the [Release Notes](#release-notes) sections for specific release specific content.
@@ -32,14 +32,14 @@ If you want to read more on the design aspects and understand how various compon
 However, if you want to try out things first read the section [Quick Start Guide](#quick-start-guide) below to get your Sandbox Environment setup quickly.
 
 ### Sandbox Feedback / Issue reporting
-We welcome your thoughts and feedback towards the Code First Sandbox! 
+We welcome your thoughts and feedback towards the Code First Sandbox!
 
-Please navigate to the [Issues](https://github.com/margo/sandbox/issues) tab of the repository and create a new Issue using the `Feedback` template. 
+Please navigate to the [Issues](https://github.com/margo/sandbox/issues) tab of the repository and create a new Issue using the `Feedback` template.
 
 ---
 
 ### Quick Start Guide
-This section allows you to set up the 'Sandbox' environment for experimenting with the Margo specifications and APIs. This includes instructions on the prerequisites for your setup, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the WFM and the Workload Fleet Management Client using a simple CLI. 
+This section allows you to set up the 'Sandbox' environment for experimenting with the Margo specifications and APIs. This includes instructions on the prerequisites for your setup, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the WFM and the Workload Fleet Management Client using a simple CLI.
 
 Here is [Setup Guide](./docs/setup-guide.md) to get you started quickly.
 
@@ -102,7 +102,7 @@ Other Margo definitions are available in [Margo Technical Lexicon](https://speci
 This Code First Sandbox replicates the Margo system design using a set of open-source components, as well as an implementation of the 'standard' and 'non-standard' or enabling components.
 You can see a view of the Margo system design, with an overlay of the components available in the Code First Sandbox in [this diagram of the distributed system design](./docs/overlay-architecture.png).
 
-This includes the following elements - 
+This includes the following elements -
 
 #### Symphony WFM
 - This Code First Sandbox uses [Eclipse Symphony](https://github.com/margo/symphony) as Workload Fleet Manager.
@@ -111,7 +111,7 @@ This includes the following elements -
 #### Repositories and Registry
 - Harbor provide application registry and images/helm-charts repository functionalities.
 - Application supplier's packages , images/helm-charts are stored in Harbor.
- and docker images/helm artifacts related to these applications are stored in Harbor registry.
+  and docker images/helm artifacts related to these applications are stored in Harbor registry.
 - Application packages are pulled/pushed/deleted from Harbor repository.
 - WFM stores application packages in its database and are used during LCM (Life Cycle Management) operation.
 - The Workload Fleet Management Client pulls docker images/helm artifacts from Harbor whenever workloads are getting deployed corresponding to the application packages during instance deployment.

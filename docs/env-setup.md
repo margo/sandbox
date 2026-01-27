@@ -4,7 +4,7 @@
 
 Before running any script, make sure to update the environment variable files according to your system setup.
 The environment files are located here **(wfm.env and device-agent.env)**:
-[Environment vairable(.env) files](../pipeline/)  
+[Environment vairable(.env) files](../pipeline/)
 
 **For wfm.sh and wfm-cli.sh script**
 

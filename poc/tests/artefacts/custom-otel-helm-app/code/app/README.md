@@ -1,6 +1,6 @@
 docker-compose down --volumes
 docker-compose up --build
-or 
+or
 docker-compose up -d --build
 
 

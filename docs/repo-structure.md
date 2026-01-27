@@ -34,7 +34,7 @@ Experimental implementations and prototypes for Margo.
 
 #### Subdirectories:
 - `poc/device/agent` -- The device's Workload Fleet Management Client codebase
-- `poc/wfm/cli` -- The client wrapper that can be used to talk to Margo compliant APIs on wfm 
+- `poc/wfm/cli` -- The client wrapper that can be used to talk to Margo compliant APIs on wfm
 - `poc/tests` -- Test artefacts like Margo Application Descriptions etc.
 
 ## Quick Start
@@ -101,7 +101,7 @@ Reusable Go libraries providing common functionality across MARGO components.
 - **Archive** (`archive/`) - Unpacking or packing archives(tar.gz) etc..
 - **Pointer operations** (`pointers/`) - Some helper functions to deep clone, safely get pointer to temp variables etc...
 
-### 🛠️ Development Tools (`pipeline/`) 
+### 🛠️ Development Tools (`pipeline/`)
 Scripts and utilities for development, testing, and deployment automation.
 
 **Tools:**
@@ -113,7 +113,7 @@ Scripts and utilities for development, testing, and deployment automation.
 Official MARGO API specifications, and auto-generated code.
 
 **Contents:**
-- Standard data models and schemas derived from the Official MARGO spec literature 
+- Standard data models and schemas derived from the Official MARGO spec literature
 - Generated API clients and server stubs
 - Protocol definitions and interfaces
 

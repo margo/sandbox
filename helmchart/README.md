@@ -7,9 +7,9 @@ cd sandbox
 docker build -f poc/device/agent/Dockerfile . -t margo.org/workload-fleet-management-client:latest
 docker save -o workload-fleet-management-client.tar margo.org/workload-fleet-management-client:latest
 # use this command if on k8s cluster
-ctr -n k8s.io image import workload-fleet-management-client.tar 
+ctr -n k8s.io image import workload-fleet-management-client.tar
 # use this command if on k3s cluster
-k3s ctr -n k8s.io image import workload-fleet-management-client.tar 
+k3s ctr -n k8s.io image import workload-fleet-management-client.tar
 cd helmchart
 
 ```
@@ -24,7 +24,7 @@ cp -r ../poc/device/agent/config/* .
 
 3. Install the chart in default namespace:
 ```bash
-helm install workload-fleet-management-client 
+helm install workload-fleet-management-client
 ```
 
 4. Authentication Method:

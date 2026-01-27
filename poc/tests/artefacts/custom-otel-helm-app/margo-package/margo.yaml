@@ -24,7 +24,7 @@ deploymentProfiles:
     components:
       - name: otel-app
         properties:
-          repository: {{HELM_REPOSITORY}}  # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
+          repository: {{HELM_REPOSITORY}}  # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-helm-app
           revision: {{HELM_REVISION}}  # e.g., 0.1.0
           wait: true
           timeout: 5m

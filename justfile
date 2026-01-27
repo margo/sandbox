@@ -11,3 +11,7 @@ _ensure-devcontainer:
 go-format-fix:
 	@just _ensure-devcontainer
 	@devcontainer exec --workspace-folder . go fmt ./...
+
+go-vet:
+	@just _ensure-devcontainer
+	@devcontainer exec --workspace-folder . go vet ./...

@@ -592,42 +592,37 @@ stop_device_agent_service_docker() {
   fi
 }
 
-
 build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Building and deploying workload-fleet-management-client on Kubernetes..."
-
-    # Step 1: Build the Docker image if it doesn't exist
-    echo "Checking if workload-fleet-management-client image exists..."
-    if ! docker images | grep -q "margo.org/workload-fleet-management-client"; then
-      echo "Building workload-fleet-management-client Docker image..."
-      docker build -f poc/device/agent/Dockerfile . -t margo.org/workload-fleet-management-client:latest
-      if [ $? -ne 0 ]; then
-        echo "❌ Failed to build workload-fleet-management-client image"
-        return 1
-      fi
-      echo "✅ workload-fleet-management-client image built successfully"
+    
+    # Step 1: Pull image from GHCR (no local build)
+    echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
+    if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
+        echo "Image exists in GHCR"
     else
-      echo "✅ workload-fleet-management-client image already exists"
+        echo "❌ Image does NOT exist in GHCR: ${workload_Fleet_Management_Client_IMAGE_REF}"																 
+        return 1															  
     fi
 
-    # Step 2: Save and import image to k3s
-    echo "Importing image to k3s cluster..."
-    docker save -o workload-fleet-management-client.tar margo.org/workload-fleet-management-client:latest
+    echo "⬇️ Pulling image from GHCR..."
+    docker pull "${workload_Fleet_Management_Client_IMAGE_REF}"
+    echo "✅ Image pulled: ${workload_Fleet_Management_Client_IMAGE_REF}"
 
+    # Step 2: Import into k3s container runtime
+    echo "Saving and importing GHCR image into k3s..."
+    docker save -o workload-fleet-management-client.tar "${workload_Fleet_Management_Client_IMAGE_REF}"
 
     if command -v k3s >/dev/null 2>&1; then
-      k3s ctr -n k8s.io image import workload-fleet-management-client.tar
-      echo "✅ Image imported to k3s cluster"
+        k3s ctr -n k8s.io image import workload-fleet-management-client.tar
+        echo "✅ Image imported into k3s cluster"
     elif command -v ctr >/dev/null 2>&1; then
-      ctr -n k8s.io image import workload-fleet-management-client.tar
-      echo "✅ Image imported to k3s cluster"
+        ctr -n k8s.io image import workload-fleet-management-client.tar
+        echo "✅ Image imported into CTR runtime"
     else
-      echo "❌ Neither k3s nor ctr command found"
-      return 1
+        echo "❌ Neither k3s nor ctr command found"
+        return 1
     fi
-
-
     rm -f workload-fleet-management-client.tar
 
     # Step 3: Navigate to helmchart directory
@@ -650,15 +645,12 @@ build_start_device_agent_k3s_service() {
       echo "❌ Failed to copy configuration files"
       return 1
     fi
-
     enable_kubernetes_runtime
 
     # Step 5: Create secrets
     if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
         echo "Creating TLS secrets..."
-
         kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
-
         kubectl create secret generic workload-fleet-management-client-certs \
             --from-file=device-private.key="$HOME/certs/device-private.key" \
             --from-file=device-public.crt="$HOME/certs/device-public.crt" \
@@ -677,21 +669,17 @@ build_start_device_agent_k3s_service() {
         echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
         return 1
     fi
-
-
-
     # Step 6: Clean up old resources
     echo "Cleaning up any existing resources..."
     kubectl delete clusterrole workload-fleet-management-client-role 2>/dev/null || true
     kubectl delete clusterrolebinding workload-fleet-management-client-binding 2>/dev/null || true
 
     helm uninstall workload-fleet-management-client -n default 2>/dev/null || true
-
-
     sleep 5
 
     # Step 7: Install with Helm
     echo "Installing workload-fleet-management-client with persistent storage..."
+    
     helm install workload-fleet-management-client . \
         --set serviceAccount.create=true \
         --set secrets.create=false \
@@ -702,44 +690,35 @@ build_start_device_agent_k3s_service() {
         --wait
 
     if [ $? -ne 0 ]; then
-
-
         echo "❌ Helm installation failed"
         return 1
     fi
-
     echo "✅ Helm installation successful with persistent storage"
-
-    # Step 8: Verify deployment (NO PATCHING NEEDED!)
+    # Step 8: Verify deployment
     echo "🔍 Verifying deployment..."
-
-    # Verify RBAC permissions
+							 
     if kubectl auth can-i create secrets --as=system:serviceaccount:default:workload-fleet-management-client-sa -n default | grep -q "yes"; then
       echo "✅ RBAC permissions verified"
     else
       echo "⚠️ RBAC permissions may need manual verification"
     fi
 
-    # Verify PVC (FIXED NAME)
-
     if kubectl get pvc -n default | grep -q "workload-fleet-management-client-data"; then
-      echo "✅ Persistent volume claim created successfully"
+      echo "✅ PVC created successfully"
       kubectl get pvc -n default | grep workload-fleet-management-client
     else
-      echo "⚠️ PVC not found, checking for errors..."
+      echo "⚠️ PVC not found"
       kubectl get events -n default --sort-by='.lastTimestamp' | tail -10
     fi
-
-    echo "✅ Device-workload-fleet-management-client deployed successfully"
-
+    echo "✅ Device-workload-fleet-management-client deployed successfully"		  
     # Show deployment status
     echo ""
     echo "Deployment Summary:"
     kubectl get pods -n default | grep workload-fleet-management-client
     kubectl get serviceaccount -n default | grep workload-fleet-management-client
     kubectl get pvc -n default | grep workload-fleet-management-client
-
 }
+																	  
 
 stop_device_agent_kubernetes() {
   echo "Stopping workload-fleet-management-client..."

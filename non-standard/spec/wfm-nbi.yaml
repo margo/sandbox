@@ -423,14 +423,14 @@ components:
           description: API version
           type: string
           # x-go-field-tags: 'json:"apiVersion" yaml:"apiVersion"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "apiVersion"
             yaml: "apiVersion"
         configuration:
           $ref: '#/components/schemas/AppConfigurationSchema'
           description: Configuration schema and UI definitions
           # x-go-field-tags: 'json:"configuration" yaml:"configuration"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "configuration"
             yaml: "configuration"
         deploymentProfiles:
@@ -439,7 +439,7 @@ components:
             $ref: '#/components/schemas/AppDeploymentProfile'
           type: array
           # x-go-field-tags: 'json:"deploymentProfiles" yaml:"deploymentProfiles"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "deploymentProfiles"
             yaml: "deploymentProfiles"
         kind:
@@ -447,21 +447,21 @@ components:
           description: Resource kind
           type: string
           # x-go-field-tags: 'json:"kind" yaml:"kind"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "kind"
             yaml: "kind"
         metadata:
           $ref: '#/components/schemas/AppDescriptionMetadata'
           description: Application metadata including catalog information
           # x-go-field-tags: 'json:"metadata" yaml:"metadata"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "metadata"
             yaml: "metadata"
         parameters:
           $ref: '#/components/schemas/AppDescriptionParametersMap'
           description: Configurable parameters for the application
           # x-go-field-tags: 'json:"parameters" yaml:"parameters"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "parameters"
             yaml: "parameters"
       required:
@@ -470,7 +470,7 @@ components:
       - metadata
       - deploymentProfiles
       type: object
-    
+
     AppDescriptionCatalogInfo:
       type: object
       properties:
@@ -480,28 +480,28 @@ components:
               description: Path to detailed description file
               type: string
               # x-go-field-tags: 'json:"descriptionFile" yaml:"descriptionFile"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "descriptionFile"
                 yaml: "descriptionFile"
             icon:
               description: Path to application icon
               type: string
               # x-go-field-tags: 'json:"icon" yaml:"icon"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "icon"
                 yaml: "icon"
             licenseFile:
               description: Path to license file
               type: string
               # x-go-field-tags: 'json:"licenseFile" yaml:"licenseFile"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "licenseFile"
                 yaml: "licenseFile"
             releaseNotes:
               description: Path to release notes file
               type: string
               # x-go-field-tags: 'json:"releaseNotes" yaml:"releaseNotes"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "releaseNotes"
                 yaml: "releaseNotes"
             site:
@@ -509,14 +509,14 @@ components:
               format: uri
               type: string
               # x-go-field-tags: 'json:"site" yaml:"site"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "site"
                 yaml: "site"
             tagline:
               description: Short tagline for the application
               type: string
               # x-go-field-tags: 'json:"tagline" yaml:"tagline"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "tagline"
                 yaml: "tagline"
             tags:
@@ -525,17 +525,17 @@ components:
                 type: string
               type: array
               # x-go-field-tags: 'json:"tags" yaml:"tags"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "tags"
                 yaml: "tags"
           type: object
           # x-go-field-tags: 'json:"application" yaml:"application"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "application"
             yaml: "application"
         author:
           # x-go-field-tags: 'json:"author" yaml:"author"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "author"
             yaml: "author"
           items:
@@ -545,21 +545,21 @@ components:
                 format: email
                 type: string
                 # x-go-field-tags: 'json:"email" yaml:"email"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "email"
                   yaml: "email"
               name:
                 description: Author name
                 type: string
                 # x-go-field-tags: 'json:"name" yaml:"name"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "name"
                   yaml: "name"
             type: object
           type: array
         organization:
           # x-go-field-tags: 'json:"organization" yaml:"organization"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "organization"
             yaml: "organization"
           items:
@@ -568,7 +568,7 @@ components:
                 description: Organization name
                 type: string
                 # x-go-field-tags: 'json:"name" yaml:"name"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "name"
                   yaml: "name"
               site:
@@ -576,12 +576,12 @@ components:
                 format: uri
                 type: string
                 # x-go-field-tags: 'json:"site" yaml:"site"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "site"
                   yaml: "site"
             type: object
           type: array
-  
+
     AppDescriptionMetadata:
       type: object
       properties:
@@ -589,14 +589,14 @@ components:
           $ref: '#/components/schemas/AppDescriptionCatalogInfo'
           description: Catalog information for the application
           # x-go-field-tags: 'json:"catalog" yaml:"catalog"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "catalog"
             yaml: "catalog"
         description:
           type: string
           description: Description of the application
           # x-go-field-tags: 'json:"description" yaml:"description"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "description"
             yaml: "description"
         id:
@@ -604,7 +604,7 @@ components:
           description: Unique identifier for the application
           example: com-northstartida-digitron-orchestrator
           # x-go-field-tags: 'json:"id" yaml:"id"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "id"
             yaml: "id"
         name:
@@ -612,7 +612,7 @@ components:
           description: Human-readable name of the application
           example: Digitron orchestrator
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
         version:
@@ -620,7 +620,7 @@ components:
           description: Version of the application
           example: 1.2.1
           # x-go-field-tags: 'json:"version" yaml:"version"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "version"
             yaml: "version"
       required:
@@ -633,7 +633,7 @@ components:
       properties:
         components:
           # x-go-field-tags: 'json:"components" yaml:"components"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "components"
             yaml: "components"
           description: Components in this deployment profile
@@ -644,7 +644,7 @@ components:
           type: array
         description:
           # x-go-field-tags: 'json:"description" yaml:"description"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "description"
             yaml: "description"
           description: Description of the deployment profile
@@ -654,14 +654,14 @@ components:
         #   type: string
         requiredResources:
           # x-go-field-tags: 'json:"requiredResources" yaml:"requiredResources"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "requiredResources"
             yaml: "requiredResources"
           $ref: '#/components/schemas/RequiredResources'
           description: Required resources for this deployment profile
         type:
           # x-go-field-tags: 'json:"type" yaml:"type"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "type"
             yaml: "type"
           description: Type of deployment profile
@@ -683,7 +683,7 @@ components:
         properties:
           targets:
             # x-go-field-tags: 'json:"targets" yaml:"targets"'
-            x-oapi-codegen-extra-tags: 
+            x-oapi-codegen-extra-tags:
               json: "targets"
               yaml: "targets"
             description: Target locations for this parameter
@@ -692,7 +692,7 @@ components:
             type: array
           value:
             # x-go-field-tags: 'json:"value" yaml:"value"'
-            x-oapi-codegen-extra-tags: 
+            x-oapi-codegen-extra-tags:
               json: "value"
               yaml: "value"
             description: Default value for the parameter
@@ -706,7 +706,7 @@ components:
       properties:
         components:
           # x-go-field-tags: 'json:"components" yaml:"components"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "components"
             yaml: "components"
           description: Components this target applies to
@@ -715,7 +715,7 @@ components:
           type: array
         pointer:
           # x-go-field-tags: 'json:"pointer" yaml:"pointer"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "pointer"
             yaml: "pointer"
           description: JSONPath or configuration path
@@ -730,41 +730,41 @@ components:
       properties:
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Name of the component
           type: string
         properties:
           # x-go-field-tags: 'json:"properties" yaml:"properties"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "properties"
             yaml: "properties"
           properties:
             repository:
               # x-go-field-tags: 'json:"repository" yaml:"repository"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "repository"
                 yaml: "repository"
               description: Repository of the component
               type: string
             revision:
               # x-go-field-tags: 'json:"revision" yaml:"revision"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "revision"
                 yaml: "revision"
               description: Revision of the component
               type: string
             timeout:
               # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "timeout"
                 yaml: "timeout"
               description: Timeout for the component
               type: string
             wait:
               # x-go-field-tags: 'json:"wait" yaml:"wait"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "wait"
                 yaml: "wait"
               description: Wait for the component to be ready
@@ -782,41 +782,41 @@ components:
       properties:
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Name of the component
           type: string
         properties:
           # x-go-field-tags: 'json:"properties" yaml:"properties"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "properties"
             yaml: "properties"
           properties:
             keyLocation:
               # x-go-field-tags: 'json:"keyLocation" yaml:"keyLocation"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "keyLocation"
                 yaml: "keyLocation"
               description: Key location of the component
               type: string
             packageLocation:
               # x-go-field-tags: 'json:"packageLocation" yaml:"packageLocation"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "packageLocation"
                 yaml: "packageLocation"
               description: Package location of the component
               type: string
             timeout:
               # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "timeout"
                 yaml: "timeout"
               description: Timeout for the component
               type: string
             wait:
               # x-go-field-tags: 'json:"wait" yaml:"wait"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "wait"
                 yaml: "wait"
               description: Wait for the component to be ready
@@ -828,12 +828,12 @@ components:
       - name
       - properties
       type: object
-    
+
     AppConfigurationSchema:
       properties:
         schema:
           # x-go-field-tags: 'json:"schema" yaml:"schema"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "schema"
             yaml: "schema"
           description: Validation schemas for configuration values
@@ -842,7 +842,7 @@ components:
           type: array
         sections:
           # x-go-field-tags: 'json:"sections" yaml:"sections"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "sections"
             yaml: "sections"
           description: Configuration sections for UI organization
@@ -855,14 +855,14 @@ components:
       properties:
         allowEmpty:
           # x-go-field-tags: 'json:"allowEmpty" yaml:"allowEmpty"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "allowEmpty"
             yaml: "allowEmpty"
           description: Whether empty values are allowed
           type: boolean
         dataType:
           # x-go-field-tags: 'json:"dataType" yaml:"dataType"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "dataType"
             yaml: "dataType"
           description: Data type for validation
@@ -874,49 +874,49 @@ components:
           type: string
         maxLength:
           # x-go-field-tags: 'json:"maxLength" yaml:"maxLength"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "maxLength"
             yaml: "maxLength"
           description: Maximum length for strings
           type: integer
         maxPrecision:
           # x-go-field-tags: 'json:"maxPrecision" yaml:"maxPrecision"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "maxPrecision"
             yaml: "maxPrecision"
           description: Maximum decimal precision for doubles
           type: integer
         maxValue:
           # x-go-field-tags: 'json:"maxValue" yaml:"maxValue"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "maxValue"
             yaml: "maxValue"
           description: Maximum value for numbers
           type: number
         minLength:
           # x-go-field-tags: 'json:"minLength" yaml:"minLength"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "minLength"
             yaml: "minLength"
           description: Minimum length for strings
           type: integer
         minValue:
           # x-go-field-tags: 'json:"minValue" yaml:"minValue"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "minValue"
             yaml: "minValue"
           description: Minimum value for numbers
           type: number
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Schema name
           type: string
         regexMatch:
           # x-go-field-tags: 'json:"regexMatch" yaml:"regexMatch"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "regexMatch"
             yaml: "regexMatch"
           description: Regular expression for validation
@@ -930,14 +930,14 @@ components:
       properties:
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Name of the configuration section
           type: string
         settings:
           # x-go-field-tags: 'json:"settings" yaml:"settings"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "settings"
             yaml: "settings"
           description: Settings in this section
@@ -953,35 +953,35 @@ components:
       properties:
         description:
           # x-go-field-tags: 'json:"description" yaml:"description"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "description"
             yaml: "description"
           description: Description of the setting
           type: string
         immutable:
           # x-go-field-tags: 'json:"immutable" yaml:"immutable"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "immutable"
             yaml: "immutable"
           description: Whether the setting can be changed after deployment
           type: boolean
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Display name for the setting
           type: string
         parameter:
           # x-go-field-tags: 'json:"parameter" yaml:"parameter"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "parameter"
             yaml: "parameter"
           description: Parameter name reference
           type: string
         schema:
           # x-go-field-tags: 'json:"schema" yaml:"schema"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "schema"
             yaml: "schema"
           description: Reference to validation schema
@@ -991,18 +991,18 @@ components:
       - name
       - schema
       type: object
-    
+
     RequiredResources:
       properties:
         cpu:
           # x-go-field-tags: 'json:"cpu" yaml:"cpu"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "cpu"
             yaml: "cpu"
           properties:
             architectures:
               # x-go-field-tags: 'json:"architectures" yaml:"architectures"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "architectures"
                 yaml: "architectures"
               description: Supported CPU architectures
@@ -1011,7 +1011,7 @@ components:
               type: array
             cores:
               # x-go-field-tags: 'json:"cores" yaml:"cores"'
-              x-oapi-codegen-extra-tags: 
+              x-oapi-codegen-extra-tags:
                 json: "cores"
                 yaml: "cores"
               description: Required CPU cores
@@ -1019,14 +1019,14 @@ components:
           type: object
         interfaces:
           # x-go-field-tags: 'json:"interfaces" yaml:"interfaces"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "interfaces"
             yaml: "interfaces"
           items:
             properties:
               type:
                 # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "type"
                   yaml: "type"
                 description: Interface type (e.g., ethernet, bluetooth)
@@ -1035,28 +1035,28 @@ components:
           type: array
         memory:
           # x-go-field-tags: 'json:"memory" yaml:"memory"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "memory"
             yaml: "memory"
           description: Required memory (e.g., "1024Mi")
           type: string
         peripherals:
           # x-go-field-tags: 'json:"peripherals" yaml:"peripherals"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "peripherals"
             yaml: "peripherals"
           items:
             properties:
               manufacturer:
                 # x-go-field-tags: 'json:"manufacturer" yaml:"manufacturer"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "manufacturer"
                   yaml: "manufacturer"
                 description: Manufacturer requirement
                 type: string
               type:
                 # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags: 
+                x-oapi-codegen-extra-tags:
                   json: "type"
                   yaml: "type"
                 description: Type of peripheral
@@ -1065,7 +1065,7 @@ components:
           type: array
         storage:
           # x-go-field-tags: 'json:"storage" yaml:"storage"'
-          x-oapi-codegen-extra-tags: 
+          x-oapi-codegen-extra-tags:
             json: "storage"
             yaml: "storage"
           description: Required storage (e.g., "10Gi")
@@ -1108,7 +1108,7 @@ components:
         spec:
           $ref: '#/components/schemas/ApplicationPackageSpec'
           description: Specification of the package
-    
+
     # Application Package Schemas
     ApplicationPackageManifestResp:
       type: object
@@ -1462,7 +1462,7 @@ components:
             - $ref: '#/components/schemas/GitRepo'
             - $ref: '#/components/schemas/OciRepo'
           description: Source configuration based on sourceType
-    
+
     GitRepo:
       type: object
       description: Git repository source configuration
@@ -1536,7 +1536,7 @@ components:
         authentication:
           $ref: '#/components/schemas/OciAuthentication'
         # tlsOptions: not added as of now
-    
+
     OciAuthentication:
       type: object
       required:
@@ -1599,7 +1599,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DeviceManifestResp'
-    
+
     # Device Schemas
     DeviceManifestResp:
       type: object
@@ -1623,7 +1623,7 @@ components:
         state:
           $ref: '#/components/schemas/DeviceState'
           description: State of the device
-    
+
     DeviceSpec:
       type: object
       required: [signature, capabilities]
@@ -1636,14 +1636,14 @@ components:
           x-go-type: interface{}
           type: object
           additionalProperties: true
-    
+
     DeviceState:
       type: object
       required: [onboard]
       properties:
         onboard:
           $ref: '#/components/schemas/DeviceOnboardStatus'
-    
+
     DeviceOnboardStatus:
       type: string
       enum: [IN-PROGRESS, ONBOARDED, FAILED]

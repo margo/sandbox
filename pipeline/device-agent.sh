@@ -3,12 +3,12 @@ set -e
 export PATH="$PATH:/usr/local/go/bin"
 
 # ----------------------------
-# Load environment file 
+# Load environment file
 # ----------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 load_device_agent_env() {
-  
+
   if [[ -n "$_DEVICE_ENV_LOADED" ]]; then
     return 0
   fi
@@ -149,39 +149,39 @@ install_basic_utilities() {
 
 install_docker_and_compose() {
   cd $HOME
-  
+
   # Define pinned versions
   local DOCKER_VERSION="${DOCKER_VERSION:-29.1.2}"
   local DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
   local UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
-  
+
   # Install Docker if not present
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker not found. Installing Docker ${DOCKER_VERSION}..."
-    
+
     # Remove old Docker packages
     apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-    
+
     # Add Docker's official GPG key and repository
     apt-get update
     apt-get install -y ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
-    
+
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
       ${UBUNTU_CODENAME} stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
+
     apt-get update
-    
+
     # Install specific Docker version
     apt-get install -y \
       docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
-    
+
     usermod -aG docker $USER
     echo "✅ Docker ${DOCKER_VERSION} installed successfully"
   else
@@ -200,11 +200,11 @@ install_docker_and_compose() {
     CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
     echo "Current Docker Compose version: v$CURRENT_COMPOSE_VERSION"
   fi
-  
+
   # Remove old standalone binaries
   echo 'Cleaning up old docker-compose binaries...'
   rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
-  
+
   # Verify versions
   echo ""
   echo "Docker version:"
@@ -212,11 +212,11 @@ install_docker_and_compose() {
   echo ""
   echo "Docker Compose version:"
   docker compose version
-  
+
   # Hold packages at current versions
   echo "🔒 Holding Docker packages at current versions..."
   apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
-  
+
   echo "✅ Docker ${DOCKER_VERSION} and Docker Compose v${DOCKER_COMPOSE_VERSION} ready"
 }
 
@@ -315,16 +315,16 @@ update_agent_sbi_url() {
 check_k3s_installed() {
   if command -v k3s >/dev/null 2>&1; then
     echo 'k3s already installed.'
-    
+
     # Check current version
     CURRENT_K3S_VERSION=$(k3s --version | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+\+k3s[0-9]+' | head -1)
     echo "Current k3s version: $CURRENT_K3S_VERSION"
-    
+
     if [ "$CURRENT_K3S_VERSION" != "$K3S_VERSION" ]; then
       echo "⚠️  Expected k3s version: $K3S_VERSION"
       echo "ℹ️  To upgrade/downgrade, uninstall current k3s and run installation again"
     fi
-    
+
     return 0
   else
     return 1
@@ -341,10 +341,10 @@ install_k3s() {
   if ! check_k3s_installed; then
     echo "Installing k3s ${K3S_VERSION}..."
     install_k3s_dependencies
-    
+
     # Install specific k3s version
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${K3S_VERSION}" sh -
-    
+
     echo "✅ k3s ${K3S_VERSION} installed successfully"
   fi
 }
@@ -353,7 +353,7 @@ verify_k3s_status() {
   echo 'Verifying k3s status...'
   sudo systemctl status k3s --no-pager || true
   sudo k3s kubectl get nodes || true
-  
+
   # Show installed version
   echo ""
   echo "Installed k3s version:"
@@ -398,7 +398,7 @@ install_vim() {
 
 install_and_enable_ssh() {
   echo "[INFO] Checking OS type..."
-  
+
   # Detect package manager
   if command -v apt >/dev/null 2>&1; then
     OS="debian"
@@ -449,31 +449,31 @@ enable_kubernetes_runtime() {
   -e 's/^[[:space:]]*docker:/  # docker:/' \
   -e 's/^[[:space:]]*url:/  # url:/' \
   "$CONFIG_FILE"
-  
- # Fix certificate paths
+
+  # Fix certificate paths
   sed -i \
     -e 's|pubCertPath:.*|pubCertPath: /certs/device-public.crt|' \
     -e 's|path: "./config/device-private.key"|path: "/certs/device-private.key"|' \
     -e 's|path: "./config/ca-cert.pem"|path: "/certs/ca-cert.pem"|' \
-    "$CONFIG_FILE"				 
-  
+    "$CONFIG_FILE"
+
   # Set kubeconfigPath to empty string for ServiceAccount authentication
   sed -i 's|kubeconfigPath:.*|kubeconfigPath: ""|' "$CONFIG_FILE"
-  
+
   echo "✅ Kubernetes runtime enabled with ServiceAccount authentication"
 }
 
 enable_docker_runtime() {
   CONFIG_FILE="$HOME/sandbox/docker-compose/config/config.yaml"
- echo "Enabling docker section in config.yaml..."
- sed -i \
-  -e 's/^[[:space:]]*#\s*- type: DOCKER/  - type: DOCKER/' \
-  -e 's/^[[:space:]]*#\s*docker:/    docker:/' \
-  -e 's/^[[:space:]]*#\s*url:/      url:/' \
-  -e 's/^[[:space:]]*- type: KUBERNETES/  # - type: KUBERNETES/' \
-  -e 's/^[[:space:]]*kubernetes:/    # kubernetes:/' \
-  -e 's/^[[:space:]]*kubeconfigPath:/      # kubeconfigPath:/' \
-  "$CONFIG_FILE"
+  echo "Enabling docker section in config.yaml..."
+  sed -i \
+    -e 's/^[[:space:]]*#\s*- type: DOCKER/  - type: DOCKER/' \
+    -e 's/^[[:space:]]*#\s*docker:/    docker:/' \
+    -e 's/^[[:space:]]*#\s*url:/      url:/' \
+    -e 's/^[[:space:]]*- type: KUBERNETES/  # - type: KUBERNETES/' \
+    -e 's/^[[:space:]]*kubernetes:/    # kubernetes:/' \
+    -e 's/^[[:space:]]*kubeconfigPath:/      # kubeconfigPath:/' \
+    "$CONFIG_FILE"
 }
 
 # ----------------------------
@@ -506,10 +506,10 @@ build_device_agent_docker() {
 
 create_device_agent_systemd_service() {
   echo "🔧 Creating systemd service for device-agent auto-start..."
-  
+
   # Get the actual docker-compose directory path
   local compose_dir="$HOME/sandbox/docker-compose"
-  
+
   # Create systemd service file
 sudo tee /etc/systemd/system/device-agent.service > /dev/null <<EOF
   [Unit]
@@ -534,7 +534,7 @@ EOF
   # Reload systemd and enable the service
   sudo systemctl daemon-reload
   sudo systemctl enable device-agent.service
-  
+
   echo "✅ Device-agent systemd service created and enabled"
   echo "📋 Service will start device-agent automatically on boot"
   echo "📁 Working directory: ${compose_dir}"
@@ -544,8 +544,8 @@ start_device_agent_docker_service() {
   echo 'Starting workload-fleet-management-client...'
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
-  
- if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
+
+  if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
     echo "Creating TLS secrets..."
     cp "$HOME/certs/device-private.key"  ./config
     cp "$HOME/certs/device-public.crt"   ./config
@@ -555,9 +555,9 @@ start_device_agent_docker_service() {
     echo "Copied certs from \$HOME/certs to ./config"
       else
     echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
-        return 1 
+        return 1
   fi
-  
+
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
 
@@ -570,15 +570,15 @@ start_device_agent_docker_service() {
 }
 
 stop_device_agent_service_docker() {
-  
+
   cd "$HOME/sandbox/docker-compose"
   docker compose down
-  
+
   # Prompt user to delete /data folder
   echo ""
   echo "⚠️  Warning: Deleting /data folder will require device re-onboarding"
   read -p "Do you want to delete data folder at $HOME/sandbox/docker-compose/data? (y/n): " delete_data
-  
+
   if [[ "$delete_data" =~ ^[Yy]$ ]]; then
     echo "Deleting data folder..."
     if rm -rf "$HOME/sandbox/docker-compose/data"; then
@@ -596,7 +596,7 @@ stop_device_agent_service_docker() {
 build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Building and deploying workload-fleet-management-client on Kubernetes..."
-    
+
     # Step 1: Build the Docker image if it doesn't exist
     echo "Checking if workload-fleet-management-client image exists..."
     if ! docker images | grep -q "margo.org/workload-fleet-management-client"; then
@@ -610,12 +610,12 @@ build_start_device_agent_k3s_service() {
     else
       echo "✅ workload-fleet-management-client image already exists"
     fi
-    
+
     # Step 2: Save and import image to k3s
     echo "Importing image to k3s cluster..."
     docker save -o workload-fleet-management-client.tar margo.org/workload-fleet-management-client:latest
-    
-						   
+
+
     if command -v k3s >/dev/null 2>&1; then
       k3s ctr -n k8s.io image import workload-fleet-management-client.tar
       echo "✅ Image imported to k3s cluster"
@@ -626,39 +626,39 @@ build_start_device_agent_k3s_service() {
       echo "❌ Neither k3s nor ctr command found"
       return 1
     fi
-    
-					   
+
+
     rm -f workload-fleet-management-client.tar
-    
+
     # Step 3: Navigate to helmchart directory
     cd helmchart
     if [ $? -ne 0 ]; then
       echo "❌ Failed to navigate to helmchart directory"
       return 1
     fi
-    
+
     # Step 4: Copy config files
     update_agent_sbi_url
-    
+
     echo "Copying configuration files..."
     mkdir -p config
     cp -r ../poc/device/agent/config/* ./config
-    
+
     if [ $? -eq 0 ]; then
       echo "✅ Configuration files copied successfully"
     else
       echo "❌ Failed to copy configuration files"
       return 1
     fi
-    
+
     enable_kubernetes_runtime
-    
-    # Step 5: Create secrets 
+
+    # Step 5: Create secrets
     if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
         echo "Creating TLS secrets..."
-   							 
+
         kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
-        
+
         kubectl create secret generic workload-fleet-management-client-certs \
             --from-file=device-private.key="$HOME/certs/device-private.key" \
             --from-file=device-public.crt="$HOME/certs/device-public.crt" \
@@ -666,7 +666,7 @@ build_start_device_agent_k3s_service() {
             --from-file=device-ecdsa.crt="$HOME/certs/device-ecdsa.crt" \
             --from-file=ca-cert.pem="$HOME/certs/ca-cert.pem" \
             --namespace=default
-        
+
         if [ $? -eq 0 ]; then
             echo "✅ TLS secrets created successfully"
         else
@@ -675,22 +675,22 @@ build_start_device_agent_k3s_service() {
         fi
     else
         echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
-        return 1 
+        return 1
     fi
 
-     
-														
-    # Step 6: Clean up old resources 
+
+
+    # Step 6: Clean up old resources
     echo "Cleaning up any existing resources..."
     kubectl delete clusterrole workload-fleet-management-client-role 2>/dev/null || true
     kubectl delete clusterrolebinding workload-fleet-management-client-binding 2>/dev/null || true
-    
+
     helm uninstall workload-fleet-management-client -n default 2>/dev/null || true
-    
-											
+
+
     sleep 5
 
-    # Step 7: Install with Helm 
+    # Step 7: Install with Helm
     echo "Installing workload-fleet-management-client with persistent storage..."
     helm install workload-fleet-management-client . \
         --set serviceAccount.create=true \
@@ -702,26 +702,26 @@ build_start_device_agent_k3s_service() {
         --wait
 
     if [ $? -ne 0 ]; then
-																	   
-		
+
+
         echo "❌ Helm installation failed"
         return 1
     fi
-    
+
     echo "✅ Helm installation successful with persistent storage"
-    
+
     # Step 8: Verify deployment (NO PATCHING NEEDED!)
     echo "🔍 Verifying deployment..."
-    
-    # Verify RBAC permissions 
+
+    # Verify RBAC permissions
     if kubectl auth can-i create secrets --as=system:serviceaccount:default:workload-fleet-management-client-sa -n default | grep -q "yes"; then
       echo "✅ RBAC permissions verified"
     else
       echo "⚠️ RBAC permissions may need manual verification"
     fi
-    
+
     # Verify PVC (FIXED NAME)
-												 
+
     if kubectl get pvc -n default | grep -q "workload-fleet-management-client-data"; then
       echo "✅ Persistent volume claim created successfully"
       kubectl get pvc -n default | grep workload-fleet-management-client
@@ -729,16 +729,16 @@ build_start_device_agent_k3s_service() {
       echo "⚠️ PVC not found, checking for errors..."
       kubectl get events -n default --sort-by='.lastTimestamp' | tail -10
     fi
-    
+
     echo "✅ Device-workload-fleet-management-client deployed successfully"
-    
+
     # Show deployment status
     echo ""
     echo "Deployment Summary:"
     kubectl get pods -n default | grep workload-fleet-management-client
     kubectl get serviceaccount -n default | grep workload-fleet-management-client
     kubectl get pvc -n default | grep workload-fleet-management-client
-	
+
 }
 
 stop_device_agent_kubernetes() {
@@ -754,7 +754,7 @@ stop_device_agent_kubernetes() {
     echo "⚠️ PVC will be deleted after uninstalling Helm release"
   else
     echo "ℹ️ Attempting to preserve PVC..."
-    
+
     # Add Helm annotation to prevent PVC deletion during uninstall
     if kubectl get pvc workload-fleet-management-client-data -n default >/dev/null 2>&1; then
       kubectl annotate pvc workload-fleet-management-client-data -n default \
@@ -764,12 +764,12 @@ stop_device_agent_kubernetes() {
       echo "⚠️ PVC not found, nothing to preserve"
     fi
   fi
-  
+
   # Check if Helm release exists and uninstall
   if helm list -A | grep -q "workload-fleet-management-client"; then
     echo "Uninstalling workload-fleet-management-client Helm release..."
     helm uninstall workload-fleet-management-client --namespace default
-    
+
     if [ $? -eq 0 ]; then
       echo "✅ Device-workload-fleet-management-client Helm release uninstalled successfully"
     else
@@ -780,18 +780,18 @@ stop_device_agent_kubernetes() {
     echo "No workload-fleet-management-client Helm release found, trying direct kubectl deletion..."
     kubectl delete deployment workload-fleet-management-client-deploy -n default 2>/dev/null || echo "No deployment found"
   fi
-  
+
   # Clean up ServiceAccount and RBAC resources
   echo "Cleaning up ServiceAccount and RBAC resources..."
   kubectl delete serviceaccount workload-fleet-management-client-sa -n default 2>/dev/null || echo "No serviceaccount found"
   kubectl delete clusterrole workload-fleet-management-client-role 2>/dev/null || echo "No clusterrole found"
   kubectl delete clusterrolebinding workload-fleet-management-client-binding 2>/dev/null || echo "No clusterrolebinding found"
-  
+
   # Clean up ConfigMaps and Secrets
   echo "Cleaning up configmaps and secrets..."
   kubectl delete configmap workload-fleet-management-client-cm -n default 2>/dev/null || echo "No configmap found"
   kubectl delete secret workload-fleet-management-client-certs -n default 2>/dev/null || echo "No secret found"
-  
+
   # NOW handle PVC based on user choice
   if [ "$DELETE_PVC" = true ]; then
     echo "Deleting PVC as requested..."
@@ -802,7 +802,7 @@ stop_device_agent_kubernetes() {
     if kubectl get pvc workload-fleet-management-client-data -n default >/dev/null 2>&1; then
       echo "✅ PVC preserved successfully - device will resume with existing ID on next start"
       kubectl get pvc workload-fleet-management-client-data -n default
-      
+
       # Remove the keep annotation for next deployment
       kubectl annotate pvc workload-fleet-management-client-data -n default \
         "helm.sh/resource-policy-" \
@@ -812,7 +812,7 @@ stop_device_agent_kubernetes() {
       echo "   Ensure PVC template has 'helm.sh/resource-policy: keep' annotation"
     fi
   fi
-  
+
   # Verify cleanup
   echo ""
   echo "Verifying cleanup..."
@@ -822,17 +822,17 @@ stop_device_agent_kubernetes() {
   else
     echo "✅ All workload-fleet-management-client pods stopped"
   fi
-  
+
   # Show remaining resources
   echo ""
   echo "Remaining workload-fleet-management-client resources:"
   kubectl get all,pvc,sa,cm,secrets -n default 2>/dev/null | grep workload-fleet-management-client || echo "✅ No workload-fleet-management-client resources found (except possibly PVC if preserved)"
-  
+
   # Check for remaining RBAC resources
   echo ""
   echo "Remaining RBAC resources:"
   kubectl get clusterroles,clusterrolebindings 2>/dev/null | grep workload-fleet-management-client || echo "✅ No workload-fleet-management-client RBAC resources found"
-  
+
   echo ""
   echo "✅ Device-workload-fleet-management-client cleanup complete"
 }
@@ -841,7 +841,7 @@ stop_device_agent_kubernetes() {
 
 cleanup_device_agent() {
   echo "Cleaning up workload-fleet-management-client files..."
-  
+
   # Check if workload-fleet-management-client container exists and remove it
   if docker ps -a --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
     echo "Stopping and removing workload-fleet-management-client container..."
@@ -851,7 +851,7 @@ cleanup_device_agent() {
   else
     echo "No workload-fleet-management-client container found"
   fi
- 
+
   #If using Helm deployment, uninstall the release
   if helm list --short 2>/dev/null | grep -q "^workload-fleet-management-client$"; then
     echo "Uninstalling workload-fleet-management-client Helm release..."
@@ -912,7 +912,7 @@ EOF
 
   echo "✅ Created k3s registry mirror configuration"
   # ---------------------------------------------------
-	
+
   # Restart k3s
   # ---------------------------------------------------
   echo "Restarting k3s..."
@@ -930,9 +930,9 @@ EOF
       echo "✅ k3s is running"
       break
     fi
-										 
+
     sleep 2
-		
+
   done
 
   echo "Checking cluster..."
@@ -940,8 +940,8 @@ EOF
     echo "✅ k3s cluster is responding"
   else
     echo "⚠️ k3s cluster not ready yet"
-								
-			
+
+
   fi
 
   echo "✅ Registry mirror configuration completed."
@@ -964,7 +964,7 @@ install_prerequisites() {
     setup_k3s
     add_container_registry_mirror_to_k3s
   fi
-  
+
   echo 'prerequisites installation completed.'
 }
 
@@ -975,7 +975,7 @@ start_device_agent_docker() {
   update_agent_sbi_url
   build_device_agent_docker
   start_device_agent_docker_service
-   echo 'workload-fleet-management-client docker-container started'
+  echo 'workload-fleet-management-client docker-container started'
 }
 
 start_device_agent_kubernetes() {
@@ -999,45 +999,45 @@ uninstall_prerequisites() {
 show_status() {
   echo "Device's Workload Fleet Management Client Status:"
   echo "==================="
-  
+
   # Check Docker first
   if docker ps --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
     echo "✅ Device's Workload Fleet Management Client Docker Container is running."
-    
+
     # Show container details
     echo "Container Details:"
     docker ps --filter "name=workload-fleet-management-client" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
-    
+
     return 0
   fi
-  
+
   # Check Kubernetes if Docker is not running (check workload-fleet-management-client namespace)
   if kubectl get pods -n default --no-headers 2>/dev/null | grep -q "workload-fleet-management-client"; then
   echo "✅ Device's Workload Fleet Management Client Kubernetes Pod is running."
-  
+
   # Show pod details
   echo "Pod Details:"
   kubectl get pods -n default -o wide | grep -E "(NAME|workload-fleet-management-client)"
-  
+
   # Add ServiceAccount verification
   echo "ServiceAccount Details:"
   kubectl get serviceaccount -n default | grep workload-fleet-management-client || echo "No ServiceAccount found"
-  
+
   return 0
   fi
-  
+
   # If neither is running
   echo "❌ Device's Workload Fleet Management Client is not running on Docker or Kubernetes."
   echo "Available workload-fleet-management-client containers:"
   docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(NAMES|workload-fleet-management-client)" || echo "No workload-fleet-management-client containers found"
 
-  
+
   if command -v kubectl >/dev/null 2>&1; then
     echo ""
     echo "Available pods in workload-fleet-management-client namespace:"
     kubectl get pods -n default --no-headers 2>/dev/null | head -5 || echo "No workload-fleet-management-client namespace or pods found"
-    
-    
+
+
   fi
 }
 
@@ -1184,7 +1184,7 @@ EOF
 # Function to create observability namespace
 create_observability_namespace() {
     echo "🔧 Checking observability namespace..."
-    
+
     if sudo kubectl get namespace $NAMESPACE_OBSERVABILITY >/dev/null 2>&1; then
         echo "✅ Namespace '$NAMESPACE_OBSERVABILITY' already exists"
     else
@@ -1232,11 +1232,11 @@ EOF
 install_otel_collector_promtail_docker() {
   echo "Installing OTEL Collector v0.140.0 and Promtail v2.9.10 as Docker containers..."
   cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
-  
+
   # Get docker group GID for proper permissions
   DOCKER_GID=$(getent group docker | cut -d: -f3)
   echo "Docker group GID: $DOCKER_GID"
-  
+
   # Create docker-compose.yml for observability stack with proper permissions
   cat <<EOF > docker-compose-observability.yml
 version: '3.8'
@@ -1375,10 +1375,10 @@ EOF
 
   # Start the observability stack
   docker compose -f docker-compose-observability.yml up -d
-  
+
   # Create & enable systemd unit to start this stack on reboot
   create_observability_systemd_service
-  
+
   echo "✅ OTEL Collector v0.140.0 and Promtail v2.9.10 installed"
   echo "📡 OTLP gRPC: localhost:4317"
   echo "📡 OTLP HTTP: localhost:4318"
@@ -1408,12 +1408,12 @@ uninstall_otel_collector_promtail_wrapper() {
 uninstall_otel_collector_promtail_docker() {
   echo "🧹 Uninstalling Promtail and OTEL Collector containers..."
   cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
-  
+
   if [ -f "docker-compose-observability.yml" ]; then
     docker compose -f docker-compose-observability.yml down
     rm -f docker-compose-observability.yml promtail-config.yml otel-collector-config.yml
   fi
-  
+
   echo "✅ Cleanup complete."
 }
 
@@ -1430,8 +1430,8 @@ install_otel_collector_promtail() {
 uninstall_otel_collector_promtail() {
   echo "🧹 Uninstalling Promtail and OTEL Collector..."
   cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
-   
-   # Uninstall helm releases only if they exist
+
+    # Uninstall helm releases only if they exist
     for release in $PROMTAIL_RELEASE $OTEL_RELEASE; do
         if helm status $release -n "$NAMESPACE_OBSERVABILITY" >/dev/null 2>&1; then
             echo "🗑️ Uninstalling $release..."
@@ -1450,7 +1450,7 @@ uninstall_otel_collector_promtail() {
 cleanup_residual() {
   rm -rf "$HOME/sandbox"
   rm -rf "$HOME/symphony"
- }
+}
 
 create_device_rsa_certs() {
   CERT_DIR="$HOME/certs"
@@ -1473,8 +1473,8 @@ create_device_rsa_certs() {
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ RSA Cert generation has been completed."
 
-									   
-																				  
+
+
 }
 
 create_device_ecdsa_certs() {
@@ -1497,8 +1497,8 @@ create_device_ecdsa_certs() {
     -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
   echo "✅ ECDSA Cert generation has been completed."
 
-										 
-																			   
+
+
 }
 pause() {
   echo
@@ -1510,7 +1510,7 @@ pause() {
 # ----------------------------
 
 show_menu() {
-  
+
   echo "Choose an option:"
   echo "1) Install-prerequisites"
   echo "2) Uninstall-prerequisites"
@@ -1549,7 +1549,7 @@ show_menu() {
 # ----------------------------
 # Main Script Execution
 # ----------------------------
- main_loop() {
+main_loop() {
   while true; do
     show_menu
   done
@@ -1563,7 +1563,7 @@ if [[ -z "$1" ]]; then
     exit 1
   fi
   main_loop
-  
+
 elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -z "$2" ]]; then
   # Device type specified but no command - run interactive menu
   if ! load_device_agent_env "$1"; then
@@ -1571,7 +1571,7 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -z "$2" ]]; then
     exit 1
   fi
   main_loop
-  
+
 elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
   # Device type + command - execute command
   case "$2" in
@@ -1593,7 +1593,7 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
       exit 1
       ;;
   esac
-  
+
 else
   # Invalid usage - device type is mandatory
   echo "[ERROR] Invalid usage. Device type (docker/k3s) is required."

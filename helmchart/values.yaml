@@ -8,7 +8,7 @@ rbac:
   create: true
   # Scope of permissions
   scope: cluster  # or 'namespace' for restricted access
-  
+
   # Fine-grained control
   permissions:
     allowCRDManagement: true
@@ -17,7 +17,7 @@ rbac:
 
 # Secrets configuration
 secrets:
-  create: true  
+  create: true
 
 # Persistence configuration
 # If enabled, workload-fleet-management-client data (/data directory) will survive pod restarts
@@ -25,13 +25,13 @@ secrets:
 persistence:
   # Set to true to enable persistent storage (RECOMMENDED for production)
   enabled: true
-  
+
   # Leave empty to auto-create a PVC, or specify an existing PVC name
   existingClaim: ""
-  
+
   # Size of the PVC (only used if existingClaim is empty)
   size: 1Gi
-  
+
   # Storage class name (leave empty to use cluster default)
   # Examples: "standard", "gp2", "local-path"
   storageClassName: ""

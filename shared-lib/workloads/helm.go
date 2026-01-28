@@ -95,7 +95,7 @@ func NewHelmClient(kubeconfigPath string) (*HelmClient, error) {
 
 // createKubeClient creates a Kubernetes client
 func createKubeClient(kubeconfigPath string) (kubernetes.Interface, error) {
-   
+
 	var config *rest.Config
 	var err error
 

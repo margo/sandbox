@@ -1,0 +1,15 @@
+{
+  "name": "Margo Sandbox Development",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {}
+  },
+  "customizations": {
+      "vscode": {
+          "extensions": [
+              "editorconfig.editorconfig"
+          ]
+      }
+  },
+  "remoteUser": "vscode"
+}

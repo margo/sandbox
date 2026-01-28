@@ -38,7 +38,7 @@ func TestDeref(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
-	a := Ptr("test") 
+	a := Ptr("test")
 	b := Ptr("test")
 	c := Ptr("different")
 

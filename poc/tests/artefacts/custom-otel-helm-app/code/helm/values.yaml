@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: {{REPOSITORY}}  
+  repository: {{REPOSITORY}}
   tag: {{TAG}}
   pullPolicy: Always  # Prevents Kubernetes from trying to pull from Docker Hub
 

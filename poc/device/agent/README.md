@@ -90,7 +90,7 @@ Example minimal `config.yaml` (illustrative):
 logging:
   # Log level (e.g., DEBUG, INFO, WARN, ERROR, FATAL)
   level: DEBUG
-  
+
 # The device's root identity/attestation used for onboarding/registration of this device client with WFM (for auto-onboarding).
 deviceRootIdentity:
   # Supported values: RANDOM, PKI, later on you can use it to add support for something like TPM, FIDO etc.
@@ -100,7 +100,7 @@ deviceRootIdentity:
     # if you have set identity type as Random, then set these details
     # random:
     #   value: "this-is-a-unique-random-identity-attached-with-this-device"
-    
+
     # if you have set identity type as PKI, then set these details
     pki:
       # certificate that the device client will present to the wfm during registration
@@ -119,7 +119,7 @@ wfm:
 
     # NOTE: The oauth workflow is not yet defined in Margo spec, hence keep this disabled
     # the auth info is auto-fetched by the workload-fleet-management-client when it gets onboarded
-    # but if you, for any reason, want to specify the oauth info, then you can pass that info over here 
+    # but if you, for any reason, want to specify the oauth info, then you can pass that info over here
     authHelper:
       # if the wfm doesn't have oauth enabled on its endpoints, then set enable: false
       # and the workload-fleet-management-client will not add any authorization header in the request
@@ -130,7 +130,7 @@ wfm:
     tlsHelper:
       enabled: true
       # path to the ca certificate that will be used to verify server certificates
-      caKeyRef: 
+      caKeyRef:
         path: "./config/ca-cert.pem"
 
 stateSeeking:
@@ -140,7 +140,7 @@ stateSeeking:
 
 # the workload-fleet-management-client architecture is kept in a way that it is capable of managing more than one runtimes
 # but one client with multiple devices is not defined by Margo yet, as it comes with its own complexities,
-# for example: how would the client know which device should the application be deployed to? etc...  
+# for example: how would the client know which device should the application be deployed to? etc...
 # If this is needed please reach out to the Margo group and follow the formal approach of Margo for SUPs.
 # For now, always keep one runtime in this section, and comment all others
 runtimes:
@@ -255,7 +255,7 @@ import (
     "context"
     "fmt"
     "strings"
-    
+
     "github.com/containers/podman/v4/pkg/bindings"
     "github.com/containers/podman/v4/pkg/bindings/containers"
     "github.com/containers/podman/v4/pkg/bindings/pods"

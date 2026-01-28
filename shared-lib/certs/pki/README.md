@@ -9,38 +9,38 @@ sequenceDiagram
     participant DB as 🗄️ Device Registry
 
     Note over Device, DB: PKI Device Registration Flow
-    
+
     Device->>Client: Generate key pair<br/>(RSA/ECDSA 2048/4096-bit)
     Client->>Client: Create CSR<br/>(Certificate Signing Request)
     Client->>CA: Submit CSR<br/>(Device ID in CN/SAN)
-    
+
     CA->>CA: Validate device identity<br/>& authorization
     CA->>CA: Sign certificate<br/>(X.509 with device metadata)
     CA->>Client: Return signed certificate<br/>(PEM format)
-    
+
     Client->>Client: Store certificate<br/>& private key securely
     Client->>Server: Initiate onboarding<br/>(Certificate + metadata)
-    
+
     Server->>Server: Validate certificate chain<br/>against trusted CAs
     Server->>Server: Extract device ID<br/>from certificate
     Server->>Server: Generate challenge<br/>(random nonce)
-    
+
     Server->>Client: Send challenge<br/>(cryptographic nonce)
     Client->>Client: Sign challenge<br/>with private key
     Client->>Server: Return signature<br/>(proof of key possession)
-    
+
     Server->>Server: Verify signature<br/>using certificate public key
     Server->>DB: Register device<br/>(ID, certificate, metadata)
     Server->>Client: Onboarding complete<br/>(device credentials)
     Client->>Device: Device ready for use
 
     Note over Device, DB: PKI Device Authentication Flow
-    
+
     Device->>Server: Request service access<br/>(present certificate)
     Server->>Server: Validate certificate<br/>(chain, expiry, revocation)
     Server->>Server: Generate auth challenge
     Server->>Device: Send challenge
-    
+
     Device->>Device: Sign challenge<br/>with private key
     Device->>Server: Return signature
     Server->>Server: Verify signature<br/>& authorize access
@@ -57,14 +57,14 @@ graph TB
             HSM[🔐 Hardware Security Module<br/>TPM/Secure Element]
             Client[📱 PKI Client<br/>Certificate Manager]
         end
-        
+
         subgraph "Certificate Authority"
             RootCA[🏛️ Root CA<br/>Offline/Air-gapped]
             IntermediateCA[🏢 Intermediate CA<br/>Device Issuing CA]
             OCSP[📋 OCSP Responder<br/>Revocation Status]
             CRL[📜 Certificate Revocation List]
         end
-        
+
         subgraph "Onboarding Infrastructure"
             OnboardServer[🏢 Onboarding Server<br/>Registration Authority]
             DeviceDB[(🗄️ Device Registry<br/>Certificates & Metadata)]
@@ -72,20 +72,20 @@ graph TB
             Monitor[📊 Monitoring<br/>Device Lifecycle]
         end
     end
-    
+
     Device --> HSM
     HSM --> Client
     Client --> IntermediateCA
     Client --> OnboardServer
-    
+
     RootCA --> IntermediateCA
     IntermediateCA --> OCSP
     IntermediateCA --> CRL
-    
+
     OnboardServer --> DeviceDB
     OnboardServer --> PolicyEngine
     OnboardServer --> Monitor
-    
+
     OnboardServer -.-> IntermediateCA
     OnboardServer -.-> OCSP
 ```
@@ -96,35 +96,35 @@ graph TB
 graph TD
     subgraph "PKI Trust Hierarchy"
         RootCA[🏛️ Root CA<br/>Self-Signed<br/>Offline Storage]
-        
+
         subgraph "Intermediate CAs"
             DeviceCA[🏢 Device CA<br/>Issues Device Certs]
             UserCA[👤 User CA<br/>Issues User Certs]
             ServerCA[🖥️ Server CA<br/>Issues Server Certs]
         end
-        
+
         subgraph "End Entity Certificates"
             DeviceCert[🖥️ Device Certificate<br/>Device Identity]
             UserCert[👤 User Certificate<br/>User Identity]
             ServerCert[🖥️ Server Certificate<br/>Service Identity]
         end
     end
-    
+
     RootCA --> DeviceCA
     RootCA --> UserCA
     RootCA --> ServerCA
-    
+
     DeviceCA --> DeviceCert
     UserCA --> UserCert
     ServerCA --> ServerCert
-    
+
     subgraph "Security Controls"
         HSM1[🔐 Hardware Security<br/>Private Key Protection]
         Revocation[🚫 Certificate Revocation<br/>OCSP/CRL]
         Validation[✅ Chain Validation<br/>Trust Path Verification]
         Expiry[⏰ Certificate Lifecycle<br/>Renewal & Rotation]
     end
-    
+
     DeviceCert -.-> HSM1
     DeviceCert -.-> Revocation
     DeviceCert -.-> Validation
@@ -145,7 +145,7 @@ graph LR
         G[🚫 Revocation<br/>Compromise/Decommission]
         H[💀 End of Life<br/>Key Destruction]
     end
-    
+
     A --> B
     B --> C
     C --> D
@@ -155,14 +155,14 @@ graph LR
     E --> G
     G --> H
     F --> G
-    
+
     subgraph "Security Operations"
         I[🔍 Monitoring<br/>Certificate Status]
         J[📊 Audit Logging<br/>All Operations]
         K[🛡️ Threat Detection<br/>Anomaly Analysis]
         L[🔧 Incident Response<br/>Compromise Handling]
     end
-    
+
     E -.-> I
     E -.-> J
     E -.-> K
@@ -184,7 +184,7 @@ graph TB
             PublicKey[🔑 Public Key Info<br/>Algorithm + Key]
             Extensions[📎 X.509v3 Extensions<br/>Key Usage, SAN, etc.]
         end
-        
+
         subgraph "Device-Specific Extensions"
             DeviceID[🆔 Device ID<br/>Subject CN/SAN]
             KeyUsage[🔐 Key Usage<br/>Digital Signature]
@@ -192,12 +192,12 @@ graph TB
             Policies[📜 Certificate Policies<br/>Device Class/Type]
         end
     end
-    
+
     Subject --> DeviceID
     Extensions --> KeyUsage
     Extensions --> ExtKeyUsage
     Extensions --> Policies
-    
+
     subgraph "Validation Process"
         ChainVal[🔗 Chain Validation<br/>Root → Intermediate → Device]
         SigVal[✅ Signature Validation<br/>Cryptographic Verification]
@@ -205,7 +205,7 @@ graph TB
         RevVal[🚫 Revocation Check<br/>OCSP/CRL Status]
         PolicyVal[📋 Policy Validation<br/>Usage Constraints]
     end
-    
+
     PublicKey --> SigVal
     Validity --> TimeVal
     Serial --> RevVal

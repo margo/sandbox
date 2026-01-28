@@ -11,7 +11,7 @@ body:
       label: Feedback Type
       description: Please select the relevant option
       options:
-        - Bug/Issue 
+        - Bug/Issue
         - New enhancement request
         - Documentation/Content edit request
       default: 0
@@ -24,7 +24,7 @@ body:
     id: feedback
     attributes:
       label: "Feedback"
-      description: "Feedback" 
+      description: "Feedback"
       placeholder: "I sense a disturbance in the logic—care to bring balance with your review?"
     validations:
       required: true

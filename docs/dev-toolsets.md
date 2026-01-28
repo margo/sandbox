@@ -8,7 +8,7 @@ Development toolsets used and their purposes:
 ### ⚙️ Core Development Tools
 
 #### Go (Golang)
-- **Version**: 1.24.4 
+- **Version**: 1.24.4
 - **Uses**:
   - Building Symphony API server
   - Building Maestro CLI tool
@@ -62,7 +62,7 @@ Development toolsets used and their purposes:
   - Storing and managing Docker images and helm artefacts
   - Image security scanning and vulnerability management
   - Management of workload packages as per MARGO defined specification
-  - Nextcloud, Nginx and Custom OTEL workload packages are  uploaded to Harbor while environment setup. These [Margo Packages](../poc/tests/artefacts) are based on MARGO application description specification 
+  - Nextcloud, Nginx and Custom OTEL workload packages are  uploaded to Harbor while environment setup. These [Margo Packages](../poc/tests/artefacts) are based on MARGO application description specification
   - API-based repository creation and management
 
 ---
@@ -129,7 +129,7 @@ Development toolsets used and their purposes:
 - **Uses**:
   - Building Symphony UI components
   - JavaScript dependency management
-  
+
   **Note: Symphony UI is not used. Application, deployment and workload LCM operations are performed using the script /pipeline/wfm-cli.sh which we call it as EasyCLI implemented as a wrapper on top of Maestro CLI**
 
 #### curl & wget
@@ -172,6 +172,6 @@ Development toolsets used and their purposes:
 - **Uses**:
   - Custom telemetry application.
   - Test application for deploying a custom application with telemetry capabilities.
-  - This is a sample online ordering application written in GO language which sends metrics and traces to OpenTelemetry collector. This application is defined as MARGO-specified application package and deployed as a workload on device along with the collector. The MARGO package and application source code is available at [Custom OTEL](../poc/tests/artefacts/custom-otel-helm-app)   
+  - This is a sample online ordering application written in GO language which sends metrics and traces to OpenTelemetry collector. This application is defined as MARGO-specified application package and deployed as a workload on device along with the collector. The MARGO package and application source code is available at [Custom OTEL](../poc/tests/artefacts/custom-otel-helm-app)
 
   - Demonstration of observability integration

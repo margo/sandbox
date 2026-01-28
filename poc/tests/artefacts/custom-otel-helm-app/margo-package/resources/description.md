@@ -1,2 +1,2 @@
 # Application Description
-This is a test application description. 
+This is a test application description.

@@ -8,8 +8,8 @@ This guide helps you verify your observability stack is working correctly.
 ## What You'll Need
 
 - ✅ Web browser (Chrome, Firefox, Edge, or Safari)
-- ✅ WFM VM IP address 
-- ✅ Device VM IP addresses 
+- ✅ WFM VM IP address
+- ✅ Device VM IP addresses
 
 **How to Find Your WFM IP Address (if you don't have it):**
 - It was shown during setup in Step 4 of the [Simplified-Setup-Guide](../../docs/simplified-setup-guide.md)
@@ -199,7 +199,7 @@ This guide helps you verify your observability stack is working correctly.
 
 **Count Your Devices:**
 - If you have 1 K3s device: You should see 1 target
-- If you have 1 Docker device: You should see 1 target  
+- If you have 1 Docker device: You should see 1 target
 - If you have both: You should see 2 targets
 
 ---

@@ -235,53 +235,50 @@ func (pm *PackageManager) LoadPackageFromGit(url, branchName, subPath string, au
 
 // LoadPackageFromOci loads an application package from an OCI registry. USING ORAS CLI.
 func (pm *PackageManager) LoadPackageFromOci(registryUrl, repository, tag string, username, passwordOrToken string, insecure bool, timeout time.Duration) (pkgPath string, pkg *models.AppPkg, err error) {
-    // Create temporary directory for extraction
-    tempDir, err := os.MkdirTemp("", "margo-oci-pkg-*")
-    if err != nil {
-        return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
-    }
+	// Create temporary directory for extraction
+	tempDir, err := os.MkdirTemp("", "margo-oci-pkg-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
+	}
 
-    // Strip http:// or https:// from registryUrl for ORAS compatibility
-    cleanRegistryUrl := strings.TrimPrefix(registryUrl, "http://")
-    cleanRegistryUrl = strings.TrimPrefix(cleanRegistryUrl, "https://")
-    
-    // Construct OCI reference (without protocol)
-    reference := fmt.Sprintf("%s/%s:%s", cleanRegistryUrl, repository, tag)
-    
-    // Add authentication if provided
-    if username != "" && passwordOrToken != "" {
-        // Login first (use clean registry URL)
-        loginCmd := exec.Command("oras", "login", cleanRegistryUrl,
-            "-u", username,
-            "-p", passwordOrToken,
-            "--plain-http")
-        if err := loginCmd.Run(); err != nil {
-            os.RemoveAll(tempDir)
-            return "", nil, fmt.Errorf("failed to login to OCI registry: %w", err)
-        }
-    }
-    
-    // Pull artifact to temp directory
-    pullCmd := exec.Command("oras", "pull", reference, "--plain-http")
-    pullCmd.Dir = tempDir
-    output, err := pullCmd.CombinedOutput()
-    if err != nil {
-        os.RemoveAll(tempDir)
-        return "", nil, fmt.Errorf("failed to pull OCI artifact: %w, output: %s", err, string(output))
-    }
+	// Strip http:// or https:// from registryUrl for ORAS compatibility
+	cleanRegistryUrl := strings.TrimPrefix(registryUrl, "http://")
+	cleanRegistryUrl = strings.TrimPrefix(cleanRegistryUrl, "https://")
 
-    // Load package from extracted directory
-    appPackage, err := pm.LoadPackageFromDir(tempDir)
-    if err != nil {
-        os.RemoveAll(tempDir)
-        return "", nil, fmt.Errorf("failed to load package from extracted OCI artifact: %w", err)
-    }
+	// Construct OCI reference (without protocol)
+	reference := fmt.Sprintf("%s/%s:%s", cleanRegistryUrl, repository, tag)
 
-    return tempDir, appPackage, nil
+	// Add authentication if provided
+	if username != "" && passwordOrToken != "" {
+		// Login first (use clean registry URL)
+		loginCmd := exec.Command("oras", "login", cleanRegistryUrl,
+			"-u", username,
+			"-p", passwordOrToken,
+			"--plain-http")
+		if err := loginCmd.Run(); err != nil {
+			os.RemoveAll(tempDir)
+			return "", nil, fmt.Errorf("failed to login to OCI registry: %w", err)
+		}
+	}
+
+	// Pull artifact to temp directory
+	pullCmd := exec.Command("oras", "pull", reference, "--plain-http")
+	pullCmd.Dir = tempDir
+	output, err := pullCmd.CombinedOutput()
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to pull OCI artifact: %w, output: %s", err, string(output))
+	}
+
+	// Load package from extracted directory
+	appPackage, err := pm.LoadPackageFromDir(tempDir)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to load package from extracted OCI artifact: %w", err)
+	}
+
+	return tempDir, appPackage, nil
 }
-
-
-
 
 // extractImageToDir extracts all layers of an OCI image to a directory.
 //

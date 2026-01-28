@@ -175,68 +175,66 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 }
 
 func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId string, desiredState database.AppDeploymentState) {
-    dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
+	dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
 
-	// Use the AppDeploymentManifest directly instead of converting															
-    appDeployment := desiredState.AppDeploymentManifest
+	// Use the AppDeploymentManifest directly instead of converting
+	appDeployment := desiredState.AppDeploymentManifest
 
-	// Get component			 
-    if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
-		// Set current state even on failure							  
-        failedState := desiredState
-        failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
-        dm.database.SetCurrentState(deploymentId, failedState)
-        dm.database.SetPhase(deploymentId, "FAILED", "No components found")
-        return
-    }
+	// Get component
+	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
+		// Set current state even on failure
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(deploymentId, "FAILED", "No components found")
+		return
+	}
 
-												   
-    profileType := appDeployment.Spec.DeploymentProfile.Type
-    var err error
+	profileType := appDeployment.Spec.DeploymentProfile.Type
+	var err error
 
-    switch profileType {
-    case sbi.HelmV3:
-        //  Check if Helm client is available
-        if dm.helmClient == nil {
-            err = fmt.Errorf("Helm client not initialized (device may not support Helm deployments)")
-        } else {
-            err = dm.deployOrUpdateHelm(ctx, deploymentId, appDeployment)
-        }
-        
-    case sbi.Compose:
-        // Check if Compose client is available
-        if dm.composeClient == nil {
-            err = fmt.Errorf("Docker Compose client not initialized (device may not support Compose deployments)")
-        } else {
-            err = dm.deployOrUpdateCompose(ctx, deploymentId, appDeployment)
-        }
-        
-    default:
-		// Set current state on unsupported type								  
-        failedState := desiredState
-        failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
-        dm.database.SetCurrentState(deploymentId, failedState)
-        dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("Unsupported deployment type: %s", profileType))
-        return
-    }
+	switch profileType {
+	case sbi.HelmV3:
+		//  Check if Helm client is available
+		if dm.helmClient == nil {
+			err = fmt.Errorf("Helm client not initialized (device may not support Helm deployments)")
+		} else {
+			err = dm.deployOrUpdateHelm(ctx, deploymentId, appDeployment)
+		}
 
-    // Handle deployment errors
-    if err != nil {
-        failedState := desiredState
-        failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
-        dm.database.SetCurrentState(deploymentId, failedState)
-        dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("%s operation failed: %v", profileType, err))
-        return
-    }
+	case sbi.Compose:
+		// Check if Compose client is available
+		if dm.composeClient == nil {
+			err = fmt.Errorf("Docker Compose client not initialized (device may not support Compose deployments)")
+		} else {
+			err = dm.deployOrUpdateCompose(ctx, deploymentId, appDeployment)
+		}
 
-    // Success
-    currentState := desiredState
-    currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateInstalled
-    dm.database.SetCurrentState(deploymentId, currentState)
-    dm.database.SetPhase(deploymentId, "RUNNING", "Deployment successful")
-    dm.log.Infow("Deployment successful", "appId", deploymentId)
+	default:
+		// Set current state on unsupported type
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("Unsupported deployment type: %s", profileType))
+		return
+	}
+
+	// Handle deployment errors
+	if err != nil {
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(deploymentId, "FAILED", fmt.Sprintf("%s operation failed: %v", profileType, err))
+		return
+	}
+
+	// Success
+	currentState := desiredState
+	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateInstalled
+	dm.database.SetCurrentState(deploymentId, currentState)
+	dm.database.SetPhase(deploymentId, "RUNNING", "Deployment successful")
+	dm.log.Infow("Deployment successful", "appId", deploymentId)
 }
-
 
 func (dm *DeploymentManager) deployOrUpdateHelm(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
 	component := appDeployment.Spec.DeploymentProfile.Components[0]
@@ -422,49 +420,48 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 }
 
 func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
-    // Check if Helm client is available
-    if dm.helmClient == nil {
-        dm.log.Warnw("Helm client not initialized, skipping Helm removal", "deploymentId", deploymentId)
-        return nil // Return nil to allow cleanup to continue
-    }
+	// Check if Helm client is available
+	if dm.helmClient == nil {
+		dm.log.Warnw("Helm client not initialized, skipping Helm removal", "deploymentId", deploymentId)
+		return nil // Return nil to allow cleanup to continue
+	}
 
-    component := appDeployment.Spec.DeploymentProfile.Components[0]
-    if helmComp, err := component.AsHelmApplicationDeploymentProfileComponent(); err == nil {
-        releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
-        dm.log.Infow("Removing Helm release", "releaseName", releaseName, "deploymentId", deploymentId)
+	component := appDeployment.Spec.DeploymentProfile.Components[0]
+	if helmComp, err := component.AsHelmApplicationDeploymentProfileComponent(); err == nil {
+		releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
+		dm.log.Infow("Removing Helm release", "releaseName", releaseName, "deploymentId", deploymentId)
 
-        if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
-            dm.log.Warnw("Failed to uninstall Helm chart", "releaseName", releaseName, "error", err)
-            return err
-        }
-    }
+		if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
+			dm.log.Warnw("Failed to uninstall Helm chart", "releaseName", releaseName, "error", err)
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
-    // Check if Compose client is available
-    if dm.composeClient == nil {
-        dm.log.Warnw("Docker Compose client not initialized, skipping Compose removal", "deploymentId", deploymentId)
-        return nil // Return nil to allow cleanup to continue
-    }
+	// Check if Compose client is available
+	if dm.composeClient == nil {
+		dm.log.Warnw("Docker Compose client not initialized, skipping Compose removal", "deploymentId", deploymentId)
+		return nil // Return nil to allow cleanup to continue
+	}
 
-    component := appDeployment.Spec.DeploymentProfile.Components[0]
-    if composeComp, err := component.AsComposeApplicationDeploymentProfileComponent(); err == nil {
-        projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
-        projectName = strings.ReplaceAll(projectName, "_", "-")
+	component := appDeployment.Spec.DeploymentProfile.Components[0]
+	if composeComp, err := component.AsComposeApplicationDeploymentProfileComponent(); err == nil {
+		projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
+		projectName = strings.ReplaceAll(projectName, "_", "-")
 
-        dm.log.Infow("Removing Docker Compose project", "projectName", projectName, "deploymentId", deploymentId)
+		dm.log.Infow("Removing Docker Compose project", "projectName", projectName, "deploymentId", deploymentId)
 
-        if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
-            dm.log.Warnw("Failed to remove Docker Compose project", "projectName", projectName, "error", err)
-            return err
-        }
-    }
+		if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
+			dm.log.Warnw("Failed to remove Docker Compose project", "projectName", projectName, "error", err)
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
-
 
 // Helper function to convert parameters to environment variables
 func (dm *DeploymentManager) convertParametersToEnvVars(params map[string]interface{}, componentName string) map[string]string {

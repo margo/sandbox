@@ -336,8 +336,8 @@ install_oras() {
 clone_symphony_repo() {
   cd "$HOME"
   if ! test -d "$HOME/symphony/.git" ; then
-    rm -rf "$HOME/symphony"
-    echo "Cloning symphony branch: $SYMPHONY_BRANCH"
+    rm -rf "$HOME/symphony"     
+    echo "🔄 Cloning symphony branch: $SYMPHONY_BRANCH"
     if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
       git clone \
                 --branch "$SYMPHONY_BRANCH" \
@@ -364,7 +364,7 @@ clone_dev_repo() {
   cd "$HOME"
   if ! test -d "$HOME/sandbox/.git" ; then
     rm -rf "$HOME/sandbox"
-    echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
+    echo "🔄 Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
     if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
       git clone \
                 --branch "$SANDBOX_REPO_BRANCH" \
@@ -382,9 +382,15 @@ clone_dev_repo() {
     fi
   fi
   cd "$HOME/sandbox"
+<<<<<<< HEAD
   # git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
   # git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
   echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+=======
+  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
+  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
+  echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
+>>>>>>> 0031873 (uniform verbosity of git clones (#181))
 }
 
 # ----------------------------

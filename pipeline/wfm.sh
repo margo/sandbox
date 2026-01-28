@@ -454,17 +454,17 @@ setup_harbor() {
     cd "$HOME/sandbox/pipeline/harbor"
     
     # Update harbor.yml with EXPOSED_HARBOR_IP
-    sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
+    sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
     
     echo 'Preparing Harbor configuration...'
-    sudo chmod +x install.sh prepare common.sh
+    chmod +x prepare
     
     # Run prepare to generate docker-compose.yml
     sudo ./prepare
-    
+
     # Add restart policies to docker-compose.yml BEFORE starting
     configure_harbor_restart_policy
-    
+
     # Start Harbor - ensure clean state
     echo 'Starting Harbor with restart policies...'
     sudo docker compose down --remove-orphans 2>/dev/null || true
@@ -1216,8 +1216,8 @@ uninstall_docker_compose() {
   echo "4. Uninstalling Docker and Docker Compose..."
   
   # Stop Docker daemon
-  systemctl stop docker 2>/dev/null && echo "✅ Stopped Docker daemon"
-  systemctl disable docker 2>/dev/null && echo "✅ Disabled Docker daemon"
+  sudo systemctl stop docker 2>/dev/null && echo "✅ Stopped Docker daemon"
+  sudo systemctl disable docker 2>/dev/null && echo "✅ Disabled Docker daemon"
   
   # Remove Docker Compose
   [ -f "/usr/local/bin/docker-compose" ] && rm -f "/usr/local/bin/docker-compose" && echo "✅ Removed Docker Compose"
@@ -1235,7 +1235,7 @@ uninstall_go() {
   echo "5. Uninstalling Go..."
   
   # Remove Go installation
-  [ -d "/usr/local/go" ] && rm -rf "/usr/local/go" && echo "✅ Removed Go from /usr/local/go"
+  [ -d "/usr/local/go" ] && sudo rm -rf "/usr/local/go" && echo "✅ Removed Go from /usr/local/go"
   
   # Remove Go from PATH in shell profiles
   sed -i '/\/usr\/local\/go\/bin/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
@@ -1255,12 +1255,12 @@ stop_harbor_service() {
   # Stop Harbor container
   if docker ps -a --format '{{.Names}}' | grep harbor; then
     cd "$HOME/sandbox/pipeline/harbor"
-    docker compose down --remove-orphans --volumes 2>/dev/null && echo "✅ Stopped Harbor containers"
+    sudo docker compose down --remove-orphans --volumes 2>/dev/null && echo "✅ Stopped Harbor containers"
     sleep 10
   fi
 
   # Remove Harbor compose directory
-  [ -d "$HOME/sandbox/pipeline/harbor" ] && rm -rf "$HOME/sandbox/pipeline/harbor" && echo "✅ Removed Harbor compose directory"
+  [ -d "$HOME/sandbox/pipeline/harbor" ] && sudo rm -rf "$HOME/sandbox/pipeline/harbor" && echo "✅ Removed Harbor compose directory"
 
   # Remove Harbor images
   # docker images | grep harbor | awk '{print $3}' | xargs -r docker rmi -f && echo "✅ Removed Harbor images"

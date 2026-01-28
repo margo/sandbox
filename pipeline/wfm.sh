@@ -61,9 +61,8 @@ PROM_RELEASE="prometheus"
 GRAFANA_RELEASE="grafana"
 LOKI_RELEASE="loki"
 
-# the directory to generate and store ssl certs in
+# Directory to generate and store ssl certs for symphony API
 CERT_DIR="$HOME/symphony/api/certificates"
-
 
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
@@ -84,6 +83,14 @@ pause() {
   read -rp "Press Enter to continue..." _
 }
 
+# ----------------------------
+# GHCR Image References
+# ----------------------------
+GHCR_REGISTRY="ghcr.io"
+GHCR_ORG="margo"
+SYMPHONY_IMAGE="margo-symphony-api"
+SYMPHONY_TAG="latest"
+SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
 
 # ----------------------------
 # Installation Functions
@@ -237,6 +244,13 @@ install_docker_and_compose() {
     sudo usermod -aG docker $USER
 
     echo "✅ Docker ${DOCKER_VERSION} installed"
+
+    # Add user to docker group, if missing
+    if ! groups | grep -w "docker" &>/dev/null ; then
+        sudo usermod -aG docker $USER
+        echo "🚨 User added to group 'docker'! You need to restart the installation from a new bash session to have it activatived."
+        exit
+    fi
   fi
 
   echo "🔄 Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
@@ -295,8 +309,6 @@ install_docker_and_compose() {
 }
 
 
-
-
 install_oras() {
   echo "🔄 Installing ORAS CLI..."
 
@@ -326,16 +338,25 @@ clone_symphony_repo() {
   if ! test -d "$HOME/symphony/.git" ; then
     rm -rf "$HOME/symphony"
     echo "Cloning symphony branch: $SYMPHONY_BRANCH"
-    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
-      git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" "$HOME/symphony"
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+      git clone \
+                --branch "$SYMPHONY_BRANCH" \
+                --single-branch \
+                --depth 1 \
+                "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/symphony.git" \
+                "$HOME/symphony"
     else
-      git clone --depth 1 "https://github.com/margo/symphony.git" "$HOME/symphony"
+      git clone \
+            --branch "$SYMPHONY_BRANCH" \
+            --single-branch \
+            --depth 1 \
+            "https://github.com/margo/symphony.git" \
+            "$HOME/symphony"
     fi
   fi
   cd "$HOME/symphony"
-  git fetch --depth 1 --update-head-ok origin ${SYMPHONY_BRANCH}:${SYMPHONY_BRANCH}
-  git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
-  git pull
+  # git fetch --depth 1 --update-head-ok origin ${SYMPHONY_BRANCH}:${SYMPHONY_BRANCH}
+  # git checkout ${SYMPHONY_BRANCH} || echo 'Branch ${SYMPHONY_BRANCH} not found'
   echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"
 }
 
@@ -344,15 +365,25 @@ clone_dev_repo() {
   if ! test -d "$HOME/sandbox/.git" ; then
     rm -rf "$HOME/sandbox"
     echo "Cloning sandbox branch: $SANDBOX_REPO_BRANCH"
-    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
-      git clone --depth 1 "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git"
+    if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then 
+      git clone \
+                --branch "$SANDBOX_REPO_BRANCH" \
+                --single-branch \
+                --depth 1 \
+                "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git" \
+                "$HOME/sandbox"     
     else
-      git clone --depth 1 "https://github.com/margo/sandbox.git"
+      git clone \
+            --branch "$SANDBOX_REPO_BRANCH" \
+            --single-branch \
+            --depth 1 \
+            "https://github.com/margo/sandbox.git" \
+            "$HOME/sandbox"
     fi
   fi
   cd "$HOME/sandbox"
-  git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
-  git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
+  # git fetch --depth 1 --update-head-ok origin ${SANDBOX_REPO_BRANCH}:${SANDBOX_REPO_BRANCH} || echo 'Unable to fetch ${SANDBOX_REPO_BRANCH}'
+  # git checkout ${SANDBOX_REPO_BRANCH} || echo 'Branch ${SANDBOX_REPO_BRANCH} not found'
   echo "sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 
@@ -396,7 +427,6 @@ EOF
   echo "📁 Working directory: ${harbor_dir}"
 }
 
-
 configure_harbor_restart_policy() {
   local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
 
@@ -420,11 +450,6 @@ configure_harbor_restart_policy() {
   grep "restart:" "$compose_file"
 }
 
-
-
-# ----------------------------
-# Service Setup Functions
-# ----------------------------
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
     echo 'Harbor is already running, skipping startup.'
@@ -432,11 +457,11 @@ setup_harbor() {
     cd "$HOME/sandbox/pipeline/harbor"
 
     # Update harbor.yml with EXPOSED_HARBOR_IP
-    sudo sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
-
+    sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
+    
     echo 'Preparing Harbor configuration...'
-    sudo chmod +x install.sh prepare common.sh
-
+    chmod +x prepare
+    
     # Run prepare to generate docker-compose.yml
     sudo ./prepare
 
@@ -496,6 +521,7 @@ setup_harbor() {
     fi
   fi
 }
+
 
 # ----------------------------
 # OCI Application Package Push Functions (NEW - replaces Git push)
@@ -919,24 +945,25 @@ install_grafana() {
 }
 
 observability_stack_install(){
-  echo "Observability stack installation started"
+echo "Observability stack installation started"
 
-  # Check if collector-scrape-cm-change.txt file exists
-  if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
-      echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
-      echo "Please ensure the file exists before proceeding."
-      exit 1
-  fi
+# Check if collector-scrape-cm-change.txt file exists
+if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
+    echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
+    echo "Please ensure the file exists before proceeding."
+    exit 1
+fi
 
-  echo "collector-scrape-cm-change.txt file found, proceeding..."
-    create_observability_namespace
-    install_jaeger
-    install_prometheus
-    install_grafana
-    install_loki
-
-  echo "Observability stack installation completed"
+echo "collector-scrape-cm-change.txt file found, proceeding..."
+  create_observability_namespace
+  install_jaeger
+  install_prometheus
+  install_grafana
+  install_loki
+echo "Observability stack installation completed"
 }
+
+
 
 observability_stack_uninstall(){
     echo "Observability stack uninstall started"
@@ -990,6 +1017,22 @@ add_container_registry_mirror_to_k3s() {
     echo "✅ Backed up /var/lib/rancher/k3s/registries.yml"
   fi
 
+																	  
+														  
+		
+											
+			 
+					   
+
+		
+											
+		 
+								
+									
+		
+							  
+   
+
   # ---------------------------------------------------
   # Write the registry config
   # ---------------------------------------------------
@@ -1008,9 +1051,26 @@ configs:
       insecure_skip_verify: true
 EOF
 
+																
+													 
+		
+											
+			 
+					   
+
+		
+											
+		 
+								
+									
+   
+
   sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yaml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
+											
+			 
+					   
 
   echo "✅ Created k3s registry mirror configuration"
   # ---------------------------------------------------
@@ -1179,12 +1239,12 @@ stop_harbor_service() {
   # Stop Harbor container
   if docker ps -a --format '{{.Names}}' | grep harbor; then
     cd "$HOME/sandbox/pipeline/harbor"
-    docker compose down --remove-orphans --volumes 2>/dev/null && echo "✅ Stopped Harbor containers"
+    sudo docker compose down --remove-orphans --volumes 2>/dev/null && echo "✅ Stopped Harbor containers"
     sleep 10
   fi
 
   # Remove Harbor compose directory
-  [ -d "$HOME/sandbox/pipeline/harbor" ] && rm -rf "$HOME/sandbox/pipeline/harbor" && echo "✅ Removed Harbor compose directory"
+  [ -d "$HOME/sandbox/pipeline/harbor" ] && sudo rm -rf "$HOME/sandbox/pipeline/harbor" && echo "✅ Removed Harbor compose directory"
 
   # Remove Harbor images
   # docker images | grep harbor | awk '{print $3}' | xargs -r docker rmi -f && echo "✅ Removed Harbor images"
@@ -1372,6 +1432,7 @@ verify_k3s_status() {
   sudo k3s kubectl get nodes || true
 }
 
+
 setup_kubeconfig() {
   echo 'Setting up kubeconfig...'
   mkdir -p "$HOME/.kube"
@@ -1390,6 +1451,8 @@ setup_k3s() {
   echo "✅ k3s ${K3S_VERSION} setup complete"
 }
 
+
+
 # ----------------------------
 # Main Orchestration Functions
 # ----------------------------
@@ -1407,8 +1470,10 @@ install_prerequisites() {
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
+   
   setup_harbor
   build_custom_otel_container_images
+  
   echo ""
   echo "-----------------------------------------------------------------------"
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry(i.e. harbor)..."
@@ -1504,37 +1569,17 @@ start_symphony_api_container(){
     pkill -f "symphony-api" 2>/dev/null || true
 
     # Check if image already exists
-    if docker image inspect margo-symphony-api:latest >/dev/null 2>&1; then
-        echo "✅ Image margo-symphony-api:latest already exists, skipping build"
+    echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
+    if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
+      echo "Image exists in GHCR"
     else
-        echo "🔨 Building Symphony API container..."
+      echo "Image does NOT exist in GHCR"
+      return 1
+    fi  
 
-        if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
-          # Create credential files
-          echo "$GITHUB_USER" > github_username.txt
-          echo "$GITHUB_TOKEN" > github_token.txt
-          # Build with secrets
-          docker build \
-            --secret id=github_username,src=github_username.txt \
-            --secret id=github_token,src=github_token.txt \
-            -t margo-symphony-api:latest \
-            .. -f Dockerfile
-
-          # Clean up credential files
-          rm github_username.txt github_token.txt
-        else
-          # Build with secrets
-          docker build \
-            -t margo-symphony-api:latest \
-            .. -f Dockerfile
-        fi
-
-        if [ $? -ne 0 ]; then
-            echo "❌ Failed to build Symphony API container"
-            return 1
-        fi
-        echo "✅ Symphony API container built successfully with tag: margo-symphony-api:latest"
-    fi
+    # Pull the image
+    echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
+    docker pull "${SYMPHONY_IMAGE_REF}"
 
     # Run the container
     echo "🚀 Starting Symphony API container..."
@@ -1546,21 +1591,22 @@ start_symphony_api_container(){
         -v "$HOME/symphony/api/certificates:/certificates" \
         -v "$HOME/symphony/api":/configs \
         -e CONFIG=symphony-api-margo.json \
-        margo-symphony-api:latest
-
-    if [ $? -eq 0 ]; then
+        "${SYMPHONY_IMAGE_REF}"
+        
+    # Verify container is running
+    if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
         echo "✅ Symphony API container started successfully"
-        echo "📡 Container is running on port 8082"
+        echo "📡 Container is running on port 8082 (host network)"
         echo "🏷️  Container name: symphony-api-container"
-
-        # Create systemd service for auto-start on boot
+         # Create systemd service for auto-start on boot
         create_symphony_api_systemd_service
     else
         echo "❌ Failed to start Symphony API container"
+        docker logs symphony-api-container || true
         return 1
     fi
+ 
 }
-
 
 stop_symphony() {
   echo "Stopping and removing Symphony API container..."
@@ -1594,6 +1640,7 @@ stop_symphony() {
     echo 'ℹ️ Redis data preserved'
   fi
 }
+
 
 # Collect certificate information
 collect_certs_info() {
@@ -1740,6 +1787,7 @@ install_vim() {
 
   echo "✅ Vim installation completed."
 }
+
 
 install_and_enable_ssh() {
   echo "[INFO] Checking OS type..."

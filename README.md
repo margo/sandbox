@@ -10,8 +10,7 @@
 - [Design and Mapping to Margo Architecture](#design-and-mapping-to-margo-architecture)
   - [Symphony WFM](#symphony-wfm)
   - [Repositories and Registry](#repositories-and-registry)
-  - [Telemetry and Monitoring](#telemetry-and-monitoring)
-  - [HB MVP Pattern](#hb-mvp-pattern)
+  - [Telemetry and Monitoring](#telemetry-and-monitoring)  
 - [HTTP/1.1 and API Security](#http11-and-api-security)
 - [Release Notes](#release-notes)
 - [Comments and Feedback](#comments-and-feedback)
@@ -123,22 +122,6 @@ This includes the following elements -
 - Loki is deployed for log aggregation and Grafana dashboard for visualization.
 - Jaeger is deployed for tracing.
 - Prometheus is deployed for Metrics collection.
-
-#### HB MVP Pattern
-Eclipse Symphony is an open-source orchestration platform developed by the Eclipse Foundation to unify and manage complex workloads across diverse systems. In the context of Eclipse Symphony, MVP refers to a design pattern for building extensible systems, specifically a three-tiered architecture consisting of Managers, Vendors, and Providers.
-
-This pattern is often referred to as HB-MVP (Host-Bound Managers, Vendors and Providers ):
-
-- **Managers**: Implements business logic
-- **Vendors**: Facilitate interaction with other systems
-- **Providers**: Bridge the connection to external systems
-
-##### Here's a breakdown of each component:
-- **Vendors**: Vendors offer capabilities, typically exposed through an API surface. They act as the entry point for interacting with a specific service or functionality. Ideally, vendors are protocol-agnostic, allowing them to be bound to various communication protocols (e.g., HTTP, gRPC, MQTT) as needed.
-- **Managers**: Managers implement the platform-agnostic business logic for a given capability. They receive requests from vendors and orchestrate the necessary actions, often by interacting with one or more providers. Managers are designed for reuse and encapsulate the core business logic.
-- **Providers**: Providers are responsible for interacting with specific external systems or dependencies. They abstract away the details of platform-specific interactions, containing any platform-specific knowledge within their scope. Managers utilize providers to perform actions on external resources.
-
-Code First Sandbox uses MVP pattern to implement Margo specification.
 
 ---
 

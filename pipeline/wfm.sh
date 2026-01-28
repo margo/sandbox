@@ -378,9 +378,9 @@ clone_dev_repo() {
             "https://github.com/margo/sandbox.git" \
             "$HOME/sandbox"
     fi
-  fi
-  cd "$HOME/sandbox"  
-  echo "✅ symphony repo checkout to branch ${SYMPHONY_BRANCH} done"  
+ fi
+  cd "$HOME/sandbox"
+  echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 
 # ----------------------------

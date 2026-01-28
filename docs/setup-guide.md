@@ -105,7 +105,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 3: Symphony Start`
 
    This starts the Workload Fleet Manager service. 
-> Note: Docker image for Workload Fleet Manager is already pushed to Margo GHCR registry from where this script pull the image and starts WFM.
+> Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
 4. **Add Monitoring Tools**
    ```bash
@@ -202,7 +202,7 @@ You need to copy a security file from the WFM VM to each Device VM.
 **Note:** The `$HOME/certs` directory was automatically created when you generated the security certificates in Step 3.
 
 ### Start Device Services
-> Note: Docker image for Workload Fleet Management client is already pushed to Margo GHCR registry from where the below script pull the image and starts WFM client.
+> Note: Docker image for Workload Fleet Management client has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM client.
 
 **On Docker Device VM:**
 
@@ -725,10 +725,7 @@ If you want to remove everything and start over:
    sudo -E bash ./wfm.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    sudo -E bash ./wfm.sh  # Type 6 and press Enter - Option 6: ObservabilityStack Stop
    ```
-3. **Remove Symphony image.(Recommended - Only when you want to verify new features from Margo branch/tag, Not to be done for every clean-up)**
-   ```bash
-   docker rmi margo-symphony-api:latest
-   ```
+
 
 ### On Device VMs:
 
@@ -744,10 +741,7 @@ If you want to remove everything and start over:
    sudo -E bash ./device-agent.sh  # Type 9 - otel-collector-promtail-uninstallation
    sudo -E bash ./device-agent.sh  # Type 10 - cleanup-residual
    ```
-3. **Remove Device's Workload Fleet Management Client image.(Recommended - Only when you want to verify new features from Margo branch/tag, Not to be done for every clean-up)**
-   ```bash
-   docker rmi margo.org/workload-fleet-management-client:latest
-   ```
+
 
 
 ---

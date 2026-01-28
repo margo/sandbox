@@ -1482,8 +1482,7 @@ EOF
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-    echo "Building Symphony API container..."
-
+    
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
     docker stop symphony-api-container 2>/dev/null || true

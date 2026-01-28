@@ -104,7 +104,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Type `3` and press Enter
    - Choose: `Option 3: Symphony Start`
 
-   This starts the Workload Fleet Manager service.
+   This starts the Workload Fleet Manager service. 
+> Note: Docker image for Workload Fleet Manager is already pushed to Margo GHCR registry from where this script pull the image and starts WFM.
 
 4. **Add Monitoring Tools**
    ```bash
@@ -201,6 +202,7 @@ You need to copy a security file from the WFM VM to each Device VM.
 **Note:** The `$HOME/certs` directory was automatically created when you generated the security certificates in Step 3.
 
 ### Start Device Services
+> Note: Docker image for Workload Fleet Management client is already pushed to Margo GHCR registry from where the below script pull the image and starts WFM client.
 
 **On Docker Device VM:**
 
@@ -264,6 +266,14 @@ You need to copy a security file from the WFM VM to each Device VM.
   However, if you encounter issues after reboot, you can manually restart them using the same menu options.
 
 ### Add Monitoring to Devices
+> Note : OTEL Collector: Pushes traces to Jaeger (port 30417) and metrics to Prometheus (port 30909). Promtail: Pushes logs to Loki (port 32100)
+```
+Device → Push Traces → WFM Jaeger (port 30417)
+Device → Push Metrics → WFM Prometheus (port 30909)
+Device → Push Logs → WFM Loki (port 32100)
+
+Devices use a push-based architecture - they actively send data to WFM rather than being scraped. This works seamlessly across NAT/firewalls and requires no additional firewall configuration.
+```
 
 On each Device VM:
 ```bash

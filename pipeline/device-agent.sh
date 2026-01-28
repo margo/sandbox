@@ -594,7 +594,7 @@ stop_device_agent_service_docker() {
 
 build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
-    echo "Building and deploying workload-fleet-management-client on Kubernetes..."
+    echo "Deploying workload-fleet-management-client on Kubernetes..."
     
     # Step 1: Pull image from GHCR (no local build)
     echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"

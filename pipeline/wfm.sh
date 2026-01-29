@@ -380,7 +380,6 @@ clone_dev_repo() {
     fi
  fi
   cd "$HOME/sandbox"
-  
   echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 

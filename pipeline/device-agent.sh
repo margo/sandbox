@@ -594,7 +594,7 @@ stop_device_agent_service_docker() {
 
 build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
-    echo "Building and deploying workload-fleet-management-client on Kubernetes..."
+    echo "Deploying workload-fleet-management-client on Kubernetes..."
     
     # Step 1: Pull image from GHCR (no local build)
     echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
@@ -1102,13 +1102,19 @@ config:
         - node
 
   exporters:
+    # Send traces to Jaeger
     otlp:
       endpoint: ${WFM_IP}:30417
       tls:
         insecure: true
 
-    prometheus:
-      endpoint: "0.0.0.0:8899"
+    # CHANGED: Push metrics to Prometheus Remote Write
+    prometheusremotewrite:
+      endpoint: http://${WFM_IP}:30909/api/v1/write
+      tls:
+        insecure: true
+      resource_to_telemetry_conversion:
+        enabled: true
 
     debug:
       verbosity: detailed
@@ -1123,10 +1129,11 @@ config:
         processors: [batch]
         exporters: [otlp, debug]
 
+      # CHANGED: Push metrics instead of exposing endpoint
       metrics:
         receivers: [otlp, hostmetrics, kubeletstats]
         processors: [batch]
-        exporters: [prometheus, debug]
+        exporters: [prometheusremotewrite, debug]
 EOF
 
   helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -1134,31 +1141,11 @@ EOF
 
   helm install $OTEL_RELEASE open-telemetry/opentelemetry-collector --version 0.140.0 -f otel-values.yaml --namespace $NAMESPACE_OBSERVABILITY
 
-  echo "🔧 Patching OTEL Collector service to expose Prometheus metrics on NodePort 30999..."
-  sudo kubectl patch svc otel-collector-opentelemetry-collector \
-    -n $NAMESPACE_OBSERVABILITY \
-    --type='json' \
-    -p='[
-      {
-        "op": "add",
-        "path": "/spec/ports/-",
-        "value": {
-          "name": "prometheus-metrics",
-          "port": 8899,
-          "protocol": "TCP",
-          "targetPort": 8899,
-          "nodePort": 30999
-        }
-      },
-      {
-        "op": "replace",
-        "path": "/spec/type",
-        "value": "NodePort"
-      }
-    ]'
-
-  echo "✅ OTEL Collector installed and Prometheus metrics exposed at NodePort 30999"
+  echo "✅ OTEL Collector setup complete!"
+  echo "🔍 Traces sent to: ${WFM_IP}:30417"
+  echo "📊 Metrics pushed to: ${WFM_IP}:30909/api/v1/write"
 }
+
 
 # Function to create observability namespace
 create_observability_namespace() {
@@ -1216,7 +1203,7 @@ install_otel_collector_promtail_docker() {
   DOCKER_GID=$(getent group docker | cut -d: -f3)
   echo "Docker group GID: $DOCKER_GID"
 
-  # Create docker-compose.yml for observability stack with proper permissions
+  # Create docker-compose.yml for observability stack
   cat <<EOF > docker-compose-observability.yml
 version: '3.8'
 
@@ -1235,7 +1222,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.140.0
     container_name: otel-collector
-    user: "0:${DOCKER_GID}"  # Run as root with docker group access
+    user: "0:${DOCKER_GID}"
     volumes:
       - ./otel-collector-config.yml:/etc/otel/config.yml
       - /var/run/docker.sock:/var/run/docker.sock
@@ -1243,7 +1230,6 @@ services:
     ports:
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
-      - "8899:8899"   # Prometheus metrics
     restart: unless-stopped
     network_mode: host
     environment:
@@ -1272,7 +1258,7 @@ scrape_configs:
           __path__: /var/lib/docker/containers/*/*.log
 EOF
 
-  # Create OTEL Collector config with Docker stats and Jaeger export
+  # Create OTEL Collector config with Prometheus Remote Write
   cat <<EOF > otel-collector-config.yml
 receivers:
   # OTLP receiver for application traces/metrics
@@ -1306,13 +1292,17 @@ receivers:
 exporters:
   # Send traces to Jaeger on WFM server
   otlp/jaeger:
-    endpoint: ${WFM_IP}:4317
+    endpoint: ${WFM_IP}:30417
     tls:
       insecure: true
 
-  # Expose metrics for Prometheus scraping
-  prometheus:
-    endpoint: "0.0.0.0:8899"
+  # CHANGED: Push metrics to Prometheus Remote Write
+  prometheusremotewrite:
+    endpoint: http://${WFM_IP}:30909/api/v1/write
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true
 
   # Debug output
   debug:
@@ -1341,11 +1331,11 @@ service:
       processors: [batch, resource]
       exporters: [otlp/jaeger, debug]
 
-    # Metrics pipeline - expose for Prometheus
+    # CHANGED: Metrics pipeline - push to Prometheus Remote Write
     metrics:
       receivers: [otlp, hostmetrics, docker_stats]
       processors: [batch, resource]
-      exporters: [prometheus, debug]
+      exporters: [prometheusremotewrite, debug]
 EOF
 
   # Get host IP for resource attributes
@@ -1361,9 +1351,9 @@ EOF
   echo "✅ OTEL Collector v0.140.0 and Promtail v2.9.10 installed"
   echo "📡 OTLP gRPC: localhost:4317"
   echo "📡 OTLP HTTP: localhost:4318"
-  echo "📊 Prometheus metrics: localhost:8899"
-  echo "🔍 Traces sent to Jaeger at: ${WFM_IP}:4317"
-  echo "🔒 Docker socket access configured with group permissions (survives reboots)"
+  echo "🔍 Traces sent to Jaeger at: ${WFM_IP}:30417"
+  echo "📊 Metrics pushed to Prometheus at: ${WFM_IP}:30909/api/v1/write"
+  echo "📝 Logs sent to Loki at: ${WFM_IP}:32100"
 }
 
 

@@ -728,32 +728,7 @@ create_observability_namespace() {
 
 install_prometheus() {
   cd "$HOME/sandbox/pipeline/observability"
-  echo "📡 Setting up Prometheus to scrape metrics from multiple devices..."
-
-  # Parse DEVICE_NODE_IPS and build targets array
-  TARGETS_ARRAY="["
-  if [ -n "$DEVICE_NODE_IPS" ]; then
-    IFS=',' read -ra DEVICES <<< "$DEVICE_NODE_IPS"
-
-    for i in "${!DEVICES[@]}"; do
-      device=$(echo "${DEVICES[$i]}" | xargs)
-
-      # Check if port is specified
-      if [[ "$device" == *":"* ]]; then
-        TARGET="'${device}'"
-      else
-        TARGET="'${device}:30999'"
-      fi
-
-      # Add comma separator except for last item
-      if [ $i -eq $((${#DEVICES[@]} - 1)) ]; then
-        TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}"
-      else
-        TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}, "
-      fi
-    done
-  fi
-  TARGETS_ARRAY="${TARGETS_ARRAY}]"
+  echo "📡 Setting up Prometheus with Remote Write receiver..."
 
   cat <<EOF > prometheus-values.yaml
 server:
@@ -765,14 +740,23 @@ server:
     nodePort: 30900
   persistentVolume:
     enabled: false
+  
+  # Enable Remote Write receiver
+  extraArgs:
+    web.enable-remote-write-receiver: ""
+    enable-feature: "remote-write-receiver"
+  
   serverFiles:
     prometheus.yml:
       global:
-        scrape_interval: 5s
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      
+      # Keep self-scraping for Prometheus metrics
       scrape_configs:
-        - job_name: 'otel-collector'
+        - job_name: 'prometheus'
           static_configs:
-            - targets: ${TARGETS_ARRAY}
+            - targets: ['localhost:9090']
 EOF
 
   helm repo remove prometheus-community || true
@@ -784,80 +768,29 @@ EOF
     --namespace $NAMESPACE_OBSERVABILITY \
     -f prometheus-values.yaml
 
+  # Expose Remote Write endpoint on NodePort 30909
+  echo "🔧 Patching Prometheus service to expose Remote Write endpoint..."
+  sudo kubectl patch svc prometheus-server -n $NAMESPACE_OBSERVABILITY \
+    --type='json' \
+    -p='[
+      {
+        "op": "add",
+        "path": "/spec/ports/-",
+        "value": {
+          "name": "remote-write",
+          "port": 9090,
+          "protocol": "TCP",
+          "targetPort": 9090,
+          "nodePort": 30909
+        }
+      }
+    ]'
+
   echo "✅ Prometheus setup complete!"
   echo "📊 Prometheus UI: NodePort 30900"
-  echo "📡 Monitoring devices: $DEVICE_NODE_IPS"
-
-  patch_prometheus_configmap
+  echo "📡 Remote Write endpoint: NodePort 30909"
+  echo "ℹ️  Devices should push metrics to: http://WFM_IP:30909/api/v1/write"
 }
-
-
-patch_prometheus_configmap() {
-  cd "$HOME/sandbox/pipeline/observability"
-  echo "🛠 Applying Prometheus ConfigMap with device targets..."
-
-  CM_SOURCE="collector-scrape-cm-change.txt"
-  CM_TARGET="collector-scrape-cm-change.yaml"
-
-  if [ ! -f "$CM_SOURCE" ]; then
-    echo "❌ Source ConfigMap file '$CM_SOURCE' not found."
-    exit 1
-  fi
-
-  # Build targets array from DEVICE_NODE_IPS
-  TARGETS_ARRAY="["
-  if [ -n "$DEVICE_NODE_IPS" ]; then
-    IFS=',' read -ra DEVICES <<< "$DEVICE_NODE_IPS"
-
-    for i in "${!DEVICES[@]}"; do
-      device=$(echo "${DEVICES[$i]}" | xargs)
-
-      # Check if port is specified
-      if [[ "$device" == *":"* ]]; then
-        TARGET="'${device}'"
-      else
-        TARGET="'${device}:30999'"
-      fi
-
-      # Add comma separator except for last item
-      if [ $i -eq $((${#DEVICES[@]} - 1)) ]; then
-        TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}"
-      else
-        TARGETS_ARRAY="${TARGETS_ARRAY}${TARGET}, "
-      fi
-    done
-  fi
-  TARGETS_ARRAY="${TARGETS_ARRAY}]"
-
-  echo "📡 Device targets: $TARGETS_ARRAY"
-
-  # Replace placeholder with targets array
-  sed "s|__DEVICE_TARGETS__|${TARGETS_ARRAY}|g" "$CM_SOURCE" > "$CM_TARGET"
-
-  echo "📄 Applying ConfigMap with force replace..."
-
-  # Method 1: Force replace (recommended)
-  sudo kubectl replace -f "$CM_TARGET" --force --namespace "$NAMESPACE_OBSERVABILITY" || {
-    echo "⚠️ Force replace failed, trying server-side apply..."
-    # Method 2: Server-side apply (handles conflicts better)
-    sudo kubectl apply -f "$CM_TARGET" --server-side --force-conflicts --namespace "$NAMESPACE_OBSERVABILITY" || {
-      echo "⚠️ Server-side apply failed, trying delete and recreate..."
-      # Method 3: Delete and recreate as last resort
-      sudo kubectl delete configmap prometheus-server -n "$NAMESPACE_OBSERVABILITY" --ignore-not-found=true
-      sleep 3
-      sudo kubectl apply -f "$CM_TARGET" --namespace "$NAMESPACE_OBSERVABILITY"
-    }
-  }
-
-  echo "🔄 Restarting Prometheus pod to apply new config..."
-  sudo kubectl rollout restart deployment prometheus-server -n "$NAMESPACE_OBSERVABILITY" || \
-  sudo kubectl delete pod -l app=prometheus,component=server -n "$NAMESPACE_OBSERVABILITY" || \
-  echo "⚠️ Pod restart may be needed manually."
-
-  rm -f "$CM_TARGET"
-  echo "✅ ConfigMap applied and temporary file removed."
-}
-
 
 
 install_loki() {
@@ -943,14 +876,6 @@ install_grafana() {
 observability_stack_install(){
 echo "Observability stack installation started"
 
-# Check if collector-scrape-cm-change.txt file exists
-if [ ! -f "$HOME/sandbox/pipeline/observability/collector-scrape-cm-change.txt" ]; then
-    echo "Error: collector-scrape-cm-change.txt file not found in $HOME/sandbox/pipeline/observability"
-    echo "Please ensure the file exists before proceeding."
-    exit 1
-fi
-
-echo "collector-scrape-cm-change.txt file found, proceeding..."
   create_observability_namespace
   install_jaeger
   install_prometheus
@@ -975,19 +900,19 @@ observability_stack_uninstall(){
         fi
     done
 
-
     # Wait for pods to be completely terminated
     echo "Waiting for pods to be terminated..."
-
-    # Wait for specific pods to be deleted
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=jaeger --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=grafana --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=loki --timeout=300s || true
     kubectl wait --for=delete pods -l app.kubernetes.io/instance=prometheus --timeout=300s || true
 
-    rm -f prometheus-values.yaml loki-values.yaml collector-scrape-cm-change.yaml
+    # CHANGED: Remove only prometheus-values.yaml and loki-values.yaml
+    rm -f prometheus-values.yaml loki-values.yaml
+    
     echo "Observability stack uninstall completed"
 }
+
 
 add_container_registry_mirror_to_k3s() {
   echo "Configuring container registry mirror for k3s..."
@@ -1556,8 +1481,7 @@ EOF
 start_symphony_api_container(){
 
     cd "$HOME/symphony/api"
-    echo "Building Symphony API container..."
-
+    
     # Stop and remove existing container if present
     echo "Stopping and removing existing symphony-api-container if present..."
     docker stop symphony-api-container 2>/dev/null || true

@@ -98,7 +98,7 @@ configuration:
       minLength: 8
       maxLength: 128
       allowEmpty: false
-      sensitive: true
+      #sensitive: true # this is not compliant with the specification.
     - name: portRange
       dataType: integer
       minValue: 1024

@@ -148,6 +148,13 @@ jobs:
           curl -s -u admin:Harbor12345 \
             "http://localhost:8081/api/v2.0/projects/library/repositories/nextcloud-compose-app-package/artifacts" \
             | jq
+      - name: Verify OCI Manifest Type
+        run: |
+                  echo "🔍 Verifying OCI image manifest..."
+                  curl -sI \
+                    -u admin:${{ secrets.HARBOR_PASSWORD }} \
+                    -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+                http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
       # ============================================================
       # Docker Device Agent
       # ============================================================

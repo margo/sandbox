@@ -195,6 +195,7 @@ install_go() {
   fi
 }
 
+
 install_docker_and_compose() {
   cd "$HOME" || return 1
   DOCKER_VERSION="29.1.2"
@@ -264,6 +265,7 @@ install_docker_and_compose() {
     return 1
   fi
 }
+
 
 
 install_oras() {
@@ -481,93 +483,69 @@ setup_harbor() {
 # ----------------------------
 
 push_nextcloud_to_oci() {
-  echo "📦 Pushing Nextcloud application package to OCI Registry..."
-
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
-  local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
-  local tag="latest"
-
-  cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
-
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --plain-http
-
-  if [ ! -f "margo.yaml" ]; then
-    echo "❌ margo.yaml not found in $app_dir"
-    return 1
-  fi
-
-  local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-
-  if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
-    while IFS= read -r file; do
-      if [ -f "$file" ]; then
-        files+=("$file:application/octet-stream")
-      fi
-    done < <(find resources -type f 2>/dev/null)
-  fi
-
-  echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
-    --artifact-type "application/vnd.margo.app.v1+json" \
-    --plain-http \
-    "${files[@]}"
-
-  if [ $? -eq 0 ]; then
-    echo "✅ Nextcloud package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
-  else
-    echo "❌ Failed to push Nextcloud package"
-    return 1
-  fi
+ echo "📦 Pushing Nextcloud application package to OCI Registry..."
+ local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
+ local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
+ local tag="latest"
+ local registry="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+ cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
+ echo "$REGISTRY_PASS" | oras login "$registry" \
+   -u "$REGISTRY_USER" --password-stdin --plain-http
+ if [ ! -f "margo.yaml" ]; then
+   echo "❌ margo.yaml not found"
+   return 1
+ fi
+ # Collect all files
+ local files=("margo.yaml")
+ if [ -d "resources" ]; then
+   while IFS= read -r file; do
+     files+=("$file")
+   done < <(find resources -type f 2>/dev/null)
+ fi
+ echo "🚀 Pushing as OCI IMAGE manifest (compatible with Symphony)..."
+ oras push "$registry/$repository:$tag" \
+   --artifact-type application/vnd.oci.image.manifest.v1+json \
+   --plain-http \
+   "${files[@]}"
+ if [ $? -eq 0 ]; then
+   echo "✅ Nextcloud package pushed successfully"
+ else
+   echo "❌ Push failed"
+   return 1
+ fi
 }
 
 
 push_custom_otel_to_oci() {
-  echo "📦 Pushing Custom OTEL application package to OCI Registry..."
-
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
-  local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
-  local tag="latest"
-
-  cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
-
-  # Login to Harbor OCI Registry
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --plain-http
-
-  # Check if margo.yaml exists
-  if [ ! -f "margo.yaml" ]; then
-    echo "❌ margo.yaml not found in $app_dir"
-    return 1
-  fi
-
-  # Build file list for ORAS - start with margo.yaml
-  local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-
-  # Add resource files if directory exists and has files
-  if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
-    while IFS= read -r file; do
-      if [ -f "$file" ]; then
-        files+=("$file:application/octet-stream")
-      fi
-    done < <(find resources -type f 2>/dev/null)
-  fi
-
-  # Push to OCI Registry with Margo-specific artifact type
-  echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
-    --artifact-type "application/vnd.margo.app.v1+json" \
-    --plain-http \
-    "${files[@]}"
-
-  if [ $? -eq 0 ]; then
-    echo "✅ Custom OTEL package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
-  else
-    echo "❌ Failed to push Custom OTEL package"
-    return 1
-  fi
+ echo "📦 Pushing Custom OTEL application package to OCI Registry..."
+ local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
+ local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
+ local tag="latest"
+ local registry="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+ cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
+ echo "$REGISTRY_PASS" | oras login "$registry" \
+   -u "$REGISTRY_USER" --password-stdin --plain-http
+ if [ ! -f "margo.yaml" ]; then
+   echo "❌ margo.yaml not found"
+   return 1
+ fi
+ local files=("margo.yaml")
+ if [ -d "resources" ]; then
+   while IFS= read -r file; do
+     files+=("$file")
+   done < <(find resources -type f 2>/dev/null)
+ fi
+ echo "🚀 Pushing as OCI IMAGE manifest..."
+ oras push "$registry/$repository:$tag" \
+   --artifact-type application/vnd.oci.image.manifest.v1+json \
+   --plain-http \
+   "${files[@]}"
+ if [ $? -eq 0 ]; then
+   echo "✅ Custom OTEL package pushed successfully"
+ else
+   echo "❌ Push failed"
+   return 1
+ fi
 }
 
 

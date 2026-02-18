@@ -195,16 +195,11 @@ jobs:
             | jq '.[] | {name: .name, tags: .tags}' || echo "Failed to query package"
           
           sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
-          UPLOAD_STATUS=$?
+
+          sudo docker ps -a
+          echo "------WFM LOGS ------"
+          sudo docker logs symphony-api-container --tail=500 || true
           
-          if [ $UPLOAD_STATUS -eq 0 ]; then
-            echo "✅ Package upload command succeeded"
-          else
-            echo "❌ Package upload command failed with status $UPLOAD_STATUS"
-          fi
-          
-          sleep 10
-          set +x
      
       # ============================================================
        

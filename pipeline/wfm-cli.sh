@@ -586,7 +586,7 @@ metadata:
 spec:
   sourceType: OCI_REPO
   source:
-    registryUrl: "http://${harbor_url}"
+    registryUrl: "http://registry:5000"
     repository: "${OCI_ORGANIZATION}/${package_repo}"
     tag: "latest"
     authentication:

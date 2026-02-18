@@ -79,8 +79,11 @@ list_app_packages() {
   if check_maestro_cli; then
     ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg || echo "❌ Failed to list app-pkg"
   fi
-  echo ""
-  read -p "Press Enter to continue..."
+
+  if [[ -t 0 ]]; then
+      echo ""
+      read -p "Press Enter to continue..."
+  fi
 }
 
 list_devices() {
@@ -125,8 +128,10 @@ list_all() {
     ${MAESTRO_CLI_PATH}/maestro wfm list deployment || echo "❌ Failed to list deployment"
   fi
 
-  echo ""
-  read -p "Press Enter to continue..."
+  if [[ -t 0 ]]; then
+      echo ""
+      read -p "Press Enter to continue..."
+  fi
 }
 
 # ----------------------------

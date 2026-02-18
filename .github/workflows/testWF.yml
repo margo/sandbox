@@ -197,10 +197,11 @@ jobs:
           sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
 
           sudo docker ps -a
+          sleep 15
           echo "------WFM LOGS ------"
-          sudo docker logs symphony-api-container --tail=500 || true
+          sudo docker logs symphony-api-container --tail=1000 || true
           
-     
+          
       # ============================================================
        
       - name: Show docker networks
@@ -217,7 +218,9 @@ jobs:
         run: |
           echo "📋 Listing all app packages/devices..."
           sudo -E bash ./wfm-cli.sh list-all
-          sleep 10    
+          sleep 15
+          echo "📋 Listing app packages..."
+          sudo -E bash ./wfm-cli.sh list-packages
       # ============================================================
       # Check for onboarding errors in Symphony logs
       # ============================================================

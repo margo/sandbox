@@ -147,65 +147,70 @@ install_basic_utilities() {
   fi
 }
 
-install_docker_and_compose() {
-  cd $HOME
 
-  # Define pinned versions
+install_docker_and_compose() {
+  cd "$HOME"
+  # ----------------------------
+  # Versions (pinned)
+  # ----------------------------
   local DOCKER_VERSION="${DOCKER_VERSION:-29.1.2}"
   local DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
-  local UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
+  local UBUNTU_CODENAME
+  UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
 
-  # Install Docker if not present
+  # ----------------------------
+  # Docker Engine
+  # ----------------------------
   if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker not found. Installing Docker ${DOCKER_VERSION}..."
-
-    # Remove old Docker packages
+    echo "🔄 Installing Docker ${DOCKER_VERSION}..."
     apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-
-    # Add Docker's official GPG key and repository
     apt-get update
     apt-get install -y ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
-
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      ${UBUNTU_CODENAME} stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${UBUNTU_CODENAME} stable" \
+      > /etc/apt/sources.list.d/docker.list
     apt-get update
-
-    # Install specific Docker version
     apt-get install -y \
       docker-ce=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       docker-ce-cli=5:${DOCKER_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME} \
       containerd.io=1.7.27-1 \
       docker-buildx-plugin=0.23.0-1~ubuntu.24.04~${UBUNTU_CODENAME}
-
-    usermod -aG docker $USER
-    echo "✅ Docker ${DOCKER_VERSION} installed successfully"
+    usermod -aG docker "$USER"
+    echo "✅ Docker ${DOCKER_VERSION} installed"
   else
-    echo 'Docker already installed.'
-    CURRENT_DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null)
-    echo "Current Docker version: $CURRENT_DOCKER_VERSION"
+    echo "⚡ Docker already installed: $(docker version --format '{{.Server.Version}}')"
   fi
 
-  # Install specific Docker Compose plugin version
-  if ! apt list --installed 2>/dev/null | grep -q docker-compose-plugin; then
-    echo "Installing Docker Compose plugin ${DOCKER_COMPOSE_VERSION}..."
-    apt-get update
-    apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
+  # ----------------------------
+  # Docker Compose (BINARY – CI SAFE)
+  # ----------------------------
+  echo "🔄 Ensuring Docker Compose v${DOCKER_COMPOSE_VERSION}"
+  COMPOSE_BIN="/usr/local/lib/docker/cli-plugins/docker-compose"
+  mkdir -p /usr/local/lib/docker/cli-plugins
+
+  if [ -x "$COMPOSE_BIN" ]; then
+    CURRENT_COMPOSE_VERSION=$(docker compose version --short | sed 's/v//')
+    echo "⚡ Docker Compose already installed: v$CURRENT_COMPOSE_VERSION"
   else
-    echo 'Docker Compose plugin already installed.'
-    CURRENT_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null | sed 's/v//')
-    echo "Current Docker Compose version: v$CURRENT_COMPOSE_VERSION"
+    echo "⬇️ Installing Docker Compose via binary"
+    curl -SL \
+      "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64" \
+      -o "$COMPOSE_BIN"
+    chmod +x "$COMPOSE_BIN"
   fi
 
-  # Remove old standalone binaries
-  echo 'Cleaning up old docker-compose binaries...'
+  # ----------------------------
+  # Cleanup legacy binaries
+  # ----------------------------
   rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
 
-  # Verify versions
+  # ----------------------------
+  # Verification
+  # ----------------------------
   echo ""
   echo "Docker version:"
   docker version | grep -E "Version|API version" | head -4
@@ -213,10 +218,13 @@ install_docker_and_compose() {
   echo "Docker Compose version:"
   docker compose version
 
-  # Hold packages at current versions
-  echo "🔒 Holding Docker packages at current versions..."
-  apt-mark hold docker-ce docker-ce-cli docker-compose-plugin containerd.io docker-buildx-plugin
-
+  # ----------------------------
+  # Final check
+  # ----------------------------
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "❌ Docker Compose is not working"
+    return 1
+  fi
   echo "✅ Docker ${DOCKER_VERSION} and Docker Compose v${DOCKER_COMPOSE_VERSION} ready"
 }
 

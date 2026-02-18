@@ -118,22 +118,6 @@ jobs:
       # ============================================================
       # Wait for Harbor
       # ============================================================
-      - name: Wait for Harbor
-        run: |
-          echo "⏳ Waiting for Harbor..."
-          for i in {1..30}; do
-            if curl -sf http://${RUNNER_IP}:${EXPOSED_HARBOR_PORT}/api/v2.0/systeminfo >/dev/null; then
-              echo "✅ Harbor is ready"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "❌ Harbor not reachable"
-          exit 1
-      - name: Check Harbor API
-        run: |
-          echo ":globe_with_meridians: Checking Harbor external API..."
-          curl -s -u admin:${{ secrets.HARBOR_PASSWORD }} http://${{ env.RUNNER_IP }}:8081/v2/ || exit 1
       - name: Verify Manifest Exists
         run: |
           echo ":mag: Verifying manifest..."

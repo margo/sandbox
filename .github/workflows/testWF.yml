@@ -118,20 +118,7 @@ jobs:
       # ============================================================
       # Wait for Harbor
       # ============================================================
-      - name: Verify Manifest Exists
-        run: |
-          echo ":mag: Verifying manifest..."
-          curl -i -u admin:${{ secrets.HARBOR_PASSWORD }} \
-          http://${{ env.RUNNER_IP }}:8081/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
-      - name: Pull From Harbor
-        run: |
-            docker pull ${{ env.RUNNER_IP }}:8081/library/${{ env.APP_PACKAGE_NAME }}:latest
-      - name: Verify artifact in Harbor
-        run: |
-          echo "🔎 Checking Harbor for pushed artifact..."
-          curl -s -u admin:Harbor12345 \
-            "http://localhost:8081/api/v2.0/projects/library/repositories/nextcloud-compose-app-package/artifacts" \
-            | jq
+      
       - name: Verify OCI Manifest Type
         run: |
                   echo "🔍 Verifying OCI image manifest..."

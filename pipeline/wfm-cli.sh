@@ -486,6 +486,82 @@ upload_app_package() {
   read -p "Press Enter to continue..."
 }
 
+upload_app_package_cli() {
+  local PACKAGE_NAME="$1"
+  if [[ -z "$PACKAGE_NAME" ]]; then
+    echo "❌ Package name is required"
+    echo "Usage: ./wfm-cli.sh upload-app <package-name>"
+    exit 1
+  fi
+  
+  echo "📦 Upload App Package (CI mode)"
+  echo "================================"
+  
+  # Discover packages
+  local packages
+  packages=$(discover_app_packages_from_harbor)
+  
+  if [[ -z "$packages" ]]; then
+    echo "❌ No packages found in Harbor"
+    exit 1
+  fi
+  
+  # Find the matching package
+  local selected_pkg
+  selected_pkg=$(echo "$packages" | grep -w "$PACKAGE_NAME" | head -n1)
+  
+  if [[ -z "$selected_pkg" ]]; then
+    echo "❌ Package '$PACKAGE_NAME' not found in Harbor"
+    echo ""
+    echo "Available packages:"
+    echo "$packages"
+    exit 1
+  fi
+  
+  echo "✅ Selected package: $selected_pkg"
+  
+  # Generate YAML
+  local tmp_pkg
+  tmp_pkg=$(mktemp --suffix=.yaml)
+  
+  echo ""
+  echo "🔧 Generating ApplicationPackage YAML..."
+  generate_wfm_package_yaml "$selected_pkg" "$tmp_pkg"
+  
+  if [ ! -f "$tmp_pkg" ]; then
+    echo "❌ Failed to generate YAML file"
+    exit 1
+  fi
+  
+  # Show generated YAML for debugging
+  echo ""
+  echo "📋 Generated YAML:"
+  echo "================="
+  cat "$tmp_pkg"
+  echo "================="
+  echo ""
+  
+  
+  
+  echo "✅ YAML structure is valid"
+  
+  # Upload to WFM
+  echo ""
+  echo "📤 Uploading to WFM..."
+  
+  if ! ${MAESTRO_CLI_PATH}/maestro wfm --host ${EXPOSED_SYMPHONY_IP} apply -f "$tmp_pkg"; then
+    echo "❌ Package upload failed"
+    echo ""
+    echo "Generated YAML was:"
+    cat "$tmp_pkg"
+    rm -f "$tmp_pkg"
+    exit 1
+  fi
+  
+  echo "✅ Package uploaded successfully"
+  rm -f "$tmp_pkg"
+}
+
 generate_wfm_package_yaml() {
   local package_repo="$1"
   local output_file="$2"
@@ -941,6 +1017,10 @@ else
     list-deployments) list_deployments ;;
     list-all) list_all ;;
     upload) upload_app_package ;;
+    upload-app)
+    # Non-interactive (CI)
+    shift
+    upload_app_package_cli "$1" ;;
     delete-package) delete_app_package ;;
     deploy) deploy_instance ;;
     delete-instance) delete_instance ;;

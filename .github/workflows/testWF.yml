@@ -154,7 +154,7 @@ jobs:
                   curl -sI \
                     -u admin:${{ secrets.HARBOR_PASSWORD }} \
                     -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-                http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
+                  http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
       # ============================================================
       # Docker Device Agent
       # ============================================================

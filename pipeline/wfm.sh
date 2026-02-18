@@ -1388,7 +1388,7 @@ ExecStartPre=/bin/sleep 15
 ExecStartPre=-/usr/bin/docker stop symphony-api-container
 ExecStartPre=-/usr/bin/docker rm symphony-api-container
 ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
-    --network harbor_harbor \
+    --network host \
     -p 8082:8082 \
     -e LOG_LEVEL=Debug \
     -v ${symphony_dir}/certificates:/certificates \
@@ -1440,7 +1440,7 @@ start_symphony_api_container(){
     echo "🚀 Starting Symphony API container..."
 
     docker run -dit --name symphony-api-container \
-        --network harbor_harbor \
+        --network host \
         -p 8082:8082 \
         -e LOG_LEVEL=Debug \
         -v "$HOME/symphony/api/certificates:/certificates" \

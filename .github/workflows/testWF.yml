@@ -192,7 +192,25 @@ jobs:
           
           
       # ============================================================
-       
+      - name: Test internal registry from Symphony container
+        run: |
+          echo "🔎 Testing registry:5000 from Symphony container..."
+          sudo docker exec symphony-api-container sh -c "
+            echo 'DNS resolution test:' &&
+            getent hosts registry || echo 'DNS failed' &&
+            echo 'Registry API test:' &&
+            wget -S -qO- http://registry:5000/v2/ || echo 'Registry unreachable'
+              "
+
+      - name: Test manifest via internal registry
+        run: |
+          echo "🔎 Testing manifest via registry:5000..."
+          sudo docker exec symphony-api-container sh -c "
+            wget -S -qO- \
+          http://registry:5000/v2/library/nextcloud-compose-app-package/manifests/latest \
+              || echo 'Manifest fetch failed'
+            "
+              
       - name: Show docker networks
         run: |
           docker network ls

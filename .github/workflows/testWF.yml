@@ -157,7 +157,7 @@ jobs:
           sudo docker ps -a
           echo "------ LOGS ------"
           sudo docker logs symphony-api-container --tail=20 || true
-      - name: Pull Nextcloud OCI Package
+      - name: Login and Pull OCI Artifact
         run: |
           echo "📥 Logging into Harbor..."
           echo "${{ secrets.HARBOR_PASSWORD }}" | oras login \
@@ -170,7 +170,7 @@ jobs:
             ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/library/${{ env.APP_PACKAGE_NAME }}:latest \
             --plain-http
           echo "📦 Pulled files:"
-          ls -R    
+          ls -R   
       # ============================================================
       # Cleanup FAILED package (idempotent)
       # ============================================================

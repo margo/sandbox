@@ -124,9 +124,9 @@ jobs:
             echo 'Registry API test:' && wget -S -qO- http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/ || echo 'Registry unreachable'
             "
       # ============================================================
-      # Wait for Harbor
+      # Checking Harbor for preseeded artifacts (CRITICAL - WFM relies on this)
       # ============================================================
-      - name: Presseded Artifacts Checks - Pull Preseeded OCI Artifacts
+      - name: Presseded Artifacts Checks - Pull Preseeded OCI Artifacts and verifying OCI Manifest
         run: |
           echo "📥 Creating isolated Docker config..."
           export DOCKER_CONFIG=$(mktemp -d)
@@ -138,13 +138,13 @@ jobs:
           oras pull ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/library/${{ env.APP_PACKAGE_NAME }}:latest --plain-http
           echo "📦 Pulled files:"
           ls -R
-      - name: Presseded Artifact Checks - Verify their OCI Manifest
-        run: |
           echo "🔍 Verifying OCI image manifest..."
           curl -sI \
             -u admin:${{ secrets.HARBOR_PASSWORD }} \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-          http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
+            http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
+      
+         
       # ============================================================
       # Docker Device Agent
       # ============================================================

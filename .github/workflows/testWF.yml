@@ -119,21 +119,37 @@ jobs:
       # Wait for Harbor
       # ============================================================
       - name: Login and Pull OCI Artifact
+
         run: |
-          echo "📥 Preparing Docker config..."
+
+          echo "📥 Creating isolated Docker config..."
+
           export DOCKER_CONFIG=$(mktemp -d)
-          echo "📥 Logging into Harbor at ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}"
+
+          echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
+
           echo "${{ secrets.HARBOR_PASSWORD }}" | oras login \
+
             ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }} \
+
             -u admin --password-stdin --plain-http
+
           echo "📥 Pulling artifact..."
+
           mkdir -p pulled-package
+
           cd pulled-package
+
           oras pull \
+
             ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/library/${{ env.APP_PACKAGE_NAME }}:latest \
+
             --plain-http
+
           echo "📦 Pulled files:"
+
           ls -R
+ 
       
       - name: Verify OCI Manifest Type
         run: |

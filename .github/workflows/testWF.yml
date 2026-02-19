@@ -216,5 +216,26 @@ jobs:
           sleep 15
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
+      # ============================================================
+      - name: Check Symphony Onboarding Status
+        run: |
+          echo "⏳ Waiting for package processing..."
+          sleep 20
+          echo "🔎 Fetching onboarding status..."
+          RESPONSE=$(curl -s http://$RUNNER_IP:${{ env.EXPOSED_SYMPHONY_PORT }}/api/v1/packages)
+          echo "Response:"
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | jq -r '.items[] | select(.name=="nextcloud-compose-app-package") | .state')
+          echo "Package state: $STATUS"
+          if [ "$STATUS" = "FAILED" ]; then
+            echo "❌ Package onboarding FAILED. Terminating workflow."
+            exit 1
+          fi
+          if [ "$STATUS" = "ONBOARDED" ] || [ "$STATUS" = "SUCCEEDED" ]; then
+            echo "✅ Package onboarding successful."
+            exit 0
+          fi
+          echo "⚠ Unknown state: $STATUS"
+          exit 1
       
       

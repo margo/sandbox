@@ -126,7 +126,7 @@ jobs:
       # ============================================================
       # Checking Harbor for preseeded artifacts (CRITICAL - WFM relies on this)
       # ============================================================
-      - name: Presseded Artifacts Checks - Pull Preseeded OCI Artifacts and verifying OCI Manifest
+      - name: Preseeded Artifacts Checks - Pull Preseeded OCI Artifacts and verifying OCI Manifest
         run: |
           echo "📥 Creating isolated Docker config..."
           export DOCKER_CONFIG=$(mktemp -d)
@@ -216,23 +216,5 @@ jobs:
           sleep 15
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
-      # ============================================================
-      # Check for onboarding errors in Symphony logs
-      # ============================================================
-      # - name: Capture Symphony onboarding errors
-      #   run: |
-      #     echo "🔍 Checking Symphony logs for onboarding errors..."
-      #     echo ""
-          
-      #     # Search for error patterns in Symphony logs
-      #     echo "❌ Searching for ERROR patterns..."
-      #     docker logs symphony-api-container 2>&1 | grep -i "error\|fail\|onboard" | tail -20 || echo "No error patterns found"
-          
-      #     echo ""
-      #     echo "⚠️ Searching for WARN patterns..."
-      #     docker logs symphony-api-container 2>&1 | grep -i "warn" | tail -10 || echo "No warn patterns found"
-          
-      #     echo ""
-      #     echo "🔎 Full Symphony logs (last 100 lines)..."
-      #     docker logs --tail 100 symphony-api-container 2>&1
+      
       

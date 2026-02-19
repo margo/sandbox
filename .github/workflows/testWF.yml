@@ -1,4 +1,4 @@
-name: TC3-WFM-Docker-Sanity
+name: E2E-WFM-Agent-Sanity
 on:
   workflow_dispatch:
 jobs:
@@ -25,7 +25,7 @@ jobs:
       # ============================================================
       # Detect runner IP (NOT localhost)
       # ============================================================
-      - name: Detect runner IP
+      - name: Environment - Detect runner IP
         run: |
           RUNNER_IP=$(hostname -I | awk '{print $1}')
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
@@ -33,7 +33,7 @@ jobs:
       # ============================================================
       # OS prerequisites (NO docker install)
       # ============================================================
-      - name: Install OS dependencies
+      - name: Environment - Install OS dependencies
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
@@ -45,7 +45,7 @@ jobs:
       # ============================================================
       # Docker sanity & permissions (CRITICAL)
       # ============================================================
-      - name: Docker sanity check
+      - name: Environment - Docker sanity check
         run: |
           docker --version
           docker compose version || true
@@ -56,12 +56,12 @@ jobs:
       # ============================================================
       # Make pipeline scripts executable
       # ============================================================
-      - name: Make scripts executable
+      - name: Environment - Make scripts executable
         run: chmod +x pipeline/*.sh
       # ============================================================
       # Generate wfm.env (MANDATORY)
       # ============================================================
-      - name: Generate wfm.env
+      - name: WFM - Generate wfm.env
         run: |
           cat > pipeline/wfm.env <<EOF
           CI=true
@@ -78,9 +78,9 @@ jobs:
           echo "✅ wfm.env generated"
           cat pipeline/wfm.env
       # ============================================================
-      # WFM install (clones Symphony)
+      # WFM Install (clones Symphony, starts harbor etc...)
       # ============================================================
-      - name: WFM install
+      - name: WFM - Install
         working-directory: pipeline
         run: |
           echo "▶️ Installing WFM / Symphony"
@@ -88,7 +88,7 @@ jobs:
       # ============================================================
       # Start Symphony
       # ============================================================
-      - name: Start Symphony
+      - name: WFM - Start Symphony
         working-directory: pipeline
         run: |
           echo "▶️ Starting Symphony"
@@ -97,28 +97,36 @@ jobs:
           sudo docker ps
           sleep 10
       # ------------------------------------------------
-      # Wait for CA certificate
+      # Copy the WFM CA certificate
       # ------------------------------------------------
-      - name: Wait for Symphony CA cert
+      - name: WFM - Copy the CA cert to home directory for others to use
         run: |
           CERT="$HOME/symphony/api/certificates/ca-cert.pem"
           for i in {1..30}; do
             [ -f "$CERT" ] && break
-            echo "⏳ Waiting for CA cert..."
+            echo "⏳ Waiting for CA cert to be available in wfm directory so that it can be copied..."
             sleep 5
           done
           if [ ! -f "$CERT" ]; then
-            echo "❌ CA certificate not found"
+            echo "❌ CA certificate not found in $CERT directory"
             exit 1
           fi
           mkdir -p "$HOME/certs"
           cp "$CERT" "$HOME/certs/"
-          echo "✅ CA cert ready"
-     
+          echo "✅ CA certs copied to $HOME/certs/"
+      # ============================================================
+      - name: Test connectivity b/w Registry and WFM(Symphony)
+        run: |
+          echo "🔎 Testing connectivity with ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }} from Symphony container..."
+          sudo docker exec symphony-api-container sh -c "
+            echo 'DNS resolution test:' &&
+            getent hosts ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }} || echo 'DNS failed'
+            echo 'Registry API test:' && wget -S -qO- http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/ || echo 'Registry unreachable'
+            "
       # ============================================================
       # Wait for Harbor
       # ============================================================
-      - name: Login and Pull OCI Artifact
+      - name: Presseded Artifacts Checks - Pull Preseeded OCI Artifacts
         run: |
           echo "📥 Creating isolated Docker config..."
           export DOCKER_CONFIG=$(mktemp -d)
@@ -130,18 +138,17 @@ jobs:
           oras pull ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/library/${{ env.APP_PACKAGE_NAME }}:latest --plain-http
           echo "📦 Pulled files:"
           ls -R
-      
-      - name: Verify OCI Manifest Type
+      - name: Presseded Artifact Checks - Verify their OCI Manifest
         run: |
-                  echo "🔍 Verifying OCI image manifest..."
-                  curl -sI \
-                    -u admin:${{ secrets.HARBOR_PASSWORD }} \
-                    -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-                  http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
+          echo "🔍 Verifying OCI image manifest..."
+          curl -sI \
+            -u admin:${{ secrets.HARBOR_PASSWORD }} \
+            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+          http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
       # ============================================================
       # Docker Device Agent
       # ============================================================
-      - name: Device Agent (Docker) – prerequisites
+      - name: Device Agent (Docker) – Prerequisites
         working-directory: pipeline
         run: |
           cat > device-agent.env <<EOF
@@ -149,42 +156,38 @@ jobs:
           EXPOSED_HARBOR_IP=registry
           EOF
           sudo -E bash ./device-agent.sh docker install
-      - name: Device Agent (Docker) – create certs
+      - name: Device Agent (Docker) – Create Certs
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker create-rsa-certs
           sudo -E bash ./device-agent.sh docker create-ecdsa-certs
-      - name: Device Agent (Docker) – start
+      - name: Device Agent (Docker) – Start
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker start-docker
           sleep 20
-      - name: Device Agent (Docker) – status
+      - name: Device Agent (Docker) – Status
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker status
       # ============================================================
-      - name: docker logs check
+      - name: Symphony Logs
         run: |         
           sudo docker ps -a
           echo "------ LOGS ------"
-          sudo docker logs symphony-api-container --tail=20 || true
-      
+          sudo docker logs symphony-api-container --tail=100 || true
       # ============================================================
       # Cleanup FAILED package (idempotent)
       # ============================================================
-      - name: Delete existing app package if present
+      - name: WFM - Delete app package entry, if present
         working-directory: pipeline
         run: |
-          echo "🧹 Deleting existing package if any"
+          echo "🧹 Deleting existing package if any for smooth CI testing"
           sudo -E bash ./wfm-cli.sh delete-package ${APP_PACKAGE_NAME} || true
-
-        
       # ============================================================
       # Upload app package - FIXED version
       # ============================================================
-     
-      - name: Upload Nextcloud app package (corrected)
+      - name: WFM - Upload Nextcloud app package
         working-directory: pipeline
         run: |
           echo "📤 Uploading to WFM..."
@@ -193,7 +196,7 @@ jobs:
           # Verify package is in Harbor before upload
           echo "🔍 Verifying package exists in Harbor..."
           curl -s -u admin:Harbor12345 \
-            "http://localhost:8081/api/v2.0/projects/library/repositories/${APP_PACKAGE_NAME}/artifacts" \
+            "http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/api/v2.0/projects/library/repositories/${APP_PACKAGE_NAME}/artifacts" \
             | jq '.[] | {name: .name, tags: .tags}' || echo "Failed to query package"
           
           sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
@@ -202,34 +205,6 @@ jobs:
           sleep 15
           echo "------WFM LOGS ------"
           sudo docker logs symphony-api-container --tail=1000 || true
-          
-          
-      # ============================================================
-      - name: Test internal registry from Symphony container
-        run: |
-          echo "🔎 Testing registry:5000 from Symphony container..."
-          sudo docker exec symphony-api-container sh -c "
-            echo 'DNS resolution test:' &&
-            getent hosts registry || echo 'DNS failed' &&
-            echo 'Registry API test:' &&
-            wget -S -qO- http://registry:5000/v2/ || echo 'Registry unreachable'
-              "
-
-      - name: Test manifest via internal registry
-        run: |
-          echo "🔎 Testing manifest via registry:5000..."
-          sudo docker exec symphony-api-container sh -c "
-            wget -S -qO- \
-          http://registry:5000/v2/library/nextcloud-compose-app-package/manifests/latest \
-              || echo 'Manifest fetch failed'
-            "
-              
-      - name: Show docker networks
-        run: |
-          docker network ls
-          echo "------"
-          sudo docker inspect symphony-api-container | jq '.[0].NetworkSettings.Networks'
-         
       # ============================================================
       # List  app package
       # ============================================================

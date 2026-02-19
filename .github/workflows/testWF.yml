@@ -152,11 +152,30 @@ jobs:
         run: |
           sudo -E bash ./device-agent.sh docker status
       # ============================================================
-      - name: Debug docker containers running on the host
+      - name: Test registry connectivity from host
         run: |
+          echo "🔎 Testing registry connectivity from host..."
+          sudo docker network connect harbor_harbor symphony-api-container
+          sleep 20
+          sudo docker exec symphony-api-container getent hosts registry || echo "DNS resolution failed"
+          sleep 10
           sudo docker ps -a
           echo "------ LOGS ------"
-          sudo docker logs symphony-api-container --tail=50 || true
+          sudo docker logs symphony-api-container --tail=20 || true
+      - name: Pull Nextcloud OCI Package
+        run: |
+          echo "📥 Logging into Harbor..."
+          echo "${{ secrets.HARBOR_PASSWORD }}" | oras login \
+            ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }} \
+            -u admin --password-stdin --plain-http
+          echo "📥 Pulling artifact..."
+          mkdir pulled-package
+          cd pulled-package
+          oras pull \
+            ${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/library/${{ env.APP_PACKAGE_NAME }}:latest \
+            --plain-http
+          echo "📦 Pulled files:"
+          ls -R    
       # ============================================================
       # Cleanup FAILED package (idempotent)
       # ============================================================

@@ -570,7 +570,7 @@ upload_app_package_cli() {
 generate_wfm_package_yaml() {
   local package_repo="$1"
   local output_file="$2"
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_IP}:5000"
 
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters.

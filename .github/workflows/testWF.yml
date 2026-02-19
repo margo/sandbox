@@ -152,13 +152,8 @@ jobs:
         run: |
           sudo -E bash ./device-agent.sh docker status
       # ============================================================
-      - name: Test registry connectivity from host
-        run: |
-          echo "🔎 Testing registry connectivity from host..."
-          sudo docker network connect harbor_harbor symphony-api-container
-          sleep 20
-          sudo docker exec symphony-api-container getent hosts registry || echo "DNS resolution failed"
-          sleep 10
+      - name: docker logs check
+        run: |         
           sudo docker ps -a
           echo "------ LOGS ------"
           sudo docker logs symphony-api-container --tail=20 || true

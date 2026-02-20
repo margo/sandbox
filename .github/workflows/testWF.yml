@@ -126,7 +126,24 @@ jobs:
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
             http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${{ env.APP_PACKAGE_NAME }}/manifests/latest
       
-         
+      # ------------------------------------------------
+      # Copy the WFM CA certificate
+      # ------------------------------------------------
+      - name: WFM - Copy the CA cert to home directory for others to use
+        run: |
+          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
+          for i in {1..30}; do
+            [ -f "$CERT" ] && break
+            echo "⏳ Waiting for CA cert to be available in wfm directory so that it can be copied..."
+            sleep 5
+          done
+          if [ ! -f "$CERT" ]; then
+            echo "❌ CA certificate not found in $CERT directory"
+            exit 1
+          fi
+          mkdir -p "$HOME/certs"
+          cp "$CERT" "$HOME/certs/"
+          echo "✅ CA certs copied to $HOME/certs/"    
       # ============================================================
       # Docker WFM-Client (Device Agent) Setup - Using Docker 
       # ============================================================
@@ -151,25 +168,7 @@ jobs:
       - name: WFM-Client (Docker) – Status
         working-directory: pipeline
         run: |
-          sudo -E bash ./device-agent.sh docker status
-      # ------------------------------------------------
-      # Copy the WFM CA certificate
-      # ------------------------------------------------
-      - name: WFM - Copy the CA cert to home directory for others to use
-        run: |
-          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
-          for i in {1..30}; do
-            [ -f "$CERT" ] && break
-            echo "⏳ Waiting for CA cert to be available in wfm directory so that it can be copied..."
-            sleep 5
-          done
-          if [ ! -f "$CERT" ]; then
-            echo "❌ CA certificate not found in $CERT directory"
-            exit 1
-          fi
-          mkdir -p "$HOME/certs"
-          cp "$CERT" "$HOME/certs/"
-          echo "✅ CA certs copied to $HOME/certs/"    
+          sudo -E bash ./device-agent.sh docker status   
       # ============================================================
       - name: WFM Logs
         run: |         

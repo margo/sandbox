@@ -35,11 +35,11 @@ SYMPHONY_BRANCH="${SYMPHONY_BRANCH:-main}"
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- symphony settings (can be overridden via env)
-EXPOSED_SYMPHONY_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
+EXPOSED_SYMPHONY_HOST="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 
 #--- device node IPs (can be overridden via env) for prometheus to scrape metrics
@@ -47,7 +47,7 @@ EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 DEVICE_NODE_IPS="${DEVICE_NODE_IPS:-127.0.0.1:30999}"
 
 #--- Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 
@@ -452,8 +452,8 @@ setup_harbor() {
   else
     cd "$HOME/sandbox/pipeline/harbor"
 
-    # Update harbor.yml with EXPOSED_HARBOR_IP
-    sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_IP|" harbor.yml
+    # Update harbor.yml with EXPOSED_HARBOR_HOST
+    sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
     
     echo 'Preparing Harbor configuration...'
     chmod +x prepare
@@ -532,7 +532,7 @@ push_nextcloud_to_oci() {
 
   cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
 
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
+  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" --password-stdin --plain-http
 
   if [ ! -f "margo.yaml" ]; then
@@ -551,14 +551,14 @@ push_nextcloud_to_oci() {
   fi
 
   echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+  oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --plain-http \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
     echo "✅ Nextcloud package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
+    echo "📍 Location: ${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
     echo "❌ Failed to push Nextcloud package"
     return 1
@@ -576,7 +576,7 @@ push_custom_otel_to_oci() {
   cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
 
   # Login to Harbor OCI Registry
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" \
+  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" --password-stdin --plain-http
 
   # Check if margo.yaml exists
@@ -599,14 +599,14 @@ push_custom_otel_to_oci() {
 
   # Push to OCI Registry with Margo-specific artifact type
   echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+  oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --plain-http \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
     echo "✅ Custom OTEL package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
+    echo "📍 Location: ${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
     echo "❌ Failed to push Custom OTEL package"
     return 1
@@ -920,7 +920,7 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   # Load registry settings from environment variables
   # ---------------------------------------------------
-  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
   registry_password="${REGISTRY_PASS:-Harbor12345}"
   echo "Using registry mirror: $registry_url"
@@ -959,12 +959,12 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
 mirrors:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     endpoint:
       - "${registry_url}"
 
 configs:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     auth:
       username: "${registry_user}"
       password: "${registry_password}"
@@ -1178,7 +1178,7 @@ cleanup_basic_utilities() {
   rm -f /tmp/go.tar.gz /tmp/resp.json /tmp/headers.txt get-docker.sh 2>/dev/null && echo "✅ Removed temporary files"
 
   # Clear exported variables
-  unset EXPOSED_HARBOR_IP EXPOSED_HARBOR_PORT EXPOSED_SYMPHONY_IP EXPOSED_SYMPHONY_PORT
+  unset EXPOSED_HARBOR_HOST EXPOSED_HARBOR_PORT EXPOSED_SYMPHONY_HOST EXPOSED_SYMPHONY_PORT
 
   # Note: Not removing curl as it might be needed by system
   echo "⚠️ Basic utilities (curl) left installed as they may be system dependencies"
@@ -1193,15 +1193,15 @@ build_custom_otel_container_images() {
   echo "Building/Downloading Custom Otel images..."
 
   cd "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/app"
-  docker build . -t "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
+  docker build . -t "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
   echo "Ensuring Harbor registry login..."
-  docker login "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}" -u admin -p Harbor12345
+  docker login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" -u admin -p Harbor12345
 
   # Docker push them to the harbor registry
   echo "Pushing otel images to Harbor..."
-  docker push "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
+  docker push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
 
-  OTEL_APP_CONTAINER_URL="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app"
+  OTEL_APP_CONTAINER_URL="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app"
   deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/helm/values.yaml"
   tag="latest"
 
@@ -1224,10 +1224,10 @@ build_custom_otel_container_images() {
   helm package helm/
 
   echo "Pushing chart to Harbor..."
-  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library" --plain-http
+  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" --plain-http
 
   # Update margo.yaml in package directory with placeholders
-  HELM_REPOSITORY="oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
+  HELM_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
   HELM_REVISION="$CHART_VERSION"
   helm_deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package/margo.yaml"
 
@@ -1238,7 +1238,7 @@ build_custom_otel_container_images() {
   sed -i "s|{{HELM_REVISION}}|$HELM_REVISION|g" "$helm_deploy_file" 2>/dev/null || true
 
   echo "✅ Custom otel chart version $CHART_VERSION successfully pushed to Harbor"
-  echo "📦 Chart: oci://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
+  echo "📦 Chart: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
   echo "🔄 Updated margo.yaml to reference version $CHART_VERSION"
 
 }
@@ -1248,7 +1248,7 @@ build_custom_otel_container_images() {
 add_insecure_registry_to_daemon() {
   echo "Configuring Docker daemon with insecure registry..."
 
-  local registry_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local registry_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local daemon_config="/etc/docker/daemon.json"
 
   # Stop Docker if running
@@ -1565,15 +1565,18 @@ stop_symphony() {
 # Collect certificate information
 collect_certs_info() {
     echo "Collecting certificate information..."
-    CN="${EXPOSED_SYMPHONY_IP:-localhost}"
+    CN="${EXPOSED_SYMPHONY_HOST:-localhost}"
     C="IN"
     ST="GGN"
     L="Some ABC Location"
     O="Margo"
     EMAIL="admin@example.com"
     DAYS="365"
-    SAN_DOMAINS="${EXPOSED_SYMPHONY_IP:-localhost}"
-    SAN_IPS="${EXPOSED_SYMPHONY_IP:-localhost}"
+    if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      SAN_IPS="${EXPOSED_SYMPHONY_HOST:-localhost}"
+    elif
+      SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
+    fi
 
     echo "Using certificate defaults with CN: $CN"
 }
@@ -1607,12 +1610,20 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = $CN
 EOF
 
     # Initialize counters
-    local dns_count=2
+    local dns_count=1
     local ip_count=1
+
+    # Determine if CN is an IP address (basic IPv4 check)
+    if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "IP.$ip_count = $CN" >> "$config_file"
+        ((ip_count++))
+    else
+        echo "DNS.$dns_count = $CN" >> "$config_file"
+        ((dns_count++))
+    fi
 
     # Add SAN domains if provided
     if [ -n "$SAN_DOMAINS" ]; then
@@ -1625,14 +1636,14 @@ EOF
     fi
 
     # Add SAN IPs if provided
-  if [ -n "$SAN_IPS" ]; then
-    echo "Adding SAN IPs..."
-    IFS=',' read -ra IPS <<< "$SAN_IPS"
-    for ip in "${IPS[@]}"; do
-        echo "IP.$ip_count = ${ip// /}" >> "$config_file"
-        ((ip_count++))
-    done
-  fi
+    if [ -n "$SAN_IPS" ]; then
+        echo "Adding SAN IPs..."
+        IFS=',' read -ra IPS <<< "$SAN_IPS"
+        for ip in "${IPS[@]}"; do
+            echo "IP.$ip_count = ${ip// /}" >> "$config_file"
+            ((ip_count++))
+        done
+    fi
 
     # Debug output
     echo "Generated OpenSSL config at $config_file:"

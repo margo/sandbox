@@ -28,16 +28,16 @@ load_wfm_env || true
 # ----------------------------
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- symphony settings (can be overridden via env)
-EXPOSED_SYMPHONY_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
+EXPOSED_SYMPHONY_HOST="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 
 
 #--- OCI Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 OCI_ORGANIZATION="${OCI_ORGANIZATION:-library}"
@@ -138,7 +138,7 @@ generate_instance_yaml_from_oci() {
   local device_id="$3"
   local output_file="$4"
 
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 
   # Pull margo.yaml from OCI to extract metadata
   local temp_dir=$(mktemp -d)
@@ -362,7 +362,7 @@ discover_app_packages_from_harbor() {
   # Send discovery message to stderr so it doesn't get captured
   echo "🔍 Discovering app packages from Harbor OCI Registry..." >&2
 
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local org="${OCI_ORGANIZATION}"
 
   # Get list of repositories from Harbor API
@@ -394,7 +394,7 @@ discover_app_packages_from_harbor() {
 
 get_package_metadata_from_oci() {
   local package_repo="$1"
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local full_repo="${OCI_ORGANIZATION}/${package_repo}"
 
   # Pull margo.yaml from OCI to get metadata
@@ -489,7 +489,7 @@ upload_app_package() {
 generate_wfm_package_yaml() {
   local package_repo="$1"
   local output_file="$2"
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters.
@@ -635,7 +635,7 @@ get_instance_file_path() {
 get_oci_repository_path() {
   local package_name="$1"
   local margo_file="$2"  # Accept margo.yaml file path
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local container_url=""
 
   # First try hardcoded mappings (backward compatibility)

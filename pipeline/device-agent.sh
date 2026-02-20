@@ -66,7 +66,7 @@ GITHUB_USER="${GITHUB_USER:-}"  # Set via env or leave empty
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # Set via env or leave empty
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- branch details (can be overridden via env)
@@ -76,7 +76,7 @@ WFM_PORT="${WFM_PORT:-8082}"
 
 
 #--- Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 
@@ -849,7 +849,7 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   # Load registry settings from environment variables
   # ---------------------------------------------------
-  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
   registry_password="${REGISTRY_PASS:-Harbor12345}"
 
@@ -872,12 +872,12 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
 mirrors:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     endpoint:
       - "${registry_url}"
 
 configs:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     auth:
       username: "${registry_user}"
       password: "${registry_password}"

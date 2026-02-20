@@ -12,8 +12,8 @@ Environment file path:- $HOME/workspace/sandbox/pipeline/wfm.env
 
 Update the following variables:
 ```bash
-export EXPOSED_HARBOR_IP=<wfm-machine-ip>
-export EXPOSED_SYMPHONY_IP=<wfm-machine-ip>
+export EXPOSED_HARBOR_HOST=<wfm-machine-ip>
+export EXPOSED_SYMPHONY_HOST=<wfm-machine-ip>
 export EXPOSED_HARBOR_PORT=8081
 export EXPOSED_SYMPHONY_PORT=8082
 export SYMPHONY_BRANCH=main #it can be a tag also
@@ -28,6 +28,6 @@ Update the following variables:
 ```bash
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
 export WFM_IP=<wfm-machine-ip>
-export EXPOSED_HARBOR_IP=<wfm-machine-ip>
+export EXPOSED_HARBOR_HOST=<wfm-machine-ip>
 ```
 

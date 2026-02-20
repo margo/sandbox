@@ -96,24 +96,6 @@ jobs:
           sleep 40
           sudo docker ps
           sleep 10
-      # ------------------------------------------------
-      # Copy the WFM CA certificate
-      # ------------------------------------------------
-      - name: WFM - Copy the CA cert to home directory for others to use
-        run: |
-          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
-          for i in {1..30}; do
-            [ -f "$CERT" ] && break
-            echo "⏳ Waiting for CA cert to be available in wfm directory so that it can be copied..."
-            sleep 5
-          done
-          if [ ! -f "$CERT" ]; then
-            echo "❌ CA certificate not found in $CERT directory"
-            exit 1
-          fi
-          mkdir -p "$HOME/certs"
-          cp "$CERT" "$HOME/certs/"
-          echo "✅ CA certs copied to $HOME/certs/"
       # ============================================================
       - name: Test connectivity b/w Registry and WFM(Symphony)
         run: |
@@ -170,6 +152,24 @@ jobs:
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker status
+      # ------------------------------------------------
+      # Copy the WFM CA certificate
+      # ------------------------------------------------
+      - name: WFM - Copy the CA cert to home directory for others to use
+        run: |
+          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
+          for i in {1..30}; do
+            [ -f "$CERT" ] && break
+            echo "⏳ Waiting for CA cert to be available in wfm directory so that it can be copied..."
+            sleep 5
+          done
+          if [ ! -f "$CERT" ]; then
+            echo "❌ CA certificate not found in $CERT directory"
+            exit 1
+          fi
+          mkdir -p "$HOME/certs"
+          cp "$CERT" "$HOME/certs/"
+          echo "✅ CA certs copied to $HOME/certs/"    
       # ============================================================
       - name: Symphony Logs
         run: |         
@@ -200,7 +200,7 @@ jobs:
             | jq '.[] | {name: .name, tags: .tags}' || echo "Failed to query package"
           
           sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
-
+          sleep 5
           sudo docker ps -a
           sleep 15
           echo "------WFM LOGS ------"

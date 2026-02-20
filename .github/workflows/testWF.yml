@@ -128,9 +128,9 @@ jobs:
       
          
       # ============================================================
-      # Docker Device Agent
+      # Docker WFM-Client (Device Agent) Setup - Using Docker 
       # ============================================================
-      - name: Device Agent (Docker) – Prerequisites
+      - name: WFM-Client (Docker) – Prerequisites
         working-directory: pipeline
         run: |
           cat > device-agent.env <<EOF
@@ -138,17 +138,17 @@ jobs:
           EXPOSED_HARBOR_IP=registry
           EOF
           sudo -E bash ./device-agent.sh docker install
-      - name: Device Agent (Docker) – Create Certs
+      - name: WFM-Client (Docker) – Create Certs
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker create-rsa-certs
           sudo -E bash ./device-agent.sh docker create-ecdsa-certs
-      - name: Device Agent (Docker) – Start
+      - name: WFM-Client (Docker) – Start
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker start-docker
           sleep 20
-      - name: Device Agent (Docker) – Status
+      - name: WFM-Client (Docker) – Status
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh docker status
@@ -171,7 +171,7 @@ jobs:
           cp "$CERT" "$HOME/certs/"
           echo "✅ CA certs copied to $HOME/certs/"    
       # ============================================================
-      - name: Symphony Logs
+      - name: WFM Logs
         run: |         
           sudo docker ps -a
           echo "------ LOGS ------"

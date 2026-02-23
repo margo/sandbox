@@ -9,7 +9,6 @@ jobs:
      SYMPHONY_BRANCH: sanity-suite
      SANDBOX_REPO_BRANCH: sanity-suite-1
      EXPOSED_HARBOR_PORT: 8081
-     EXPOSED_HARBOR_REGISTRY_PORT: 5000
      EXPOSED_SYMPHONY_PORT: 8082
      GITHUB_USER: ""
      GITHUB_TOKEN: ""
@@ -21,7 +20,7 @@ jobs:
    - name: Checkout repository
      uses: actions/checkout@v4
    # ============================================================
-   # Detect runner IP (dynamic every run)
+   # Detect Runner IP (dynamic every run)
    # ============================================================
    - name: Detect runner IP
      run: |
@@ -29,14 +28,14 @@ jobs:
        echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
        echo "✅ Runner IP: $RUNNER_IP"
    # ============================================================
-   # OS prerequisites
+   # Install OS Dependencies
    # ============================================================
    - name: Install dependencies
      run: |
        sudo apt-get update -y
-       sudo apt-get install -y curl jq netcat-openbsd openssl git
+       sudo apt-get install -y curl jq netcat-openbsd openssl git lsof
    # ============================================================
-   # Docker sanity
+   # Docker Sanity
    # ============================================================
    - name: Docker sanity
      run: |
@@ -52,7 +51,7 @@ jobs:
    - name: Make scripts executable
      run: chmod +x pipeline/*.sh
    # ============================================================
-   # Generate wfm.env (dynamic IP)
+   # Generate wfm.env
    # ============================================================
    - name: Generate wfm.env
      run: |
@@ -61,7 +60,6 @@ jobs:
        EXPOSED_HARBOR_IP=${RUNNER_IP}
        EXPOSED_SYMPHONY_IP=${RUNNER_IP}
        EXPOSED_HARBOR_PORT=${EXPOSED_HARBOR_PORT}
-       EXPOSED_HARBOR_REGISTRY_PORT=${EXPOSED_HARBOR_REGISTRY_PORT}
        EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
        SYMPHONY_BRANCH=${SYMPHONY_BRANCH}
        SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
@@ -79,11 +77,11 @@ jobs:
      run: |
        sudo -E bash ./wfm.sh install
    # ============================================================
-   # Fix Harbor hostname + expose registry 5000
+   # Fix Harbor hostname + dynamically expose free registry port
    # ============================================================
-   - name: Fix Harbor hostname & expose 5000
+   - name: Fix Harbor & expose registry safely
      run: |
-       HARBOR_YML=$(find $HOME -name harbor.yml | head -n 1)
+       HARBOR_YML=$(find $HOME -name harbor.yml 2>/dev/null | head -n 1)
        if [ -z "$HARBOR_YML" ]; then
          echo "❌ harbor.yml not found"
          exit 1
@@ -92,7 +90,14 @@ jobs:
        sudo sed -i "s/^hostname:.*/hostname: ${RUNNER_IP}/" "$HARBOR_YML"
        cd $(dirname "$HARBOR_YML")
        sudo ./prepare
-       sudo sed -i '/registry:/,/image:/ s/image:.*/&\n    ports:\n      - "5000:5000"/' docker-compose.yml
+       # Find free host port starting from 5000
+       FREE_PORT=5000
+       while sudo lsof -i :$FREE_PORT >/dev/null 2>&1; do
+         FREE_PORT=$((FREE_PORT+1))
+       done
+       echo "Using free registry port: $FREE_PORT"
+       echo "EXPOSED_HARBOR_REGISTRY_PORT=$FREE_PORT" >> $GITHUB_ENV
+       sudo sed -i '/registry:/,/image:/ s/image:.*/&\n    ports:\n      - "'$FREE_PORT':5000"/' docker-compose.yml
        sudo docker compose down
        sudo docker compose up -d
        sleep 30
@@ -107,7 +112,7 @@ jobs:
        sleep 40
        sudo docker ps
    # ============================================================
-   # Test registry connectivity (using 5000)
+   # Test registry connectivity from Symphony container
    # ============================================================
    - name: Test Registry connectivity
      run: |
@@ -116,7 +121,7 @@ jobs:
          wget -S -qO- http://${RUNNER_IP}:${EXPOSED_HARBOR_REGISTRY_PORT}/v2/ || exit 1
        "
    # ============================================================
-   # Verify preseeded OCI artifact
+   # Verify OCI artifact
    # ============================================================
    - name: Verify OCI Artifact
      run: |
@@ -131,9 +136,9 @@ jobs:
          -H "Accept: application/vnd.oci.image.manifest.v1+json" \
          http://${RUNNER_IP}:${EXPOSED_HARBOR_PORT}/v2/library/${APP_PACKAGE_NAME}/manifests/latest
    # ============================================================
-   # Cleanup existing package entry
+   # Cleanup old package entry
    # ============================================================
-   - name: Delete existing package (if any)
+   - name: Delete existing package
      working-directory: pipeline
      run: |
        sudo -E bash ./wfm-cli.sh delete-package ${APP_PACKAGE_NAME} || true
@@ -149,7 +154,7 @@ jobs:
    # ============================================================
    # Check onboarding status
    # ============================================================
-   - name: Check Symphony onboarding status
+   - name: Check onboarding status
      run: |
        sleep 20
        RESPONSE=$(curl -s http://${RUNNER_IP}:${EXPOSED_SYMPHONY_PORT}/api/v1/packages)

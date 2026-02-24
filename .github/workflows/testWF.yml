@@ -91,10 +91,8 @@ jobs:
        cd $(dirname "$HARBOR_YML")
        sudo ./prepare
        # Find free host port starting from 5000
-       FREE_PORT=5000
-       while sudo lsof -i :$FREE_PORT >/dev/null 2>&1; do
-         FREE_PORT=$((FREE_PORT+1))
-       done
+       FREE_PORT=55000
+      
        echo "Using free registry port: $FREE_PORT"
        echo "EXPOSED_HARBOR_REGISTRY_PORT=$FREE_PORT" >> $GITHUB_ENV
        sudo sed -i '/registry:/,/image:/ s/image:.*/&\n    ports:\n      - "'$FREE_PORT':5000"/' docker-compose.yml

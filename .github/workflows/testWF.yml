@@ -6,50 +6,54 @@ on:
 jobs:
   wfm-sanity:
     runs-on: ubuntu-latest
+
     env:
       CI: "true"
       SYMPHONY_BRANCH: sanity-suite
       SANDBOX_REPO_BRANCH: sanity-suite-1
       EXPOSED_HARBOR_PORT: 8081
       EXPOSED_SYMPHONY_PORT: 8082
-      # Host-safe Harbor login
-      HARBOR_HOST: 127.0.0.1
+      APP_PACKAGE_NAME: nextcloud-compose-app-package
       GITHUB_USER: ""
       GITHUB_TOKEN: ""
-      APP_PACKAGE_NAME: nextcloud-compose-app-package
 
     steps:
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Checkout repository
       uses: actions/checkout@v4
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Detect runner IP
       run: |
         RUNNER_IP=$(hostname -I | awk '{print $1}')
         echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
-        echo "✔ Runner IP: $RUNNER_IP"
-    # -------------------------------------------------
+        echo "✔ Using Harbor Hostname = $RUNNER_IP"
+
+    # ============================================================
     - name: Install OS prerequisites
       run: |
         sudo apt-get update -y
         sudo apt-get install -y curl jq netcat-openbsd openssl git
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Docker sanity
       run: |
         sudo systemctl start docker
         sudo chmod 666 /var/run/docker.sock
         docker ps
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Make pipeline scripts executable
       run: chmod +x pipeline/*.sh
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Generate wfm.env
       run: |
         cat > pipeline/wfm.env <<EOF
         CI=true
-        # Host-to-Harbor traffic
-        EXPOSED_HARBOR_IP=127.0.0.1
-        EXPOSED_SYMPHONY_IP=127.0.0.1
+        EXPOSED_HARBOR_IP=${RUNNER_IP}
+        EXPOSED_SYMPHONY_IP=${RUNNER_IP}
         EXPOSED_HARBOR_PORT=${EXPOSED_HARBOR_PORT}
         EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
         SYMPHONY_BRANCH=${SYMPHONY_BRANCH}
@@ -58,27 +62,32 @@ jobs:
         GITHUB_TOKEN=${GITHUB_TOKEN}
         APP_PACKAGE_NAME=${APP_PACKAGE_NAME}
         EOF
+
         echo "Generated wfm.env:"
         cat pipeline/wfm.env
-    # -------------------------------------------------
+
+    # ============================================================
     - name: WFM - Install
       working-directory: pipeline
       run: sudo -E bash ./wfm.sh install
-    # -------------------------------------------------
+
+    # ============================================================
     - name: WFM - Start Symphony
       working-directory: pipeline
       run: |
         sudo -E bash ./wfm.sh start
         sleep 40
         docker ps
-    # -------------------------------------------------
-    - name: Validate Harbor API (host)
+
+    # ============================================================
+    - name: Validate Harbor API (host → Harbor)
       run: |
         echo "Testing Harbor manifest API on host..."
         curl -v \
           -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-          http://127.0.0.1:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${APP_PACKAGE_NAME}/manifests/latest || true
-    # -------------------------------------------------
+          http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/v2/library/${APP_PACKAGE_NAME}/manifests/latest || true
+
+    # ============================================================
     - name: Copy WFM CA cert
       run: |
         CERT="$HOME/symphony/api/certificates/ca-cert.pem"
@@ -89,63 +98,81 @@ jobs:
         done
         mkdir -p "$HOME/certs"
         cp "$CERT" "$HOME/certs/"
-        echo "CA cert copied."
-    # -------------------------------------------------
-    # Device-agent using Docker-internal hostname "registry"
-    - name: WFM-Client (Docker) – Prereq
+        echo "Copied CA certificate."
+
+    # ============================================================
+    # Device Agent – Docker version
+    # Uses registry-internal hostname ONLY inside docker network
+    - name: WFM-Client (Docker) – Prerequisites
       working-directory: pipeline
       run: |
         cat > device-agent.env <<EOF
-        WFM_IP=127.0.0.1
+        WFM_IP=${RUNNER_IP}
         EXPOSED_HARBOR_IP=registry
         EOF
+
         sudo -E bash ./device-agent.sh docker install
-    # -------------------------------------------------
+
+    # ============================================================
     - name: WFM-Client (Docker) – Create Certs
       working-directory: pipeline
       run: |
         sudo -E bash ./device-agent.sh docker create-rsa-certs
         sudo -E bash ./device-agent.sh docker create-ecdsa-certs
-    # -------------------------------------------------
+
+    # ============================================================
     - name: WFM-Client (Docker) – Start
       working-directory: pipeline
       run: |
         sudo -E bash ./device-agent.sh docker start-docker
         sleep 20
-    # -------------------------------------------------
+
+    # ============================================================
     - name: WFM-Client (Docker) – Status
       working-directory: pipeline
       run: sudo -E bash ./device-agent.sh docker status
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Cleanup previous package
       working-directory: pipeline
       run: sudo -E bash ./wfm-cli.sh delete-package ${APP_PACKAGE_NAME} || true
-    # -------------------------------------------------
-    - name: Verify Harbor and Upload App Package
+
+    # ============================================================
+    - name: Verify Harbor artifacts + Upload package
       working-directory: pipeline
       run: |
-        echo "Checking Harbor content..."
+        echo "Checking Harbor repository..."
+
         curl -s \
           -u admin:${{ secrets.HARBOR_PASSWORD }} \
-          "http://127.0.0.1:${{ env.EXPOSED_HARBOR_PORT }}/api/v2.0/projects/library/repositories/${APP_PACKAGE_NAME}/artifacts" \
+          "http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/api/v2.0/projects/library/repositories/${APP_PACKAGE_NAME}/artifacts" \
           | jq '.'
+
         sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
+
         sleep 10
         docker logs symphony-api-container --tail=200 || true
-    # -------------------------------------------------
-    - name: List Packages
+
+    # ============================================================
+    - name: List Packages / Devices
       working-directory: pipeline
       run: |
         sudo -E bash ./wfm-cli.sh list-all
         sudo -E bash ./wfm-cli.sh list-packages
-    # -------------------------------------------------
+
+    # ============================================================
     - name: Check Onboarding Status
       run: |
-        echo "Checking package status..."
-        RESPONSE=$(curl -s http://127.0.0.1:${{ env.EXPOSED_SYMPHONY_PORT }}/api/v1/packages)
+        echo "Checking package onboarding state..."
+
+        RESPONSE=$(curl -s http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_SYMPHONY_PORT }}/api/v1/packages)
         echo "$RESPONSE"
+
         STATUS=$(echo "$RESPONSE" | jq -r '.items[] | select(.name=="nextcloud-compose-app-package") | .state')
-        echo "Status: $STATUS"
+
+        echo "State: $STATUS"
+
         if [ "$STATUS" = "FAILED" ]; then exit 1; fi
         if [ "$STATUS" = "ONBOARDED" ] || [ "$STATUS" = "SUCCEEDED" ]; then exit 0; fi
+
         exit 1

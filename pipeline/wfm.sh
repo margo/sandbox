@@ -1573,9 +1573,9 @@ collect_certs_info() {
     EMAIL="admin@example.com"
     DAYS="365"
     if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      SAN_IPS="${EXPOSED_SYMPHONY_HOST:-localhost}"
+      SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-localhost}"
     elif
-      SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
+      SAN_IPS="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
     fi
 
     echo "Using certificate defaults with CN: $CN"

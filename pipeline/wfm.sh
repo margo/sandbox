@@ -1574,7 +1574,7 @@ collect_certs_info() {
     DAYS="365"
     if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
       SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-localhost}"
-    elif
+    else
       SAN_IPS="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
     fi
 

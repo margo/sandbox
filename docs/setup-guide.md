@@ -65,7 +65,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    Open and follow the [Environment Variables Setup Guide](../docs/env-setup.md)
 
    This will help you set up:
-   - GitHub credentials
+   - GitHub credentials (optional)
    - VM IP addresses
    - Network settings
    - Other required configurations

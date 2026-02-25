@@ -28,7 +28,7 @@ jobs:
       run: |
         RUNNER_IP=$(hostname -I | awk '{print $1}')
         echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
-        echo "✔ Using Harbor Hostname = $RUNNER_IP"
+        echo "✔ Using runner IP = $RUNNER_IP"
 
     # ============================================================
     - name: Install OS prerequisites
@@ -48,11 +48,22 @@ jobs:
       run: chmod +x pipeline/*.sh
 
     # ============================================================
+    # 🔥 CRITICAL FIX — FORCE HARBOR HOSTNAME = registry
+    # ============================================================
+    - name: Patch Harbor hostname in wfm.sh (critical fix)
+      run: |
+        echo "Patching Harbor hostname to 'registry' inside wfm.sh..."
+        sed -i '/prepare base dir/ i \
+echo "🔧 Forcing Harbor hostname to registry"; \
+sed -i "s/^hostname:.*/hostname: registry/" $HARBOR_DIR/harbor.yml 2>/dev/null || true \
+' pipeline/wfm.sh
+
+    # ============================================================
     - name: Generate wfm.env
       run: |
         cat > pipeline/wfm.env <<EOF
         CI=true
-        EXPOSED_HARBOR_IP=${RUNNER_IP}
+        EXPOSED_HARBOR_IP=registry
         EXPOSED_SYMPHONY_IP=${RUNNER_IP}
         EXPOSED_HARBOR_PORT=${EXPOSED_HARBOR_PORT}
         EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
@@ -62,7 +73,6 @@ jobs:
         GITHUB_TOKEN=${GITHUB_TOKEN}
         APP_PACKAGE_NAME=${APP_PACKAGE_NAME}
         EOF
-
         echo "Generated wfm.env:"
         cat pipeline/wfm.env
 
@@ -102,7 +112,7 @@ jobs:
 
     # ============================================================
     # Device Agent – Docker version
-    # Uses registry-internal hostname ONLY inside docker network
+    # ============================================================
     - name: WFM-Client (Docker) – Prerequisites
       working-directory: pipeline
       run: |
@@ -110,7 +120,6 @@ jobs:
         WFM_IP=${RUNNER_IP}
         EXPOSED_HARBOR_IP=registry
         EOF
-
         sudo -E bash ./device-agent.sh docker install
 
     # ============================================================
@@ -142,14 +151,11 @@ jobs:
       working-directory: pipeline
       run: |
         echo "Checking Harbor repository..."
-
         curl -s \
           -u admin:${{ secrets.HARBOR_PASSWORD }} \
           "http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_HARBOR_PORT }}/api/v2.0/projects/library/repositories/${APP_PACKAGE_NAME}/artifacts" \
           | jq '.'
-
         sudo -E bash ./wfm-cli.sh upload-app ${APP_PACKAGE_NAME}
-
         sleep 10
         docker logs symphony-api-container --tail=200 || true
 
@@ -164,15 +170,10 @@ jobs:
     - name: Check Onboarding Status
       run: |
         echo "Checking package onboarding state..."
-
         RESPONSE=$(curl -s http://${{ env.RUNNER_IP }}:${{ env.EXPOSED_SYMPHONY_PORT }}/api/v1/packages)
         echo "$RESPONSE"
-
         STATUS=$(echo "$RESPONSE" | jq -r '.items[] | select(.name=="nextcloud-compose-app-package") | .state')
-
         echo "State: $STATUS"
-
         if [ "$STATUS" = "FAILED" ]; then exit 1; fi
         if [ "$STATUS" = "ONBOARDED" ] || [ "$STATUS" = "SUCCEEDED" ]; then exit 0; fi
-
         exit 1

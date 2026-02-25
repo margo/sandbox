@@ -77,7 +77,7 @@ validate_choice() {
 list_app_packages() {
   echo "📦 Listing all app packages from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg || echo "❌ Failed to list app-pkg"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -86,7 +86,7 @@ list_app_packages() {
 list_devices() {
   echo "🖥️  Listing all devices from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list devices || echo "❌ Failed to list devices"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -95,7 +95,7 @@ list_devices() {
 list_deployments() {
   echo "🚀 Listing all deployments from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment || echo "❌ Failed to list deployment"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -108,21 +108,21 @@ list_all() {
   echo "📦 App Packages:"
   echo "----------------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg || echo "❌ Failed to list app-pkg"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
   fi
 
   echo ""
   echo "🖥️  Devices:"
   echo "----------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list devices || echo "❌ Failed to list devices"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
   fi
 
   echo ""
   echo "🚀 Deployments:"
   echo "---------------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment || echo "❌ Failed to list deployment"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
   fi
 
   echo ""
@@ -474,7 +474,7 @@ upload_app_package() {
 
   echo "📤 Uploading $package_name to WFM..."
   if check_maestro_cli; then
-    if ${MAESTRO_CLI_PATH}/maestro wfm apply -f "$temp_pkg_file"; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$temp_pkg_file"; then
       echo "✅ $package_name uploaded successfully!"
     else
       echo "❌ Failed to upload $package_name"
@@ -544,7 +544,7 @@ delete_app_package() {
 
   echo "📦 Current packages:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg
   fi
 
   echo ""
@@ -559,7 +559,7 @@ delete_app_package() {
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "🗑️  Deleting package '$package_id'..."
     if check_maestro_cli; then
-      if ${MAESTRO_CLI_PATH}/maestro wfm delete app-pkg "$package_id"; then
+      if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" delete app-pkg "$package_id"; then
         echo "✅ Package '$package_id' deleted successfully!"
       else
         echo "❌ Failed to delete app-pkg '$package_id'"
@@ -694,7 +694,7 @@ deploy_instance() {
 
   echo "📦 Available packages:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg
   fi
 
   echo ""
@@ -707,7 +707,7 @@ deploy_instance() {
 
   echo ""
   echo "🖥️  Available devices:"
-  ${MAESTRO_CLI_PATH}/maestro wfm list devices
+  ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices
 
   echo ""
   read -p "Enter the device ID for deployment: " device_id
@@ -719,7 +719,7 @@ deploy_instance() {
 
   # Get app package details and extract metadata.name
   # echo "📋 Getting package details..."
-  app_packages=$(${MAESTRO_CLI_PATH}/maestro wfm list app-pkg -o json 2>/dev/null)
+  app_packages=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg -o json 2>/dev/null)
 
   if [ $? -ne 0 ] || [ -z "$app_packages" ]; then
     echo "❌ Failed to get package list"
@@ -827,12 +827,12 @@ deploy_instance() {
   echo ""
   echo "🚀 Deploying '$package_id' to device '$device_id'..."
   if check_maestro_cli; then
-    if ${MAESTRO_CLI_PATH}/maestro wfm apply -f "$deploy_file"; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file"; then
       echo "✅ Instance deployment request sent successfully!"
 
       echo ""
       echo "📋 Updated deployments:"
-      ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+      ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
     else
       echo "❌ Failed to deploy instance"
     fi
@@ -853,7 +853,7 @@ delete_instance() {
 
   echo "🚀 Current deployments:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
   fi
 
   echo ""
@@ -868,12 +868,12 @@ delete_instance() {
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "🗑️  Deleting instance '$instance_id'..."
     if check_maestro_cli; then
-      if ${MAESTRO_CLI_PATH}/maestro wfm delete deployment "$instance_id"; then
+      if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" delete deployment "$instance_id"; then
         echo "✅ Instance '$instance_id' deleted successfully!"
 
         echo ""
         echo "📋 Updated deployments:"
-        ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+        ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
       else
         echo "❌ Failed to delete instance '$instance_id'"
       fi

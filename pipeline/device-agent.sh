@@ -66,12 +66,12 @@ GITHUB_USER="${GITHUB_USER:-}"  # Set via env or leave empty
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # Set via env or leave empty
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-localhost}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- branch details (can be overridden via env)
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-dev-sprint-6}"
-WFM_IP="${WFM_IP:-127.0.0.1}"
+WFM_HOST="${WFM_HOST:-localhost}"
 WFM_PORT="${WFM_PORT:-8082}"
 
 
@@ -107,7 +107,7 @@ export GONOSUMDB='github.com/margo/*'
 export GOPRIVATE='github.com/margo/*'
 
 validate_pre_required_vars() {
-  local required_vars=("SANDBOX_REPO_BRANCH" "WFM_IP" "WFM_PORT")
+  local required_vars=("SANDBOX_REPO_BRANCH" "WFM_HOST" "WFM_PORT")
   for var in "${required_vars[@]}"; do
     if [ -z "${!var}" ]; then
       echo "Error: Required environment variable $var is not set"
@@ -117,7 +117,7 @@ validate_pre_required_vars() {
 }
 
 validate_start_required_vars() {
-  local required_vars=("WFM_IP" "WFM_PORT")
+  local required_vars=("WFM_HOST" "WFM_PORT")
   for var in "${required_vars[@]}"; do
     if [ -z "${!var}" ]; then
       echo "Error: Required environment variable $var is not set"
@@ -306,7 +306,7 @@ clone_dev_repo() {
 # ----------------------------
 update_agent_sbi_url() {
   echo 'Updating wfm.sbiUrl in workload-fleet-management-client config ...'
-  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_IP:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
+  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_HOST:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
 }
 
 # ----------------------------
@@ -1024,7 +1024,7 @@ show_status() {
 
 
 function install_promtail() {
-  echo "📦 Installing Promtail to push logs to Loki at $WFM_IP..."
+  echo "📦 Installing Promtail to push logs to Loki at $WFM_HOST..."
 
   cat <<EOF > promtail-values.yaml
 config:
@@ -1036,7 +1036,7 @@ config:
     filename: /tmp/positions.yaml
 
   clients:
-    - url: http://${WFM_IP}:32100/loki/api/v1/push
+    - url: http://${WFM_HOST}:32100/loki/api/v1/push
 
   scrape_configs:
     - job_name: pod-logs
@@ -1104,13 +1104,13 @@ config:
   exporters:
     # Send traces to Jaeger
     otlp:
-      endpoint: ${WFM_IP}:30417
+      endpoint: ${WFM_HOST}:30417
       tls:
         insecure: true
 
     # CHANGED: Push metrics to Prometheus Remote Write
     prometheusremotewrite:
-      endpoint: http://${WFM_IP}:30909/api/v1/write
+      endpoint: http://${WFM_HOST}:30909/api/v1/write
       tls:
         insecure: true
       resource_to_telemetry_conversion:
@@ -1142,8 +1142,8 @@ EOF
   helm install $OTEL_RELEASE open-telemetry/opentelemetry-collector --version 0.140.0 -f otel-values.yaml --namespace $NAMESPACE_OBSERVABILITY
 
   echo "✅ OTEL Collector setup complete!"
-  echo "🔍 Traces sent to: ${WFM_IP}:30417"
-  echo "📊 Metrics pushed to: ${WFM_IP}:30909/api/v1/write"
+  echo "🔍 Traces sent to: ${WFM_HOST}:30417"
+  echo "📊 Metrics pushed to: ${WFM_HOST}:30909/api/v1/write"
 }
 
 
@@ -1246,7 +1246,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://${WFM_IP}:32100/loki/api/v1/push
+  - url: http://${WFM_HOST}:32100/loki/api/v1/push
 
 scrape_configs:
   - job_name: docker-logs
@@ -1292,13 +1292,13 @@ receivers:
 exporters:
   # Send traces to Jaeger on WFM server
   otlp/jaeger:
-    endpoint: ${WFM_IP}:30417
+    endpoint: ${WFM_HOST}:30417
     tls:
       insecure: true
 
   # CHANGED: Push metrics to Prometheus Remote Write
   prometheusremotewrite:
-    endpoint: http://${WFM_IP}:30909/api/v1/write
+    endpoint: http://${WFM_HOST}:30909/api/v1/write
     tls:
       insecure: true
     resource_to_telemetry_conversion:
@@ -1351,9 +1351,9 @@ EOF
   echo "✅ OTEL Collector v0.140.0 and Promtail v2.9.10 installed"
   echo "📡 OTLP gRPC: localhost:4317"
   echo "📡 OTLP HTTP: localhost:4318"
-  echo "🔍 Traces sent to Jaeger at: ${WFM_IP}:30417"
-  echo "📊 Metrics pushed to Prometheus at: ${WFM_IP}:30909/api/v1/write"
-  echo "📝 Logs sent to Loki at: ${WFM_IP}:32100"
+  echo "🔍 Traces sent to Jaeger at: ${WFM_HOST}:30417"
+  echo "📊 Metrics pushed to Prometheus at: ${WFM_HOST}:30909/api/v1/write"
+  echo "📝 Logs sent to Loki at: ${WFM_HOST}:32100"
 }
 
 

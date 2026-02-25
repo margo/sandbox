@@ -789,7 +789,7 @@ EOF
   echo "✅ Prometheus setup complete!"
   echo "📊 Prometheus UI: NodePort 30900"
   echo "📡 Remote Write endpoint: NodePort 30909"
-  echo "ℹ️  Devices should push metrics to: http://WFM_IP:30909/api/v1/write"
+  echo "ℹ️  Devices should push metrics to: http://WFM_HOST:30909/api/v1/write"
 }
 
 

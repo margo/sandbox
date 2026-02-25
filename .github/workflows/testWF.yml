@@ -57,8 +57,8 @@ jobs:
      run: |
        cat > pipeline/wfm.env <<EOF
        CI=true
-       EXPOSED_HARBOR_IP=${RUNNER_IP}
-       EXPOSED_SYMPHONY_IP=${RUNNER_IP}
+       EXPOSED_HARBOR_IP=registry
+       EXPOSED_SYMPHONY_IP=symphony-api-container
        EXPOSED_HARBOR_PORT=${EXPOSED_HARBOR_PORT}
        EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
        SYMPHONY_BRANCH=${SYMPHONY_BRANCH}

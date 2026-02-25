@@ -1573,9 +1573,9 @@ collect_certs_info() {
     EMAIL="admin@example.com"
     DAYS="365"
     if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-localhost}"
-    else
       SAN_IPS="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
+    else
+      SAN_DOMAINS="${EXPOSED_SYMPHONY_HOST:-localhost}"
     fi
 
     echo "Using certificate defaults with CN: $CN"
@@ -1616,14 +1616,14 @@ EOF
     local dns_count=1
     local ip_count=1
 
-    # Determine if CN is an IP address (basic IPv4 check)
-    if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "IP.$ip_count = $CN" >> "$config_file"
-        ((ip_count++))
-    else
-        echo "DNS.$dns_count = $CN" >> "$config_file"
-        ((dns_count++))
-    fi
+    # # Determine if CN is an IP address (basic IPv4 check)
+    # if [[ $CN =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    #     echo "IP.$ip_count = $CN" >> "$config_file"
+    #     ((ip_count++))
+    # else
+    #     echo "DNS.$dns_count = $CN" >> "$config_file"
+    #     ((dns_count++))
+    # fi
 
     # Add SAN domains if provided
     if [ -n "$SAN_DOMAINS" ]; then

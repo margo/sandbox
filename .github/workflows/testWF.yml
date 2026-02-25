@@ -76,30 +76,7 @@ jobs:
      working-directory: pipeline
      run: |
        sudo -E bash ./wfm.sh install
-   # ============================================================
-   # Fix Harbor hostname + dynamically expose free registry port
-   # ============================================================
-   - name: Fix Harbor & expose registry safely
-     run: |
-       HARBOR_YML=$(find $HOME -name harbor.yml 2>/dev/null | head -n 1)
-       if [ -z "$HARBOR_YML" ]; then
-         echo "❌ harbor.yml not found"
-         exit 1
-       fi
-       echo "Updating hostname to $RUNNER_IP"
-       sudo sed -i "s/^hostname:.*/hostname: ${RUNNER_IP}/" "$HARBOR_YML"
-       cd $(dirname "$HARBOR_YML")
-       sudo ./prepare
-       # Find free host port starting from 5000
-       FREE_PORT=55000
-      
-       echo "Using free registry port: $FREE_PORT"
-       echo "EXPOSED_HARBOR_REGISTRY_PORT=$FREE_PORT" >> $GITHUB_ENV
-       sudo sed -i '/registry:/,/image:/ s/image:.*/&\n    ports:\n      - "'$FREE_PORT':5000"/' docker-compose.yml
-       sudo docker compose down
-       sudo docker compose up -d
-       sleep 30
-       sudo docker ps
+   
    # ============================================================
    # Start Symphony
    # ============================================================

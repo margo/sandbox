@@ -70,6 +70,26 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Network settings
    - Other required configurations
 
+3. **Configure the domain/host(name) resolution locally**
+   1. Open `/etc/hosts` file (create if it doesn't exist)
+   2. Then append the following entries to the file:
+      ```bash
+      <ip-address-of-the-wfm-machine> symphony.machine
+      <ip-address-of-the-harbor-machine> harbor.machine
+      ```
+      your file would look something like this:
+      ```bash
+      127.0.0.1 localhost
+      # The following lines are desirable for IPv6 capable hosts
+      ::1 ip6-localhost ip6-loopback
+      fe00::0 ip6-localnet
+      ff00::0 ip6-mcastprefix
+      ff02::1 ip6-allnodes
+      
+      192.11.11.11 symphony.machine # <---- newly appended line here with ip
+      192.11.11.11 harbor.machine # <--- newly appended line with ip
+      ```
+   
 🔴 **Important:** Complete this step on all three VMs before proceeding.
 
 ---
@@ -239,21 +259,70 @@ You need to copy a security file from the WFM VM to each Device VM.
    cd $HOME/workspace/sandbox/pipeline
    ```
 
-2. **Start the device's Workload Fleet Management Client**
+2. **Configure the domain/host(name) resolution in coredns**
+   
+   The k3s based setups don't pick the changes from `/etc/hosts` system file, hence it is better to add hostname details in the the coredns config itself.
+
+   2.1. Fetch the coredns config first:
+   ```bash
+   kubectl -n kube-system get configmap coredns -o yaml > config.yaml
+   ```
+
+   2.2. Then add only the highlighted lines in the `hosts` section with your ip addresses in them:
+   ```bash
+   apiVersion: v1
+   data:
+   Corefile: |
+      .:53 {
+         errors
+         health
+         ready
+         kubernetes cluster.local in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+         }
+         hosts /etc/coredns/NodeHosts {
+            52.224.241.180 harbor.machine # <----- Newly added line. This tells kubernetes env on how to resolve harbor.machine
+            52.224.241.180 symphony.machine # <----- Newly added line. This tells kubernetes env on how to resolve symphony.machine
+            ttl 60
+            reload 15s
+            fallthrough
+         }
+         prometheus :9153
+         forward . /etc/resolv.conf
+         cache 30
+         loop
+         reload
+         loadbalance
+         import /etc/coredns/custom/*.override
+      }
+   ```
+
+   2.3. Then apply the changes:
+   ```bash
+   kubectl apply -f config.yaml
+   ```
+   
+   2.4. Finally restart the coredns pods:
+   ```bash
+   kubectl -n kube-system rollout restart deployment coredns
+   ```
+
+3. **Start the device's Workload Fleet Management Client**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: Device-agent-Start(k3s-device)`
 
-3. **Check device status**
+4. **Check device status**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
 
-4. **View device logs**
+5. **View device logs**
    ```bash
    # View the logs (replace <pod-name> with actual pod name from above using #7)
    sudo kubectl logs -f <pod-name> -n default

@@ -175,8 +175,6 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 }
 
 func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId string, desiredState database.AppDeploymentState) {
-	dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
-
 	// Use the AppDeploymentManifest directly instead of converting
 	appDeployment := desiredState.AppDeploymentManifest
 
@@ -189,6 +187,18 @@ func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId st
 		dm.database.SetPhase(deploymentId, "FAILED", "No components found")
 		return
 	}
+
+	// Initialize per-component status for ALL components before starting deployment.
+	// This ensures the status report always contains one entry per component (spec requirement).
+	componentNames := dm.extractComponentNames(appDeployment)
+	for _, name := range componentNames {
+		dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+			Name:  name,
+			State: sbi.ComponentStatusStateInstalling,
+		})
+	}
+
+	dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
 
 	profileType := appDeployment.Spec.DeploymentProfile.Type
 	var err error
@@ -212,6 +222,12 @@ func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId st
 
 	default:
 		// Set current state on unsupported type
+		for _, name := range componentNames {
+			dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+				Name:  name,
+				State: sbi.ComponentStatusStateFailed,
+			})
+		}
 		failedState := desiredState
 		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
 		dm.database.SetCurrentState(deploymentId, failedState)
@@ -221,6 +237,20 @@ func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId st
 
 	// Handle deployment errors
 	if err != nil {
+		for _, name := range componentNames {
+			errMsg := err.Error()
+			dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+				Name:  name,
+				State: sbi.ComponentStatusStateFailed,
+				Error: &struct {
+					Code    *string `json:"code,omitempty"`
+					Message *string `json:"message,omitempty"`
+				}{
+					Code:    strPtr("DEPLOYMENT_ERROR"),
+					Message: &errMsg,
+				},
+			})
+		}
 		failedState := desiredState
 		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
 		dm.database.SetCurrentState(deploymentId, failedState)
@@ -228,7 +258,13 @@ func (dm *DeploymentManager) deployOrUpdate(ctx context.Context, deploymentId st
 		return
 	}
 
-	// Success
+	// Success - update all component states to installed
+	for _, name := range componentNames {
+		dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+			Name:  name,
+			State: sbi.ComponentStatusStateInstalled,
+		})
+	}
 	currentState := desiredState
 	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateInstalled
 	dm.database.SetCurrentState(deploymentId, currentState)
@@ -342,8 +378,6 @@ func (dm *DeploymentManager) deployOrUpdateCompose(ctx context.Context, deployme
 }
 
 func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
-	dm.database.SetPhase(deploymentId, "REMOVING", "Starting removal")
-
 	record, err := dm.database.GetDeployment(deploymentId)
 	if err != nil {
 		dm.log.Warnw("Deployment not found for removal", "deploymentId", deploymentId)
@@ -355,6 +389,14 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 		// Update desired state to REMOVED before deleting
 		if record.DesiredState != nil {
+			componentNames := dm.extractComponentNames(record.DesiredState.AppDeploymentManifest)
+			for _, name := range componentNames {
+				dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+					Name:  name,
+					State: sbi.ComponentStatusStateRemoved,
+				})
+			}
+
 			removedState := *record.DesiredState
 			removedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoved
 			dm.database.SetCurrentState(deploymentId, removedState)
@@ -365,13 +407,23 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		return
 	}
 
+	// Use the AppDeploymentManifest directly
+	appDeployment := record.CurrentState.AppDeploymentManifest
+
+	// Initialize per-component status to "removing"
+	componentNames := dm.extractComponentNames(appDeployment)
+	for _, name := range componentNames {
+		dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+			Name:  name,
+			State: sbi.ComponentStatusStateRemoving,
+		})
+	}
+
 	//  Set current state to REMOVING
 	currentState := *record.CurrentState
 	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoving
 	dm.database.SetCurrentState(deploymentId, currentState)
-
-	// Use the AppDeploymentManifest directly
-	appDeployment := record.CurrentState.AppDeploymentManifest
+	dm.database.SetPhase(deploymentId, "REMOVING", "Starting removal")
 
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
 		dm.log.Warnw("No components to remove", "deploymentId", deploymentId)
@@ -397,6 +449,28 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		removeErr = dm.removeCompose(ctx, deploymentId, appDeployment)
 	default:
 		dm.log.Warnw("Unknown deployment type for removal", "type", profileType, "deploymentId", deploymentId)
+	}
+
+	// Update per-component status to "removed" (or "failed")
+	for _, name := range componentNames {
+		if removeErr != nil {
+			dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+				Name:  name,
+				State: sbi.ComponentStatusStateFailed,
+				Error: &struct {
+					Code    *string `json:"code,omitempty"`
+					Message *string `json:"message,omitempty"`
+				}{
+					Code:    strPtr("REMOVAL_ERROR"),
+					Message: strPtr(removeErr.Error()),
+				},
+			})
+		} else {
+			dm.database.SetComponentStatus(deploymentId, name, sbi.ComponentStatus{
+				Name:  name,
+				State: sbi.ComponentStatusStateRemoved,
+			})
+		}
 	}
 
 	// Update current state to REMOVED (even if removal failed)
@@ -461,6 +535,24 @@ func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId str
 	}
 
 	return nil
+}
+
+// extractComponentNames returns the name of every component in an AppDeploymentManifest,
+// regardless of the deployment profile type (Helm, Compose, etc.).
+func (dm *DeploymentManager) extractComponentNames(appDeployment sbi.AppDeploymentManifest) []string {
+	names := make([]string, 0, len(appDeployment.Spec.DeploymentProfile.Components))
+	for _, comp := range appDeployment.Spec.DeploymentProfile.Components {
+		if helmComp, err := comp.AsHelmApplicationDeploymentProfileComponent(); err == nil {
+			names = append(names, helmComp.Name)
+		} else if composeComp, err := comp.AsComposeApplicationDeploymentProfileComponent(); err == nil {
+			names = append(names, composeComp.Name)
+		}
+	}
+	return names
+}
+
+func strPtr(s string) *string {
+	return &s
 }
 
 // Helper function to convert parameters to environment variables

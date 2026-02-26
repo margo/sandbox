@@ -363,6 +363,9 @@ func (db *Database) SetComponentStatus(deploymentId, componentName string, statu
 	} else if status.State == sbi.ComponentStatusStateFailed {
 		record.Phase = "failed"
 	}
+
+	// Notify subscribers so StatusReporter can re-report with updated component status
+	db.notify(deploymentId, record, DeploymentChangeTypeComponentPhaseChanged)
 }
 
 func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error) {

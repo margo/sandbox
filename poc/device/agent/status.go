@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
@@ -72,9 +73,10 @@ func (sr *StatusReporter) onDeploymentChange(appID string, record *database.Depl
 
 	sr.log.Infow("Deployment change detected", logFields...)
 
-	// Report status when phase changes
+	// Report status when phase changes or current state is updated
 	if changeType == database.DeploymentChangeTypeDesiredStateAdded ||
-		changeType == database.DeploymentChangeTypeComponentPhaseChanged {
+		changeType == database.DeploymentChangeTypeComponentPhaseChanged ||
+		changeType == database.DeploymentChangeTypeCurrentStateAdded {
 		go sr.reportStatus(appID, record)
 	}
 }
@@ -121,26 +123,35 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		components = []sbi.ComponentStatus{}
 	}
 
-	// Use the actual sbi constants for deployment state
-	var deploymentState sbi.DeploymentStatusManifestStatusState
+	// Derive overall deployment state from component states per the Margo spec.
+	// Precedence: failed > removing > installing > pending > removed > installed
+	deploymentState := deriveOverallState(record.ComponentViseStatus)
 
-	// Map the phase to the correct deployment state (case-insensitive)
-	switch record.Phase {
-	case "PENDING", "pending":
-		deploymentState = sbi.DeploymentStatusManifestStatusStatePending
-	case "DEPLOYING", "deploying":
-		deploymentState = sbi.DeploymentStatusManifestStatusStateInstalling
-	case "RUNNING", "running":
-		deploymentState = sbi.DeploymentStatusManifestStatusStateInstalled
-	case "FAILED", "failed":
-		deploymentState = sbi.DeploymentStatusManifestStatusStateFailed
-	case "REMOVING", "removing":
-		deploymentState = sbi.DeploymentStatusManifestStatusStateRemoving
-	case "REMOVED", "removed":
-		deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
-	default:
-		sr.log.Warnw("Unknown deployment phase, defaulting to PENDING", "appId", appID, "phase", record.Phase)
-		deploymentState = sbi.DeploymentStatusManifestStatusStatePending
+	// If no components have been tracked yet, fall back to the internal phase
+	if len(record.ComponentViseStatus) == 0 {
+		switch record.Phase {
+		case "PENDING", "pending":
+			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
+		case "DEPLOYING", "deploying":
+			deploymentState = sbi.DeploymentStatusManifestStatusStateInstalling
+		case "RUNNING", "running":
+			deploymentState = sbi.DeploymentStatusManifestStatusStateInstalled
+		case "FAILED", "failed":
+			deploymentState = sbi.DeploymentStatusManifestStatusStateFailed
+		case "REMOVING", "removing":
+			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoving
+		case "REMOVED", "removed":
+			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
+		default:
+			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING", "appId", appID, "phase", record.Phase)
+			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
+		}
+	}
+
+	// Propagate error information when the deployment has failed
+	var deploymentErr error
+	if deploymentState == sbi.DeploymentStatusManifestStatusStateFailed && record.Message != "" {
+		deploymentErr = fmt.Errorf("%s", record.Message)
 	}
 
 	// Add defensive logging
@@ -168,7 +179,7 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		appID,
 		deploymentState,
 		components,
-		nil, // error parameter
+		deploymentErr,
 	)
 
 	if err != nil {
@@ -177,4 +188,48 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 	}
 
 	sr.log.Infow("Status reported successfully", "appId", appID, "phase", record.Phase, "state", deploymentState)
+}
+
+// deriveOverallState computes the overall deployment state from component states
+// using the Margo spec precedence: failed > removing > installing > pending > removed > installed.
+func deriveOverallState(components map[string]sbi.ComponentStatus) sbi.DeploymentStatusManifestStatusState {
+	if len(components) == 0 {
+		return sbi.DeploymentStatusManifestStatusStatePending
+	}
+
+	// Precedence order (highest severity first)
+	precedence := map[sbi.ComponentStatusState]int{
+		sbi.ComponentStatusStateFailed:     6,
+		sbi.ComponentStatusStateRemoving:   5,
+		sbi.ComponentStatusStateInstalling: 4,
+		sbi.ComponentStatusStatePending:    3,
+		sbi.ComponentStatusStateRemoved:    2,
+		sbi.ComponentStatusStateInstalled:  1,
+	}
+
+	// Map component states to deployment-level states
+	toDeploymentState := map[sbi.ComponentStatusState]sbi.DeploymentStatusManifestStatusState{
+		sbi.ComponentStatusStateFailed:     sbi.DeploymentStatusManifestStatusStateFailed,
+		sbi.ComponentStatusStateRemoving:   sbi.DeploymentStatusManifestStatusStateRemoving,
+		sbi.ComponentStatusStateInstalling: sbi.DeploymentStatusManifestStatusStateInstalling,
+		sbi.ComponentStatusStatePending:    sbi.DeploymentStatusManifestStatusStatePending,
+		sbi.ComponentStatusStateRemoved:    sbi.DeploymentStatusManifestStatusStateRemoved,
+		sbi.ComponentStatusStateInstalled:  sbi.DeploymentStatusManifestStatusStateInstalled,
+	}
+
+	var mostSevere sbi.ComponentStatusState
+	highestPrecedence := 0
+
+	for _, cs := range components {
+		p := precedence[cs.State]
+		if p > highestPrecedence {
+			highestPrecedence = p
+			mostSevere = cs.State
+		}
+	}
+
+	if ds, ok := toDeploymentState[mostSevere]; ok {
+		return ds
+	}
+	return sbi.DeploymentStatusManifestStatusStatePending
 }

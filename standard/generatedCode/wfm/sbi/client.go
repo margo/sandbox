@@ -104,13 +104,13 @@ type ClientInterface interface {
 
 	PutApiV1ClientsClientIdCapabilities(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBody request with any body
-	PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBody(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PostApiV1ClientsClientIdDeploymentDeploymentIdStatus(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// GetApiV1ClientsClientIdDeployments request
 	GetApiV1ClientsClientIdDeployments(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBody request with any body
+	PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBody(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiV1ClientsClientIdDeploymentsDeploymentIdDigest request
 	GetApiV1ClientsClientIdDeploymentsDeploymentIdDigest(ctx context.Context, clientId string, deploymentId string, digest string, params *GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -184,32 +184,32 @@ func (c *Client) PutApiV1ClientsClientIdCapabilities(ctx context.Context, client
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBody(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequestWithBody(c.Server, clientId, deploymentId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostApiV1ClientsClientIdDeploymentDeploymentIdStatus(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequest(c.Server, clientId, deploymentId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) GetApiV1ClientsClientIdDeployments(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiV1ClientsClientIdDeploymentsRequest(c.Server, clientId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBody(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequestWithBody(c.Server, clientId, deploymentId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequest(c.Server, clientId, deploymentId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -418,60 +418,6 @@ func NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, client
 	return req, nil
 }
 
-// NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequest calls the generic PostApiV1ClientsClientIdDeploymentDeploymentIdStatus builder with application/json body
-func NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequest(server string, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequestWithBody(server, clientId, deploymentId, "application/json", bodyReader)
-}
-
-// NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequestWithBody generates requests for PostApiV1ClientsClientIdDeploymentDeploymentIdStatus with any type of body
-func NewPostApiV1ClientsClientIdDeploymentDeploymentIdStatusRequestWithBody(server string, clientId string, deploymentId string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clientId", runtime.ParamLocationPath, clientId)
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "deploymentId", runtime.ParamLocationPath, deploymentId)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1/clients/%s/deployment/%s/status", pathParam0, pathParam1)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
 // NewGetApiV1ClientsClientIdDeploymentsRequest generates requests for GetApiV1ClientsClientIdDeployments
 func NewGetApiV1ClientsClientIdDeploymentsRequest(server string, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams) (*http.Request, error) {
 	var err error
@@ -528,6 +474,60 @@ func NewGetApiV1ClientsClientIdDeploymentsRequest(server string, clientId string
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequest calls the generic PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus builder with application/json body
+func NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequest(server string, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequestWithBody(server, clientId, deploymentId, "application/json", bodyReader)
+}
+
+// NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequestWithBody generates requests for PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus with any type of body
+func NewPostApiV1ClientsClientIdDeploymentsDeploymentIdStatusRequestWithBody(server string, clientId string, deploymentId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clientId", runtime.ParamLocationPath, clientId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "deploymentId", runtime.ParamLocationPath, deploymentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/clients/%s/deployments/%s/status", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -729,13 +729,13 @@ type ClientWithResponsesInterface interface {
 
 	PutApiV1ClientsClientIdCapabilitiesWithResponse(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesResponse, error)
 
-	// PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBodyWithResponse request with any body
-	PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBodyWithResponse(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse, error)
-
-	PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithResponse(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse, error)
-
 	// GetApiV1ClientsClientIdDeploymentsWithResponse request
 	GetApiV1ClientsClientIdDeploymentsWithResponse(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*GetApiV1ClientsClientIdDeploymentsResponse, error)
+
+	// PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBodyWithResponse request with any body
+	PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBodyWithResponse(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse, error)
+
+	PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithResponse(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse, error)
 
 	// GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestWithResponse request
 	GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestWithResponse(ctx context.Context, clientId string, deploymentId string, digest string, params *GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams, reqEditors ...RequestEditorFn) (*GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestResponse, error)
@@ -812,27 +812,6 @@ func (r PutApiV1ClientsClientIdCapabilitiesResponse) StatusCode() int {
 	return 0
 }
 
-type PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type GetApiV1ClientsClientIdDeploymentsResponse struct {
 	Body                                 []byte
 	HTTPResponse                         *http.Response
@@ -849,6 +828,27 @@ func (r GetApiV1ClientsClientIdDeploymentsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetApiV1ClientsClientIdDeploymentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -881,7 +881,7 @@ type PostApiV1OnboardingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON201      *struct {
-		ClientId *string `json:"client_id,omitempty"`
+		ClientId *string `json:"clientId,omitempty"`
 	}
 	JSON400 *struct {
 		Error *string `json:"error,omitempty"`
@@ -975,23 +975,6 @@ func (c *ClientWithResponses) PutApiV1ClientsClientIdCapabilitiesWithResponse(ct
 	return ParsePutApiV1ClientsClientIdCapabilitiesResponse(rsp)
 }
 
-// PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBodyWithResponse request with arbitrary body returning *PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse
-func (c *ClientWithResponses) PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBodyWithResponse(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse, error) {
-	rsp, err := c.PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithBody(ctx, clientId, deploymentId, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse(rsp)
-}
-
-func (c *ClientWithResponses) PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithResponse(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse, error) {
-	rsp, err := c.PostApiV1ClientsClientIdDeploymentDeploymentIdStatus(ctx, clientId, deploymentId, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse(rsp)
-}
-
 // GetApiV1ClientsClientIdDeploymentsWithResponse request returning *GetApiV1ClientsClientIdDeploymentsResponse
 func (c *ClientWithResponses) GetApiV1ClientsClientIdDeploymentsWithResponse(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*GetApiV1ClientsClientIdDeploymentsResponse, error) {
 	rsp, err := c.GetApiV1ClientsClientIdDeployments(ctx, clientId, params, reqEditors...)
@@ -999,6 +982,23 @@ func (c *ClientWithResponses) GetApiV1ClientsClientIdDeploymentsWithResponse(ctx
 		return nil, err
 	}
 	return ParseGetApiV1ClientsClientIdDeploymentsResponse(rsp)
+}
+
+// PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBodyWithResponse request with arbitrary body returning *PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse
+func (c *ClientWithResponses) PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBodyWithResponse(ctx context.Context, clientId string, deploymentId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse, error) {
+	rsp, err := c.PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithBody(ctx, clientId, deploymentId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithResponse(ctx context.Context, clientId string, deploymentId string, body PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse, error) {
+	rsp, err := c.PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(ctx, clientId, deploymentId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse(rsp)
 }
 
 // GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestWithResponse request returning *GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestResponse
@@ -1084,22 +1084,6 @@ func ParsePutApiV1ClientsClientIdCapabilitiesResponse(rsp *http.Response) (*PutA
 	return response, nil
 }
 
-// ParsePostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse parses an HTTP response from a PostApiV1ClientsClientIdDeploymentDeploymentIdStatusWithResponse call
-func ParsePostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse(rsp *http.Response) (*PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PostApiV1ClientsClientIdDeploymentDeploymentIdStatusResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
 // ParseGetApiV1ClientsClientIdDeploymentsResponse parses an HTTP response from a GetApiV1ClientsClientIdDeploymentsWithResponse call
 func ParseGetApiV1ClientsClientIdDeploymentsResponse(rsp *http.Response) (*GetApiV1ClientsClientIdDeploymentsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1121,6 +1105,22 @@ func ParseGetApiV1ClientsClientIdDeploymentsResponse(rsp *http.Response) (*GetAp
 		}
 		response.ApplicationvndMargoManifestV1JSON200 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParsePostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse parses an HTTP response from a PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusWithResponse call
+func ParsePostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse(rsp *http.Response) (*PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil
@@ -1168,7 +1168,7 @@ func ParsePostApiV1OnboardingResponse(rsp *http.Response) (*PostApiV1OnboardingR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest struct {
-			ClientId *string `json:"client_id,omitempty"`
+			ClientId *string `json:"clientId,omitempty"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

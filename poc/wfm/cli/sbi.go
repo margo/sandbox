@@ -69,7 +69,9 @@ func (self *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceCertif
 	cert := base64.StdEncoding.EncodeToString([]byte(deviceCertificate))
 
 	onboardingReq := sbi.PostApiV1OnboardingJSONRequestBody{
-		PublicCertificate: &cert,
+		ApiVersion:  "onboarding.margo.org/v1alpha1",
+		Kind:        sbi.OnboardingRequest,
+		Certificate: cert,
 	}
 
 	resp, err := self.client.PostApiV1Onboarding(ctx, onboardingReq, overrideOptions...)
@@ -246,8 +248,8 @@ func (self *SbiHttpClient) ReportDeploymentStatus(ctx context.Context, deviceID,
 	}
 
 	deploymentStatus := sbi.DeploymentStatusManifest{
-		ApiVersion:   "margo.org",
-		Kind:         "DeploymentStatus",
+		ApiVersion:   "deployment.margo.org/v1alpha1",
+		Kind:         sbi.DeploymentStatusManifestKindDeploymentStatusManifest,
 		Components:   components,
 		DeploymentId: appUUID.String(),
 		Status: struct {
@@ -262,7 +264,7 @@ func (self *SbiHttpClient) ReportDeploymentStatus(ctx context.Context, deviceID,
 		},
 	}
 
-	resp, err := self.client.PostApiV1ClientsClientIdDeploymentDeploymentIdStatus(ctx, deviceID, appUUID.String(), deploymentStatus)
+	resp, err := self.client.PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(ctx, deviceID, appUUID.String(), deploymentStatus)
 	if err != nil {
 		return err
 	}

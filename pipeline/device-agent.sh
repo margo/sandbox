@@ -610,20 +610,13 @@ build_start_device_agent_k3s_service() {
     echo "✅ Image pulled: ${workload_Fleet_Management_Client_IMAGE_REF}"
 
     # Step 2: Import into k3s container runtime
-    echo "Saving and importing GHCR image into k3s..."
-    docker save -o workload-fleet-management-client.tar "${workload_Fleet_Management_Client_IMAGE_REF}"
-
-    if command -v k3s >/dev/null 2>&1; then
-        k3s ctr -n k8s.io image import workload-fleet-management-client.tar
-        echo "✅ Image imported into k3s cluster"
-    elif command -v ctr >/dev/null 2>&1; then
-        ctr -n k8s.io image import workload-fleet-management-client.tar
-        echo "✅ Image imported into CTR runtime"
+    echo "Pulling image into k3s via CRI..."
+    if sudo crictl pull "${workload_Fleet_Management_Client_IMAGE_REF}"; then
+      echo "✅ Image ready in k3s"
     else
-        echo "❌ Neither k3s nor ctr command found"
-        return 1
+      echo "❌ Failed to pull image into k3s"
+      return 1
     fi
-    rm -f workload-fleet-management-client.tar
 
     # Step 3: Navigate to helmchart directory
     cd helmchart

@@ -15,36 +15,40 @@ const (
 
 // Defines values for ComponentStatusState.
 const (
-	ComponentStatusStateFailed     ComponentStatusState = "Failed"
-	ComponentStatusStateInstalled  ComponentStatusState = "Installed"
-	ComponentStatusStateInstalling ComponentStatusState = "Installing"
-	ComponentStatusStatePending    ComponentStatusState = "Pending"
-	ComponentStatusStateRemoved    ComponentStatusState = "Removed"
-	ComponentStatusStateRemoving   ComponentStatusState = "Removing"
-	ComponentStatusStateUpdated    ComponentStatusState = "Updated"
-	ComponentStatusStateUpdating   ComponentStatusState = "Updating"
+	ComponentStatusStateFailed     ComponentStatusState = "failed"
+	ComponentStatusStateInstalled  ComponentStatusState = "installed"
+	ComponentStatusStateInstalling ComponentStatusState = "installing"
+	ComponentStatusStatePending    ComponentStatusState = "pending"
+	ComponentStatusStateRemoved    ComponentStatusState = "removed"
+	ComponentStatusStateRemoving   ComponentStatusState = "removing"
 )
 
 // Defines values for DeploymentStatusManifestKind.
 const (
-	DeploymentStatus DeploymentStatusManifestKind = "DeploymentStatus"
+	DeploymentStatusManifestKindDeploymentStatusManifest DeploymentStatusManifestKind = "DeploymentStatusManifest"
 )
 
 // Defines values for DeploymentStatusManifestStatusState.
 const (
-	DeploymentStatusManifestStatusStateFailed     DeploymentStatusManifestStatusState = "Failed"
-	DeploymentStatusManifestStatusStateInstalled  DeploymentStatusManifestStatusState = "Installed"
-	DeploymentStatusManifestStatusStateInstalling DeploymentStatusManifestStatusState = "Installing"
-	DeploymentStatusManifestStatusStatePending    DeploymentStatusManifestStatusState = "Pending"
-	DeploymentStatusManifestStatusStateRemoved    DeploymentStatusManifestStatusState = "Removed"
-	DeploymentStatusManifestStatusStateRemoving   DeploymentStatusManifestStatusState = "Removing"
-	DeploymentStatusManifestStatusStateUpdated    DeploymentStatusManifestStatusState = "Updated"
-	DeploymentStatusManifestStatusStateUpdating   DeploymentStatusManifestStatusState = "Updating"
+	DeploymentStatusManifestStatusStateFailed     DeploymentStatusManifestStatusState = "failed"
+	DeploymentStatusManifestStatusStateInstalled  DeploymentStatusManifestStatusState = "installed"
+	DeploymentStatusManifestStatusStateInstalling DeploymentStatusManifestStatusState = "installing"
+	DeploymentStatusManifestStatusStatePending    DeploymentStatusManifestStatusState = "pending"
+	DeploymentStatusManifestStatusStateRemoved    DeploymentStatusManifestStatusState = "removed"
+	DeploymentStatusManifestStatusStateRemoving   DeploymentStatusManifestStatusState = "removing"
 )
 
 // Defines values for DeviceCapabilitiesManifestKind.
 const (
-	DeviceCapabilities DeviceCapabilitiesManifestKind = "DeviceCapabilities"
+	DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest DeviceCapabilitiesManifestKind = "DeviceCapabilitiesManifest"
+)
+
+// Defines values for DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture.
+const (
+	Amd64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "amd64"
+	Arm   DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm"
+	Arm64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm64"
+	X8664 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "x86_64"
 )
 
 // Defines values for DeviceCapabilitiesManifestPropertiesRoles.
@@ -54,10 +58,35 @@ const (
 	StandaloneDevice  DeviceCapabilitiesManifestPropertiesRoles = "Standalone Device"
 )
 
+// Defines values for DeviceCommunicationInterfaceType.
+const (
+	Bluetooth DeviceCommunicationInterfaceType = "bluetooth"
+	Canbus    DeviceCommunicationInterfaceType = "canbus"
+	Cellular  DeviceCommunicationInterfaceType = "cellular"
+	Ethernet  DeviceCommunicationInterfaceType = "ethernet"
+	Rs232     DeviceCommunicationInterfaceType = "rs232"
+	Usb       DeviceCommunicationInterfaceType = "usb"
+	Wifi      DeviceCommunicationInterfaceType = "wifi"
+)
+
+// Defines values for DevicePeripheralType.
+const (
+	Camera     DevicePeripheralType = "camera"
+	Display    DevicePeripheralType = "display"
+	Gpu        DevicePeripheralType = "gpu"
+	Microphone DevicePeripheralType = "microphone"
+	Speaker    DevicePeripheralType = "speaker"
+)
+
 // Defines values for AppDeploymentProfileType.
 const (
 	Compose AppDeploymentProfileType = "compose"
 	HelmV3  AppDeploymentProfileType = "helm.v3"
+)
+
+// Defines values for PostApiV1OnboardingJSONBodyKind.
+const (
+	OnboardingRequest PostApiV1OnboardingJSONBodyKind = "OnboardingRequest"
 )
 
 // ComponentStatus defines model for ComponentStatus.
@@ -84,7 +113,7 @@ type DeploymentBundleRef struct {
 	// SizeBytes Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the bundle archive. Provided for bandwidth estimation and update planning. MUST NOT be used for integrity; digest verification remains mandatory.
 	SizeBytes *float32 `json:"sizeBytes,omitempty"`
 
-	// Url Content-addressable retrieval endpoint of the form /api/v1/devices/{deviceId}/bundles/{digest} where {digest} equals bundle.digest.
+	// Url Content-addressable retrieval endpoint of the form /api/v1/clients/{clientId}/bundles/{digest} where {digest} equals bundle.digest.
 	Url *string `json:"url,omitempty"`
 }
 
@@ -99,7 +128,7 @@ type DeploymentManifestRef struct {
 	// SizeBytes Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the deployment YAML. Provided for planning or progress display. MUST NOT be used for integrity; digest verification remains mandatory.
 	SizeBytes *float32 `json:"sizeBytes,omitempty"`
 
-	// Url Content-addressable endpoint of the form /api/v1/devices/{deviceId}/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable
+	// Url Content-addressable endpoint of the form /api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable
 	Url string `json:"url"`
 }
 
@@ -133,10 +162,13 @@ type DeviceCapabilitiesManifest struct {
 		ModelNumber string `json:"modelNumber"`
 		Resources   struct {
 			Cpu struct {
-				Cores *float32 `json:"cores,omitempty"`
+				Architecture *DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture `json:"architecture,omitempty"`
+				Cores        float32                                                       `json:"cores"`
 			} `json:"cpu"`
-			Memory  string `json:"memory"`
-			Storage string `json:"storage"`
+			Interfaces  []DeviceCommunicationInterface `json:"interfaces"`
+			Memory      string                         `json:"memory"`
+			Peripherals []DevicePeripheral             `json:"peripherals"`
+			Storage     string                         `json:"storage"`
 		} `json:"resources"`
 		Roles        []DeviceCapabilitiesManifestPropertiesRoles `json:"roles"`
 		SerialNumber string                                      `json:"serialNumber"`
@@ -147,8 +179,29 @@ type DeviceCapabilitiesManifest struct {
 // DeviceCapabilitiesManifestKind defines model for DeviceCapabilitiesManifest.Kind.
 type DeviceCapabilitiesManifestKind string
 
+// DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture defines model for DeviceCapabilitiesManifest.Properties.Resources.Cpu.Architecture.
+type DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture string
+
 // DeviceCapabilitiesManifestPropertiesRoles defines model for DeviceCapabilitiesManifest.Properties.Roles.
 type DeviceCapabilitiesManifestPropertiesRoles string
+
+// DeviceCommunicationInterface defines model for DeviceCommunicationInterface.
+type DeviceCommunicationInterface struct {
+	Type DeviceCommunicationInterfaceType `json:"type"`
+}
+
+// DeviceCommunicationInterfaceType defines model for DeviceCommunicationInterface.Type.
+type DeviceCommunicationInterfaceType string
+
+// DevicePeripheral defines model for DevicePeripheral.
+type DevicePeripheral struct {
+	Manufacturer *string              `json:"manufacturer,omitempty"`
+	Model        *string              `json:"model,omitempty"`
+	Type         DevicePeripheralType `json:"type"`
+}
+
+// DevicePeripheralType defines model for DevicePeripheral.Type.
+type DevicePeripheralType string
 
 // ManifestVersion Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.
 type ManifestVersion = float32
@@ -307,9 +360,18 @@ type GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams struct {
 
 // PostApiV1OnboardingJSONBody defines parameters for PostApiV1Onboarding.
 type PostApiV1OnboardingJSONBody struct {
-	// PublicCertificate Base64-encoded client certificate
-	PublicCertificate *string `json:"public_certificate,omitempty"`
+	// ApiVersion API version identifier
+	ApiVersion string `json:"apiVersion"`
+
+	// Certificate Base64-encoded client certificate
+	Certificate string `json:"certificate"`
+
+	// Kind Resource kind
+	Kind PostApiV1OnboardingJSONBodyKind `json:"kind"`
 }
+
+// PostApiV1OnboardingJSONBodyKind defines parameters for PostApiV1Onboarding.
+type PostApiV1OnboardingJSONBodyKind string
 
 // PostApiV1ClientsClientIdCapabilitiesJSONRequestBody defines body for PostApiV1ClientsClientIdCapabilities for application/json ContentType.
 type PostApiV1ClientsClientIdCapabilitiesJSONRequestBody = DeviceCapabilitiesManifest
@@ -317,8 +379,8 @@ type PostApiV1ClientsClientIdCapabilitiesJSONRequestBody = DeviceCapabilitiesMan
 // PutApiV1ClientsClientIdCapabilitiesJSONRequestBody defines body for PutApiV1ClientsClientIdCapabilities for application/json ContentType.
 type PutApiV1ClientsClientIdCapabilitiesJSONRequestBody = DeviceCapabilitiesManifest
 
-// PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody defines body for PostApiV1ClientsClientIdDeploymentDeploymentIdStatus for application/json ContentType.
-type PostApiV1ClientsClientIdDeploymentDeploymentIdStatusJSONRequestBody = DeploymentStatusManifest
+// PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody defines body for PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus for application/json ContentType.
+type PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody = DeploymentStatusManifest
 
 // PostApiV1OnboardingJSONRequestBody defines body for PostApiV1Onboarding for application/json ContentType.
 type PostApiV1OnboardingJSONRequestBody PostApiV1OnboardingJSONBody

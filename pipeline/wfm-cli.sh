@@ -28,16 +28,16 @@ load_wfm_env || true
 # ----------------------------
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- symphony settings (can be overridden via env)
-EXPOSED_SYMPHONY_IP="${EXPOSED_SYMPHONY_IP:-127.0.0.1}"
+EXPOSED_SYMPHONY_HOST="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 
 
 #--- OCI Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 OCI_ORGANIZATION="${OCI_ORGANIZATION:-library}"
@@ -77,7 +77,7 @@ validate_choice() {
 list_app_packages() {
   echo "📦 Listing all app packages from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg || echo "❌ Failed to list app-pkg"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -86,7 +86,7 @@ list_app_packages() {
 list_devices() {
   echo "🖥️  Listing all devices from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list devices || echo "❌ Failed to list devices"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -95,7 +95,7 @@ list_devices() {
 list_deployments() {
   echo "🚀 Listing all deployments from WFM..."
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment || echo "❌ Failed to list deployment"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
   fi
   echo ""
   read -p "Press Enter to continue..."
@@ -108,21 +108,21 @@ list_all() {
   echo "📦 App Packages:"
   echo "----------------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg || echo "❌ Failed to list app-pkg"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
   fi
 
   echo ""
   echo "🖥️  Devices:"
   echo "----------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list devices || echo "❌ Failed to list devices"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
   fi
 
   echo ""
   echo "🚀 Deployments:"
   echo "---------------"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment || echo "❌ Failed to list deployment"
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
   fi
 
   echo ""
@@ -138,7 +138,7 @@ generate_instance_yaml_from_oci() {
   local device_id="$3"
   local output_file="$4"
 
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 
   # Pull margo.yaml from OCI to extract metadata
   local temp_dir=$(mktemp -d)
@@ -362,7 +362,7 @@ discover_app_packages_from_harbor() {
   # Send discovery message to stderr so it doesn't get captured
   echo "🔍 Discovering app packages from Harbor OCI Registry..." >&2
 
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local org="${OCI_ORGANIZATION}"
 
   # Get list of repositories from Harbor API
@@ -394,7 +394,7 @@ discover_app_packages_from_harbor() {
 
 get_package_metadata_from_oci() {
   local package_repo="$1"
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local full_repo="${OCI_ORGANIZATION}/${package_repo}"
 
   # Pull margo.yaml from OCI to get metadata
@@ -474,7 +474,7 @@ upload_app_package() {
 
   echo "📤 Uploading $package_name to WFM..."
   if check_maestro_cli; then
-    if ${MAESTRO_CLI_PATH}/maestro wfm apply -f "$temp_pkg_file"; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$temp_pkg_file"; then
       echo "✅ $package_name uploaded successfully!"
     else
       echo "❌ Failed to upload $package_name"
@@ -489,7 +489,7 @@ upload_app_package() {
 generate_wfm_package_yaml() {
   local package_repo="$1"
   local output_file="$2"
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters.
@@ -544,7 +544,7 @@ delete_app_package() {
 
   echo "📦 Current packages:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg
   fi
 
   echo ""
@@ -559,7 +559,7 @@ delete_app_package() {
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "🗑️  Deleting package '$package_id'..."
     if check_maestro_cli; then
-      if ${MAESTRO_CLI_PATH}/maestro wfm delete app-pkg "$package_id"; then
+      if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" delete app-pkg "$package_id"; then
         echo "✅ Package '$package_id' deleted successfully!"
       else
         echo "❌ Failed to delete app-pkg '$package_id'"
@@ -635,7 +635,7 @@ get_instance_file_path() {
 get_oci_repository_path() {
   local package_name="$1"
   local margo_file="$2"  # Accept margo.yaml file path
-  local harbor_url="${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local container_url=""
 
   # First try hardcoded mappings (backward compatibility)
@@ -694,7 +694,7 @@ deploy_instance() {
 
   echo "📦 Available packages:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list app-pkg
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg
   fi
 
   echo ""
@@ -707,7 +707,7 @@ deploy_instance() {
 
   echo ""
   echo "🖥️  Available devices:"
-  ${MAESTRO_CLI_PATH}/maestro wfm list devices
+  ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices
 
   echo ""
   read -p "Enter the device ID for deployment: " device_id
@@ -719,7 +719,7 @@ deploy_instance() {
 
   # Get app package details and extract metadata.name
   # echo "📋 Getting package details..."
-  app_packages=$(${MAESTRO_CLI_PATH}/maestro wfm list app-pkg -o json 2>/dev/null)
+  app_packages=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg -o json 2>/dev/null)
 
   if [ $? -ne 0 ] || [ -z "$app_packages" ]; then
     echo "❌ Failed to get package list"
@@ -827,12 +827,12 @@ deploy_instance() {
   echo ""
   echo "🚀 Deploying '$package_id' to device '$device_id'..."
   if check_maestro_cli; then
-    if ${MAESTRO_CLI_PATH}/maestro wfm apply -f "$deploy_file"; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file"; then
       echo "✅ Instance deployment request sent successfully!"
 
       echo ""
       echo "📋 Updated deployments:"
-      ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+      ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
     else
       echo "❌ Failed to deploy instance"
     fi
@@ -853,7 +853,7 @@ delete_instance() {
 
   echo "🚀 Current deployments:"
   if check_maestro_cli; then
-    ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
   fi
 
   echo ""
@@ -868,12 +868,12 @@ delete_instance() {
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "🗑️  Deleting instance '$instance_id'..."
     if check_maestro_cli; then
-      if ${MAESTRO_CLI_PATH}/maestro wfm delete deployment "$instance_id"; then
+      if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" delete deployment "$instance_id"; then
         echo "✅ Instance '$instance_id' deleted successfully!"
 
         echo ""
         echo "📋 Updated deployments:"
-        ${MAESTRO_CLI_PATH}/maestro wfm list deployment
+        ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment
       else
         echo "❌ Failed to delete instance '$instance_id'"
       fi

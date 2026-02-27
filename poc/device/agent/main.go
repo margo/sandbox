@@ -178,10 +178,10 @@ func NewAgent(configPath string) (*Agent, error) {
 		"canDeployHelm", deviceSettings.canDeployHelm,
 		"canDeployCompose", deviceSettings.canDeployCompose,
 		"isAuthEnabled", deviceSettings.authEnabled,
-		"hasClientId", len(deviceSettings.oauthClientId) != 0,
-		"hasClientSecret", len(deviceSettings.oAuthClientSecret) != 0,
-		"hasTokenUrl", len(deviceSettings.oauthTokenUrl) != 0,
-		"tokenBasedAuthDetails", (len(deviceSettings.oauthClientId) != 0) && (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
+		// "hasClientId", len(deviceSettings.oauthClientId) != 0,
+		// "hasClientSecret", len(deviceSettings.oAuthClientSecret) != 0,
+		// "hasTokenUrl", len(deviceSettings.oauthTokenUrl) != 0,
+		// "tokenBasedAuthDetails", (len(deviceSettings.oauthClientId) != 0) && (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
 	)
 
 	// Create components

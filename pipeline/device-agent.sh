@@ -66,17 +66,17 @@ GITHUB_USER="${GITHUB_USER:-}"  # Set via env or leave empty
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # Set via env or leave empty
 
 #--- harbor settings (can be overridden via env)
-EXPOSED_HARBOR_IP="${EXPOSED_HARBOR_IP:-127.0.0.1}"
+EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-localhost}"
 EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
 
 #--- branch details (can be overridden via env)
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-dev-sprint-6}"
-WFM_IP="${WFM_IP:-127.0.0.1}"
+WFM_HOST="${WFM_HOST:-localhost}"
 WFM_PORT="${WFM_PORT:-8082}"
 
 
 #--- Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 
@@ -107,7 +107,7 @@ export GONOSUMDB='github.com/margo/*'
 export GOPRIVATE='github.com/margo/*'
 
 validate_pre_required_vars() {
-  local required_vars=("SANDBOX_REPO_BRANCH" "WFM_IP" "WFM_PORT")
+  local required_vars=("SANDBOX_REPO_BRANCH" "WFM_HOST" "WFM_PORT")
   for var in "${required_vars[@]}"; do
     if [ -z "${!var}" ]; then
       echo "Error: Required environment variable $var is not set"
@@ -117,7 +117,7 @@ validate_pre_required_vars() {
 }
 
 validate_start_required_vars() {
-  local required_vars=("WFM_IP" "WFM_PORT")
+  local required_vars=("WFM_HOST" "WFM_PORT")
   for var in "${required_vars[@]}"; do
     if [ -z "${!var}" ]; then
       echo "Error: Required environment variable $var is not set"
@@ -306,7 +306,7 @@ clone_dev_repo() {
 # ----------------------------
 update_agent_sbi_url() {
   echo 'Updating wfm.sbiUrl in workload-fleet-management-client config ...'
-  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_IP:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
+  sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_HOST:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
 }
 
 # ----------------------------
@@ -596,36 +596,29 @@ build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Deploying workload-fleet-management-client on Kubernetes..."
     
-    # Step 1: Pull image from GHCR (no local build)
-    echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
-    if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
-        echo "Image exists in GHCR"
+    # Step 1: Import into k3s container runtime
+    echo "Importing image into k3s..."
+    
+    # Method 1: Use crictl (K3s native)
+    if command -v crictl >/dev/null 2>&1; then
+        echo "Using crictl to pull image directly into k3s..."
+        sudo crictl pull "${workload_Fleet_Management_Client_IMAGE_REF}"
+      
+        if [ $? -eq 0 ]; then
+            echo "✅ Image imported into k3s cluster via crictl"
+        else
+            echo "❌ Failed to import image via crictl"
+            return 1
+        fi
+    
+    # Method 2: Skip import - let Helm pull from GHCR
     else
-        echo "❌ Image does NOT exist in GHCR: ${workload_Fleet_Management_Client_IMAGE_REF}"																 
-        return 1															  
+        echo "⚠️  crictl not found, skipping import step"
+        echo "ℹ️  K3s will pull image directly from GHCR during Helm deployment"
+        echo "   Ensure GHCR registry mirror is configured in k3s"
     fi
 
-    echo "⬇️ Pulling image from GHCR..."
-    docker pull "${workload_Fleet_Management_Client_IMAGE_REF}"
-    echo "✅ Image pulled: ${workload_Fleet_Management_Client_IMAGE_REF}"
-
-    # Step 2: Import into k3s container runtime
-    echo "Saving and importing GHCR image into k3s..."
-    docker save -o workload-fleet-management-client.tar "${workload_Fleet_Management_Client_IMAGE_REF}"
-
-    if command -v k3s >/dev/null 2>&1; then
-        k3s ctr -n k8s.io image import workload-fleet-management-client.tar
-        echo "✅ Image imported into k3s cluster"
-    elif command -v ctr >/dev/null 2>&1; then
-        ctr -n k8s.io image import workload-fleet-management-client.tar
-        echo "✅ Image imported into CTR runtime"
-    else
-        echo "❌ Neither k3s nor ctr command found"
-        return 1
-    fi
-    rm -f workload-fleet-management-client.tar
-
-    # Step 3: Navigate to helmchart directory
+    # Step 2: Navigate to helmchart directory
     cd helmchart
     if [ $? -ne 0 ]; then
       echo "❌ Failed to navigate to helmchart directory"
@@ -849,7 +842,7 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   # Load registry settings from environment variables
   # ---------------------------------------------------
-  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}}"
+  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
   registry_user="${REGISTRY_USER:-admin}"
   registry_password="${REGISTRY_PASS:-Harbor12345}"
 
@@ -872,12 +865,12 @@ add_container_registry_mirror_to_k3s() {
   # ---------------------------------------------------
   cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
 mirrors:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     endpoint:
       - "${registry_url}"
 
 configs:
-  "${EXPOSED_HARBOR_IP}:${EXPOSED_HARBOR_PORT}":
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
     auth:
       username: "${registry_user}"
       password: "${registry_password}"
@@ -1024,7 +1017,7 @@ show_status() {
 
 
 function install_promtail() {
-  echo "📦 Installing Promtail to push logs to Loki at $WFM_IP..."
+  echo "📦 Installing Promtail to push logs to Loki at $WFM_HOST..."
 
   cat <<EOF > promtail-values.yaml
 config:
@@ -1036,7 +1029,7 @@ config:
     filename: /tmp/positions.yaml
 
   clients:
-    - url: http://${WFM_IP}:32100/loki/api/v1/push
+    - url: http://${WFM_HOST}:32100/loki/api/v1/push
 
   scrape_configs:
     - job_name: pod-logs
@@ -1104,13 +1097,13 @@ config:
   exporters:
     # Send traces to Jaeger
     otlp:
-      endpoint: ${WFM_IP}:30417
+      endpoint: ${WFM_HOST}:30417
       tls:
         insecure: true
 
     # CHANGED: Push metrics to Prometheus Remote Write
     prometheusremotewrite:
-      endpoint: http://${WFM_IP}:30909/api/v1/write
+      endpoint: http://${WFM_HOST}:30909/api/v1/write
       tls:
         insecure: true
       resource_to_telemetry_conversion:
@@ -1142,8 +1135,8 @@ EOF
   helm install $OTEL_RELEASE open-telemetry/opentelemetry-collector --version 0.140.0 -f otel-values.yaml --namespace $NAMESPACE_OBSERVABILITY
 
   echo "✅ OTEL Collector setup complete!"
-  echo "🔍 Traces sent to: ${WFM_IP}:30417"
-  echo "📊 Metrics pushed to: ${WFM_IP}:30909/api/v1/write"
+  echo "🔍 Traces sent to: ${WFM_HOST}:30417"
+  echo "📊 Metrics pushed to: ${WFM_HOST}:30909/api/v1/write"
 }
 
 
@@ -1246,7 +1239,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://${WFM_IP}:32100/loki/api/v1/push
+  - url: http://${WFM_HOST}:32100/loki/api/v1/push
 
 scrape_configs:
   - job_name: docker-logs
@@ -1292,13 +1285,13 @@ receivers:
 exporters:
   # Send traces to Jaeger on WFM server
   otlp/jaeger:
-    endpoint: ${WFM_IP}:30417
+    endpoint: ${WFM_HOST}:30417
     tls:
       insecure: true
 
   # CHANGED: Push metrics to Prometheus Remote Write
   prometheusremotewrite:
-    endpoint: http://${WFM_IP}:30909/api/v1/write
+    endpoint: http://${WFM_HOST}:30909/api/v1/write
     tls:
       insecure: true
     resource_to_telemetry_conversion:
@@ -1351,9 +1344,9 @@ EOF
   echo "✅ OTEL Collector v0.140.0 and Promtail v2.9.10 installed"
   echo "📡 OTLP gRPC: localhost:4317"
   echo "📡 OTLP HTTP: localhost:4318"
-  echo "🔍 Traces sent to Jaeger at: ${WFM_IP}:30417"
-  echo "📊 Metrics pushed to Prometheus at: ${WFM_IP}:30909/api/v1/write"
-  echo "📝 Logs sent to Loki at: ${WFM_IP}:32100"
+  echo "🔍 Traces sent to Jaeger at: ${WFM_HOST}:30417"
+  echo "📊 Metrics pushed to Prometheus at: ${WFM_HOST}:30909/api/v1/write"
+  echo "📝 Logs sent to Loki at: ${WFM_HOST}:32100"
 }
 
 

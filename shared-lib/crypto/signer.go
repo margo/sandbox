@@ -25,8 +25,9 @@ type HTTPSigner interface {
 }
 
 type HTMPayloadSigner struct {
-	privateKey []byte
-	signer     htmsighttp.Signer
+	privateKey   []byte
+	signer       htmsighttp.Signer // for requests with body (includes content-digest)
+	signerNoBody htmsighttp.Signer // for requests without body (no content-digest)
 	// configuration echoed from RequestSignerConfig
 	signatureAlgo   string
 	hashAlgo        string
@@ -121,8 +122,20 @@ func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlg
 		return nil, fmt.Errorf("unsupported signatureAlgo: %s", signatureAlgo)
 	}
 
-	// default component coverage: method, target-uri, authority
-	requestSigner := htmsighttp.NewSigner(
+	// Per Margo spec, content-digest MUST be part of the signature for requests with a body.
+	// For requests without a body (e.g., GET, DELETE), content-digest is omitted.
+	// See: https://docs.margo.org/specification/margo-management-interface/api-requirements-and-security
+	requestSignerWithBody := htmsighttp.NewSigner(
+		parsedKey,
+		keyid,
+		htmsighttp.WithComponents(
+			component.Method(),
+			component.TargetURI(),
+			component.Authority(),
+			component.New("content-digest"),
+		))
+
+	requestSignerNoBody := htmsighttp.NewSigner(
 		parsedKey,
 		keyid,
 		htmsighttp.WithComponents(
@@ -132,7 +145,8 @@ func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlg
 		))
 
 	return &HTMPayloadSigner{
-		signer:          requestSigner,
+		signer:          requestSignerWithBody,
+		signerNoBody:    requestSignerNoBody,
 		privateKey:      []byte(privateKeyPEM),
 		signatureAlgo:   signatureAlgo,
 		hashAlgo:        hashAlgo,
@@ -141,25 +155,34 @@ func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlg
 }
 
 func (s *HTMPayloadSigner) SignRequest(ctx context.Context, req *http.Request) error {
-	// If body present and no Content-Digest header, compute a SHA-256 content-digest
-	// Read body (non-destructively) and restore it after computing digest
-	if req.Body != nil && req.Header.Get("Content-Digest") == "" {
-		// Read body (non-destructively if possible)
-		// Since req.Body is an io.ReadCloser, read and replace it
-		bodyBytes, err := io.ReadAll(req.Body)
+	// Check if request has a body by reading it
+	var bodyBytes []byte
+	hasBody := false
+	if req.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read request body for digest: %w", err)
+			return fmt.Errorf("failed to read request body: %w", err)
 		}
+		hasBody = len(bodyBytes) > 0
+		// restore body
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
+	// If body present and no Content-Digest header, compute a SHA-256 content-digest
+	if hasBody && req.Header.Get("Content-Digest") == "" {
 		// compute sha256
 		h := sha256.Sum256(bodyBytes)
 		digest := base64.StdEncoding.EncodeToString(h[:])
 		// RFC9530 expects e.g., sha-256=:BASE64:
 		req.Header.Set("Content-Digest", fmt.Sprintf("sha-256=:%s:", digest))
-		// restore body
-		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
-	return s.signer.SignRequest(ctx, req)
+	// Use appropriate signer based on body presence
+	if hasBody {
+		return s.signer.SignRequest(ctx, req)
+	}
+	return s.signerNoBody.SignRequest(ctx, req)
 }
 
 func (s *HTMPayloadSigner) SignResponse(ctx context.Context, resp http.ResponseWriter) error {

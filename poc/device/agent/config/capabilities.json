@@ -1,6 +1,6 @@
 {
-    "apiVersion": "device.margo/v1",
-    "kind": "DeviceCapabilities",
+    "apiVersion": "device.margo.org/v1alpha1",
+    "kind": "DeviceCapabilitiesManifest",
     "properties": {
         "id": "device-id-from-manufacturer",
         "vendor": "Northstar Industrial Applications",
@@ -9,10 +9,13 @@
         "roles": ["Standalone Cluster"],
         "resources": {
             "cpu": {
+                "architecture": "amd64",
                 "cores": 24
             },
-            "memory": "64",
-            "storage": "2000"
+            "memory": "64 Gi",
+            "storage": "2000 Gi",
+            "peripherals": [],
+            "interfaces": []
         }
     }
 }

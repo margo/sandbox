@@ -1,0 +1,14 @@
+# Default owners for everything
+* @singhmj-1 @vireshnavalli
+
+# Infra and pipeline directory (CI/CD)
+/pipeline/ @nitparihar @sanjujunnuthula
+/.github/ @nitparihar @sanjujunnuthula
+/helmchart @nitparihar @sanjujunnuthula
+/docker-compose @nitparihar @sanjujunnuthula
+
+# All testing directories
+**/testing/ @nitparihar @sanjujunnuthula
+
+# Root LICENSE file
+/LICENSE @ajcraig @phil-abb

@@ -309,6 +309,20 @@ update_agent_sbi_url() {
   sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_HOST:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
 }
 
+# new helper: ensure the JSON has the correct role for the current runtime
+set_capabilities_roles() {
+  local role="$1"
+  local file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
+
+  if [[ -f "$file" ]]; then
+    # replace whatever is inside the roles array
+    sed -i -E "s|\"roles\"[[:space:]]*:[[:space:]]*\[[^]]*\]|\"roles\": [\"$role\"]|g" "$file"
+    echo "capabilities.json roles set to [$role]"
+  else
+    echo "capabilities.json not found at $file, skipping role update"
+  fi
+}
+
 # ----------------------------
 # K3s Installation Functions
 # ----------------------------
@@ -545,6 +559,9 @@ start_device_agent_docker_service() {
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
 
+  # replace the role in capabilities file
+  set_capabilities_roles "Standalone Device"
+
   if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
     echo "Creating TLS secrets..."
     cp "$HOME/certs/device-private.key"  ./config
@@ -595,7 +612,7 @@ stop_device_agent_service_docker() {
 build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Deploying workload-fleet-management-client on Kubernetes..."
-    
+
     # Step 1: Import into k3s container runtime
     echo "Importing image into k3s..."
     
@@ -624,6 +641,9 @@ build_start_device_agent_k3s_service() {
       echo "❌ Failed to navigate to helmchart directory"
       return 1
     fi
+
+    # replace the role in capabilities file
+    set_capabilities_roles "Standalone Cluster"
 
     # Step 4: Copy config files
     update_agent_sbi_url
@@ -1472,7 +1492,6 @@ pause() {
 # ----------------------------
 
 show_menu() {
-
   echo "Choose an option:"
   echo "1) Install-prerequisites"
   echo "2) Uninstall-prerequisites"

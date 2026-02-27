@@ -11,7 +11,7 @@
 | **Device VM 2 (Standalone Device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
 **Requirements:**
-- Ubuntu or Debian operating system (**ubuntu-24.04.3-desktop-amd64 or server**) (you can check by doing ```cat /etc/os-release```)
+- Ubuntu operating system (**ubuntu-24.04.3-desktop-amd64 or server**) (you can check by doing ```cat /etc/os-release```)
    - Virtual Machine Manager (4.1.0 tested)
 - Internet connection
 - All VMs must be able to talk to each other (same network with static IP addresses)

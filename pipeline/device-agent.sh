@@ -596,20 +596,7 @@ build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Deploying workload-fleet-management-client on Kubernetes..."
     
-    # Step 1: Pull image from GHCR (no local build)
-    echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
-    if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
-        echo "Image exists in GHCR"
-    else
-        echo "❌ Image does NOT exist in GHCR: ${workload_Fleet_Management_Client_IMAGE_REF}"																 
-        return 1															  
-    fi
-
-    echo "⬇️ Pulling image from GHCR..."
-    docker pull "${workload_Fleet_Management_Client_IMAGE_REF}"
-    echo "✅ Image pulled: ${workload_Fleet_Management_Client_IMAGE_REF}"
-
-    # Step 2: Import into k3s container runtime
+    # Step 1: Import into k3s container runtime
     echo "Importing image into k3s..."
     
     # Method 1: Use crictl (K3s native)
@@ -631,7 +618,7 @@ build_start_device_agent_k3s_service() {
         echo "   Ensure GHCR registry mirror is configured in k3s"
     fi
 
-    # Step 3: Navigate to helmchart directory
+    # Step 2: Navigate to helmchart directory
     cd helmchart
     if [ $? -ne 0 ]; then
       echo "❌ Failed to navigate to helmchart directory"

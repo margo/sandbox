@@ -610,12 +610,25 @@ build_start_device_agent_k3s_service() {
     echo "✅ Image pulled: ${workload_Fleet_Management_Client_IMAGE_REF}"
 
     # Step 2: Import into k3s container runtime
-    echo "Pulling image into k3s via CRI..."
-    if sudo crictl pull "${workload_Fleet_Management_Client_IMAGE_REF}"; then
-      echo "✅ Image ready in k3s"
+    echo "Importing image into k3s..."
+    
+    # Method 1: Use crictl (K3s native)
+    if command -v crictl >/dev/null 2>&1; then
+        echo "Using crictl to pull image directly into k3s..."
+        sudo crictl pull "${workload_Fleet_Management_Client_IMAGE_REF}"
+      
+        if [ $? -eq 0 ]; then
+            echo "✅ Image imported into k3s cluster via crictl"
+        else
+            echo "❌ Failed to import image via crictl"
+            return 1
+        fi
+    
+    # Method 2: Skip import - let Helm pull from GHCR
     else
-      echo "❌ Failed to pull image into k3s"
-      return 1
+        echo "⚠️  crictl not found, skipping import step"
+        echo "ℹ️  K3s will pull image directly from GHCR during Helm deployment"
+        echo "   Ensure GHCR registry mirror is configured in k3s"
     fi
 
     # Step 3: Navigate to helmchart directory

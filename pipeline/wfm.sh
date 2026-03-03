@@ -1459,7 +1459,7 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
     -e CONFIG=symphony-api-margo.json \
-    margo-symphony-api:latest
+    "${SYMPHONY_IMAGE_REF}"
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure

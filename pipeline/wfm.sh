@@ -1459,7 +1459,7 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
     -e CONFIG=symphony-api-margo.json \
-    "${SYMPHONY_IMAGE_REF}"
+    ${SYMPHONY_IMAGE_REF}
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure
@@ -1476,6 +1476,41 @@ EOF
   echo "✅ Symphony API systemd service created and enabled"
   echo "📋 Service will start Symphony API automatically on boot"
   echo "📁 Working directory: ${symphony_dir}"
+}
+
+remove_symphony_api_systemd_service() {
+  echo "Removing Symphony API systemd service..."
+
+  local service_name="symphony-api"
+  local service_file="/etc/systemd/system/${service_name}.service"
+
+  # Check if service exists
+  if [[ ! -f "$service_file" ]]; then
+    echo "Symphony API service does not exist"
+    return 0
+  fi
+
+  # Stop the service if running
+  if sudo systemctl is-active --quiet "${service_name}.service"; then
+    echo "Stopping ${service_name}..."
+    sudo systemctl stop "${service_name}.service"
+  fi
+
+  # Disable the service
+  if sudo systemctl is-enabled --quiet "${service_name}.service" 2>/dev/null; then
+    echo "Disabling ${service_name}..."
+    sudo systemctl disable "${service_name}.service"
+  fi
+
+  # Remove service file
+  echo "Removing service file..."
+  sudo rm -f "$service_file"
+
+  # Reload systemd daemon
+  sudo systemctl daemon-reload
+  sudo systemctl reset-failed 2>/dev/null || true
+
+  echo "✅ Symphony API systemd service removed successfully"
 }
 
 start_symphony_api_container(){
@@ -1529,6 +1564,7 @@ start_symphony_api_container(){
 }
 
 stop_symphony() {
+  # TODO: this piece of code require corrections
   echo "Stopping and removing Symphony API container..."
 
   # Stop the container if running
@@ -1542,6 +1578,9 @@ stop_symphony() {
   else
     echo 'ℹ️ Symphony API container not found'
   fi
+
+  echo "proceeding to remove the systemd files..."
+  remove_symphony_api_systemd_service
 
   # Prompt user to delete Redis data
   echo ""

@@ -334,16 +334,18 @@ func (dm *DeploymentManager) deployOrUpdateCompose(ctx context.Context, deployme
 	if err != nil {
 		return fmt.Errorf("invalid compose component %v", err)
 	}
+	// Get compose content from package location
+	dm.log.Infow("view of the compose component", "composecomp", pretty.Sprint(composeComp))
 
 	// Generate project name (must be valid Docker Compose project name)
 	projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
 	projectName = strings.ReplaceAll(projectName, "_", "-")
 
-	componentValues, _ := pkg.ConvertAllAppDeploymentParamsToValues(*appDeployment.Spec.Parameters)
-	values := componentValues[composeComp.Name]
-
-	// Get compose content from package location
-	dm.log.Infow("view of the compose component", "composecomp", pretty.Sprint(composeComp))
+	values := map[string]interface{}{}
+	if appDeployment.Spec.Parameters != nil {
+		componentValues, _ := pkg.ConvertAllAppDeploymentParamsToValues(*appDeployment.Spec.Parameters)
+		values = componentValues[composeComp.Name]
+	}
 
 	composeFilename, err := dm.composeClient.DownloadCompose(ctx, composeComp.Properties.PackageLocation, composeComp.Properties.KeyLocation, projectName)
 	if err != nil {

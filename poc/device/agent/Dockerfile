@@ -3,6 +3,7 @@ FROM golang:1.24.4 AS builder
 
 ARG VERSION
 ARG COMMIT
+ARG DATE
 
 WORKDIR /app
 
@@ -13,7 +14,8 @@ COPY . .
 
 # Build a static binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    -trimpath \
+    -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
     -o device-agent ./poc/device/agent
 
 # Stage 2: Get Docker binary and compose plugin from official image

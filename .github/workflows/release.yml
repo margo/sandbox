@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # history is needed for the goreleaser to generate changelogs and couple of other things
           fetch-depth: 0
 
       - uses: actions/setup-go@v5

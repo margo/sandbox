@@ -14,9 +14,11 @@ builds:
     # Binary name.
     # Can be a path (e.g. `bin/app`).
     binary: device-agent
+    flags:
+      - -trimpath
     ldflags:
-      # - -s -w
-      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      # - -s -w 
+      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
     goos:
       - linux 
     goarch:
@@ -25,9 +27,11 @@ builds:
   - id: "linux-arm64"
     main: ./poc/device/agent
     binary: device-agent
+    flags:
+      - -trimpath
     ldflags:
-      # - -s -w
-      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      # - -s -w 
+      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
     goos:
       - linux 
     goarch:
@@ -35,7 +39,7 @@ builds:
 
 dockers_v2:
   - images:
-    - "ghcr.io/margo/workload-fleet-management-client:{{ .Tag }}"
+    - "ghcr.io/margo/workload-fleet-management-client:{{.Tag}}"
     dockerfile: ./poc/device/agent/Dockerfile
     # extra_files:
       # - config.yml
@@ -43,14 +47,16 @@ dockers_v2:
       - linux/amd64
       - linux/arm64
     build_args:
-      VERSION: "{{ .Version }}"
+      VERSION: "{{.Version}}"
+      DATE: "{{.CommitDate}}"
+      COMMIT: "{{.Commit}}"
     labels:
-      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.title: "{{.ProjectName}}"
       org.opencontainers.image.description: "Margo sandbox workload fleet management client. A reference implementation."
       org.opencontainers.image.source: "{{.GitURL}}"
-      org.opencontainers.image.version: "{{ .Version }}"
-      org.opencontainers.image.revision: "{{ .FullCommit }}"
-      org.opencontainers.image.created: "{{.Date}}"
+      org.opencontainers.image.version: "{{.Version}}"
+      org.opencontainers.image.revision: "{{.FullCommit}}"
+      org.opencontainers.image.created: "{{.CommitDate}}"
 
 report_sizes: true
 
@@ -63,7 +69,7 @@ archives:
       - LICENSE
 
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
+  name_template: "{{.ProjectName}}_checksums.txt"
 
 changelog:
   sort: asc

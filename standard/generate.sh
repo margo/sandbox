@@ -5,9 +5,10 @@ export PATH="$PATH:$HOME/go/bin"
 # Configuration
 #WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
 
-TMP_SPEC=$(mktemp /tmp/wfm-sbi-tmp-XXXXXX.yaml)
+TMP_SPEC="snapshot.spec.yaml"
+SPEC_URL="https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml"
 curl -sSL -o "$TMP_SPEC" \
-  "https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml"
+  "$SPEC_URL"
 WFM_SBI_SPEC="$TMP_SPEC"
 OUTPUT_DIR="./generatedCode"
 WFM_SBI_PACKAGE_NAME="github.com/margo/sandbox/standard/generatedCode/wfm"
@@ -89,4 +90,4 @@ main() {
 main "$@"
 
 #Delete temporary spec file
-rm -f "$TMP_SPEC"
+# rm -f "$TMP_SPEC"

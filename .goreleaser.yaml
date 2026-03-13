@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: margo-sandbox
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: "linux-amd64"
+    main: ./poc/device/agent
+    # Binary name.
+    # Can be a path (e.g. `bin/app`).
+    binary: device-agent
+    flags:
+      - -trimpath
+    ldflags:
+      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+dockers_v2:
+  - images:
+    - "ghcr.io/margo/workload-fleet-management-client"
+    dockerfile: ./poc/device/agent/Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      VERSION: "{{.Version}}"
+      DATE: "{{.CommitDate}}"
+      COMMIT: "{{.Commit}}"
+    labels:
+      org.opencontainers.image.title: "{{.ProjectName}}"
+      org.opencontainers.image.description: "Margo sandbox workload fleet management client. A reference implementation."
+      org.opencontainers.image.source: "{{.GitURL}}"
+      org.opencontainers.image.version: "{{.Version}}"
+      org.opencontainers.image.revision: "{{.FullCommit}}"
+      org.opencontainers.image.created: "{{.CommitDate}}"
+
+report_sizes: true
+
+archives:
+  - formats:
+    - tar.gz
+    name_template: '{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}'
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "{{.ProjectName}}_checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - 'README'
+      - Merge pull request
+      - Merge branch
+
+release:
+  footer: |
+    ## This release targets the Margo specification version: {{env.MARGO_SPEC_VERSION}}, and can be tracked here, https://github.com/margo/specification .
+  github:
+    owner: margo
+    name: sandbox
+  disable: false

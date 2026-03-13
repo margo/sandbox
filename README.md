@@ -10,7 +10,7 @@
 - [Design and Mapping to Margo Architecture](#design-and-mapping-to-margo-architecture)
   - [Symphony WFM](#symphony-wfm)
   - [Repositories and Registry](#repositories-and-registry)
-  - [Telemetry and Monitoring](#telemetry-and-monitoring)  
+  - [Telemetry and Monitoring](#telemetry-and-monitoring)
 - [HTTP/1.1 and API Security](#http11-and-api-security)
 - [Release Notes](#release-notes)
 - [Comments and Feedback](#comments-and-feedback)
@@ -54,7 +54,7 @@ Here is [Setup Guide](./docs/setup-guide.md) to get you started quickly.
 The repository is divided into three main parts. You can find more details here on [Repository Structure](./docs/repo-structure.md):
 
 - `shared-lib`: Reusable libraries and utilities (Open Source Components)
-- `standard`: Implementation of the components as per Margo specification
+- `standard`: Implementation of the components as per Margo specification, a snapshot of the the implemented spec is copied from the official sources in this directory for traceability, in case the original source gets changed later on.
 - `non-standard`: Enabling components, which are not defined by Margo, but required for an overall implementation
 
 ---

@@ -50,14 +50,12 @@ linters:
     generated: lax
     warn-unused: false
     presets: []
-
     rules:
       # Tests can have unused variables and short error handling
       - path: "_test\\.go$"
         linters:
           - unused
           - errcheck
-
       # Mock files excluded from unused checks
       - path: "mock_.*\\.go$"
         linters:

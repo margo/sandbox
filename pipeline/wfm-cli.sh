@@ -301,19 +301,20 @@ EOF
 }
 
 
-# Generate Compose-based instance.yaml
+# Generate Compose-based instance.yaml with multi-component support
 generate_compose_instance() {
-  local app_identifier="$1"  # Receives id (pre-formatted) or sanitized name
+  local app_identifier="$1"
   local package_id="$2"
   local device_id="$3"
   local repository="$4"
   local output_file="$5"
   local margo_file="$6"
 
-  # Create names from identifier (already properly formatted)
+  # Create names from identifier
   local instance_name=$(echo "${app_identifier}-instance" | cut -c1-53)
   local stack_name=$(echo "${app_identifier}-stack" | cut -c1-40)
 
+  # Start building the YAML
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters(currently read-only).
 # This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
@@ -329,12 +330,56 @@ spec:
   deploymentProfile:
     type: compose
     components:
+EOF
+
+  # Check if components section exists in margo.yaml
+  if grep -q "components:" "$margo_file"; then
+    # Parse ALL components from margo.yaml (handles 2, 3, 4, or more)
+    awk '/components:/,/^[^ ]/ {
+      if (/- name:/) {
+        name = $0
+        sub(/.*name:/, "", name)
+        gsub(/^[ \t]+|[ \t]+$/, "", name)
+        gsub(/"/, "", name)
+        print "COMPONENT_NAME:" name
+      }
+      if (/packageLocation:/) {
+        location = $0
+        sub(/.*packageLocation:/, "", location)
+        gsub(/^[ \t]+|[ \t]+$/, "", location)
+        gsub(/"/, "", location)
+        print "PACKAGE_LOCATION:" location
+      }
+    }' "$margo_file" | {
+      local current_name=""
+      while IFS=: read -r key value; do
+        case "$key" in
+          COMPONENT_NAME)
+            current_name="$value"
+            ;;
+          PACKAGE_LOCATION)
+            if [ -n "$current_name" ]; then
+              cat >> "$output_file" <<COMPONENT
+      - name: ${current_name}
+        properties:
+          packageLocation: ${value}
+COMPONENT
+              current_name=""
+            fi
+            ;;
+        esac
+      done
+    }
+  else
+    # Fallback: single component using provided repository
+    cat >> "$output_file" <<COMPONENT
       - name: ${stack_name}
         properties:
           packageLocation: ${repository}
-EOF
+COMPONENT
+  fi
 
-  # Add common Compose parameters
+  # Add parameters if they exist
   if grep -q "parameters:" "$margo_file"; then
     echo "  parameters:" >> "$output_file"
 

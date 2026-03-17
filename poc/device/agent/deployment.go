@@ -530,27 +530,45 @@ func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string
 }
 
 func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
-	// Check if Compose client is available
-	if dm.composeClient == nil {
-		dm.log.Warnw("Docker Compose client not initialized, skipping Compose removal", "deploymentId", deploymentId)
-		return nil // Return nil to allow cleanup to continue
-	}
+    // Check if Compose client is available
+    if dm.composeClient == nil {
+        dm.log.Warnw("Docker Compose client not initialized, skipping Compose removal", "deploymentId", deploymentId)
+        return nil
+    }
 
-	component := appDeployment.Spec.DeploymentProfile.Components[0]
-	if composeComp, err := component.AsComposeApplicationDeploymentProfileComponent(); err == nil {
-		projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
-		projectName = strings.ReplaceAll(projectName, "_", "-")
+    // Iterate through ALL components (matching deployOrUpdateCompose pattern)
+    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+        composeComp, err := component.AsComposeApplicationDeploymentProfileComponent()
+        if err != nil {
+            dm.log.Warnw("Failed to parse compose component during removal", "error", err)
+            continue // Continue removing other components even if one fails to parse
+        }
 
-		dm.log.Infow("Removing Docker Compose project", "projectName", projectName, "deploymentId", deploymentId)
+        // Generate project name (same logic as deployment)
+        projectName := fmt.Sprintf("%s-%s", strings.ToLower(composeComp.Name), deploymentId[:8])
+        projectName = strings.ReplaceAll(projectName, "_", "-")
 
-		if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
-			dm.log.Warnw("Failed to remove Docker Compose project", "projectName", projectName, "error", err)
-			return err
-		}
-	}
+        dm.log.Infow("Removing Docker Compose project", 
+            "projectName", projectName, 
+            "componentName", composeComp.Name,
+            "deploymentId", deploymentId)
 
-	return nil
+        if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
+            dm.log.Warnw("Failed to remove Docker Compose project", 
+                "projectName", projectName, 
+                "componentName", composeComp.Name,
+                "error", err)
+            // Continue removing other components even if one fails
+        } else {
+            dm.log.Infow("Docker Compose project removed successfully",
+                "projectName", projectName,
+                "componentName", composeComp.Name)
+        }
+    }
+
+    return nil
 }
+
 
 // extractComponentNames returns the name of every component in an AppDeploymentManifest,
 // regardless of the deployment profile type (Helm, Compose, etc.).

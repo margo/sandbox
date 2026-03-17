@@ -509,25 +509,40 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 }
 
 func (dm *DeploymentManager) removeHelm(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
-	// Check if Helm client is available
-	if dm.helmClient == nil {
-		dm.log.Warnw("Helm client not initialized, skipping Helm removal", "deploymentId", deploymentId)
-		return nil // Return nil to allow cleanup to continue
-	}
+    if dm.helmClient == nil {
+        dm.log.Warnw("Helm client not initialized, skipping Helm removal", "deploymentId", deploymentId)
+        return nil
+    }
 
-	component := appDeployment.Spec.DeploymentProfile.Components[0]
-	if helmComp, err := component.AsHelmApplicationDeploymentProfileComponent(); err == nil {
-		releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
-		dm.log.Infow("Removing Helm release", "releaseName", releaseName, "deploymentId", deploymentId)
+    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+        helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
+        if err != nil {
+            dm.log.Warnw("Failed to parse helm component during removal", "error", err)
+            continue  // ✅ Continue to next component
+        }
 
-		if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
-			dm.log.Warnw("Failed to uninstall Helm chart", "releaseName", releaseName, "error", err)
-			return err
-		}
-	}
+        releaseName := fmt.Sprintf("%s-%s", helmComp.Name, deploymentId[:8])
+        dm.log.Infow("Removing Helm release", 
+            "releaseName", releaseName,
+            "componentName", helmComp.Name,
+            "deploymentId", deploymentId)
 
-	return nil
+        if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
+            dm.log.Warnw("Failed to uninstall Helm chart", 
+                "releaseName", releaseName,
+                "componentName", helmComp.Name,
+                "error", err)
+            // ✅ Continue removing other components
+        } else {
+            dm.log.Infow("Helm release removed successfully",
+                "releaseName", releaseName,
+                "componentName", helmComp.Name)
+        }
+    }
+
+    return nil  // ✅ All components processed
 }
+
 
 func (dm *DeploymentManager) removeCompose(ctx context.Context, deploymentId string, appDeployment sbi.AppDeploymentManifest) error {
     // Check if Compose client is available

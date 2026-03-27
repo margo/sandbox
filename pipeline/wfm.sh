@@ -483,27 +483,55 @@ setup_harbor() {
     # Generate self-signed certificates for Harbor
     echo "📜 Generating self-signed certificates for Harbor..."
     mkdir -p ./certs
-    
+
+# Create OpenSSL config file with proper SAN
+cat > ./certs/harbor-cert.conf <<EOF
+[req]
+default_bits = 4096
+prompt = no
+default_md = sha256
+distinguished_name = dn
+req_extensions = v3_req
+
+[dn]
+C=IN
+ST=GGN
+L=Sector 48
+O=Margo
+CN=${EXPOSED_HARBOR_HOST}
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = keyEncipherment, digitalSignature
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = ${EXPOSED_HARBOR_HOST}
+DNS.2 = localhost
+IP.1 = 127.0.0.1
+EOF
+
     # Generate private key
     openssl genrsa -out ./certs/harbor.key 4096
-    
-    # Generate certificate signing request
-    openssl req -new -key ./certs/harbor.key -out ./certs/harbor.csr \
-      -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=${EXPOSED_HARBOR_HOST}"
-    
-    # Generate self-signed certificate (valid for 365 days)
-    openssl x509 -req -days 365 -in ./certs/harbor.csr \
-      -signkey ./certs/harbor.key -out ./certs/harbor.crt \
-      -extfile <(printf "subjectAltName=DNS:${EXPOSED_HARBOR_HOST},DNS:localhost,IP:127.0.0.1")
-    
+
+    # Generate certificate using config file
+    openssl req -new -x509 -key ./certs/harbor.key -out ./certs/harbor.crt \
+      -days 365 -config ./certs/harbor-cert.conf -extensions v3_req
+
+    # Verify certificate
+    echo "🔍 Verifying generated certificate..."
+    openssl x509 -in ./certs/harbor.crt -text -noout | grep -A 3 "Subject Alternative Name"
+
     # Create data directory for Harbor certs
     sudo mkdir -p /data/cert
     sudo cp ./certs/harbor.crt /data/cert/
     sudo cp ./certs/harbor.key /data/cert/
     sudo chmod 644 /data/cert/harbor.crt
     sudo chmod 600 /data/cert/harbor.key
-    
+
     echo "✅ Harbor certificates generated and installed"
+
     
     echo 'Preparing Harbor configuration...'
     chmod +x prepare

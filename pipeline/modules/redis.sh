@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/wfm/redis.sh - Redis installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 install_redis() {
   local REDIS_VERSION="7.0.15"

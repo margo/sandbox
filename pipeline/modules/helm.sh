@@ -1,7 +1,7 @@
 #!/bin/bash
-# modules/wfm/helm.sh - Helm installation
+# modules/helm.sh - Helm installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 install_helm() {
   cd $HOME

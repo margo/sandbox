@@ -1,7 +1,7 @@
 #!/bin/bash
-# modules/wfm/docker.sh - Docker and Docker Compose installation
+# modules/docker.sh - Docker and Docker Compose installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"  # Changed from ../../ to ../
 
 install_docker_and_compose() {
   cd $HOME

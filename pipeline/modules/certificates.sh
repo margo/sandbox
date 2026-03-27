@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Certificate generation functions
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"  # Changed from ../../ to ../
+
 
 collect_certs_info() {
     echo "Collecting certificate information..."

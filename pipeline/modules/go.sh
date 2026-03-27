@@ -1,7 +1,8 @@
 #!/bin/bash
-# modules/wfm/go.sh - Go installation
+# modules/go.sh - Go installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"  
+
 
 install_go() {
   cd $HOME

@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/k3s.sh - K3s Kubernetes installation and configuration
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"  # Changed from ../../ to ../
 
 check_k3s_installed() {
   if command -v k3s >/dev/null 2>&1; then

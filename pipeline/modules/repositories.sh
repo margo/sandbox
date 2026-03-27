@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/wfm/repositories.sh - Git repository cloning
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 clone_symphony_repo() {
   cd "$HOME"

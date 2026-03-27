@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/observability.sh - Observability stack configuration
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 # Observability release names
 PROM_RELEASE="${PROM_RELEASE:-prometheus}"

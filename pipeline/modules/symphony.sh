@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/symphony.sh - Symphony API management functions
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 build_maestro_cli() {
   CLI_DIR="$HOME/symphony/cli"

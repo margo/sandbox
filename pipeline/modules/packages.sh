@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/packages.sh - OCI package management
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 push_nextcloud_to_oci() {
   echo "📦 Pushing Nextcloud application package to OCI Registry (HTTPS)..."

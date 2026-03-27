@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/wfm/oras.sh - ORAS CLI installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../lib/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
 
 install_oras() {
   echo "🔄 Installing ORAS CLI..."

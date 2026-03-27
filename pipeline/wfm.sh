@@ -175,7 +175,6 @@ install_helm() {
   fi
 }
 
-# Add this function to wfm.sh
 trust_harbor_certificate() {
   echo "📜 Adding Harbor certificate to system trust store..."
   
@@ -186,10 +185,37 @@ trust_harbor_certificate() {
   sudo mkdir -p /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}
   sudo cp /data/cert/harbor.crt /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/ca.crt
   
+  echo "🔄 Restarting Docker daemon to apply certificate changes..."
   sudo systemctl restart docker
+  
+  # Wait for Docker to be ready
+  for i in {1..30}; do
+    if sudo systemctl is-active --quiet docker; then
+      echo "✅ Docker daemon restarted"
+      break
+    fi
+    sleep 1
+  done
+  
+  # ✅ Restart Harbor after Docker restart
+  echo "🔄 Restarting Harbor containers..."
+  cd "$HOME/sandbox/pipeline/harbor"
+  sudo docker compose up -d
+  
+  # Wait for Harbor to be ready
+  echo "⏳ Waiting for Harbor to restart..."
+  sleep 30
+  
+  # Verify Harbor is running
+  if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q "${EXPOSED_HARBOR_PORT}"; then
+    echo "✅ Harbor restarted successfully on port ${EXPOSED_HARBOR_PORT}"
+  else
+    echo "⚠️ Harbor may still be starting..."
+  fi
   
   echo "✅ Harbor certificate trusted by system and Docker"
 }
+
 
 install_go() {
   cd $HOME

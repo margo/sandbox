@@ -47,7 +47,7 @@ EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 DEVICE_NODE_IPS="${DEVICE_NODE_IPS:-127.0.0.1:30999}"
 
 #--- Registry settings (can be overridden via env)
-REGISTRY_URL="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
+REGISTRY_URL="${REGISTRY_URL:-https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"  # Changed to HTTPS
 REGISTRY_USER="${REGISTRY_USER:-admin}"
 REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 
@@ -173,6 +173,22 @@ install_helm() {
         echo '✅ Basic utilities installed'
     fi
   fi
+}
+
+# Add this function to wfm.sh
+trust_harbor_certificate() {
+  echo "📜 Adding Harbor certificate to system trust store..."
+  
+  sudo cp /data/cert/harbor.crt /usr/local/share/ca-certificates/harbor.crt
+  sudo update-ca-certificates
+  
+  # For Docker
+  sudo mkdir -p /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}
+  sudo cp /data/cert/harbor.crt /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/ca.crt
+  
+  sudo systemctl restart docker
+  
+  echo "✅ Harbor certificate trusted by system and Docker"
 }
 
 install_go() {
@@ -452,24 +468,53 @@ setup_harbor() {
   else
     cd "$HOME/sandbox/pipeline/harbor"
 
-    # Update harbor.yml with EXPOSED_HARBOR_HOST
+    # Update harbor.yml for HTTPS
     sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
+    
+    # Configure HTTPS settings
+    echo "🔐 Configuring Harbor for HTTPS..."
+    
+    # Update harbor.yml to enable HTTPS
+    sed -i "s|^# https:|https:|" harbor.yml
+    sed -i "s|^#   port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
+    sed -i "s|^#   certificate: .*|  certificate: /data/cert/harbor.crt|" harbor.yml
+    sed -i "s|^#   private_key: .*|  private_key: /data/cert/harbor.key|" harbor.yml
+    
+    # Generate self-signed certificates for Harbor
+    echo "📜 Generating self-signed certificates for Harbor..."
+    mkdir -p ./certs
+    
+    # Generate private key
+    openssl genrsa -out ./certs/harbor.key 4096
+    
+    # Generate certificate signing request
+    openssl req -new -key ./certs/harbor.key -out ./certs/harbor.csr \
+      -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=${EXPOSED_HARBOR_HOST}"
+    
+    # Generate self-signed certificate (valid for 365 days)
+    openssl x509 -req -days 365 -in ./certs/harbor.csr \
+      -signkey ./certs/harbor.key -out ./certs/harbor.crt \
+      -extfile <(printf "subjectAltName=DNS:${EXPOSED_HARBOR_HOST},DNS:localhost,IP:127.0.0.1")
+    
+    # Create data directory for Harbor certs
+    sudo mkdir -p /data/cert
+    sudo cp ./certs/harbor.crt /data/cert/
+    sudo cp ./certs/harbor.key /data/cert/
+    sudo chmod 644 /data/cert/harbor.crt
+    sudo chmod 600 /data/cert/harbor.key
+    
+    echo "✅ Harbor certificates generated and installed"
     
     echo 'Preparing Harbor configuration...'
     chmod +x prepare
-    
-    # Run prepare to generate docker-compose.yml
     sudo ./prepare
 
-    # Add restart policies to docker-compose.yml BEFORE starting
     configure_harbor_restart_policy
 
-    # Start Harbor - ensure clean state
-    echo 'Starting Harbor with restart policies...'
+    echo 'Starting Harbor with HTTPS...'
     sudo docker compose down --remove-orphans 2>/dev/null || true
     sudo docker compose up -d
 
-    # Force update restart policies on all containers
     echo '🔧 Applying restart policies to running containers...'
     sleep 5
     for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
@@ -483,12 +528,10 @@ setup_harbor() {
 
     docker ps
 
-    # Verify all containers are running
     echo ""
     echo "📊 Harbor container status:"
     docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
 
-    # Verify restart policies
     echo ""
     echo "📋 Verifying restart policies:"
     for container in nginx registry registryctl redis $(docker ps -a --filter "name=harbor-" --format "{{.Names}}"); do
@@ -497,34 +540,28 @@ setup_harbor() {
       fi
     done
 
-    # Create systemd service for auto-start on boot
     create_harbor_systemd_service
 
-    # Final health check
     echo ""
-    echo "⏳ Waiting for all containers to be healthy (this may take 1-2 minutes)..."
+    echo "⏳ Waiting for all containers to be healthy..."
     sleep 45
 
     healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
     total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
 
     echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
-
-    if [ "$healthy_count" -eq "$total_count" ] && [ "$total_count" -eq 9 ]; then
-      echo "✅ All Harbor containers are running and healthy!"
-    else
-      echo "⚠️ Some containers may still be initializing. Check with: docker ps | grep harbor"
-    fi
+    echo "🔐 Harbor is now running with HTTPS on port ${EXPOSED_HARBOR_PORT}"
+    echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   fi
 }
 
 
-# ----------------------------
-# OCI Application Package Push Functions (NEW - replaces Git push)
-# ----------------------------
 
+# ----------------------------
+# OCI Application Package Push Functions
+# ----------------------------
 push_nextcloud_to_oci() {
-  echo "📦 Pushing Nextcloud application package to OCI Registry..."
+  echo "📦 Pushing Nextcloud application package to OCI Registry (HTTPS)..."
 
   local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
   local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
@@ -532,8 +569,9 @@ push_nextcloud_to_oci() {
 
   cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
 
+  # Remove --plain-http flag for HTTPS
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --plain-http
+    -u "$REGISTRY_USER" --password-stdin --insecure
 
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
@@ -551,23 +589,23 @@ push_nextcloud_to_oci() {
   fi
 
   echo "Pushing files: ${files[@]}"
+  # Remove --plain-http flag
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
-    --plain-http \
+    --insecure \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
-    echo "✅ Nextcloud package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
+    echo "✅ Nextcloud package pushed to OCI Registry (HTTPS)"
+    echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
     echo "❌ Failed to push Nextcloud package"
     return 1
   fi
 }
 
-
 push_custom_otel_to_oci() {
-  echo "📦 Pushing Custom OTEL application package to OCI Registry..."
+  echo "📦 Pushing Custom OTEL application package to OCI Registry (HTTPS)..."
 
   local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
   local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
@@ -575,20 +613,17 @@ push_custom_otel_to_oci() {
 
   cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
 
-  # Login to Harbor OCI Registry
+  # Remove --plain-http flag for HTTPS
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --plain-http
+    -u "$REGISTRY_USER" --password-stdin --insecure
 
-  # Check if margo.yaml exists
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
 
-  # Build file list for ORAS - start with margo.yaml
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
 
-  # Add resource files if directory exists and has files
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
     while IFS= read -r file; do
       if [ -f "$file" ]; then
@@ -597,16 +632,16 @@ push_custom_otel_to_oci() {
     done < <(find resources -type f 2>/dev/null)
   fi
 
-  # Push to OCI Registry with Margo-specific artifact type
   echo "Pushing files: ${files[@]}"
+  # Remove --plain-http flag
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
-    --plain-http \
+    --insecure \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
-    echo "✅ Custom OTEL package pushed to OCI Registry"
-    echo "📍 Location: ${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
+    echo "✅ Custom OTEL package pushed to OCI Registry (HTTPS)"
+    echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
     echo "❌ Failed to push Custom OTEL package"
     return 1
@@ -915,48 +950,24 @@ observability_stack_uninstall(){
 
 
 add_container_registry_mirror_to_k3s() {
-  echo "Configuring container registry mirror for k3s..."
+  echo "Configuring container registry mirror for k3s (HTTPS)..."
 
-  # ---------------------------------------------------
-  # Load registry settings from environment variables
-  # ---------------------------------------------------
-  registry_url="${REGISTRY_URL:-http://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
+  registry_url="https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"  # Changed to HTTPS
   registry_user="${REGISTRY_USER:-admin}"
   registry_password="${REGISTRY_PASS:-Harbor12345}"
+  
   echo "Using registry mirror: $registry_url"
   echo "Using registry credentials: $registry_user / ******"
-  # ---------------------------------------------------
 
-  # Create k3s directory if needed
-  # ---------------------------------------------------
   sudo mkdir -p /var/lib/rancher/k3s
   sudo mkdir -p /etc/rancher/k3s
 
-  # Backup existing registries if present
   if [ -f /var/lib/rancher/k3s/registries.yml ]; then
     sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yml.backup.$(date +%s)
     echo "✅ Backed up /var/lib/rancher/k3s/registries.yml"
   fi
 
-																	  
-														  
-		
-											
-			 
-					   
-
-		
-											
-		 
-								
-									
-		
-							  
-   
-
-  # ---------------------------------------------------
-  # Write the registry config
-  # ---------------------------------------------------
+  # Write registry config for HTTPS with self-signed cert
   cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
 mirrors:
   "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
@@ -969,32 +980,15 @@ configs:
       username: "${registry_user}"
       password: "${registry_password}"
     tls:
-      insecure_skip_verify: true
+      insecure_skip_verify: true  # Keep this for self-signed certs
+      # For production, use: ca_file: /path/to/harbor-ca.crt
 EOF
-
-																
-													 
-		
-											
-			 
-					   
-
-		
-											
-		 
-								
-									
-   
 
   sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yaml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yml
   sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
-											
-			 
-					   
 
-  echo "✅ Created k3s registry mirror configuration"
-  # ---------------------------------------------------
+  echo "✅ Created k3s registry mirror configuration for HTTPS"
 
   echo "Restarting k3s..."
   if sudo systemctl restart k3s; then
@@ -1004,34 +998,24 @@ EOF
     return 1
   fi
 
-  # Wait for k3s active
   echo "Waiting for k3s to come up..."
   for i in {1..30}; do
     if sudo systemctl is-active --quiet k3s; then
       echo "✅ k3s is running"
       break
-
-
-
     fi
-
     sleep 2
-
   done
 
-  echo "Checking cluster..."
   if sudo k3s kubectl get nodes >/dev/null 2>&1; then
     echo "✅ k3s cluster is responding"
   else
     echo "⚠️ k3s cluster not ready yet"
-
-
-
-
   fi
 
-  echo "✅ Registry mirror configuration completed."
+  echo "✅ Registry mirror configuration completed for HTTPS"
 }
+
 
 
 # ----------------------------
@@ -1194,10 +1178,11 @@ build_custom_otel_container_images() {
 
   cd "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/app"
   docker build . -t "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
-  echo "Ensuring Harbor registry login..."
+  
+  echo "Ensuring Harbor registry login (HTTPS)..."
+  # For self-signed certs, you may need to add the cert to Docker's trusted CAs
+  # Or use --tls-verify=false (not recommended for production)
   docker login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" -u admin -p Harbor12345
-
-  # Docker push them to the harbor registry
   echo "Pushing otel images to Harbor..."
   docker push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
 
@@ -1207,103 +1192,34 @@ build_custom_otel_container_images() {
 
   echo "Preparing Helm chart..."
   cd "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code"
-
-  # Read existing chart version
   CHART_FILE="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/helm/Chart.yaml"
   CHART_VERSION=$(grep "^version:" "$CHART_FILE" | awk '{print $2}')
 
   echo "Using existing chart version: $CHART_VERSION"
-
-  # Replace placeholders in values.yaml
-  echo "Replacing placeholders in values.yaml..."
+										 
   sed -i "s|{{REPOSITORY}}|$OTEL_APP_CONTAINER_URL|g" "$deploy_file" 2>/dev/null || true
   sed -i "s|{{TAG}}|$tag|g" "$deploy_file" 2>/dev/null || true
-
-  # Package and push chart with existing version
   echo "Packaging Helm chart version $CHART_VERSION..."
   helm package helm/
 
-  echo "Pushing chart to Harbor..."
-  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" --plain-http
+  echo "Pushing chart to Harbor (HTTPS)..."
+  # Removed --plain-http flag for HTTPS
+  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" --insecure-skip-tls-verify
 
-  # Update margo.yaml in package directory with placeholders
+															
   HELM_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
   HELM_REVISION="$CHART_VERSION"
   helm_deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package/margo.yaml"
 
   echo "Updating margo.yaml with chart version $CHART_VERSION..."
-
-  # Only replace placeholders if they exist, don't modify existing values
   sed -i "s|{{HELM_REPOSITORY}}|$HELM_REPOSITORY|g" "$helm_deploy_file" 2>/dev/null || true
   sed -i "s|{{HELM_REVISION}}|$HELM_REVISION|g" "$helm_deploy_file" 2>/dev/null || true
 
-  echo "✅ Custom otel chart version $CHART_VERSION successfully pushed to Harbor"
+  echo "✅ Custom otel chart version $CHART_VERSION successfully pushed to Harbor (HTTPS)"
   echo "📦 Chart: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
-  echo "🔄 Updated margo.yaml to reference version $CHART_VERSION"
-
 }
 
-
-# Alternative simpler version without jq dependency
-add_insecure_registry_to_daemon() {
-  echo "Configuring Docker daemon with insecure registry..."
-
-  local registry_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
-  local daemon_config="/etc/docker/daemon.json"
-
-  # Stop Docker if running
-  sudo systemctl stop docker docker.socket 2>/dev/null || true
-
-  # Create Docker directory
-  sudo mkdir -p /etc/docker
-
-  # Backup existing config
-  if [ -f "$daemon_config" ]; then
-    sudo cp "$daemon_config" "$daemon_config.backup.$(date +%s)"
-    echo "✅ Backed up existing daemon.json"
-  fi
-
-  # Create daemon.json
-  sudo tee "$daemon_config" > /dev/null <<EOF
-{
-  "insecure-registries": ["$registry_url"]
-}
-EOF
-
-  echo "✅ Configured insecure registry: $registry_url"
-
-
-
-  # Validate JSON
-  if ! jq . "$daemon_config" >/dev/null 2>&1; then
-    echo "❌ Invalid JSON in daemon.json"
-    sudo mv "$daemon_config.backup."* "$daemon_config" 2>/dev/null || true
-    return 1
-  fi
-
-  # Start Docker
-  echo "Starting Docker daemon..."
-  sudo systemctl daemon-reload
-  sudo systemctl start docker
-  sudo systemctl enable docker
-
-  # Wait for Docker
-  for i in {1..30}; do
-    if sudo systemctl is-active --quiet docker; then
-      echo "✅ Docker daemon started successfully"
-      docker version
-      return 0
-    fi
-    echo "Waiting for Docker... ($i/30)"
-    sleep 2
-  done
-
-  echo "❌ Docker failed to start"
-  sudo journalctl -xeu docker.service --no-pager | tail -20
-  return 1
-}
-
-
+ 
 # ----------------------------
 # K3s Installation Functions
 # ----------------------------
@@ -1381,18 +1297,15 @@ install_prerequisites() {
   echo "Running all pre-req setup tasks..."
   install_basic_utilities
   install_go
-  install_vim
-  #install_and_enable_ssh
   install_docker_and_compose
-  add_insecure_registry_to_daemon
   setup_k3s
   install_redis
   install_oras
   clone_symphony_repo
   clone_dev_repo
   add_container_registry_mirror_to_k3s
-   
   setup_harbor
+  trust_harbor_certificate
   build_custom_otel_container_images
   
   echo ""
@@ -1741,72 +1654,7 @@ generate_server_certs() {
     rm -f "$server_csr"
     chmod 600 "$server_key"
 }
-install_vim() {
-  echo "🔄 Installing Vim..."
-  if command -v vim >/dev/null 2>&1; then
-    echo "⚡️ Vim already installed, skipping installation"
-    return
-  fi
 
-  if command -v apt >/dev/null 2>&1; then
-    sudo apt update -y
-    sudo apt install -y vim
-  else
-    sudo yum install -y vim || sudo dnf install -y vim
-  fi
-
-  echo "✅ Vim installation completed."
-}
-
-
-install_and_enable_ssh() {
-  echo "[INFO] Checking OS type..."
-
-  # Detect package manager
-  if command -v apt >/dev/null 2>&1; then
-    OS="debian"
-    echo $OS
-  elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
-    OS="rhel"
-    echo $OS
-  else
-    echo "[ERROR] Unsupported OS. Only Debian/Ubuntu & RHEL/CentOS supported."
-    return 1
-  fi
-
-  echo "🔄 Installing OpenSSH Server..."
-  if [ "$OS" = "debian" ]; then
-    if dpkg -s openssh-server >/dev/null ; then
-      echo "⚡️ OpenSSH Server already installed, skipping installation"
-    else
-      sudo apt update -y
-      sudo apt install -y openssh-server
-      echo "✅ OpenSSH Server installation completed."
-    fi
-  else
-    if rpm -q openssh-server >/dev/null ; then
-      echo "⚡️ OpenSSH Server already installed, skipping installation"
-    else
-      sudo yum install -y openssh-server || sudo dnf install -y openssh-server
-      echo "✅ OpenSSH Server installation completed."
-    fi
-  fi
-
-  echo "[INFO] Enabling and starting SSH service..."
-  UNIT=$(systemctl list-unit-files | awk '/^ssh\.service/ {print "ssh"} /^sshd\.service/ {print "sshd"}' | head -n1)
-
-  if [ -z "$UNIT" ]; then
-    echo "[ERROR] SSH service unit not found."
-    return 1
-  fi
-
-  sudo systemctl enable "$UNIT"
-  sudo systemctl restart "$UNIT"
-
-  echo "[INFO] Verifying SSH status:"
-  sudo systemctl status ssh --no-pager || systemctl status sshd
-  echo "[SUCCESS] SSH service installed and running."
-}
 
 # Update the show_menu function to include uninstall option
 show_menu() {

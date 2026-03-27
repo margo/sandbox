@@ -285,7 +285,7 @@ install_docker_and_compose() {
     sudo apt-get install -y docker-compose-plugin=${DOCKER_COMPOSE_VERSION}-1~ubuntu.24.04~${UBUNTU_CODENAME}
   fi
 
-  # CRITICAL: Remove old standalone docker-compose binaries to avoid conflicts
+  # Remove old standalone docker-compose binaries to avoid conflicts
   echo 'Cleaning up old docker-compose binaries...'
   rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
 
@@ -464,28 +464,41 @@ configure_harbor_restart_policy() {
 
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
-    echo 'Harbor is already running, skipping startup.'
-  else
+    echo 'Harbor is already running, stopping it first...'
     cd "$HOME/sandbox/pipeline/harbor"
+    sudo docker compose down --remove-orphans
+    sleep 5
+  fi
+  
+  cd "$HOME/sandbox/pipeline/harbor"
 
-    # Update harbor.yml for HTTPS
-    sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
-    
-    # Configure HTTPS settings
-    echo "🔐 Configuring Harbor for HTTPS..."
-    
-    # Update harbor.yml to enable HTTPS
-    sed -i "s|^# https:|https:|" harbor.yml
-    sed -i "s|^#   port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
-    sed -i "s|^#   certificate: .*|  certificate: /data/cert/harbor.crt|" harbor.yml
-    sed -i "s|^#   private_key: .*|  private_key: /data/cert/harbor.key|" harbor.yml
-    
-    # Generate self-signed certificates for Harbor
-    echo "📜 Generating self-signed certificates for Harbor..."
-    mkdir -p ./certs
+  echo "🔐 Configuring Harbor for HTTPS on port ${EXPOSED_HARBOR_PORT}..."
+  
+  # Backup original harbor.yml
+  cp harbor.yml harbor.yml.backup.$(date +%s) 2>/dev/null || true
+  
+  # Update hostname
+  sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
+  
+  # Comment out HTTP section
+  sed -i 's|^http:|# http:|' harbor.yml
+  sed -i 's|^  port: 80|#   port: 80|' harbor.yml
+  sed -i 's|^  port: 8081|#   port: 8081|' harbor.yml
+  
+  # Enable HTTPS
+  sed -i 's|^#https:|https:|' harbor.yml
+  sed -i "s|^  #port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
+  sed -i 's|^  #certificate: /your/certificate/path|  certificate: /data/cert/harbor.crt|' harbor.yml
+  sed -i 's|^  #private_key: /your/private/key/path|  private_key: /data/cert/harbor.key|' harbor.yml
+  
+  echo "📋 Verifying harbor.yml HTTPS configuration..."
+  grep -A 5 "^https:" harbor.yml
+  
+  # Generate self-signed certificates
+  echo "📜 Generating self-signed certificates for Harbor..."
+  mkdir -p ./certs
 
-# Create OpenSSL config file with proper SAN
-cat > ./certs/harbor-cert.conf <<EOF
+  cat > ./certs/harbor-cert.conf <<EOF
 [req]
 default_bits = 4096
 prompt = no
@@ -512,77 +525,81 @@ DNS.2 = localhost
 IP.1 = 127.0.0.1
 EOF
 
-    # Generate private key
-    openssl genrsa -out ./certs/harbor.key 4096
+  openssl genrsa -out ./certs/harbor.key 4096
+  openssl req -new -x509 -key ./certs/harbor.key -out ./certs/harbor.crt \
+    -days 365 -config ./certs/harbor-cert.conf -extensions v3_req
 
-    # Generate certificate using config file
-    openssl req -new -x509 -key ./certs/harbor.key -out ./certs/harbor.crt \
-      -days 365 -config ./certs/harbor-cert.conf -extensions v3_req
+  echo "🔍 Verifying generated certificate..."
+  openssl x509 -in ./certs/harbor.crt -text -noout | grep -A 3 "Subject Alternative Name"
 
-    # Verify certificate
-    echo "🔍 Verifying generated certificate..."
-    openssl x509 -in ./certs/harbor.crt -text -noout | grep -A 3 "Subject Alternative Name"
+  sudo mkdir -p /data/cert
+  sudo cp ./certs/harbor.crt /data/cert/
+  sudo cp ./certs/harbor.key /data/cert/
+  sudo chmod 644 /data/cert/harbor.crt
+  sudo chmod 600 /data/cert/harbor.key
 
-    # Create data directory for Harbor certs
-    sudo mkdir -p /data/cert
-    sudo cp ./certs/harbor.crt /data/cert/
-    sudo cp ./certs/harbor.key /data/cert/
-    sudo chmod 644 /data/cert/harbor.crt
-    sudo chmod 600 /data/cert/harbor.key
-
-    echo "✅ Harbor certificates generated and installed"
-
-    
-    echo 'Preparing Harbor configuration...'
-    chmod +x prepare
-    sudo ./prepare
-
-    configure_harbor_restart_policy
-
-    echo 'Starting Harbor with HTTPS...'
-    sudo docker compose down --remove-orphans 2>/dev/null || true
-    sudo docker compose up -d
-
-    echo '🔧 Applying restart policies to running containers...'
-    sleep 5
-    for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
-      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
-        docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
-      fi
-    done
-
-    echo 'Waiting for Harbor to initialize...'
-    sleep 15
-
-    docker ps
-
-    echo ""
-    echo "📊 Harbor container status:"
-    docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}"
-
-    echo ""
-    echo "📋 Verifying restart policies:"
-    for container in nginx registry registryctl redis $(docker ps -a --filter "name=harbor-" --format "{{.Names}}"); do
-      if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
-        docker inspect --format='{{.Name}}: {{.HostConfig.RestartPolicy.Name}}' "$container"
-      fi
-    done
-
-    create_harbor_systemd_service
-
-    echo ""
-    echo "⏳ Waiting for all containers to be healthy..."
-    sleep 45
-
-    healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
-    total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
-
-    echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
-    echo "🔐 Harbor is now running with HTTPS on port ${EXPOSED_HARBOR_PORT}"
-    echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+  echo "✅ Harbor certificates generated and installed"
+  
+  # ✅ CRITICAL: Run prepare to generate docker-compose.yml with HTTPS config
+  echo 'Preparing Harbor configuration with HTTPS...'
+  chmod +x prepare
+  sudo ./prepare
+  
+  # ✅ Verify docker-compose.yml has HTTPS port
+  echo "🔍 Verifying docker-compose.yml has port ${EXPOSED_HARBOR_PORT}..."
+  if grep -q "${EXPOSED_HARBOR_PORT}" docker-compose.yml; then
+    echo "✅ docker-compose.yml configured for HTTPS on port ${EXPOSED_HARBOR_PORT}"
+  else
+    echo "⚠️ Port ${EXPOSED_HARBOR_PORT} not found in docker-compose.yml"
+    grep "ports:" docker-compose.yml | head -5
   fi
-}
 
+  configure_harbor_restart_policy
+
+  # ✅ Start Harbor with HTTPS configuration
+  echo 'Starting Harbor with HTTPS on port '${EXPOSED_HARBOR_PORT}'...'
+  sudo docker compose up -d
+
+  # Apply restart policies
+  sleep 5
+  for container in nginx registry registryctl redis harbor-jobservice harbor-core harbor-db harbor-portal harbor-log; do
+    if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+      docker update --restart=unless-stopped "$container" 2>/dev/null && echo "✅ Updated: $container"
+    fi
+  done
+
+  echo 'Waiting for Harbor to initialize...'
+  sleep 15
+
+  # ✅ Verify Harbor is listening on correct port
+  echo "🔍 Verifying Harbor nginx container ports..."
+  docker ps --filter "name=nginx" --format "table {{.Names}}\t{{.Ports}}"
+
+  echo ""
+  echo "📊 Harbor container status:"
+  docker ps --filter "name=harbor" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+  create_harbor_systemd_service
+
+  echo "⏳ Waiting for all containers to be healthy..."
+  sleep 45
+
+  healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
+  total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
+
+  echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
+  
+  # ✅ Final connectivity test
+  echo "🔍 Testing Harbor HTTPS endpoint..."
+  if curl -k -s https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/v2/ | grep -q "errors"; then
+    echo "✅ Harbor HTTPS endpoint responding correctly"
+  else
+    echo "⚠️ Harbor HTTPS endpoint may not be ready yet"
+  fi
+  
+  echo "🔐 Harbor is now running with HTTPS on port ${EXPOSED_HARBOR_PORT}"
+  echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+}
 
 
 # ----------------------------

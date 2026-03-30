@@ -1,7 +1,8 @@
 #!/bin/bash
 # Configuration and environment management for WFM CLI
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 
 load_wfm_env() {
   local env_file="$SCRIPT_DIR/../wfm.env"
@@ -18,8 +19,8 @@ load_wfm_env() {
 }
 
 # Harbor settings (can be overridden via env)
-export EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
-export EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
+export EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-harbor.machine}"
+export EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8443}"
 
 # Symphony settings (can be overridden via env)
 export EXPOSED_SYMPHONY_HOST="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"

@@ -10,6 +10,14 @@ list_devices() {
   read -p "Press Enter to continue..."
 }
 
+list_devices_non_interactive() {
+  echo "🖥️  Listing all devices from WFM..."
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
+  fi
+  echo ""
+}
+
 list_deployments() {
   echo "🚀 Listing all deployments from WFM..."
   if check_maestro_cli; then
@@ -17,6 +25,14 @@ list_deployments() {
   fi
   echo ""
   read -p "Press Enter to continue..."
+}
+
+list_deployments_non_interactive() {
+  echo "🚀 Listing all deployments from WFM..."
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
+  fi
+  echo ""
 }
 
 list_all() {

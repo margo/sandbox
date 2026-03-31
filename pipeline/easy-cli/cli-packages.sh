@@ -10,6 +10,14 @@ list_app_packages() {
   read -p "Press Enter to continue..."
 }
 
+list_app_packages_non_interactive() {
+  echo "📦 Listing all app packages from WFM..."
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
+  fi
+  echo ""
+}
+
 upload_app_package() {
   echo "📦 Upload App Package"
   echo "===================="

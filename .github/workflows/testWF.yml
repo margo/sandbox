@@ -214,7 +214,7 @@ jobs:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📋 Listing app packages..."
-          sudo -E bash ./wfm-cli.sh F
+          sudo -E bash ./wfm-cli.sh list-packages
  
       #===========================================================
 

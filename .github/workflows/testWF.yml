@@ -164,14 +164,13 @@ jobs:
           docker images | grep symphony-api
 
       - name: WFM - Start Symphony
-        working-directory: pipeline
         timeout-minutes: 5
         run: |
           echo "Starting Symphony with locally built image..."
           
-          # ✅  Clean up Docker config to prevent permission errors
+          # Clean up Docker config to prevent permission errors
           echo "Fixing Docker config permissions..."
-          if [ -f "$HOME/.docker/config.json" ]; then
+          if [ -d "$HOME/.docker" ]; then
             sudo chown -R $USER:$USER "$HOME/.docker"
           fi
           
@@ -181,16 +180,30 @@ jobs:
           sudo docker rm symphony-api-container 2>/dev/null || true
           sudo pkill -f "symphony-api" 2>/dev/null || true
           
-          # Start Symphony using the local image
-          sudo -E bash -c "SYMPHONY_IMAGE_REF=symphony-api:ci-test ./wfm.sh start" &
-          START_PID=$!
+          # Build Maestro CLI (needed by wfm.sh start)
+          echo "Building Maestro CLI..."
+          cd "$HOME/symphony/cli"
+          go mod tidy
+          go build -o maestro
+          echo "✅ Maestro CLI built"
           
-          # Wait for the start command to complete (with timeout)
-          timeout 180 bash -c "while kill -0 $START_PID 2>/dev/null; do sleep 1; done" || {
-            echo "❌ Symphony start command timed out or failed"
-            sudo kill -9 $START_PID 2>/dev/null || true
-            exit 1
-          }
+          # Enable TLS in Symphony API config
+          echo "Enabling TLS in Symphony API..."
+          cd "$HOME/symphony/api"
+          sed -i 's|"tls": false|"tls": true|' symphony-api-margo.json
+          echo "✅ TLS enabled"
+          
+          # ✅ Start Symphony container directly (bypass wfm.sh start)
+          echo "🚀 Starting Symphony API container with image: symphony-api:ci-test"
+          
+          docker run -dit --name symphony-api-container \
+            --network host \
+            -p 8082:8082 \
+            -e LOG_LEVEL=Debug \
+            -v "$HOME/symphony/api/certificates:/certificates" \
+            -v "$HOME/symphony/api":/configs \
+            -e CONFIG=symphony-api-margo.json \
+            symphony-api:ci-test
           
           # Wait for container to be ready
           echo "⏳ Waiting for Symphony container to start..."
@@ -213,11 +226,12 @@ jobs:
             done
           else
             echo "❌ Symphony failed to start"
+            echo "=== Docker containers ==="
+            docker ps -a
+            echo "=== Container logs ==="
             docker logs symphony-api-container 2>&1 || true
             exit 1
           fi
-
-      
 
 
       - name: Configure Symphony for Harbor Access

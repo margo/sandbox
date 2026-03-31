@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 
 load_wfm_env() {
-  local env_file="$SCRIPT_DIR/../wfm.env"
+  local env_file="$SCRIPT_DIR/wfm.env"
   
   if [[ ! -f "$env_file" ]]; then
     echo "[WARN] wfm.env not found at: $env_file"

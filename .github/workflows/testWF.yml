@@ -126,6 +126,23 @@ jobs:
         run: |
           echo "Installing WFM / Symphony"
           sudo -E bash ./wfm.sh install
+
+      - name: Trust Harbor CA in K3s
+        run: |
+          echo "🔐 Configuring K3s to trust Harbor CA..."
+          
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          
+          # Copy to K3s containerd certs directory
+          sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
+          sudo cp "$HARBOR_CERT" /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
+          
+          # Also add to system trust store for K3s
+          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor-k3s.crt
+          sudo update-ca-certificates
+          
+          echo "✅ Harbor CA trusted in K3s"
+
       # ============================================================
       # Start Symphony
       # ============================================================
@@ -135,6 +152,63 @@ jobs:
           echo "Starting Symphony"
           sudo -E bash ./wfm.sh start
           sleep 10
+
+
+      - name: Configure Symphony for Harbor Access
+        run: |
+          echo "🔧 Reconfiguring Symphony API for Harbor access..."
+          
+          # Stop Symphony container
+          docker stop symphony-api-container || true
+          docker rm symphony-api-container || true
+          
+          # Copy Harbor CA to Symphony certificates
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          if [ -f "$HARBOR_CERT" ]; then
+            cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
+            echo "✅ Harbor CA copied to Symphony certificates"
+          fi
+          
+          # Get Symphony image reference
+          SYMPHONY_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep symphony-api | head -1)
+          
+          # Restart Symphony with Harbor connectivity
+          cd "$HOME/symphony/api"
+          docker run -dit --name symphony-api-container \
+            --network host \
+            --add-host harbor.machine:${RUNNER_IP} \
+            --add-host symphony.machine:${RUNNER_IP} \
+            -p 8082:8082 \
+            -e LOG_LEVEL=Debug \
+            -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt \
+            -v "$HOME/symphony/api/certificates:/certificates" \
+            -v "$HOME/symphony/api":/configs \
+            -e CONFIG=symphony-api-margo.json \
+            "$SYMPHONY_IMAGE"
+          
+          # Wait for Symphony to start
+          echo "⏳ Waiting for Symphony to start..."
+          sleep 10
+          
+          # Install Harbor CA in container
+          docker exec symphony-api-container sh -c '
+            if [ -f /certificates/harbor-ca.crt ]; then
+              mkdir -p /usr/local/share/ca-certificates
+              cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/
+              update-ca-certificates 2>/dev/null || true
+              echo "✅ Harbor CA trusted in Symphony container"
+            fi
+          ' || true
+          
+          # Verify Symphony is running
+          if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+            echo "✅ Symphony reconfigured with Harbor access"
+            echo "🔗 Hostname mappings: harbor.machine, symphony.machine → ${RUNNER_IP}"
+          else
+            echo "❌ Failed to restart Symphony"
+            docker logs symphony-api-container || true
+            exit 1
+          fi    
 
       - name: Debug - Verify Maestro CLI Build
         run: |
@@ -216,240 +290,223 @@ jobs:
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
  
-      #===========================================================
+      # #===========================================================
 
-      - name: WFM-Client (Standalone Cluster) – Prerequisites
-        working-directory: pipeline
-        run: |
-          cat > device-agent.env <<EOF
-          WFM_IP=${RUNNER_IP}
-          EOF
-          sudo -E bash ./device-agent.sh k3s install
-      - name: WFM-Client (K3s) – Create Certs
-        working-directory: pipeline
-        run: |
-          sudo -E bash ./device-agent.sh k3s create-rsa-certs
-          sudo -E bash ./device-agent.sh k3s create-ecdsa-certs
+      # - name: WFM-Client (Standalone Cluster) – Prerequisites
+      #   working-directory: pipeline
+      #   run: |
+      #     cat > device-agent.env <<EOF
+      #     WFM_IP=${RUNNER_IP}
+      #     EOF
+      #     sudo -E bash ./device-agent.sh k3s install
+      # - name: WFM-Client (K3s) – Create Certs
+      #   working-directory: pipeline
+      #   run: |
+      #     sudo -E bash ./device-agent.sh k3s create-rsa-certs
+      #     sudo -E bash ./device-agent.sh k3s create-ecdsa-certs
       
-      - name: Configure CoreDNS for k3s
-        run: |
-          RUNNER_IP=${RUNNER_IP}
-          echo "📡 Using K3s kubeconfig"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
+      # - name: Configure CoreDNS for k3s
+      #   run: |
+      #     RUNNER_IP=${RUNNER_IP}
+      #     echo "📡 Using K3s kubeconfig"
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
           
-          # Fetch Corefile
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
+      #     # Fetch Corefile
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+      #       kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
           
-          echo "Original Corefile:"
-          cat Corefile
+      #     echo "Original Corefile:"
+      #     cat Corefile
           
-          # ✅ CORRECTED: Insert IP addresses into existing hosts block
-          if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
-            echo "hosts block exists: adding custom entries"
-            awk -v ip="$RUNNER_IP" '
-            /hosts \/etc\/coredns\/NodeHosts/ {
-              print
-              getline
-              print
-              print "      " ip " harbor.machine"
-              print "      " ip " symphony.machine"
-              next
-            }
-            { print }
-            ' Corefile > Corefile.new
-          else
-            echo "No hosts block found: creating new one"
-            awk -v ip="$RUNNER_IP" '
-            /prometheus/ && !x {
-              print "    hosts /etc/coredns/NodeHosts {"
-              print "      " ip " harbor.machine"
-              print "      " ip " symphony.machine"
-              print "      ttl 60"
-              print "      reload 15s"
-              print "      fallthrough"
-              print "    }"
-              x=1
-            }
-            { print }
-            ' Corefile > Corefile.new
-          fi
+      #     # ✅ CORRECTED: Insert IP addresses into existing hosts block
+      #     if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
+      #       echo "hosts block exists: adding custom entries"
+      #       awk -v ip="$RUNNER_IP" '
+      #       /hosts \/etc\/coredns\/NodeHosts/ {
+      #         print
+      #         getline
+      #         print
+      #         print "      " ip " harbor.machine"
+      #         print "      " ip " symphony.machine"
+      #         next
+      #       }
+      #       { print }
+      #       ' Corefile > Corefile.new
+      #     else
+      #       echo "No hosts block found: creating new one"
+      #       awk -v ip="$RUNNER_IP" '
+      #       /prometheus/ && !x {
+      #         print "    hosts /etc/coredns/NodeHosts {"
+      #         print "      " ip " harbor.machine"
+      #         print "      " ip " symphony.machine"
+      #         print "      ttl 60"
+      #         print "      reload 15s"
+      #         print "      fallthrough"
+      #         print "    }"
+      #         x=1
+      #       }
+      #       { print }
+      #       ' Corefile > Corefile.new
+      #     fi
           
-          # Apply config
-          echo "New Corefile content:"
-          cat Corefile.new
+      #     # Apply config
+      #     echo "New Corefile content:"
+      #     cat Corefile.new
           
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system create configmap coredns \
-            --from-file=Corefile=Corefile.new \
-            -o yaml --dry-run=client | \
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+      #       kubectl -n kube-system create configmap coredns \
+      #       --from-file=Corefile=Corefile.new \
+      #       -o yaml --dry-run=client | \
+      #       sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
           
-          # Restart CoreDNS
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout restart deployment coredns
+      #     # Restart CoreDNS
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+      #       kubectl -n kube-system rollout restart deployment coredns
           
-          sleep 20
+      #     sleep 20
           
-          # Verify
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get pods
+      #     # Verify
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+      #       kubectl -n kube-system get pods
           
-          # Check logs if needed
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system logs deployment/coredns --tail=60 || true
+      #     # Check logs if needed
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+      #       kubectl -n kube-system logs deployment/coredns --tail=60 || true
 
     
-      - name: Verify DNS Resolution
-        run: |
-          echo "🔍 Testing DNS resolution from a test pod..."
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl run dns-test \
-            --image=busybox --restart=Never --rm \
-            --attach=true --stdin=false \
-            -- nslookup harbor.machine || echo "⚠️ DNS test failed"
+      # - name: Verify DNS Resolution
+      #   run: |
+      #     echo "🔍 Testing DNS resolution from a test pod..."
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl run dns-test \
+      #       --image=busybox --restart=Never --rm \
+      #       --attach=true --stdin=false \
+      #       -- nslookup harbor.machine || echo "⚠️ DNS test failed"
           
-          echo "✅ DNS test completed"
-
-     
-      - name: Trust Harbor CA in K3s
-        run: |
-          echo "🔐 Configuring K3s to trust Harbor CA..."
-          
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
-          
-          # Copy to K3s containerd certs directory
-          sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
-          sudo cp "$HARBOR_CERT" /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
-          
-          # Also add to system trust store for K3s
-          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor-k3s.crt
-          sudo update-ca-certificates
-          
-          echo "✅ Harbor CA trusted in K3s"
+      #     echo "✅ DNS test completed"
 
 
-      - name: WFM-Client (K3s) – Start
-        working-directory: pipeline
-        run: |
-          sudo -E bash ./device-agent.sh k3s start-k3s
-          sleep 60
+      # - name: WFM-Client (K3s) – Start
+      #   working-directory: pipeline
+      #   run: |
+      #     sudo -E bash ./device-agent.sh k3s start-k3s
+      #     sleep 60
 
-      - name: 🔧 Install Helm & Authenticate Harbor 
-        shell: bash
-        run: |
-          set -e
-          echo "🔍 Finding WFM client pod..."
-          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
-            -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
+      # - name: 🔧 Install Helm & Authenticate Harbor 
+      #   shell: bash
+      #   run: |
+      #     set -e
+      #     echo "🔍 Finding WFM client pod..."
+      #     POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+      #       -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
           
-          if [ -z "$POD_NAME" ]; then
-            echo "❌ Could not find WFM client pod"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A
-            exit 1
-          fi
+      #     if [ -z "$POD_NAME" ]; then
+      #       echo "❌ Could not find WFM client pod"
+      #       sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A
+      #       exit 1
+      #     fi
           
-          echo "✅ Found pod: $POD_NAME"
+      #     echo "✅ Found pod: $POD_NAME"
           
-          # Copy Harbor CA certificate into pod
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp "$HARBOR_CERT" "$POD_NAME:/tmp/harbor-ca.crt"
+      #     # Copy Harbor CA certificate into pod
+      #     HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp "$HARBOR_CERT" "$POD_NAME:/tmp/harbor-ca.crt"
           
-          echo "🚀 Running setup inside pod..."
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -i "$POD_NAME" -- sh <<'PODEOF'
-          set -e
+      #     echo "🚀 Running setup inside pod..."
+      #     sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -i "$POD_NAME" -- sh <<'PODEOF'
+      #     set -e
           
-          # Trust Harbor CA certificate
-          echo "🔐 Trusting Harbor CA certificate..."
-          mkdir -p /usr/local/share/ca-certificates
-          cp /tmp/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
-          update-ca-certificates 2>/dev/null || true
+      #     # Trust Harbor CA certificate
+      #     echo "🔐 Trusting Harbor CA certificate..."
+      #     mkdir -p /usr/local/share/ca-certificates
+      #     cp /tmp/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
+      #     update-ca-certificates 2>/dev/null || true
           
-          # Install Helm
-          echo "📦 Installing Helm..."
-          if ! command -v helm >/dev/null 2>&1; then
-            if command -v wget >/dev/null 2>&1; then
-              wget -q https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -O /tmp/helm.tar.gz
-            elif command -v curl >/dev/null 2>&1; then
-              curl -fsSL https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -o /tmp/helm.tar.gz
-            else
-              echo "❌ Neither wget nor curl available"
-              exit 1
-            fi
-            tar -xzf /tmp/helm.tar.gz -C /tmp
-            mv /tmp/linux-amd64/helm /usr/local/bin/helm
-            chmod +x /usr/local/bin/helm
-            rm -rf /tmp/helm.tar.gz /tmp/linux-amd64
-            echo "✅ Helm installed"
-          else
-            echo "✅ Helm already installed"
-          fi
+      #     # Install Helm
+      #     echo "📦 Installing Helm..."
+      #     if ! command -v helm >/dev/null 2>&1; then
+      #       if command -v wget >/dev/null 2>&1; then
+      #         wget -q https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -O /tmp/helm.tar.gz
+      #       elif command -v curl >/dev/null 2>&1; then
+      #         curl -fsSL https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -o /tmp/helm.tar.gz
+      #       else
+      #         echo "❌ Neither wget nor curl available"
+      #         exit 1
+      #       fi
+      #       tar -xzf /tmp/helm.tar.gz -C /tmp
+      #       mv /tmp/linux-amd64/helm /usr/local/bin/helm
+      #       chmod +x /usr/local/bin/helm
+      #       rm -rf /tmp/helm.tar.gz /tmp/linux-amd64
+      #       echo "✅ Helm installed"
+      #     else
+      #       echo "✅ Helm already installed"
+      #     fi
           
-          helm version
+      #     helm version
           
-          # Setup Docker config
-          echo "🔐 Setting Docker config..."
-          mkdir -p /root/.docker
-          echo "{}" > /root/.docker/config.json
-          export DOCKER_CONFIG=/root/.docker
-          export HELM_EXPERIMENTAL_OCI=1
+      #     # Setup Docker config
+      #     echo "🔐 Setting Docker config..."
+      #     mkdir -p /root/.docker
+      #     echo "{}" > /root/.docker/config.json
+      #     export DOCKER_CONFIG=/root/.docker
+      #     export HELM_EXPERIMENTAL_OCI=1
           
-          # Login to Harbor with HTTPS (skip TLS verification for self-signed cert)
-          echo "🔑 Logging into Harbor (HTTPS with insecure-skip-tls-verify)..."
-          echo "$REGISTRY_PASS" | helm registry login harbor.machine:$EXPOSED_HARBOR_PORT \
-            -u "$REGISTRY_USER" \
-            --password-stdin \
-            --insecure
+      #     # Login to Harbor with HTTPS (skip TLS verification for self-signed cert)
+      #     echo "🔑 Logging into Harbor (HTTPS with insecure-skip-tls-verify)..."
+      #     echo "$REGISTRY_PASS" | helm registry login harbor.machine:$EXPOSED_HARBOR_PORT \
+      #       -u "$REGISTRY_USER" \
+      #       --password-stdin \
+      #       --insecure
           
-          # Test Helm OCI pull with insecure flag
-          echo "📥 Testing Helm OCI pull (HTTPS)..."
-          helm pull oci://harbor.machine:$EXPOSED_HARBOR_PORT/library/custom-otel-helm \
-            --version 0.1.0 \
-            --insecure-skip-tls-verify \
-            --debug || echo "⚠️ Pull failed (check chart)"
+      #     # Test Helm OCI pull with insecure flag
+      #     echo "📥 Testing Helm OCI pull (HTTPS)..."
+      #     helm pull oci://harbor.machine:$EXPOSED_HARBOR_PORT/library/custom-otel-helm \
+      #       --version 0.1.0 \
+      #       --insecure-skip-tls-verify \
+      #       --debug || echo "⚠️ Pull failed (check chart)"
           
-          echo "✅ Helm + Harbor setup completed (HTTPS)"
-          PODEOF
+      #     echo "✅ Helm + Harbor setup completed (HTTPS)"
+      #     PODEOF
 
     
 
 
-      - name: 🚀 Deploy Instance on Standalone Cluster
-        working-directory: pipeline
-        env:
-          MAESTRO_CLI_PATH: /home/runner/symphony/cli
-        run: |
-          PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
-          echo "PACKAGE_ID=$PACKAGE_ID"
-          DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-first-device-id)
-          echo "DEVICE_ID=$DEVICE_ID"
-          PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
-          DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
+      # - name: 🚀 Deploy Instance on Standalone Cluster
+      #   working-directory: pipeline
+      #   env:
+      #     MAESTRO_CLI_PATH: /home/runner/symphony/cli
+      #   run: |
+      #     PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
+      #     echo "PACKAGE_ID=$PACKAGE_ID"
+      #     DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-first-device-id)
+      #     echo "DEVICE_ID=$DEVICE_ID"
+      #     PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
+      #     DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
           
-          # Validate IDs before deployment
-          if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ]; then
-            echo "❌ Invalid PACKAGE_ID: $PACKAGE_ID"
-            exit 1
-          fi
+      #     # Validate IDs before deployment
+      #     if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ]; then
+      #       echo "❌ Invalid PACKAGE_ID: $PACKAGE_ID"
+      #       exit 1
+      #     fi
           
-          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-            echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
-            echo "Available devices:"
-            sudo -E bash ./wfm-cli.sh list-devices
-            exit 1
-          fi
+      #     if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+      #       echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
+      #       echo "Available devices:"
+      #       sudo -E bash ./wfm-cli.sh list-devices
+      #       exit 1
+      #     fi
           
-          echo "📋 Deploying package $PACKAGE_ID to device $DEVICE_ID..."
-          sleep 10
+      #     echo "📋 Deploying package $PACKAGE_ID to device $DEVICE_ID..."
+      #     sleep 10
           
-          # FIXED: Use correct command name
-          sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID"
+      #     # FIXED: Use correct command name
+      #     sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID"
           
-          # Wait and monitor deployment
-          sleep 60
+      #     # Wait and monitor deployment
+      #     sleep 60
           
-          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-          $K get pods -A
-          $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+      #     K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+      #     $K get pods -A
+      #     $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
           
-          echo "📋 Final deployment status:"
-          sudo -E bash ./wfm-cli.sh list-deployments
+      #     echo "📋 Final deployment status:"
+      #     sudo -E bash ./wfm-cli.sh list-deployments

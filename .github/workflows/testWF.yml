@@ -8,7 +8,7 @@ jobs:
       CI: "true"
       # Branches
       SYMPHONY_BRANCH: enhancement/secure-harbor
-      SANDBOX_REPO_BRANCH: sanity-test-ci
+      SANDBOX_REPO_BRANCH: feature/sanity-test-ci
       # Ports
       EXPOSED_HARBOR_PORT: 8443
       EXPOSED_SYMPHONY_PORT: 8082

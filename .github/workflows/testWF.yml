@@ -163,12 +163,17 @@ jobs:
           echo "✅ Symphony API image built successfully"
           docker images | grep symphony-api
 
-
       - name: WFM - Start Symphony
         working-directory: pipeline
-        timeout-minutes: 5  # ✅ Add timeout to prevent hanging
+        timeout-minutes: 5
         run: |
           echo "Starting Symphony with locally built image..."
+          
+          # ✅  Clean up Docker config to prevent permission errors
+          echo "Fixing Docker config permissions..."
+          if [ -f "$HOME/.docker/config.json" ]; then
+            sudo chown -R $USER:$USER "$HOME/.docker"
+          fi
           
           # Ensure no existing container is blocking
           echo "Cleaning up any existing Symphony containers..."
@@ -212,6 +217,7 @@ jobs:
             exit 1
           fi
 
+      
 
 
       - name: Configure Symphony for Harbor Access

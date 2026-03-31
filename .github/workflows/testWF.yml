@@ -1,20 +1,431 @@
-name: Test Workflow
-
+name: E2E-WFM-Agent-Sanity
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-
 jobs:
-  test-job:
+  wfm-sanity:
     runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      # Branches
+      SYMPHONY_BRANCH: enhancement/secure-harbor
+      SANDBOX_REPO_BRANCH: sanity-test-ci
+      # Ports
+      EXPOSED_HARBOR_PORT: 8443
+      EXPOSED_SYMPHONY_PORT: 8082
+      # Optional GitHub auth
+      GITHUB_USER: ""
+      GITHUB_TOKEN: ""
+      APP_PACKAGE_NAME: custom-otel-helm-app-package
+      APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package
+      MAESTRO_CLI_PATH: "$HOME/symphony/cli"
+      REGISTRY_USER: "admin"
+      REGISTRY_PASS: "${{ secrets.HARBOR_PASSWORD }}"
+      REGISTRY: "harbor.machine:8443"
+
     steps:
-      - name: Checkout code
+      # ============================================================
+      # Checkout
+      # ============================================================
+      - name: Checkout repository
         uses: actions/checkout@v4
+      # ============================================================
+      # Detect runner IP (NOT localhost)
+      # ============================================================
+      - name: Environment - Detect runner IP
+        run: |
+          RUNNER_IP=$(hostname -I | awk '{print $1}')
+          echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
+          echo "✅ Runner IP: $RUNNER_IP"
+      # ============================================================
+      # OS prerequisites (NO docker install)
+      # ============================================================
+      - name: Environment - Install OS dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            curl \
+            jq \
+            netcat-openbsd \
+            openssl \
+            git
+      # ============================================================
+      # Docker sanity & permissions 
+      # ============================================================
+      - name: Environment - Docker sanity check
+        run: |
+          docker --version
+          docker compose version || true
+          sudo systemctl start docker
+          sudo chmod 666 /var/run/docker.sock
+          sudo docker ps
+          sudo docker network prune -f
+      # ============================================================
+      # Make pipeline scripts executable
+      # ============================================================
+      - name: Environment - Make scripts executable
+        run: chmod +x pipeline/*.sh
+      # ============================================================
+      # Configure hostnames for Harbor and Symphony
+      # ============================================================
+      - name: Environment - Configure /etc/hosts
+        run: |
+          echo "🔧 Updating /etc/hosts"
+          echo "${RUNNER_IP} harbor.machine" | sudo tee -a /etc/hosts
+          echo "${RUNNER_IP} symphony.machine" | sudo tee -a /etc/hosts
+          echo "✅ /etc/hosts updated:"
+          cat /etc/hosts
+      # ============================================================
+      # Generate wfm.env (MANDATORY)
+      # ============================================================
+      - name: WFM - Generate wfm.env
+        run: |
+          cat > pipeline/wfm.env <<EOF
+          CI=true
+          EXPOSED_HARBOR_HOST=harbor.machine
+          EXPOSED_SYMPHONY_HOST=symphony.machine
+          SYMPHONY_BRANCH=${SYMPHONY_BRANCH}
+          SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
+          GITHUB_USER=${GITHUB_USER}
+          GITHUB_TOKEN=${GITHUB_TOKEN}
+          APP_PACKAGE_NAME=${APP_PACKAGE_NAME}
+          RUNNER_IP=${RUNNER_IP}
+          EOF
+          echo "✅ wfm.env generated"
+          cat pipeline/wfm.env
+      - name: WFM Client - Generate device-agent.env
+        run: |
+          cat > pipeline/device-agent.env <<EOF
+          CI=true
+          EXPOSED_HARBOR_HOST=harbor.machine
+          WFM_HOST=symphony.machine
+          SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
+          GITHUB_USER=${GITHUB_USER}
+          GITHUB_TOKEN=${GITHUB_TOKEN}
+          EOF
+          echo "✅ device-agent.env generated"
+          cat pipeline/device-agent.env
+      # ============================================================
+      # WFM Install (clones Symphony, starts harbor etc...)
+      # ============================================================
+      - name: WFM - Install
+        working-directory: pipeline
+        run: |
+          echo "Installing WFM / Symphony"
+          sudo -E bash ./wfm.sh install
+      # ============================================================
+      # Start Symphony
+      # ============================================================
+      - name: WFM - Start Symphony
+        working-directory: pipeline
+        run: |
+          echo "Starting Symphony"
+          sudo -E bash ./wfm.sh start
+          sleep 10
+          
+      - name: Setup ORAS authentication
+        run: |
+          echo "📦 Creating isolated Docker config for ORAS..."
+          export DOCKER_CONFIG=$(mktemp -d)
+          echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
+          
+          # Trust Harbor CA certificate first
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          if [ -f "$HARBOR_CERT" ]; then
+            sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
+            sudo update-ca-certificates
+            echo "✅ Harbor CA certificate trusted"
+          else
+            echo "⚠️ Harbor certificate not found at $HARBOR_CERT"
+          fi
+          
+          # Login to Harbor with HTTPS 
+          echo "${REGISTRY_PASS}" | oras login harbor.machine:${EXPOSED_HARBOR_PORT} \
+            -u "${REGISTRY_USER}" \
+            --password-stdin
+          
+          # Ensure Docker config has correct permissions
+          chmod 700 "$DOCKER_CONFIG"
+          find "$DOCKER_CONFIG" -type f -exec chmod 600 {} \;
+          
+          echo "✅ ORAS authenticated to Harbor (HTTPS)"
+          
 
-      - name: Say Hello
-        run: echo "Hello from GitHub Actions!"
+      
+      - name: Trust Harbor CA Certificate System-Wide
+        run: |
+          echo "🔐 Trusting Harbor CA certificate..."
+          
+          # Harbor certificate location
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          
+          if [ ! -f "$HARBOR_CERT" ]; then
+            echo "❌ Harbor certificate not found at $HARBOR_CERT"
+            echo "Available files:"
+            ls -la "$HOME/sandbox/pipeline/harbor/certs/" || true
+            exit 1
+          fi
+          
+          # Trust system-wide
+          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
+          sudo update-ca-certificates
+          
+          # Trust for Docker
+          sudo mkdir -p /etc/docker/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
+          sudo cp "$HARBOR_CERT" /etc/docker/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
+          
+          # Restart Docker to pick up new certificates
+          sudo systemctl restart docker
+          sleep 10
+          
+          echo "✅ Harbor CA certificate trusted system-wide"
+    
+          # Verify certificate
+          openssl x509 -in "$HARBOR_CERT" -text -noout | head -20
+      # ------------------------------------------------
+      # Copy the WFM CA certificate
+      # ------------------------------------------------
+      - name: WFM - Copy the CA cert to home directory for others to use
+        run: |
+          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
+          mkdir -p "$HOME/certs"
+          cp "$CERT" "$HOME/certs/"
+          echo "✅ CA certs copied to $HOME/certs/"    
+     
+      # ============================================================
+      # Upload app package (k3s)
+      # ============================================================
+      - name: Upload custom-otel-helm-app-package
+        working-directory: pipeline
+        run: |
+          echo "📤 Uploading to WFM..."
+          sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME}"
+          sleep 15
+         
+      # =========================================================
+      - name: List  all packages and devices
+        working-directory: pipeline
+        run: |
+          echo "📋 Listing app packages..."
+          sudo -E bash ./wfm-cli.sh list-packages
+ 
+      #===========================================================
 
-      - name: List files
-        run: ls -la
+      - name: WFM-Client (Standalone Cluster) – Prerequisites
+        working-directory: pipeline
+        run: |
+          cat > device-agent.env <<EOF
+          WFM_IP=${RUNNER_IP}
+          EOF
+          sudo -E bash ./device-agent.sh k3s install
+      - name: WFM-Client (K3s) – Create Certs
+        working-directory: pipeline
+        run: |
+          sudo -E bash ./device-agent.sh k3s create-rsa-certs
+          sudo -E bash ./device-agent.sh k3s create-ecdsa-certs
+      
+      - name: Configure CoreDNS for k3s
+        run: |
+          RUNNER_IP=${RUNNER_IP}
+          echo "📡 Using K3s kubeconfig"
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
+          
+          # Fetch Corefile
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
+          
+          echo "Original Corefile:"
+          cat Corefile
+          
+          # ✅ CORRECTED: Insert IP addresses into existing hosts block
+          if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
+            echo "hosts block exists: adding custom entries"
+            awk -v ip="$RUNNER_IP" '
+            /hosts \/etc\/coredns\/NodeHosts/ {
+              print
+              getline
+              print
+              print "      " ip " harbor.machine"
+              print "      " ip " symphony.machine"
+              next
+            }
+            { print }
+            ' Corefile > Corefile.new
+          else
+            echo "No hosts block found: creating new one"
+            awk -v ip="$RUNNER_IP" '
+            /prometheus/ && !x {
+              print "    hosts /etc/coredns/NodeHosts {"
+              print "      " ip " harbor.machine"
+              print "      " ip " symphony.machine"
+              print "      ttl 60"
+              print "      reload 15s"
+              print "      fallthrough"
+              print "    }"
+              x=1
+            }
+            { print }
+            ' Corefile > Corefile.new
+          fi
+          
+          # Apply config
+          echo "New Corefile content:"
+          cat Corefile.new
+          
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system create configmap coredns \
+            --from-file=Corefile=Corefile.new \
+            -o yaml --dry-run=client | \
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
+          
+          # Restart CoreDNS
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system rollout restart deployment coredns
+          
+          sleep 20
+          
+          # Verify
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system get pods
+          
+          # Check logs if needed
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system logs deployment/coredns --tail=60 || true
+
+     
+      - name: Trust Harbor CA in K3s
+        run: |
+          echo "🔐 Configuring K3s to trust Harbor CA..."
+          
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          
+          # Copy to K3s containerd certs directory
+          sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
+          sudo cp "$HARBOR_CERT" /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
+          
+          # Also add to system trust store for K3s
+          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor-k3s.crt
+          sudo update-ca-certificates
+          
+          echo "✅ Harbor CA trusted in K3s"
+
+
+      - name: WFM-Client (K3s) – Start
+        working-directory: pipeline
+        run: |
+          sudo -E bash ./device-agent.sh k3s start-k3s
+          sleep 60
+
+      
+      - name: 🔧 Install Helm & Authenticate Harbor 
+        shell: bash
+        run: |
+          set -e
+          echo "🔍 Finding WFM client pod..."
+          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+            -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
+          
+          if [ -z "$POD_NAME" ]; then
+            echo "❌ Could not find WFM client pod"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A
+            exit 1
+          fi
+          
+          echo "✅ Found pod: $POD_NAME"
+          
+          # Copy Harbor CA certificate into pod
+          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp "$HARBOR_CERT" "$POD_NAME:/tmp/harbor-ca.crt"
+          
+          echo "🚀 Running setup inside pod..."
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -i "$POD_NAME" -- sh <<'PODEOF'
+          set -e
+          
+          # Trust Harbor CA certificate
+          echo "🔐 Trusting Harbor CA certificate..."
+          mkdir -p /usr/local/share/ca-certificates
+          cp /tmp/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
+          update-ca-certificates 2>/dev/null || true
+          
+          # Install Helm
+          echo "📦 Installing Helm..."
+          if ! command -v helm >/dev/null 2>&1; then
+            if command -v wget >/dev/null 2>&1; then
+              wget -q https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -O /tmp/helm.tar.gz
+            elif command -v curl >/dev/null 2>&1; then
+              curl -fsSL https://get.helm.sh/helm-v3.15.1-linux-amd64.tar.gz -o /tmp/helm.tar.gz
+            else
+              echo "❌ Neither wget nor curl available"
+              exit 1
+            fi
+            tar -xzf /tmp/helm.tar.gz -C /tmp
+            mv /tmp/linux-amd64/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+            rm -rf /tmp/helm.tar.gz /tmp/linux-amd64
+            echo "✅ Helm installed"
+          else
+            echo "✅ Helm already installed"
+          fi
+          
+          helm version
+          
+          # Setup Docker config
+          echo "🔐 Setting Docker config..."
+          mkdir -p /root/.docker
+          echo "{}" > /root/.docker/config.json
+          export DOCKER_CONFIG=/root/.docker
+          export HELM_EXPERIMENTAL_OCI=1
+          
+          # Login to Harbor with HTTPS (NO --plain-http)
+          echo "🔑 Logging into Harbor (HTTPS)..."
+          echo "$REGISTRY_PASS" | helm registry login harbor.machine:$EXPOSED_HARBOR_PORT \
+            -u "$REGISTRY_USER" \
+            --password-stdin
+          
+          # Test Helm OCI pull with HTTPS (NO --plain-http)
+          echo "📥 Testing Helm OCI pull (HTTPS)..."
+          helm pull oci://harbor.machine:$EXPOSED_HARBOR_PORT/library/custom-otel-helm \
+            --version 0.1.0 \
+            --debug || echo "⚠️ Pull failed (check chart)"
+          
+          echo "✅ Helm + Harbor setup completed (HTTPS)"
+          PODEOF
+
+
+      - name: 🚀 Deploy Instance on Standalone Cluster
+        working-directory: pipeline
+        run: |
+          PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
+          echo "PACKAGE_ID=$PACKAGE_ID"
+          DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-first-device-id)
+          echo "DEVICE_ID=$DEVICE_ID"
+          PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
+          DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
+          
+          # Validate IDs before deployment
+          if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ]; then
+            echo "❌ Invalid PACKAGE_ID: $PACKAGE_ID"
+            exit 1
+          fi
+          
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+            echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
+            echo "Available devices:"
+            sudo -E bash ./wfm-cli.sh list-devices
+            exit 1
+          fi
+          
+          echo "📋 Deploying package $PACKAGE_ID to device $DEVICE_ID..."
+          sleep 10
+          
+          # FIXED: Use correct command name
+          sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID"
+          
+          # Wait and monitor deployment
+          sleep 60
+          
+          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+          $K get pods -A
+          $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+          
+          echo "📋 Final deployment status:"
+          sudo -E bash ./wfm-cli.sh list-deployments

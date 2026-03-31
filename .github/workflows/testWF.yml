@@ -146,6 +146,7 @@ jobs:
      # ============================================================
       # Build Symphony from source (local only, no push)
       # ============================================================
+
       - name: WFM - Build Symphony from source
         run: |
           echo "🔨 Building Symphony API from source..."
@@ -157,14 +158,20 @@ jobs:
             exit 1
           fi
           
-          # Build image locally (single platform for CI runner)
-          docker build \
+          # Fix Docker buildx permissions if needed
+          if [ -d "$HOME/.docker/buildx" ]; then
+            sudo chown -R $USER:$USER "$HOME/.docker/buildx"
+          fi
+          
+          # Build image locally (single platform, no buildx needed)
+          DOCKER_BUILDKIT=1 docker build \
             --tag symphony-api:ci-test \
             --file api/Dockerfile \
             .
           
           echo "✅ Symphony API image built successfully"
           docker images | grep symphony-api
+
 
       - name: WFM - Start Symphony
         working-directory: pipeline

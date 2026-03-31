@@ -48,17 +48,7 @@ jobs:
             netcat-openbsd \
             openssl \
             git
-      # ============================================================
-      # Docker sanity & permissions 
-      # ============================================================
-      - name: Environment - Docker sanity check
-        run: |
-          docker --version
-          docker compose version || true
-          sudo systemctl start docker
-          sudo chmod 666 /var/run/docker.sock
-          sudo docker ps
-          sudo docker network prune -f
+      
       # ============================================================
       # Make pipeline scripts executable
       # ============================================================
@@ -92,6 +82,7 @@ jobs:
           EOF
           echo "✅ wfm.env generated"
           cat pipeline/wfm.env
+
       - name: WFM Client - Generate device-agent.env
         run: |
           cat > pipeline/device-agent.env <<EOF
@@ -143,7 +134,7 @@ jobs:
           
           echo "✅ Harbor CA trusted in K3s"
 
-     # ============================================================
+      # ============================================================
       # Build Symphony from source (local only, no push)
       # ============================================================
 
@@ -175,24 +166,51 @@ jobs:
 
       - name: WFM - Start Symphony
         working-directory: pipeline
+        timeout-minutes: 5  # ✅ Add timeout to prevent hanging
         run: |
           echo "Starting Symphony with locally built image..."
           
-          # Start Symphony using the local image
-          sudo -E bash -c "SYMPHONY_IMAGE_REF=symphony-api:ci-test ./wfm.sh start"
+          # Ensure no existing container is blocking
+          echo "Cleaning up any existing Symphony containers..."
+          sudo docker stop symphony-api-container 2>/dev/null || true
+          sudo docker rm symphony-api-container 2>/dev/null || true
+          sudo pkill -f "symphony-api" 2>/dev/null || true
           
-          sleep 10
+          # Start Symphony using the local image
+          sudo -E bash -c "SYMPHONY_IMAGE_REF=symphony-api:ci-test ./wfm.sh start" &
+          START_PID=$!
+          
+          # Wait for the start command to complete (with timeout)
+          timeout 180 bash -c "while kill -0 $START_PID 2>/dev/null; do sleep 1; done" || {
+            echo "❌ Symphony start command timed out or failed"
+            sudo kill -9 $START_PID 2>/dev/null || true
+            exit 1
+          }
+          
+          # Wait for container to be ready
+          echo "⏳ Waiting for Symphony container to start..."
+          sleep 15
           
           # Verify Symphony started
           if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
             echo "✅ Symphony started successfully with CI-built image"
             docker ps | grep symphony-api
+            
+            # Wait for Symphony API to be ready
+            echo "⏳ Waiting for Symphony API to be ready..."
+            for i in {1..30}; do
+              if curl -k -s https://symphony.machine:8082/health >/dev/null 2>&1; then
+                echo "✅ Symphony API is ready"
+                break
+              fi
+              echo "Waiting for Symphony API... ($i/30)"
+              sleep 2
+            done
           else
             echo "❌ Symphony failed to start"
-            docker logs symphony-api-container || true
+            docker logs symphony-api-container 2>&1 || true
             exit 1
           fi
-
 
 
 
@@ -253,25 +271,25 @@ jobs:
           fi
 
 
-      - name: Debug - Verify Maestro CLI Build
-        run: |
-          echo "🔍 Checking Maestro CLI..."
-          echo "MAESTRO_CLI_PATH from env: ${MAESTRO_CLI_PATH}"
-          echo "Expected location: $HOME/symphony/cli/maestro"
+      # - name: Debug - Verify Maestro CLI Build
+      #   run: |
+      #     echo "🔍 Checking Maestro CLI..."
+      #     echo "MAESTRO_CLI_PATH from env: ${MAESTRO_CLI_PATH}"
+      #     echo "Expected location: $HOME/symphony/cli/maestro"
           
-          if [ -f "$HOME/symphony/cli/maestro" ]; then
-            echo "✅ Maestro CLI found"
-            ls -lh "$HOME/symphony/cli/maestro"
-            $HOME/symphony/cli/maestro --version || echo "Version check failed"
-          else
-            echo "❌ Maestro CLI NOT found"
-            echo "Contents of $HOME/symphony/cli:"
-            ls -la "$HOME/symphony/cli" || echo "Directory doesn't exist"
+      #     if [ -f "$HOME/symphony/cli/maestro" ]; then
+      #       echo "✅ Maestro CLI found"
+      #       ls -lh "$HOME/symphony/cli/maestro"
+      #       $HOME/symphony/cli/maestro --version || echo "Version check failed"
+      #     else
+      #       echo "❌ Maestro CLI NOT found"
+      #       echo "Contents of $HOME/symphony/cli:"
+      #       ls -la "$HOME/symphony/cli" || echo "Directory doesn't exist"
             
-            echo "Checking if Go build succeeded:"
-            cd "$HOME/symphony/cli"
-            go build -o maestro || echo "Build failed"
-          fi
+      #       echo "Checking if Go build succeeded:"
+      #       cd "$HOME/symphony/cli"
+      #       go build -o maestro || echo "Build failed"
+      #     fi
     
           
       - name: Setup ORAS authentication

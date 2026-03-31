@@ -191,7 +191,7 @@ trust_harbor_certificate() {
   echo "🔄 Restarting Docker daemon to apply certificate changes..."
   sudo systemctl restart docker
   
-  for i in {1..60}; do
+  for i in {1..45}; do
     if sudo systemctl is-active --quiet docker; then
       echo "✅ Docker daemon restarted"
       break
@@ -204,7 +204,7 @@ trust_harbor_certificate() {
   sudo docker compose up -d
   
   echo "⏳ Waiting for Harbor to restart..."
-  sleep 30
+  sleep 60
   
   if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q "${EXPOSED_HARBOR_PORT}"; then
     echo "✅ Harbor restarted successfully on port ${EXPOSED_HARBOR_PORT}"

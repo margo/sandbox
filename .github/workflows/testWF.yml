@@ -135,6 +135,27 @@ jobs:
           echo "Starting Symphony"
           sudo -E bash ./wfm.sh start
           sleep 10
+
+      - name: Debug - Verify Maestro CLI Build
+        run: |
+          echo "🔍 Checking Maestro CLI..."
+          echo "MAESTRO_CLI_PATH from env: ${MAESTRO_CLI_PATH}"
+          echo "Expected location: $HOME/symphony/cli/maestro"
+          
+          if [ -f "$HOME/symphony/cli/maestro" ]; then
+            echo "✅ Maestro CLI found"
+            ls -lh "$HOME/symphony/cli/maestro"
+            $HOME/symphony/cli/maestro --version || echo "Version check failed"
+          else
+            echo "❌ Maestro CLI NOT found"
+            echo "Contents of $HOME/symphony/cli:"
+            ls -la "$HOME/symphony/cli" || echo "Directory doesn't exist"
+            
+            echo "Checking if Go build succeeded:"
+            cd "$HOME/symphony/cli"
+            go build -o maestro || echo "Build failed"
+          fi
+    
           
       - name: Setup ORAS authentication
         run: |
@@ -376,6 +397,8 @@ jobs:
 
       - name: 🚀 Deploy Instance on Standalone Cluster
         working-directory: pipeline
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"

@@ -159,22 +159,22 @@ jobs:
           echo "🔧 Reconfiguring Symphony API for Harbor access..."
           
           # Stop Symphony container
-          docker stop symphony-api-container || true
-          docker rm symphony-api-container || true
+          sudo docker stop symphony-api-container || true
+          sudo docker rm symphony-api-container || true
           
-          # Copy Harbor CA to Symphony certificates
+          # Copy Harbor CA to Symphony certificates (with sudo)
           HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
           if [ -f "$HARBOR_CERT" ]; then
-            cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
+            sudo cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
             echo "✅ Harbor CA copied to Symphony certificates"
           fi
           
           # Get Symphony image reference
-          SYMPHONY_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep symphony-api | head -1)
+          SYMPHONY_IMAGE=$(sudo docker images --format "{{.Repository}}:{{.Tag}}" | grep symphony-api | head -1)
           
           # Restart Symphony with Harbor connectivity
           cd "$HOME/symphony/api"
-          docker run -dit --name symphony-api-container \
+          sudo docker run -dit --name symphony-api-container \
             --network host \
             --add-host harbor.machine:${RUNNER_IP} \
             --add-host symphony.machine:${RUNNER_IP} \
@@ -191,7 +191,7 @@ jobs:
           sleep 10
           
           # Install Harbor CA in container
-          docker exec symphony-api-container sh -c '
+          sudo docker exec symphony-api-container sh -c '
             if [ -f /certificates/harbor-ca.crt ]; then
               mkdir -p /usr/local/share/ca-certificates
               cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/
@@ -201,14 +201,15 @@ jobs:
           ' || true
           
           # Verify Symphony is running
-          if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+          if sudo docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
             echo "✅ Symphony reconfigured with Harbor access"
             echo "🔗 Hostname mappings: harbor.machine, symphony.machine → ${RUNNER_IP}"
           else
             echo "❌ Failed to restart Symphony"
-            docker logs symphony-api-container || true
+            sudo docker logs symphony-api-container || true
             exit 1
-          fi    
+          fi
+
 
       - name: Debug - Verify Maestro CLI Build
         run: |

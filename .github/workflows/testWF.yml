@@ -143,15 +143,50 @@ jobs:
           
           echo "✅ Harbor CA trusted in K3s"
 
+     # ============================================================
+      # Build Symphony from source (local only, no push)
       # ============================================================
-      # Start Symphony
-      # ============================================================
+      - name: WFM - Build Symphony from source
+        run: |
+          echo "🔨 Building Symphony API from source..."
+          cd "$HOME/symphony"
+          
+          # Verify Dockerfile exists
+          if [[ ! -f "api/Dockerfile" ]]; then
+            echo "❌ Dockerfile not found at api/Dockerfile"
+            exit 1
+          fi
+          
+          # Build image locally (single platform for CI runner)
+          docker build \
+            --tag symphony-api:ci-test \
+            --file api/Dockerfile \
+            .
+          
+          echo "✅ Symphony API image built successfully"
+          docker images | grep symphony-api
+
       - name: WFM - Start Symphony
         working-directory: pipeline
         run: |
-          echo "Starting Symphony"
-          sudo -E bash ./wfm.sh start
+          echo "Starting Symphony with locally built image..."
+          
+          # Start Symphony using the local image
+          sudo -E bash -c "SYMPHONY_IMAGE_REF=symphony-api:ci-test ./wfm.sh start"
+          
           sleep 10
+          
+          # Verify Symphony started
+          if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+            echo "✅ Symphony started successfully with CI-built image"
+            docker ps | grep symphony-api
+          else
+            echo "❌ Symphony failed to start"
+            docker logs symphony-api-container || true
+            exit 1
+          fi
+
+
 
 
       - name: Configure Symphony for Harbor Access

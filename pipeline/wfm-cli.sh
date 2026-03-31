@@ -34,10 +34,23 @@ if [[ -z "$1" ]]; then
   main_loop
 else
   # Command-line mode
- case "$1" in
-    list-packages) list_app_packages_non_interactive ;;  
-    list-devices) list_devices_non_interactive ;;        
-    list-deployments) list_deployments_non_interactive ;; 
+  echo "[DEBUG] Script started with argument: '$1'" >&2
+  echo "[DEBUG] Total arguments: $#" >&2
+  echo "[DEBUG] All arguments: $@" >&2
+  
+  case "$1" in
+    list-packages) 
+      echo "[DEBUG] Matched list-packages case" >&2
+      list_app_packages_non_interactive 
+      ;;
+    list-devices) 
+      echo "[DEBUG] Matched list-devices case" >&2
+      list_devices_non_interactive 
+      ;;
+    list-deployments) 
+      echo "[DEBUG] Matched list-deployments case" >&2
+      list_deployments_non_interactive 
+      ;; 
     list-all) list_all ;;
     upload) upload_app_package ;;
     upload-app-non-interactive) upload_app_package_non_interactive "$2" ;;
@@ -50,8 +63,10 @@ else
     get-package-id-by-name) get_package_id_by_name "$2" ;;  
     get-first-device-id) get_first_device_id ;;              
     *)
+      echo "[DEBUG] No case matched, showing usage" >&2
       echo "Usage: $0 {list-packages|list-devices|list-deployments|list-all|upload|upload-app-non-interactive|delete-package|delete-package-non-interactive|deploy|deploy-non-interactive|delete-instance|delete-instance-non-interactive|get-package-id-by-name|get-first-device-id}"
       exit 1
       ;;
   esac
 fi
+

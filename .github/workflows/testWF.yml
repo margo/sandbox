@@ -291,6 +291,38 @@ jobs:
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
  
+      
+      - name: Debug - Check Symphony Harbor Connection
+        run: |
+          echo "🔍 Checking Symphony container logs for errors..."
+          sudo docker logs symphony-api-container --tail=200 | grep -i "error\|fail\|harbor\|certificate" || echo "No errors found in logs"
+          
+          echo ""
+          echo "🔍 Checking if Symphony can resolve harbor.machine..."
+          sudo docker exec symphony-api-container sh -c 'getent hosts harbor.machine' || echo "❌ DNS resolution failed"
+          
+          echo ""
+          echo "🔍 Checking /etc/hosts inside Symphony container..."
+          sudo docker exec symphony-api-container cat /etc/hosts
+          
+          echo ""
+          echo "🔍 Testing HTTPS connection to Harbor from Symphony container..."
+          sudo docker exec symphony-api-container sh -c 'curl -v https://harbor.machine:8443/api/v2.0/systeminfo 2>&1 | head -50' || echo "❌ Connection failed"
+          
+          echo ""
+          echo "🔍 Checking NODE_EXTRA_CA_CERTS environment variable..."
+          sudo docker exec symphony-api-container sh -c 'echo $NODE_EXTRA_CA_CERTS'
+          
+          echo ""
+          echo "🔍 Verifying Harbor CA certificate exists in container..."
+          sudo docker exec symphony-api-container sh -c 'ls -la /certificates/harbor-ca.crt' || echo "❌ Certificate not found"
+          
+          echo ""
+          echo "🔍 Checking system CA certificates..."
+          sudo docker exec symphony-api-container sh -c 'ls -la /usr/local/share/ca-certificates/' || echo "❌ CA directory not found"
+
+      
+      
       # #===========================================================
 
       # - name: WFM-Client (Standalone Cluster) – Prerequisites

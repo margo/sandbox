@@ -17,7 +17,7 @@ jobs:
       GITHUB_TOKEN: ""
       APP_PACKAGE_NAME: custom-otel-helm-app-package
       APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package
-      MAESTRO_CLI_PATH: "$HOME/symphony/cli"
+      MAESTRO_CLI_PATH: "/home/runner/symphony/cli"
       REGISTRY_USER: "admin"
       REGISTRY_PASS: "${{ secrets.HARBOR_PASSWORD }}"
       REGISTRY: "harbor.machine:8443"
@@ -200,6 +200,8 @@ jobs:
       # ============================================================
       - name: Upload custom-otel-helm-app-package
         working-directory: pipeline
+        env: 
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📤 Uploading to WFM..."
           sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME}"
@@ -208,6 +210,8 @@ jobs:
       # =========================================================
       - name: List  all packages and devices
         working-directory: pipeline
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages

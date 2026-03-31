@@ -334,7 +334,6 @@ jobs:
           sudo -E bash ./device-agent.sh k3s start-k3s
           sleep 60
 
-      
       - name: 🔧 Install Helm & Authenticate Harbor 
         shell: bash
         run: |
@@ -394,20 +393,24 @@ jobs:
           export DOCKER_CONFIG=/root/.docker
           export HELM_EXPERIMENTAL_OCI=1
           
-          # Login to Harbor with HTTPS (NO --plain-http)
-          echo "🔑 Logging into Harbor (HTTPS)..."
+          # Login to Harbor with HTTPS (skip TLS verification for self-signed cert)
+          echo "🔑 Logging into Harbor (HTTPS with insecure-skip-tls-verify)..."
           echo "$REGISTRY_PASS" | helm registry login harbor.machine:$EXPOSED_HARBOR_PORT \
             -u "$REGISTRY_USER" \
-            --password-stdin
+            --password-stdin \
+            --insecure
           
-          # Test Helm OCI pull with HTTPS (NO --plain-http)
+          # Test Helm OCI pull with insecure flag
           echo "📥 Testing Helm OCI pull (HTTPS)..."
           helm pull oci://harbor.machine:$EXPOSED_HARBOR_PORT/library/custom-otel-helm \
             --version 0.1.0 \
+            --insecure-skip-tls-verify \
             --debug || echo "⚠️ Pull failed (check chart)"
           
           echo "✅ Helm + Harbor setup completed (HTTPS)"
           PODEOF
+
+    
 
 
       - name: 🚀 Deploy Instance on Standalone Cluster

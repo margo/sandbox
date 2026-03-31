@@ -299,6 +299,17 @@ jobs:
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system logs deployment/coredns --tail=60 || true
 
+    
+      - name: Verify DNS Resolution
+        run: |
+          echo "🔍 Testing DNS resolution from a test pod..."
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl run dns-test \
+            --image=busybox --restart=Never --rm \
+            --attach=true --stdin=false \
+            -- nslookup harbor.machine || echo "⚠️ DNS test failed"
+          
+          echo "✅ DNS test completed"
+
      
       - name: Trust Harbor CA in K3s
         run: |

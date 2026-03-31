@@ -105,8 +105,6 @@ jobs:
           echo "✅ device-agent.env generated"
           cat pipeline/device-agent.env
 
-
-
       - name: Update Docker Repository
         run: |
           sudo apt-get update
@@ -119,7 +117,7 @@ jobs:
             $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
             sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
           sudo apt-get update
-          
+      
       # ============================================================
       # WFM Install (clones Symphony, starts harbor etc...)
       # ============================================================
@@ -166,37 +164,6 @@ jobs:
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
           
 
-      
-      - name: Trust Harbor CA Certificate System-Wide
-        run: |
-          echo "🔐 Trusting Harbor CA certificate..."
-          
-          # Harbor certificate location
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
-          
-          if [ ! -f "$HARBOR_CERT" ]; then
-            echo "❌ Harbor certificate not found at $HARBOR_CERT"
-            echo "Available files:"
-            ls -la "$HOME/sandbox/pipeline/harbor/certs/" || true
-            exit 1
-          fi
-          
-          # Trust system-wide
-          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
-          sudo update-ca-certificates
-          
-          # Trust for Docker
-          sudo mkdir -p /etc/docker/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
-          sudo cp "$HARBOR_CERT" /etc/docker/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
-          
-          # Restart Docker to pick up new certificates
-          sudo systemctl restart docker
-          sleep 10
-          
-          echo "✅ Harbor CA certificate trusted system-wide"
-    
-          # Verify certificate
-          openssl x509 -in "$HARBOR_CERT" -text -noout | head -20
       # ------------------------------------------------
       # Copy the WFM CA certificate
       # ------------------------------------------------

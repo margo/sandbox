@@ -191,7 +191,7 @@ trust_harbor_certificate() {
   echo "🔄 Restarting Docker daemon to apply certificate changes..."
   sudo systemctl restart docker
   
-  for i in {1..30}; do
+  for i in {1..60}; do
     if sudo systemctl is-active --quiet docker; then
       echo "✅ Docker daemon restarted"
       break

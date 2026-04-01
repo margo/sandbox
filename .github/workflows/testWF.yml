@@ -449,7 +449,7 @@ jobs:
           echo "${REGISTRY_PASS}" | helm registry login harbor.machine:${EXPOSED_HARBOR_PORT} \
             -u "${REGISTRY_USER}" \
             --password-stdin \
-            --insecure-skip-tls-verify
+            --insecure
 
           # Test Helm OCI pull
           echo "📥 Testing Helm OCI pull..."

@@ -183,8 +183,8 @@ jobs:
           # Build Maestro CLI (needed by wfm.sh start)
           echo "Building Maestro CLI..."
           cd "$HOME/symphony/cli"
-          go mod tidy
-          go build -o maestro
+          sudo go mod tidy
+          sudo go build -o maestro
           echo "✅ Maestro CLI built"
           
           # Enable TLS in Symphony API config

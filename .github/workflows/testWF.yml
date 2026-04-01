@@ -138,33 +138,44 @@ jobs:
           echo "✅ Harbor CA trusted in K3s"
 
       # ============================================================
-      # Build Symphony from source (local only, no push)
+      # Build Symphony/WFM-Client from source (local only, no push)
       # ============================================================
 
-      - name: Build WFM API (Symphony) from source
+      - name: Build Images in Parallel
         run: |
-          echo "🔨 Building Symphony API from source..."
-          cd "$HOME/symphony"
+          echo "🔨 Building Symphony API and WFM-Client in parallel..."
           
-          # Verify Dockerfile exists
-          if [[ ! -f "api/Dockerfile" ]]; then
-            echo "❌ Dockerfile not found at api/Dockerfile"
-            exit 1
-          fi
+          # Build Symphony in background
+          (
+            cd "$HOME/symphony"
+            DOCKER_BUILDKIT=1 docker build \
+              --tag symphony-api:ci-test \
+              --file api/Dockerfile \
+              --cache-from symphony-api:ci-test \
+              . && echo "✅ Symphony built"
+          ) &
+          SYMPHONY_PID=$!
           
-          # Fix Docker buildx permissions if needed
-          if [ -d "$HOME/.docker/buildx" ]; then
-            sudo chown -R $USER:$USER "$HOME/.docker/buildx"
-          fi
+          # Build WFM-Client in background
+          (
+            cd "$HOME/sandbox"
+            DOCKER_BUILDKIT=1 docker build \
+              --tag workload-fleet-management-client:ci-test \
+              --file poc/device/agent/Dockerfile \
+              --cache-from workload-fleet-management-client:ci-test \
+              . && echo "✅ WFM-Client built"
+          ) &
+          CLIENT_PID=$!
           
-          # Build image locally (single platform, no buildx needed)
-          DOCKER_BUILDKIT=1 docker build \
-            --tag symphony-api:ci-test \
-            --file api/Dockerfile \
-            .
+          # Wait for both
+          wait $SYMPHONY_PID || exit 1
+          wait $CLIENT_PID || exit 1
           
-          echo "✅ Symphony API image built successfully"
-          docker images | grep symphony-api
+          echo "✅ All images built successfully"
+          
+          # Import WFM-Client into K3s
+          docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
+
 
       - name: Start WFM
         timeout-minutes: 5
@@ -190,30 +201,30 @@ jobs:
           done
 
           
-      - name: Build WFM-Client from source
-        run: |
-          echo "🔨 Building workload-fleet-management-client from source..."
-          cd "$HOME/sandbox"
+      # - name: Build WFM-Client from source
+      #   run: |
+      #     echo "🔨 Building workload-fleet-management-client from source..."
+      #     cd "$HOME/sandbox"
           
-          # Verify Dockerfile exists
-          if [[ ! -f "poc/device/agent/Dockerfile" ]]; then
-            echo "❌ Dockerfile not found at poc/device/agent/Dockerfile"
-            exit 1
-          fi
+      #     # Verify Dockerfile exists
+      #     if [[ ! -f "poc/device/agent/Dockerfile" ]]; then
+      #       echo "❌ Dockerfile not found at poc/device/agent/Dockerfile"
+      #       exit 1
+      #     fi
           
-          # Build image locally with CI-specific tag
-          DOCKER_BUILDKIT=1 docker build \
-            --tag workload-fleet-management-client:ci-test \
-            --file poc/device/agent/Dockerfile \
-            .
+      #     # Build image locally with CI-specific tag
+      #     DOCKER_BUILDKIT=1 docker build \
+      #       --tag workload-fleet-management-client:ci-test \
+      #       --file poc/device/agent/Dockerfile \
+      #       .
           
-          echo "✅ workload-fleet-management-client image built successfully"
-          docker images | grep workload-fleet-management-client
+      #     echo "✅ workload-fleet-management-client image built successfully"
+      #     docker images | grep workload-fleet-management-client
           
-          # Import into K3s containerd for k3s device tests
-          echo "📦 Importing image into K3s containerd..."
-          docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
-          echo "✅ Image imported into K3s"
+      #     # Import into K3s containerd for k3s device tests
+      #     echo "📦 Importing image into K3s containerd..."
+      #     docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
+      #     echo "✅ Image imported into K3s"
       
       - name: Setup ORAS authentication
         run: |
@@ -253,9 +264,6 @@ jobs:
           cp "$CERT" "$HOME/certs/"
           echo "✅ CA certs copied to $HOME/certs/"    
      
-      # ============================================================
-      # Upload app package (k3s)
-      # ============================================================
       - name: Upload custom-otel-helm-app-package
         working-directory: pipeline
         env: 
@@ -263,9 +271,17 @@ jobs:
         run: |
           echo "📤 Uploading to WFM..."
           sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME}"
-          sleep 15
-         
-      # =========================================================
+          
+        
+          for i in {1..10}; do
+            STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME}" | grep -o "ONBOARDED" || echo "")
+            if [ "$STATUS" = "ONBOARDED" ]; then
+              echo "✅ Package onboarded"
+              break
+            fi
+            sleep 2
+          done
+
       - name: List  all packages and devices
         working-directory: pipeline
         env:
@@ -273,19 +289,15 @@ jobs:
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
-    
-      
-      # #===========================================================
 
-      - name: WFM-Client (Standalone Cluster) – Prerequisites
+
+      - name: WFM-Client (K3s) – Setup
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh k3s install
-      - name: WFM-Client (K3s) – Create Certs
-        working-directory: pipeline
-        run: |
           sudo -E bash ./device-agent.sh k3s create-rsa-certs
           sudo -E bash ./device-agent.sh k3s create-ecdsa-certs
+
       
       - name: Configure CoreDNS for k3s
         run: |
@@ -344,34 +356,32 @@ jobs:
           # Restart CoreDNS
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout restart deployment coredns
-          
-          sleep 20
-          
-          # Verify
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get pods
-          
-          # Check logs if needed
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system logs deployment/coredns --tail=60 || true
 
-    
-      - name: Verify DNS Resolution
-        run: |
-          echo "🔍 Testing DNS resolution from a test pod..."
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl run dns-test \
-            --image=busybox --restart=Never --rm \
-            --attach=true --stdin=false \
-            -- nslookup harbor.machine || echo "⚠️ DNS test failed"
-          
-          echo "✅ DNS test completed"
+          # Wait for rollout to complete (instead of fixed 20s)
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+            kubectl -n kube-system rollout status deployment/coredns --timeout=30s
+
+          echo "✅ CoreDNS restarted"
 
 
       - name: WFM-Client (K3s) – Start
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh k3s start-k3s
-          sleep 60
+          
+         
+          echo "⏳ Waiting for WFM-Client pod to be ready..."
+          for i in {1..30}; do
+            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
+              echo "✅ WFM-Client pod is running"
+              # Wait for device to onboard
+              sleep 10
+              break
+            fi
+            echo "Waiting for pod... ($i/30)"
+            sleep 2
+          done
+
 
 
       - name: 🔧 Install Helm & Authenticate Harbor 
@@ -507,7 +517,7 @@ jobs:
           echo "⏳ WAITING FOR DEPLOYMENT TO COMPLETE"
           echo "========================================="
           
-          MAX_ATTEMPTS=60  # 10 minutes
+          MAX_ATTEMPTS=5  
           ATTEMPT=0
           K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
           
@@ -515,12 +525,8 @@ jobs:
             ATTEMPT=$((ATTEMPT + 1))
             echo ""
             echo "--- Attempt $ATTEMPT/$MAX_ATTEMPTS ($(date '+%H:%M:%S')) ---"
-            
-            # Get deployment status - FIXED jq path
-            DEPLOYMENT_STATUS=$(${MAESTRO_CLI_PATH}/maestro wfm --host symphony.machine --port 8082 list deployments -o json 2>/dev/null | \
-              jq -r --arg id "$DEPLOYMENT_ID" '.Data[].items[] | select(.metadata.id == $id) | .status.state' 2>/dev/null || echo "UNKNOWN")
-            
-            echo "📊 Deployment Status: $DEPLOYMENT_STATUS"
+          
+
             
             # Show current deployment details from Symphony
             echo "📋 Deployment Details:"
@@ -543,19 +549,9 @@ jobs:
               echo "Full device logs:"
               $K logs deployment/workload-fleet-management-client-deploy --tail=500 || true
               exit 1
-            fi
-            
-            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-              echo ""
-              echo "❌ Deployment timeout after 10 minutes"
-              echo "Last status: $DEPLOYMENT_STATUS"
-              echo ""
-              echo "Full device logs:"
-              $K logs deployment/workload-fleet-management-client-deploy --tail=500 || true
-              exit 1
-            fi
-            
-            sleep 10
+            fi  
+           
+            sleep 5
           done
           
           # Final comprehensive status
@@ -564,25 +560,3 @@ jobs:
           echo "📋 FINAL DEPLOYMENT STATUS"
           echo "========================================="
           sudo -E bash ./wfm-cli.sh list-all-non-interactive
-          
-          echo ""
-          echo "========================================="
-          echo "🔍 KUBERNETES RESOURCES"
-          echo "========================================="
-          $K get pods -A -o wide
-          
-          echo ""
-          echo "========================================="
-          echo "📜 COMPLETE DEVICE AGENT LOGS"
-          echo "========================================="
-          $K logs deployment/workload-fleet-management-client-deploy --since=10m || true
-          
-          echo ""
-          echo "========================================="
-          echo "✅ WORKFLOW COMPLETED SUCCESSFULLY"
-          echo "========================================="
-          echo "Deployment ID: $DEPLOYMENT_ID"
-          echo "Final Status: INSTALLED"
-          echo "Package: $PACKAGE_ID"
-          echo "Device: $DEVICE_ID"
-

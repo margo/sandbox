@@ -468,7 +468,11 @@ jobs:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📋 Listing all packages and devices and deployment..."
-          sudo -E bash ./wfm-cli.sh list-all
+          sudo -E bash ./wfm-cli.sh list-all-non-interactive
+
+          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+          $K get pods -A
+          $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
 
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"

@@ -374,38 +374,6 @@ jobs:
           sleep 60
 
 
-      - name: ⏳ Wait for Device to be Queryable
-        working-directory: pipeline
-        env:
-          MAESTRO_CLI_PATH: /home/runner/symphony/cli
-        run: |
-          echo "⏳ Waiting for device to be fully queryable via API..."
-          
-          for i in {1..30}; do
-            echo "Attempt $i/30: Checking for device with role 'Standalone Cluster'..."
-            
-            # Try to get device ID
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster" 2>&1 | grep -E '^client-' || echo "")
-            
-            if [[ -n "$DEVICE_ID" ]]; then
-              echo "✅ Device is queryable: $DEVICE_ID"
-              sudo -E bash ./wfm-cli.sh list-devices
-              break
-            fi
-            
-            if [ $i -eq 30 ]; then
-              echo "❌ Device not queryable after 5 minutes"
-              echo "Device list output:"
-              sudo -E bash ./wfm-cli.sh list-devices
-              echo "Raw JSON output:"
-              ${MAESTRO_CLI_PATH}/maestro wfm --host symphony.machine --port 8082 list devices -o json
-              exit 1
-            fi
-            
-            sleep 10
-          done
-          
-
       - name: 🔧 Install Helm & Authenticate Harbor 
         shell: bash
         run: |
@@ -492,24 +460,21 @@ jobs:
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
-          echo "📋 Listing all packages and devices and deployment..."
+          echo "📋 Initial status check..."
           sudo -E bash ./wfm-cli.sh list-all-non-interactive
           sleep 10
-          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-          $K get pods -A
-          $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
-          sleep 10
+        
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"
           
-          # Get device ID by role for K3s deployment
+                                
           DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster")
           echo "DEVICE_ID=$DEVICE_ID"
           
           PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
           DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
           
-          # Validate IDs before deployment
+          # Validate IDs
           if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ]; then
             echo "❌ Invalid PACKAGE_ID: $PACKAGE_ID"
             exit 1
@@ -517,7 +482,7 @@ jobs:
           
           if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
             echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
-            echo "Available devices:"
+                        
             sudo -E bash ./wfm-cli.sh list-devices
             exit 1
           fi
@@ -525,15 +490,97 @@ jobs:
           echo "📋 Deploying package $PACKAGE_ID to device $DEVICE_ID..."
           sleep 10
           
-          # FIXED: Use correct command name
-          sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID"
+          # Deploy and capture output
+          DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+          echo "$DEPLOY_OUTPUT"
           
-          # Wait and monitor deployment
-          sleep 60
+          # Extract deployment ID
+          DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
+          echo "📦 Deployment ID: $DEPLOYMENT_ID"
           
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "❌ Failed to extract deployment ID"
+            exit 1
+          fi
+          
+          # Wait for deployment completion
+          echo ""
+          echo "========================================="
+          echo "⏳ WAITING FOR DEPLOYMENT TO COMPLETE"
+          echo "========================================="
+          
+          MAX_ATTEMPTS=60  # 10 minutes
+          ATTEMPT=0
           K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-          $K get pods -A
-          $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+                  
+                                                  
           
-          echo "📋 Final deployment status:"
-          sudo -E bash ./wfm-cli.sh list-deployments
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo ""
+            echo "--- Attempt $ATTEMPT/$MAX_ATTEMPTS ($(date '+%H:%M:%S')) ---"
+            
+            # Get deployment status
+            DEPLOYMENT_STATUS=$(${MAESTRO_CLI_PATH}/maestro wfm --host symphony.machine --port 8082 list deployments -o json 2>/dev/null | \
+              jq -r --arg id "$DEPLOYMENT_ID" '.Data[].items[] | select(.metadata.id == $id) | .spec.runningState' 2>/dev/null || echo "UNKNOWN")
+            
+            echo "📊 Deployment Status: $DEPLOYMENT_STATUS"
+            
+            # Show recent device logs
+            echo "📜 Device Agent Logs (last 20 lines):"
+            $K logs deployment/workload-fleet-management-client-deploy --tail=20 2>/dev/null | tail -10 || echo "Unable to fetch logs"
+            
+            # Check for completion
+            if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
+              echo ""
+              echo "✅ Deployment completed successfully!"
+              break
+            elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
+              echo ""
+              echo "❌ Deployment failed with status: $DEPLOYMENT_STATUS"
+              echo ""
+              echo "Full device logs:"
+              $K logs deployment/workload-fleet-management-client-deploy --tail=200 || true
+              exit 1
+            fi
+            
+            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+              echo ""
+              echo "❌ Deployment timeout after 10 minutes"
+              echo "Last status: $DEPLOYMENT_STATUS"
+              echo ""
+              echo "Full device logs:"
+              $K logs deployment/workload-fleet-management-client-deploy --tail=200 || true
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          # Final comprehensive status
+          echo ""
+          echo "========================================="
+          echo "📋 FINAL DEPLOYMENT STATUS"
+          echo "========================================="
+          sudo -E bash ./wfm-cli.sh list-all-non-interactive
+          
+          echo ""
+          echo "========================================="
+          echo "🔍 KUBERNETES RESOURCES"
+          echo "========================================="
+          $K get pods -A -o wide
+          
+          echo ""
+          echo "========================================="
+          echo "📜 COMPLETE DEVICE AGENT LOGS"
+          echo "========================================="
+          $K logs deployment/workload-fleet-management-client-deploy --tail=150 || true
+          
+          echo ""
+          echo "========================================="
+          echo "✅ WORKFLOW COMPLETED SUCCESSFULLY"
+          echo "========================================="
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo "Final Status: INSTALLED"
+          echo "Package: $PACKAGE_ID"
+          echo "Device: $DEVICE_ID"

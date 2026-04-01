@@ -448,14 +448,12 @@ jobs:
           echo "🔑 Logging into Harbor..."
           echo "${REGISTRY_PASS}" | helm registry login harbor.machine:${EXPOSED_HARBOR_PORT} \
             -u "${REGISTRY_USER}" \
-            --password-stdin \
-            --insecure
+            --password-stdin 
 
           # Test Helm OCI pull
           echo "📥 Testing Helm OCI pull..."
           helm pull oci://harbor.machine:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm \
             --version 0.1.0 \
-            --insecure-skip-tls-verify \
             --debug || echo "⚠️ Pull failed (check chart)"
 
           echo "✅ Helm + Harbor setup completed"

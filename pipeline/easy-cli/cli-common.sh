@@ -130,9 +130,13 @@ get_device_id_by_role() {
   fi
   
   if command -v jq >/dev/null 2>&1; then
+  
+    # 1. Correct path: .spec.capabilities.properties.roles[]
+    # 2. Iterate through all Data[] items, not just Data[0]
     local device_id=$(echo "$devices" | jq -r --arg role "$role" '
-      .Data[0].items[] |
-      select(.capabilities.roles[]? == $role) |
+      .Data[] |
+      .items[] |
+      select(.spec.capabilities.properties.roles[]? == $role) |
       .metadata.id
     ' | head -1)
     

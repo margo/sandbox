@@ -467,7 +467,6 @@ jobs:
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"
           
-                                
           DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster")
           echo "DEVICE_ID=$DEVICE_ID"
           
@@ -482,7 +481,6 @@ jobs:
           
           if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
             echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
-                        
             sudo -E bash ./wfm-cli.sh list-devices
             exit 1
           fi
@@ -512,23 +510,26 @@ jobs:
           MAX_ATTEMPTS=60  # 10 minutes
           ATTEMPT=0
           K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-                  
-                                                  
           
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo ""
             echo "--- Attempt $ATTEMPT/$MAX_ATTEMPTS ($(date '+%H:%M:%S')) ---"
             
-            # Get deployment status
+            # Get deployment status - FIXED jq path
             DEPLOYMENT_STATUS=$(${MAESTRO_CLI_PATH}/maestro wfm --host symphony.machine --port 8082 list deployments -o json 2>/dev/null | \
-              jq -r --arg id "$DEPLOYMENT_ID" '.Data[].items[] | select(.metadata.id == $id) | .spec.runningState' 2>/dev/null || echo "UNKNOWN")
+              jq -r --arg id "$DEPLOYMENT_ID" '.Data[].items[] | select(.metadata.id == $id) | .status.state' 2>/dev/null || echo "UNKNOWN")
             
             echo "📊 Deployment Status: $DEPLOYMENT_STATUS"
             
-            # Show recent device logs
-            echo "📜 Device Agent Logs (last 20 lines):"
-            $K logs deployment/workload-fleet-management-client-deploy --tail=20 2>/dev/null | tail -10 || echo "Unable to fetch logs"
+            # Show current deployment details from Symphony
+            echo "📋 Deployment Details:"
+            sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep -A2 -B2 "${DEPLOYMENT_ID:0:10}" || echo "Unable to fetch deployment table"
+            
+            # Show device agent logs (last 15 lines for context)
+            echo ""
+            echo "📜 Recent Device Agent Activity:"
+            $K logs deployment/workload-fleet-management-client-deploy --tail=15 2>/dev/null || echo "Unable to fetch logs"
             
             # Check for completion
             if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
@@ -540,7 +541,7 @@ jobs:
               echo "❌ Deployment failed with status: $DEPLOYMENT_STATUS"
               echo ""
               echo "Full device logs:"
-              $K logs deployment/workload-fleet-management-client-deploy --tail=200 || true
+              $K logs deployment/workload-fleet-management-client-deploy --tail=500 || true
               exit 1
             fi
             
@@ -550,7 +551,7 @@ jobs:
               echo "Last status: $DEPLOYMENT_STATUS"
               echo ""
               echo "Full device logs:"
-              $K logs deployment/workload-fleet-management-client-deploy --tail=200 || true
+              $K logs deployment/workload-fleet-management-client-deploy --tail=500 || true
               exit 1
             fi
             
@@ -574,7 +575,7 @@ jobs:
           echo "========================================="
           echo "📜 COMPLETE DEVICE AGENT LOGS"
           echo "========================================="
-          $K logs deployment/workload-fleet-management-client-deploy --tail=150 || true
+          $K logs deployment/workload-fleet-management-client-deploy --since=10m || true
           
           echo ""
           echo "========================================="
@@ -584,3 +585,4 @@ jobs:
           echo "Final Status: INSTALLED"
           echo "Package: $PACKAGE_ID"
           echo "Device: $DEVICE_ID"
+

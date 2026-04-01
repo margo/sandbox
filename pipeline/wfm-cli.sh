@@ -51,7 +51,7 @@ else
       echo "[DEBUG] Matched list-deployments case" >&2
       list_deployments_non_interactive 
       ;; 
-    list-all) list_all ;;
+    list-all-non-interactive) list_all_non_interactive ;;
     upload) upload_app_package ;;
     upload-app-non-interactive) upload_app_package_non_interactive "$2" ;;
     delete-package) delete_app_package ;;
@@ -61,10 +61,10 @@ else
     delete-instance) delete_instance ;;
     delete-instance-non-interactive) delete_instance_non_interactive "$2" ;;
     get-package-id-by-name) get_package_id_by_name "$2" ;;  
-    get-first-device-id) get_first_device_id ;;              
+    get-device-id-by-role) get_device_id_by_role "$2" ;;              
     *)
       echo "[DEBUG] No case matched, showing usage" >&2
-      echo "Usage: $0 {list-packages|list-devices|list-deployments|list-all|upload|upload-app-non-interactive|delete-package|delete-package-non-interactive|deploy|deploy-non-interactive|delete-instance|delete-instance-non-interactive|get-package-id-by-name|get-first-device-id}"
+      echo "Usage: $0 {list-packages|list-devices|list-deployments|list-all-non-interactive|upload|upload-app-non-interactive|delete-package|delete-package-non-interactive|deploy|deploy-non-interactive|delete-instance|delete-instance-non-interactive|get-package-id-by-name|get-device-id-by-role}"
       exit 1
       ;;
   esac

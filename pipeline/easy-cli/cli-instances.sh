@@ -63,6 +63,34 @@ list_all() {
   read -p "Press Enter to continue..."
 }
 
+list_all_non_interactive() {
+  echo "📋 Listing all resources from WFM..."
+  echo "=================================="
+  
+  echo "📦 App Packages:"
+  echo "----------------"
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
+  fi
+  
+  echo ""
+  echo "🖥️  Devices:"
+  echo "----------"
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices || echo "❌ Failed to list devices"
+  fi
+  
+  echo ""
+  echo "🚀 Deployments:"
+  echo "---------------"
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment || echo "❌ Failed to list deployment"
+  fi
+  
+  echo ""
+  
+}
+
 deploy_instance() {
   echo "🚀 Deploy Instance"
   echo "=================="

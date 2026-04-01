@@ -272,16 +272,7 @@ jobs:
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
- 
-      
-      # - name: Debug - Check Symphony Harbor Connection
-      #   run: |
-      #     echo "🔍 Checking Symphony container logs for errors..."
-      #     sudo docker logs symphony-api-container --tail=500 | grep -i "error\|fail\|harbor\|certificate" || echo "No errors found in logs"
-          
-   
-
-      
+    
       
       # #===========================================================
 
@@ -476,10 +467,16 @@ jobs:
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
+          echo "📋 Listing all packages and devices and deployment..."
+          sudo -E bash ./wfm-cli.sh list-all
+
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"
-          DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-first-device-id)
+          
+          # Get device ID by role for K3s deployment
+          DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster")
           echo "DEVICE_ID=$DEVICE_ID"
+          
           PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
           DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
           

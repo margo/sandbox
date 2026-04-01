@@ -108,8 +108,15 @@ get_package_id_by_name() {
   fi
 }
 
-# Get first available device ID
-get_first_device_id() {
+# Get device ID by role
+get_device_id_by_role() {
+  local role="$1"
+  
+  if [ -z "$role" ]; then
+    echo "❌ Error: Role parameter is required"
+    return 1
+  fi
+  
   if ! check_maestro_cli; then
     echo "❌ Maestro CLI not available"
     return 1
@@ -123,10 +130,14 @@ get_first_device_id() {
   fi
   
   if command -v jq >/dev/null 2>&1; then
-    local device_id=$(echo "$devices" | jq -r '.Data[0].items[0].metadata.id // empty')
+    local device_id=$(echo "$devices" | jq -r --arg role "$role" '
+      .Data[0].items[] |
+      select(.capabilities.roles[]? == $role) |
+      .metadata.id
+    ' | head -1)
     
     if [ -z "$device_id" ] || [ "$device_id" = "null" ]; then
-      echo "❌ No devices found"
+      echo "❌ No device found with role: $role"
       return 1
     fi
     
@@ -137,4 +148,3 @@ get_first_device_id() {
     return 1
   fi
 }
-

@@ -373,6 +373,39 @@ jobs:
           sudo -E bash ./device-agent.sh k3s start-k3s
           sleep 60
 
+
+      - name: ⏳ Wait for Device to be Queryable
+        working-directory: pipeline
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
+        run: |
+          echo "⏳ Waiting for device to be fully queryable via API..."
+          
+          for i in {1..30}; do
+            echo "Attempt $i/30: Checking for device with role 'Standalone Cluster'..."
+            
+            # Try to get device ID
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster" 2>&1 | grep -E '^client-' || echo "")
+            
+            if [[ -n "$DEVICE_ID" ]]; then
+              echo "✅ Device is queryable: $DEVICE_ID"
+              sudo -E bash ./wfm-cli.sh list-devices
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "❌ Device not queryable after 5 minutes"
+              echo "Device list output:"
+              sudo -E bash ./wfm-cli.sh list-devices
+              echo "Raw JSON output:"
+              ${MAESTRO_CLI_PATH}/maestro wfm --host symphony.machine --port 8082 list devices -o json
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+
       - name: 🔧 Install Helm & Authenticate Harbor 
         shell: bash
         run: |
@@ -461,11 +494,11 @@ jobs:
         run: |
           echo "📋 Listing all packages and devices and deployment..."
           sudo -E bash ./wfm-cli.sh list-all-non-interactive
-
+          sleep 10
           K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
           $K get pods -A
           $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
-
+          sleep 10
           PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
           echo "PACKAGE_ID=$PACKAGE_ID"
           

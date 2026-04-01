@@ -90,6 +90,7 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           WFM_HOST=symphony.machine
+          WFM_PORT=8082
           SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
           GITHUB_USER=${GITHUB_USER}
           GITHUB_TOKEN=${GITHUB_TOKEN}
@@ -279,9 +280,6 @@ jobs:
       - name: WFM-Client (Standalone Cluster) – Prerequisites
         working-directory: pipeline
         run: |
-          cat > device-agent.env <<EOF
-          WFM_IP=${RUNNER_IP}
-          EOF
           sudo -E bash ./device-agent.sh k3s install
       - name: WFM-Client (K3s) – Create Certs
         working-directory: pipeline
@@ -440,12 +438,6 @@ jobs:
           echo "${REGISTRY_PASS}" | helm registry login harbor.machine:${EXPOSED_HARBOR_PORT} \
             -u "${REGISTRY_USER}" \
             --password-stdin 
-
-          # Test Helm OCI pull
-          echo "📥 Testing Helm OCI pull..."
-          helm pull oci://harbor.machine:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm \
-            --version 0.1.0 \
-            --debug || echo "⚠️ Pull failed (check chart)"
 
           echo "✅ Helm + Harbor setup completed"
           EOF

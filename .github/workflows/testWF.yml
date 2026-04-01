@@ -404,16 +404,17 @@ jobs:
           HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp "$HARBOR_CERT" "$POD_NAME:/tmp/harbor-ca.crt"
           
-          echo "🚀 Running setup inside pod..."
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -i "$POD_NAME" -- sh <<'PODEOF'
+          # Create setup script
+          cat > /tmp/setup-helm.sh <<'EOF'
+          #!/bin/sh
           set -e
-          
+
           # Trust Harbor CA certificate
           echo "🔐 Trusting Harbor CA certificate..."
           mkdir -p /usr/local/share/ca-certificates
           cp /tmp/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
           update-ca-certificates 2>/dev/null || true
-          
+
           # Install Helm
           echo "📦 Installing Helm..."
           if ! command -v helm >/dev/null 2>&1; then
@@ -433,33 +434,44 @@ jobs:
           else
             echo "✅ Helm already installed"
           fi
-          
+
           helm version
-          
+
           # Setup Docker config
           echo "🔐 Setting Docker config..."
           mkdir -p /root/.docker
           echo "{}" > /root/.docker/config.json
           export DOCKER_CONFIG=/root/.docker
           export HELM_EXPERIMENTAL_OCI=1
-          
-          # Login to Harbor with HTTPS (skip TLS verification for self-signed cert)
-          echo "🔑 Logging into Harbor (HTTPS with insecure-skip-tls-verify)..."
-          echo "$REGISTRY_PASS" | helm registry login harbor.machine:$EXPOSED_HARBOR_PORT \
-            -u "$REGISTRY_USER" \
+
+          # Login to Harbor with HTTPS
+          echo "🔑 Logging into Harbor..."
+          echo "${REGISTRY_PASS}" | helm registry login harbor.machine:${EXPOSED_HARBOR_PORT} \
+            -u "${REGISTRY_USER}" \
             --password-stdin \
-            --insecure
-          
-          # Test Helm OCI pull with insecure flag
-          echo "📥 Testing Helm OCI pull (HTTPS)..."
-          helm pull oci://harbor.machine:$EXPOSED_HARBOR_PORT/library/custom-otel-helm \
+            --insecure-skip-tls-verify
+
+          # Test Helm OCI pull
+          echo "📥 Testing Helm OCI pull..."
+          helm pull oci://harbor.machine:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm \
             --version 0.1.0 \
             --insecure-skip-tls-verify \
             --debug || echo "⚠️ Pull failed (check chart)"
-          
-          echo "✅ Helm + Harbor setup completed (HTTPS)"
-          PODEOF   
 
+          echo "✅ Helm + Harbor setup completed"
+          EOF
+
+          # Copy script to pod
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp /tmp/setup-helm.sh "$POD_NAME:/tmp/setup-helm.sh"
+          
+          # Execute script with environment variables
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- sh -c "
+            export REGISTRY_USER='${REGISTRY_USER}'
+            export REGISTRY_PASS='${REGISTRY_PASS}'
+            export EXPOSED_HARBOR_PORT='${EXPOSED_HARBOR_PORT}'
+            chmod +x /tmp/setup-helm.sh
+            /tmp/setup-helm.sh
+          "
 
       - name: 🚀 Deploy Instance on Standalone Cluster
         working-directory: pipeline

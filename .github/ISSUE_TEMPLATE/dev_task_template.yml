@@ -8,8 +8,8 @@ body:
   - type: markdown
     attributes:
       value: |
-         Describe the Task. This may be to do a design, prototype, test or documentation.
-         Ideally a task should be something that can be handled by an individual within a 5-6 story-points in size.
+        Describe the Task. This may be to do a design, prototype, test or documentation.
+        Ideally a task should be something that can be handled by an individual within a 5-6 story-points in size.
   - type: textarea
     id: description
     attributes:

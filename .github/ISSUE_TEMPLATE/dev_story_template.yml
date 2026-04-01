@@ -61,11 +61,11 @@ body:
       label: "Definition of Done"
       description: "Describe the Definition of Done, which might be a use-case demonstrated to the TWG"
       placeholder: |
-         * The required technical documentation should be updated
-         * In case of any prototyping activity, the evaluation, design and outcomes need to be documented
-         * API updates need to be updated in swagger (or other) files
-         * Test automation should be done to demonstrate the use-case
-         * Code and documentation should be pulled into the release branch and the pull-request approved by the TWG
+        * The required technical documentation should be updated
+        * In case of any prototyping activity, the evaluation, design and outcomes need to be documented
+        * API updates need to be updated in swagger (or other) files
+        * Test automation should be done to demonstrate the use-case
+        * Code and documentation should be pulled into the release branch and the pull-request approved by the TWG
     validations:
       required: true
   - type: input

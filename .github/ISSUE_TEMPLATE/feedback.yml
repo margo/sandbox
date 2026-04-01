@@ -18,8 +18,8 @@ body:
   - type: markdown
     attributes:
       value: |
-         Please provide full details regarding your feedback towards the Code First sandbox below.
-         If referring to specific files in documentation or code, please provide file-name and line-number.
+        Please provide full details regarding your feedback towards the Code First sandbox below.
+        If referring to specific files in documentation or code, please provide file-name and line-number.
   - type: textarea
     id: feedback
     attributes:

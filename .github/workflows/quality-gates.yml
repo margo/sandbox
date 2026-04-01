@@ -12,16 +12,12 @@ permissions:
   pull-requests: read
 
 jobs:
-  yaml-validation:
-    name: YAML Linting
+  lint-yaml:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - uses: ibiqlik/action-yamllint@v2
         with:
-          # config_file: '.yamllint'
           file_or_dir: .github docker-compose helmchart poc
           format: github
           config_data: |
@@ -33,28 +29,19 @@ jobs:
               indentation: disable
 
 
-  golang-validation:
-    name: Golang Linting
+  lint-go:
     runs-on: ubuntu-latest
-    # continuing as of now, as the codebase has some linting issues
-    continue-on-error: true
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version: 1.24.4
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11
 
-  container-packaging-validation:
-    name: Container Packaging Validation
+  lint-container-manifests:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - name: Install Helm
@@ -65,13 +52,8 @@ jobs:
         run: |
           docker compose -f docker-compose/docker-compose.yaml config > /dev/null
 
-  test:
-    name: Tests & Coverage
+  test-go:
     runs-on: ubuntu-latest
-    # continuing as of now, as the codebase lacks the coverage
-    continue-on-error: true
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

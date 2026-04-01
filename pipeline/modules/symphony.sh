@@ -94,32 +94,69 @@ start_symphony_api_container() {
   docker rm symphony-api-container 2>/dev/null || true
   pkill -f "symphony-api" 2>/dev/null || true
 
-  echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
-  if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
-    echo "Image exists in GHCR"
-  else
-    echo "Image does NOT exist in GHCR"
-    return 1
-  fi  
+  # Copy Harbor CA if in CI environment
+  if [[ "${CI}" == "true" ]]; then
+    HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+    if [ -f "$HARBOR_CERT" ]; then
+      cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
+      echo "✅ Harbor CA copied to Symphony certificates"
+    fi
+  fi
 
-  echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
-  docker pull "${SYMPHONY_IMAGE_REF}"
+  # Only check/pull from GHCR if not using a local image
+  if [[ "${SYMPHONY_IMAGE_REF}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
+    echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
+    if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
+      echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
+      docker pull "${SYMPHONY_IMAGE_REF}"
+    else
+      echo "Image does NOT exist in GHCR"
+      return 1
+    fi
+  else
+    echo "Using local image: ${SYMPHONY_IMAGE_REF}"
+  fi
 
   echo "🚀 Starting Symphony API container..."
 
-  docker run -dit --name symphony-api-container \
+  # Build docker run command with CI-specific options
+  DOCKER_RUN_CMD="docker run -dit --name symphony-api-container \
       --network host \
       -p 8082:8082 \
       -e LOG_LEVEL=Debug \
-      -v "$HOME/symphony/api/certificates:/certificates" \
-      -v "$HOME/symphony/api":/configs \
-      -e CONFIG=symphony-api-margo.json \
-      "${SYMPHONY_IMAGE_REF}"
+      -v $HOME/symphony/api/certificates:/certificates \
+      -v $HOME/symphony/api:/configs \
+      -e CONFIG=symphony-api-margo.json"
+  
+  # Add CI-specific environment and host mappings
+  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+    DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
+      --add-host harbor.machine:${RUNNER_IP} \
+      --add-host symphony.machine:${RUNNER_IP} \
+      -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
+  fi
+  
+  # Execute docker run
+  eval "$DOCKER_RUN_CMD ${SYMPHONY_IMAGE_REF}"
+  
+  # Wait for container to start
+  sleep 5
+  
+  # Install Harbor CA in container if in CI
+  if [[ "${CI}" == "true" ]] && docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+    docker exec symphony-api-container sh -c '
+      if [ -f /certificates/harbor-ca.crt ]; then
+        mkdir -p /usr/local/share/ca-certificates
+        cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/
+        update-ca-certificates 2>/dev/null || true
+        echo "✅ Harbor CA trusted in Symphony container"
+      fi
+    ' || true
+  fi
       
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
       echo "✅ Symphony API container started successfully"
       echo "📡 Container is running on port 8082 (host network)"
-      echo "🏷️  Container name: symphony-api-container"
       create_symphony_api_systemd_service
   else
       echo "❌ Failed to start Symphony API container"
@@ -127,3 +164,4 @@ start_symphony_api_container() {
       return 1
   fi
 }
+

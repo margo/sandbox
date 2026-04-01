@@ -190,7 +190,7 @@ jobs:
           # Enable TLS in Symphony API config
           echo "Enabling TLS in Symphony API..."
           cd "$HOME/symphony/api"
-          sed -i 's|"tls": false|"tls": true|' symphony-api-margo.json
+          sudo sed -i 's|"tls": false|"tls": true|' symphony-api-margo.json
           echo "✅ TLS enabled"
           
           # ✅ Start Symphony container directly (bypass wfm.sh start)

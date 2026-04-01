@@ -250,6 +250,7 @@ build_start_device_agent_k3s_service() {
     fi
 
     set_capabilities_roles "Standalone Cluster"
+    update_agent_sbi_url
 
     echo "Copying configuration files..."
     mkdir -p config

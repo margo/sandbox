@@ -79,6 +79,7 @@ jobs:
           GITHUB_TOKEN=${GITHUB_TOKEN}
           APP_PACKAGE_NAME=${APP_PACKAGE_NAME}
           RUNNER_IP=${RUNNER_IP}
+          SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
           echo "✅ wfm.env generated"
           cat pipeline/wfm.env

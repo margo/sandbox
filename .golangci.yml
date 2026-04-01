@@ -1,0 +1,71 @@
+version: "2"
+
+linters:
+  # Default set of linters
+  # Options: standard, all, none, fast
+  default: standard
+
+  # Enable specific linters
+  enable:
+    # Critical: Catch actual bugs
+    - errcheck      # Unchecked errors (can hide bugs)
+    - govet         # Official Go bug detector
+    - noctx         # Missing context in function calls
+    - nilerr        # Returning nil when error expected
+    # Important: Code quality & maintainability
+    - staticcheck   # Common mistakes and bugs
+    - unused        # Unused code (variables, functions, imports)
+    - unconvert     # Remove unnecessary type conversions
+    # Security
+    - gosec         # Security issues (SQL injection, hardcoded secrets, etc.)
+
+  # Linter-specific settings
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+
+  # Exclusion rules for linters
+  exclusions:
+    generated: lax
+    warn-unused: false
+    presets: []
+    
+    rules:
+      # Tests can have unused variables and short error handling
+      - path: "_test\\.go$"
+        linters:
+          - unused
+          - errcheck
+      
+      # Mock files excluded from unused checks
+      - path: "mock_.*\\.go$"
+        linters:
+          - unused
+    
+    paths:
+      - generated/
+
+formatters:
+  enable:
+    - goimports     # Organize imports (auto-fixable)
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: false
+      print-issued-lines: true
+      colors: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  build-tags:
+    - integration
+
+severity:
+  default: error

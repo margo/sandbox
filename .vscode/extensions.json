@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "golang.go",
+    "esbenp.prettier-vscode",
+    "redhat.vscode-yaml",
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode.makefile-tools",
+    "foxundermoon.shell-format",
+    "editorconfig.editorconfig",
+    "ms-azuretools.vscode-helm",
+    "github.copilot",
+    "SanjulaGanepola.github-local-actions"
+  ]
+}

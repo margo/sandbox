@@ -2,14 +2,49 @@
   "name": "Margo Sandbox Development",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/go:1": {}
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.24"
+    },
+    "ghcr.io/devcontainers/features/git:1": {}
   },
   "customizations": {
-      "vscode": {
-          "extensions": [
-              "editorconfig.editorconfig"
-          ]
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "esbenp.prettier-vscode",
+        "redhat.vscode-yaml",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.makefile-tools",
+        "foxundermoon.shell-format",
+        "editorconfig.editorconfig",
+        "ms-azuretools.vscode-helm",
+        "github.copilot",
+        "SanjulaGanepola.github-local-actions"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "go.lintOnSave": "package",
+        "go.lintTool": "golangci-lint",
+        "go.lintArgs": ["--fast"],
+        "gopls": {
+          "usePlaceholders": true,
+          "completeUnimported": true,
+          "deepCompletion": true,
+          "staticcheck": true
+        },
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "prettier.useEditorConfig": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "editorconfig.enable": true,
+        "yaml.schemas": {
+          "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
+        }
       }
+    }
   },
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "containerEnv": {}
 }

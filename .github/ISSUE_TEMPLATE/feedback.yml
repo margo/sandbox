@@ -1,7 +1,7 @@
 name: "Feedback"
 description: "An open feedback form for the Margo Code First Sandbox"
 title: "[FB: ]"
-labels: ["DRAFT","Feedback"]
+labels: ["DRAFT", "Feedback"]
 assignees:
   - "nilanjan-samajdar"
 body:

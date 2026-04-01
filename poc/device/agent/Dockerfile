@@ -1,6 +1,10 @@
 # Stage 1: Build
 FROM golang:1.24.4 AS builder
 
+ARG VERSION
+ARG COMMIT
+ARG DATE
+
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -9,8 +13,10 @@ RUN go mod download
 COPY . .
 
 # Build a static binary
-
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-X main.version=tobedone" -o device-agent ./poc/device/agent
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
+    -o device-agent ./poc/device/agent
 
 # Stage 2: Get Docker binary and compose plugin from official image
 FROM docker:28.3.3-cli AS docker-source
@@ -25,6 +31,7 @@ WORKDIR /
 
 COPY --from=builder /app/device-agent .
 COPY --from=builder /app/poc/device/agent/config ./config
+# this will remove the dependency from docker image 
 COPY --from=docker-source /usr/local/bin/docker /usr/bin/docker
 
 # Create the cli-plugins directory FIRST
@@ -38,11 +45,6 @@ RUN chmod +x /usr/local/libexec/docker/cli-plugins/docker-compose
 
 # Create volume for config override
 VOLUME ["/config"]
-
-# Add metadata labels
-LABEL description="Margo Device Workload Fleet management Client for edge workload management" \
-      source="https://github.com/margo/sandbox" \
-      title="Device Workload Fleet management Client"
 
 # Use ENTRYPOINT for better flexibility
 ENTRYPOINT ["./device-agent"]

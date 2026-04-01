@@ -8,8 +8,8 @@ body:
   - type: markdown
     attributes:
       value: |
-         Describe the use-case to be implemented from the user-persona point of view. 
-         There can be multiple workflows which achieve the use-case
+        Describe the use-case to be implemented from the user-persona point of view.
+        There can be multiple workflows which achieve the use-case
   - type: textarea
     id: description
     attributes:

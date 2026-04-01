@@ -140,6 +140,13 @@ jobs:
       # ============================================================
       # Build Symphony/WFM-Client from source (local only, no push)
       # ============================================================
+      - name: Fix Docker Permissions
+        run: |
+          echo "🔧 Fixing Docker permissions..."
+          sudo chown -R $USER:$USER $HOME/.docker 2>/dev/null || true
+          mkdir -p $HOME/.docker/buildx
+          sudo chown -R $USER:$USER $HOME/.docker/buildx 2>/dev/null || true
+          echo "✅ Docker permissions fixed"
 
       - name: Build Images in Parallel
         run: |
@@ -151,7 +158,6 @@ jobs:
             DOCKER_BUILDKIT=1 docker build \
               --tag symphony-api:ci-test \
               --file api/Dockerfile \
-              --cache-from symphony-api:ci-test \
               . && echo "✅ Symphony built"
           ) &
           SYMPHONY_PID=$!
@@ -162,7 +168,6 @@ jobs:
             DOCKER_BUILDKIT=1 docker build \
               --tag workload-fleet-management-client:ci-test \
               --file poc/device/agent/Dockerfile \
-              --cache-from workload-fleet-management-client:ci-test \
               . && echo "✅ WFM-Client built"
           ) &
           CLIENT_PID=$!
@@ -176,7 +181,7 @@ jobs:
           # Import WFM-Client into K3s
           docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
 
-
+      
       - name: Start WFM
         timeout-minutes: 5
         working-directory: pipeline

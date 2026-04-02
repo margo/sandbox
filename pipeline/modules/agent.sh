@@ -10,7 +10,7 @@ GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
 workload_Fleet_Management_Client_IMAGE="margo.org/workload-fleet-management-client"
 workload_Fleet_Management_Client_IMAGE_TAG="latest"
-workload_Fleet_Management_Client_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${workload_Fleet_Management_Client_IMAGE}:${workload_Fleet_Management_Client_IMAGE_TAG}"
+workload_Fleet_Management_Client_IMAGE_REF="${workload_Fleet_Management_Client_IMAGE_REF:-${GHCR_REGISTRY}/${GHCR_ORG}/${workload_Fleet_Management_Client_IMAGE}:${workload_Fleet_Management_Client_IMAGE_TAG}}"
 
 # ----------------------------
 # Configuration Functions
@@ -70,11 +70,28 @@ enable_docker_runtime() {
 # ----------------------------
 # Build Functions
 # ----------------------------
+# Update build_device_agent_docker()
 build_device_agent_docker() {
   cd "$HOME/sandbox"
+  
+  # CI mode: use locally built image
+  if [[ "${CI:-false}" == "true" ]]; then
+    echo "🔧 CI mode: Using locally built image"
+    export workload_Fleet_Management_Client_IMAGE_REF="workload-fleet-management-client:ci-test"
+    
+    if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${workload_Fleet_Management_Client_IMAGE_REF}$"; then
+      echo "✅ Local CI image found: ${workload_Fleet_Management_Client_IMAGE_REF}"
+      return 0
+    else
+      echo "❌ Local CI image not found: ${workload_Fleet_Management_Client_IMAGE_REF}"
+      return 1
+    fi
+  fi
+  
+  # Production mode: pull from GHCR
   echo 'Checking if workload-fleet-management-client image already exists in GHCR...'
-
   echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
+  
   if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
     echo "Image exists in GHCR"
   else
@@ -84,7 +101,6 @@ build_device_agent_docker() {
 
   echo "⬇️ Pulling image from GHCR..."
   docker pull "${workload_Fleet_Management_Client_IMAGE_REF}" || return 1
-
   echo "✅ Image ready locally: ${workload_Fleet_Management_Client_IMAGE_REF}"
 }
 
@@ -149,6 +165,12 @@ start_device_agent_docker_service() {
 
   mkdir -p data
   enable_docker_runtime
+
+  # Export the image reference for docker-compose
+  export workload_Fleet_Management_Client_IMAGE_REF="${workload_Fleet_Management_Client_IMAGE_REF}"
+  echo "Using image: ${workload_Fleet_Management_Client_IMAGE_REF}"
+  
+
   docker compose up -d
 
   create_device_agent_systemd_service
@@ -182,6 +204,28 @@ build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Deploying workload-fleet-management-client on Kubernetes..."
 
+    
+    # Determine image reference based on CI mode
+    if [[ "${CI:-false}" == "true" ]]; then
+      echo "🔧 CI mode: Using locally built image"
+      export workload_Fleet_Management_Client_IMAGE_REF="workload-fleet-management-client:ci-test"
+      
+      # Verify image exists in K3s containerd
+      if sudo crictl images | grep -q "workload-fleet-management-client.*ci-test"; then
+        echo "✅ CI image found in K3s containerd"
+      else
+        echo "⚠️ CI image not found in containerd, attempting import..."
+        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "workload-fleet-management-client:ci-test"; then
+          docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
+          echo "✅ Image imported into K3s"
+        else
+          echo "❌ CI image not found in Docker either"
+          return 1
+        fi
+      fi
+    else
+      # Original GHCR logic
+
     echo "Importing image into k3s..."
     
     if command -v crictl >/dev/null 2>&1; then
@@ -198,7 +242,7 @@ build_start_device_agent_k3s_service() {
         echo "⚠️  crictl not found, skipping import step"
         echo "ℹ️  K3s will pull image directly from GHCR during Helm deployment"
     fi
-
+  fi
     cd helmchart
     if [ $? -ne 0 ]; then
       echo "❌ Failed to navigate to helmchart directory"
@@ -206,6 +250,7 @@ build_start_device_agent_k3s_service() {
     fi
 
     set_capabilities_roles "Standalone Cluster"
+    update_agent_sbi_url
 
     echo "Copying configuration files..."
     mkdir -p config
@@ -250,7 +295,10 @@ build_start_device_agent_k3s_service() {
 
     echo "Installing workload-fleet-management-client with persistent storage..."
     
-    helm install workload-fleet-management-client . \
+     helm install workload-fleet-management-client . \
+        --set image.repository=$(echo "${workload_Fleet_Management_Client_IMAGE_REF}" | cut -d: -f1) \
+        --set image.tag=$(echo "${workload_Fleet_Management_Client_IMAGE_REF}" | cut -d: -f2) \
+        --set image.pullPolicy=IfNotPresent \
         --set serviceAccount.create=true \
         --set secrets.create=false \
         --set secrets.existingSecret=workload-fleet-management-client-certs \

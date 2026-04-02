@@ -34,18 +34,39 @@ if [[ -z "$1" ]]; then
   main_loop
 else
   # Command-line mode
+  echo "[DEBUG] Script started with argument: '$1'" >&2
+  echo "[DEBUG] Total arguments: $#" >&2
+  echo "[DEBUG] All arguments: $@" >&2
+  
   case "$1" in
-    list-packages) list_app_packages ;;
-    list-devices) list_devices ;;
-    list-deployments) list_deployments ;;
-    list-all) list_all ;;
+    list-packages) 
+      echo "[DEBUG] Matched list-packages case" >&2
+      list_app_packages_non_interactive 
+      ;;
+    list-devices) 
+      echo "[DEBUG] Matched list-devices case" >&2
+      list_devices_non_interactive 
+      ;;
+    list-deployments) 
+      echo "[DEBUG] Matched list-deployments case" >&2
+      list_deployments_non_interactive 
+      ;; 
+    list-all-non-interactive) list_all_non_interactive ;;
     upload) upload_app_package ;;
+    upload-app-non-interactive) upload_app_package_non_interactive "$2" ;;
     delete-package) delete_app_package ;;
+    delete-package-non-interactive) delete_app_package_non_interactive "$2" ;;
     deploy) deploy_instance ;;
+    deploy-non-interactive) deploy_instance_non_interactive "$2" "$3" ;;
     delete-instance) delete_instance ;;
+    delete-instance-non-interactive) delete_instance_non_interactive "$2" ;;
+    get-package-id-by-name) get_package_id_by_name "$2" ;;  
+    get-device-id-by-role) get_device_id_by_role "$2" ;;              
     *)
-      echo "Usage: $0 {list-packages|list-devices|list-deployments|list-all|upload|delete-package|deploy|delete-instance}"
+      echo "[DEBUG] No case matched, showing usage" >&2
+      echo "Usage: $0 {list-packages|list-devices|list-deployments|list-all-non-interactive|upload|upload-app-non-interactive|delete-package|delete-package-non-interactive|deploy|deploy-non-interactive|delete-instance|delete-instance-non-interactive|get-package-id-by-name|get-device-id-by-role}"
       exit 1
       ;;
   esac
 fi
+

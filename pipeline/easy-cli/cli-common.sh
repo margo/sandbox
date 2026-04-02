@@ -66,3 +66,89 @@ pause() {
   echo ""
   read -p "Press Enter to continue..." _
 }
+
+# Get package ID by name
+get_package_id_by_name() {
+  local package_name="$1"
+  
+  if [ -z "$package_name" ]; then
+    echo "❌ Error: Package name is required"
+    return 1
+  fi
+  
+  if ! check_maestro_cli; then
+    echo "❌ Maestro CLI not available"
+    return 1
+  fi
+  
+  local app_packages=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg -o json 2>/dev/null)
+  
+  if [ $? -ne 0 ] || [ -z "$app_packages" ]; then
+    echo "❌ Failed to get package list"
+    return 1
+  fi
+  
+  if command -v jq >/dev/null 2>&1; then
+    local package_id=$(echo "$app_packages" | jq -r --arg name "$package_name" '
+      .Data[0].items[] |
+      select(.metadata.name == $name) |
+      .metadata.id
+    ')
+    
+    if [ -z "$package_id" ] || [ "$package_id" = "null" ]; then
+      echo "❌ Package '$package_name' not found"
+      return 1
+    fi
+    
+    echo "$package_id"
+    return 0
+  else
+    echo "❌ jq is required but not installed"
+    return 1
+  fi
+}
+
+# Get device ID by role
+get_device_id_by_role() {
+  local role="$1"
+  
+  if [ -z "$role" ]; then
+    echo "❌ Error: Role parameter is required"
+    return 1
+  fi
+  
+  if ! check_maestro_cli; then
+    echo "❌ Maestro CLI not available"
+    return 1
+  fi
+  
+  local devices=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices -o json 2>/dev/null)
+  
+  if [ $? -ne 0 ] || [ -z "$devices" ]; then
+    echo "❌ Failed to get device list"
+    return 1
+  fi
+  
+  if command -v jq >/dev/null 2>&1; then
+  
+    # 1. Correct path: .spec.capabilities.properties.roles[]
+    # 2. Iterate through all Data[] items, not just Data[0]
+    local device_id=$(echo "$devices" | jq -r --arg role "$role" '
+      .Data[] |
+      .items[] |
+      select(.spec.capabilities.properties.roles[]? == $role) |
+      .metadata.id
+    ' | head -1)
+    
+    if [ -z "$device_id" ] || [ "$device_id" = "null" ]; then
+      echo "❌ No device found with role: $role"
+      return 1
+    fi
+    
+    echo "$device_id"
+    return 0
+  else
+    echo "❌ jq is required but not installed"
+    return 1
+  fi
+}

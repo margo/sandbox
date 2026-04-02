@@ -10,6 +10,14 @@ list_app_packages() {
   read -p "Press Enter to continue..."
 }
 
+list_app_packages_non_interactive() {
+  echo "📦 Listing all app packages from WFM..."
+  if check_maestro_cli; then
+    ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list app-pkg || echo "❌ Failed to list app-pkg"
+  fi
+  echo ""
+}
+
 upload_app_package() {
   echo "📦 Upload App Package"
   echo "===================="
@@ -77,6 +85,79 @@ upload_app_package() {
   read -p "Press Enter to continue..."
 }
 
+# Add this new function to cli-packages.sh
+
+upload_app_package_non_interactive() {
+  local package_name="$1"
+  
+  if [ -z "$package_name" ]; then
+    echo "❌ Error: Package name is required"
+    echo "Usage: upload_app_package_non_interactive <package_name>"
+    return 1
+  fi
+  
+  
+  echo "📦 Uploading App Package: $package_name"
+  echo "=========================================="
+  
+  # Discover packages from Harbor
+  local packages=$(discover_app_packages_from_harbor)
+  
+  if [ -z "$packages" ]; then
+    echo "❌ No app packages available in Harbor"
+    return 1
+  fi
+  
+  # Search for matching package
+  local selected_pkg=""
+  while IFS= read -r pkg; do
+    local display_name=$(get_package_metadata_from_oci "$pkg")
+    if [[ "$display_name" == "$package_name" ]] || [[ "$pkg" == *"$package_name"* ]]; then
+      selected_pkg="$pkg"
+      break
+    fi
+  done <<< "$packages"
+  
+  if [ -z "$selected_pkg" ]; then
+    echo "❌ Package '$package_name' not found in Harbor"
+    echo "Available packages:"
+    while IFS= read -r pkg; do
+      echo "  - $(get_package_metadata_from_oci "$pkg")"
+    done <<< "$packages"
+    return 1
+  fi
+  
+  local found_package_name=$(get_package_metadata_from_oci "$selected_pkg")
+  echo "✅ Found package: $found_package_name"
+  
+  # Generate package.yaml for WFM
+  local temp_pkg_file=$(mktemp)
+  generate_wfm_package_yaml "$selected_pkg" "$temp_pkg_file"
+  
+  if [ ! -f "$temp_pkg_file" ]; then
+    echo "❌ Failed to generate package file"
+    return 1
+  fi
+  
+  echo "📤 Uploading $found_package_name to WFM..."
+  if check_maestro_cli; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$temp_pkg_file"; then
+      echo "✅ $found_package_name uploaded successfully!"
+      rm -f "$temp_pkg_file"
+      return 0
+    else
+      echo "❌ Failed to upload $found_package_name"
+      rm -f "$temp_pkg_file"
+      return 1
+    fi
+  else
+    echo "❌ Maestro CLI not available"
+    rm -f "$temp_pkg_file"
+    return 1
+  fi
+}
+
+
 delete_app_package() {
   echo "🗑️  Delete App Package"
   echo "===================="
@@ -111,3 +192,31 @@ delete_app_package() {
   echo ""
   read -p "Press Enter to continue..."
 }
+
+delete_app_package_non_interactive() {
+  local package_id="$1"
+  
+  echo "🗑️  Delete App Package (Non-Interactive)"
+  echo "===================="
+  
+  if [ -z "$package_id" ]; then
+    echo "❌ Error: Package name/ID is required"
+    echo "Usage: delete_app_package_non_interactive <package_id>"
+    return 1
+  fi
+  
+  echo "🗑️  Deleting package '$package_id'..."
+  if check_maestro_cli; then
+    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" delete app-pkg "$package_id"; then
+      echo "✅ Package '$package_id' deleted successfully!"
+      return 0
+    else
+      echo "❌ Failed to delete app-pkg '$package_id'"
+      return 1
+    fi
+  else
+    echo "❌ Maestro CLI not available"
+    return 1
+  fi
+}
+

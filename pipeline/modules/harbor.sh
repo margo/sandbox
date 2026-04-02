@@ -63,14 +63,17 @@ setup_harbor() {
   
   cd "$HOME/sandbox/pipeline/harbor"
 
-  echo "🔐 Configuring Harbor for HTTPS on port ${EXPOSED_HARBOR_PORT}..."
+  echo "🔐 Configuring Harbor for HTTPS-only on port ${EXPOSED_HARBOR_PORT}..."
   
   cp harbor.yml harbor.yml.backup.$(date +%s) 2>/dev/null || true
   
+  # Disable HTTP completely
   sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
   sed -i 's|^http:|# http:|' harbor.yml
   sed -i 's|^  port: 80|#   port: 80|' harbor.yml
   sed -i 's|^  port: 8081|#   port: 8081|' harbor.yml
+  
+  # Enable HTTPS
   sed -i 's|^#https:|https:|' harbor.yml
   sed -i "s|^  #port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
   sed -i 's|^  #certificate: /your/certificate/path|  certificate: /data/cert/harbor.crt|' harbor.yml
@@ -128,6 +131,40 @@ EOF
   chmod +x prepare
   sudo ./prepare
   
+  
+ echo "🔧 Removing port 80 binding from docker-compose.yml..."
+
+if [ -f docker-compose.yml ]; then
+  # Backup the generated docker-compose.yml
+  cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
+  
+  # Remove the port 80 binding from nginx/proxy service
+  # Match with any amount of leading whitespace
+  sed -i '/^\s*-\s*80:8080$/d' docker-compose.yml
+  sed -i '/^\s*-\s*.*:80:8080$/d' docker-compose.yml
+  
+  echo "✅ Port 80 binding removed from docker-compose.yml"
+  
+  # Verify the change
+  echo "📋 Verifying proxy/nginx ports in docker-compose.yml:"
+  if grep -A 10 "proxy:" docker-compose.yml | grep -A 5 "ports:" | grep -v "^--$"; then
+    echo "✅ Remaining ports configuration shown above"
+  else
+    echo "ℹ️ No ports section found or empty"
+  fi
+  
+  # Double-check port 80 is not present
+  if grep -q "80:8080" docker-compose.yml; then
+    echo "⚠️ WARNING: Port 80:8080 still found in docker-compose.yml!"
+    grep -n "80:8080" docker-compose.yml
+  else
+    echo "✅ Confirmed: Port 80:8080 successfully removed"
+  fi
+else
+  echo "⚠️ docker-compose.yml not found after prepare"
+fi
+
+  
   echo "🔍 Verifying docker-compose.yml has port ${EXPOSED_HARBOR_PORT}..."
   if grep -q "${EXPOSED_HARBOR_PORT}" docker-compose.yml; then
     echo "✅ docker-compose.yml configured for HTTPS on port ${EXPOSED_HARBOR_PORT}"
@@ -138,7 +175,7 @@ EOF
 
   configure_harbor_restart_policy
 
-  echo 'Starting Harbor with HTTPS on port '${EXPOSED_HARBOR_PORT}'...'
+  echo 'Starting Harbor with HTTPS-only on port '${EXPOSED_HARBOR_PORT}'...'
   sudo docker compose up -d
 
   sleep 5
@@ -175,9 +212,18 @@ EOF
     echo "⚠️ Harbor HTTPS endpoint may not be ready yet"
   fi
   
-  echo "🔐 Harbor is now running with HTTPS on port ${EXPOSED_HARBOR_PORT}"
+  # Verify port 80 is NOT in use
+  echo "🔍 Verifying port 80 is not bound..."
+  if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q ":80->"; then
+    echo "⚠️ WARNING: Port 80 is still bound!"
+  else
+    echo "✅ Port 80 is NOT bound - HTTPS-only mode confirmed"
+  fi
+  
+  echo "🔐 Harbor is now running with HTTPS-only on port ${EXPOSED_HARBOR_PORT}"
   echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 }
+
 
 trust_harbor_certificate() {
   echo "📜 Adding Harbor certificate to system trust store..."
@@ -204,7 +250,7 @@ trust_harbor_certificate() {
   sudo docker compose up -d
   
   echo "⏳ Waiting for Harbor to restart..."
-  sleep 30
+  sleep 50
   
   if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q "${EXPOSED_HARBOR_PORT}"; then
     echo "✅ Harbor restarted successfully on port ${EXPOSED_HARBOR_PORT}"

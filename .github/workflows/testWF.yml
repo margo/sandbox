@@ -1,5 +1,15 @@
 name: sandbox-sanity-test
+
 on:
+  # Trigger on push to development branch
+  push:
+    branches:
+      - development
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  
+  # Allow manual trigger
   workflow_dispatch:
 jobs:
   sandbox-e2e-functional-test-job:

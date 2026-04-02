@@ -15,8 +15,8 @@ jobs:
       # Optional GitHub auth
       GITHUB_USER: ""
       GITHUB_TOKEN: ""
-      APP_PACKAGE_NAME: custom-otel-helm-app-package
       APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package
+      APP_PACKAGE_NAME_DOCKER: nextcloud-compose-app-package
       MAESTRO_CLI_PATH: "/home/runner/symphony/cli"
       REGISTRY_USER: "admin"
       REGISTRY_PASS: "${{ secrets.HARBOR_PASSWORD }}"
@@ -77,7 +77,8 @@ jobs:
           SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
           GITHUB_USER=${GITHUB_USER}
           GITHUB_TOKEN=${GITHUB_TOKEN}
-          APP_PACKAGE_NAME=${APP_PACKAGE_NAME}
+          APP_PACKAGE_NAME_K3S=${APP_PACKAGE_NAME_K3S}
+          APP_PACKAGE_NAME_DOCKER=${APP_PACKAGE_NAME_DOCKER}
           RUNNER_IP=${RUNNER_IP}
           SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
@@ -204,32 +205,8 @@ jobs:
             echo "Waiting for Symphony API... ($i/30)"
             sleep 2
           done
-
-          
-      # - name: Build WFM-Client from source
-      #   run: |
-      #     echo "🔨 Building workload-fleet-management-client from source..."
-      #     cd "$HOME/sandbox"
-          
-      #     # Verify Dockerfile exists
-      #     if [[ ! -f "poc/device/agent/Dockerfile" ]]; then
-      #       echo "❌ Dockerfile not found at poc/device/agent/Dockerfile"
-      #       exit 1
-      #     fi
-          
-      #     # Build image locally with CI-specific tag
-      #     DOCKER_BUILDKIT=1 docker build \
-      #       --tag workload-fleet-management-client:ci-test \
-      #       --file poc/device/agent/Dockerfile \
-      #       .
-          
-      #     echo "✅ workload-fleet-management-client image built successfully"
-      #     docker images | grep workload-fleet-management-client
-          
-      #     # Import into K3s containerd for k3s device tests
-      #     echo "📦 Importing image into K3s containerd..."
-      #     docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
-      #     echo "✅ Image imported into K3s"
+     
+    
       
       - name: Setup ORAS authentication
         run: |
@@ -269,23 +246,51 @@ jobs:
           cp "$CERT" "$HOME/certs/"
           echo "✅ CA certs copied to $HOME/certs/"    
      
-      - name: Upload custom-otel-helm-app-package
+      - name: Upload app packages in parallel
         working-directory: pipeline
-        env: 
+        env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
-          echo "📤 Uploading to WFM..."
-          sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME}"
+          echo "📤 Uploading packages in parallel..."
           
-        
-          for i in {1..10}; do
-            STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME}" | grep -o "ONBOARDED" || echo "")
-            if [ "$STATUS" = "ONBOARDED" ]; then
-              echo "✅ Package onboarded"
-              break
-            fi
-            sleep 2
-          done
+          # Upload custom-otel-helm-app-package in background
+          (
+            echo "📦 Uploading ${APP_PACKAGE_NAME_K3S}..."
+            sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_K3S}"
+            
+            for i in {1..10}; do
+              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_K3S}" | grep -o "ONBOARDED" || echo "")
+              if [ "$STATUS" = "ONBOARDED" ]; then
+                echo "✅ ${APP_PACKAGE_NAME_K3S} onboarded"
+                break
+              fi
+              sleep 2
+            done
+          ) &
+          K3S_PKG_PID=$!
+          
+          # Upload nextcloud-compose-app-package in background
+          (
+            echo "📦 Uploading ${APP_PACKAGE_NAME_DOCKER}..."
+            sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_DOCKER}"
+            
+            for i in {1..10}; do
+              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_DOCKER}" | grep -o "ONBOARDED" || echo "")
+              if [ "$STATUS" = "ONBOARDED" ]; then
+                echo "✅ ${APP_PACKAGE_NAME_DOCKER} onboarded"
+                break
+              fi
+              sleep 2
+            done
+          ) &
+          DOCKER_PKG_PID=$!
+          
+          # Wait for both uploads to complete
+          wait $K3S_PKG_PID || { echo "❌ ${APP_PACKAGE_NAME_K3S} upload failed"; exit 1; }
+          wait $DOCKER_PKG_PID || { echo "❌ ${APP_PACKAGE_NAME_DOCKER} upload failed"; exit 1; }
+          
+          echo "✅ All packages uploaded successfully"
+
 
       - name: List  all packages and devices
         working-directory: pipeline
@@ -369,7 +374,7 @@ jobs:
           echo "✅ CoreDNS restarted"
 
 
-      - name: WFM-Client (K3s) – Start
+      - name: WFM-Client (Standalone Cluster) – Start
         working-directory: pipeline
         run: |
           sudo -E bash ./device-agent.sh k3s start-k3s
@@ -380,14 +385,32 @@ jobs:
             if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
               echo "✅ WFM-Client pod is running"
               # Wait for device to onboard
-              sleep 10
+              sleep 3
               break
             fi
             echo "Waiting for pod... ($i/30)"
             sleep 2
           done
 
-
+      - name: WFM-Client (Standalone Device) – Start
+        working-directory: pipeline
+        run: |
+          sudo -E bash ./device-agent.sh docker create-rsa-certs
+          sudo -E bash ./device-agent.sh docker create-ecdsa-certs
+          sudo -E bash ./device-agent.sh docker start-docker
+          
+         
+          echo "⏳ Waiting for WFM-Client container to be ready..."
+          for i in {1..30}; do
+            if docker ps --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
+              echo "✅ Docker WFM-Client container is running"
+              docker ps --filter "name=workload-fleet-management-client" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+              sleep 5
+              break
+            fi
+            echo "Waiting for Docker container... ($i/30)"
+            sleep 2
+          done
 
       - name: 🔧 Install Helm & Authenticate Harbor 
         shell: bash
@@ -470,96 +493,91 @@ jobs:
             /tmp/setup-helm.sh
           "
 
-      - name: 🚀 Deploy Instance on Standalone Cluster
+      
+      - name: 🚀 Deploy to Both Devices in Parallel
         working-directory: pipeline
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
-          echo "📋 Initial status check..."
-          sudo -E bash ./wfm-cli.sh list-all-non-interactive
-          sleep 10
-        
-          PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME}")
-          echo "PACKAGE_ID=$PACKAGE_ID"
+          echo "🚀 Deploying to both devices in parallel..."
           
-          DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster")
-          echo "DEVICE_ID=$DEVICE_ID"
-          
-          PACKAGE_ID=$(echo "$PACKAGE_ID" | tail -n1)
-          DEVICE_ID=$(echo "$DEVICE_ID" | tail -n1)
-          
-          # Validate IDs
-          if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ]; then
-            echo "❌ Invalid PACKAGE_ID: $PACKAGE_ID"
-            exit 1
-          fi
-          
-          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-            echo "❌ Invalid DEVICE_ID: $DEVICE_ID"
-            sudo -E bash ./wfm-cli.sh list-devices
-            exit 1
-          fi
-          
-          echo "📋 Deploying package $PACKAGE_ID to device $DEVICE_ID..."
-          sleep 10
-          
-          # Deploy and capture output
-          DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
-          echo "$DEPLOY_OUTPUT"
-          
-          # Extract deployment ID
-          DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
-          echo "📦 Deployment ID: $DEPLOYMENT_ID"
-          
-          if [ -z "$DEPLOYMENT_ID" ]; then
-            echo "❌ Failed to extract deployment ID"
-            exit 1
-          fi
-          
-          # Wait for deployment completion
-          echo ""
-          echo "========================================="
-          echo "⏳ WAITING FOR DEPLOYMENT TO COMPLETE"
-          echo "========================================="
-          
-          MAX_ATTEMPTS=5  
-          ATTEMPT=0
-          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-          
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            echo ""
-            echo "--- Attempt $ATTEMPT/$MAX_ATTEMPTS ($(date '+%H:%M:%S')) ---"
-          
-
+          # Deploy to K3s in background
+          (
+            echo "📋 Deploying to K3s..."
+            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | tail -n1)
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Cluster" | tail -n1)
             
-            # Show current deployment details from Symphony
-            echo "📋 Deployment Details:"
-            sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep -A2 -B2 "${DEPLOYMENT_ID:0:10}" || echo "Unable to fetch deployment table"
-            
-            # Show device agent logs (last 15 lines for context)
-            echo ""
-            echo "📜 Recent Device Agent Activity:"
-            $K logs deployment/workload-fleet-management-client-deploy --tail=15 2>/dev/null || echo "Unable to fetch logs"
-            
-            # Check for completion
-            if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
-              echo ""
-              echo "✅ Deployment completed successfully!"
-              break
-            elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
-              echo ""
-              echo "❌ Deployment failed with status: $DEPLOYMENT_STATUS"
-              echo ""
-              echo "Full device logs:"
-              $K logs deployment/workload-fleet-management-client-deploy --tail=500 || true
+            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+              echo "❌ K3s: Invalid IDs"
               exit 1
-            fi  
-           
-            sleep 5
-          done
+            fi
+            
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
+            echo "📦 K3s Deployment ID: $DEPLOYMENT_ID"
+            
+            # Monitor K3s deployment
+            K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+            for ATTEMPT in {1..60}; do
+              DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+              
+              if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
+                echo "✅ K3s deployment completed!"
+                break
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
+                echo "❌ K3s deployment failed"
+                $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+                exit 1
+              fi
+              sleep 3
+            done
+          ) &
+          K3S_DEPLOY_PID=$!
           
-          # Final comprehensive status
+          # Deploy to Docker in background
+          (
+            echo "📋 Deploying to Docker..."
+            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | tail -n1)
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-role "Standalone Device" | tail -n1)
+            
+            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+              echo "❌ Docker: Invalid IDs"
+              exit 1
+            fi
+            
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
+            echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
+            
+            # Monitor Docker deployment
+            for ATTEMPT in {1..60}; do
+              DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+              
+              if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
+                echo "✅ Docker deployment completed!"
+                break
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
+                echo "❌ Docker deployment failed"
+                docker logs workload-fleet-management-client --tail=100 || true
+                exit 1
+              fi
+              sleep 3
+            done
+          ) &
+          DOCKER_DEPLOY_PID=$!
+          
+          # Wait for both deployments
+          wait $K3S_DEPLOY_PID || exit 1
+          wait $DOCKER_DEPLOY_PID || exit 1
+          
+          echo "✅ Both deployments completed successfully!"
+
+
+      - name: 📋 Final Deployment Status
+        working-directory: pipeline
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
+        run: |
           echo ""
           echo "========================================="
           echo "📋 FINAL DEPLOYMENT STATUS"

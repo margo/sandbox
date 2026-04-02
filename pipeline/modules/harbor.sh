@@ -132,25 +132,37 @@ EOF
   sudo ./prepare
   
   
-  echo "🔧 Removing port 80 binding from docker-compose.yml..."
+ echo "🔧 Removing port 80 binding from docker-compose.yml..."
+
+if [ -f docker-compose.yml ]; then
+  # Backup the generated docker-compose.yml
+  cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
   
-  if [ -f docker-compose.yml ]; then
-    # Backup the generated docker-compose.yml
-    cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
-    
-    # Remove the port 80 binding from nginx service
-    # This removes lines like "- 80:8080" or "- 0.0.0.0:80:8080"
-    sed -i '/- .*:80:8080/d' docker-compose.yml
-    sed -i '/- 80:8080/d' docker-compose.yml
-    
-    echo "✅ Port 80 binding removed from docker-compose.yml"
-    
-    # Verify the change
-    echo "📋 Verifying nginx ports in docker-compose.yml:"
-    grep -A 5 "nginx:" docker-compose.yml | grep -A 3 "ports:"
+  # Remove the port 80 binding from nginx/proxy service
+  # Match with any amount of leading whitespace
+  sed -i '/^\s*-\s*80:8080$/d' docker-compose.yml
+  sed -i '/^\s*-\s*.*:80:8080$/d' docker-compose.yml
+  
+  echo "✅ Port 80 binding removed from docker-compose.yml"
+  
+  # Verify the change
+  echo "📋 Verifying proxy/nginx ports in docker-compose.yml:"
+  if grep -A 10 "proxy:" docker-compose.yml | grep -A 5 "ports:" | grep -v "^--$"; then
+    echo "✅ Remaining ports configuration shown above"
   else
-    echo "⚠️ docker-compose.yml not found after prepare"
+    echo "ℹ️ No ports section found or empty"
   fi
+  
+  # Double-check port 80 is not present
+  if grep -q "80:8080" docker-compose.yml; then
+    echo "⚠️ WARNING: Port 80:8080 still found in docker-compose.yml!"
+    grep -n "80:8080" docker-compose.yml
+  else
+    echo "✅ Confirmed: Port 80:8080 successfully removed"
+  fi
+else
+  echo "⚠️ docker-compose.yml not found after prepare"
+fi
 
   
   echo "🔍 Verifying docker-compose.yml has port ${EXPOSED_HARBOR_PORT}..."

@@ -329,14 +329,14 @@ jobs:
           RUNNER_IP=${RUNNER_IP}
           echo "📡 Using K3s kubeconfig"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
-          
+
           # Get the full ConfigMap YAML (not just Corefile)
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system get configmap coredns -o yaml > config.yaml
-          
+
           echo "Original ConfigMap:"
           cat config.yaml
-          
+
           # Update the Corefile section with our entries inside the NodeHosts block
           awk -v ip="$RUNNER_IP" '
           /hosts \/etc\/coredns\/NodeHosts/ {
@@ -349,26 +349,25 @@ jobs:
           }
           { print }
           ' config.yaml > config-new.yaml
-          
+
           echo "New ConfigMap:"
           cat config-new.yaml
-          
+
           # Apply the updated ConfigMap
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl apply -f config-new.yaml
-          
+
           # Restart CoreDNS deployment
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout restart deployment coredns
-          
+
           # Wait for rollout to complete
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout status deployment/coredns --timeout=60s
-          
+
           # Give extra time for DNS to propagate
           sleep 10
           echo "✅ CoreDNS restarted with updated configuration"
-
 
       - name: WFM-Client (Standalone Cluster) – Start
         working-directory: pipeline

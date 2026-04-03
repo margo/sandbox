@@ -1,0 +1,74 @@
+name: Quality Gates
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint-yaml:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ibiqlik/action-yamllint@v2
+        with:
+          file_or_dir: .github docker-compose helmchart poc
+          format: github
+          config_data: |
+            extends: relaxed
+            rules:
+              line-length:
+                max: 80
+                level: warning
+              indentation: disable
+
+
+  lint-go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.24.4
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11
+
+  lint-container-manifests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+      - name: Lint Helm charts
+        run: helm lint ./helmchart
+      - name: Validate docker-compose files
+        run: |
+          docker compose -f docker-compose/docker-compose.yaml config > /dev/null
+
+  test-go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.24.4
+      - name: Run tests with coverage
+        run: go test -v -coverprofile=coverage.out ./...
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Code coverage is: ${COVERAGE}%"
+          # NOTE: we are printing the test coverage but not failing the pipeline as of now
+          # once the test cases are there and code coverage threshold is decided
+          # then we will enforce the minimum threshold check
+          # and can push to codecov as well
+          # if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            # exit 1
+          # fi

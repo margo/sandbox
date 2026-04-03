@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -128,7 +129,7 @@ type RuntimeInfo struct {
 }
 
 func LoadConfig(configPath string) (*Config, error) {
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(filepath.Clean(configPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -144,7 +145,7 @@ func LoadConfig(configPath string) (*Config, error) {
 }
 
 func LoadCapabilities(capabilitiesPath string) (*sbi.DeviceCapabilitiesManifest, error) {
-	data, err := os.ReadFile(capabilitiesPath)
+	data, err := os.ReadFile(filepath.Clean(capabilitiesPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read capabilities file: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -50,8 +51,14 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 
 	// create request with body
 	body := []byte("hello world")
-	req, err := http.NewRequest("POST", "https://example.com/api/v1/resource", bytes.NewReader(body))
+	url := "https://somerandomurl.willnothit.com/api/v1/resource"
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 2. Create the request with that context
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
 
 	err = signer.SignRequest(context.Background(), req)
 	require.NoError(t, err)

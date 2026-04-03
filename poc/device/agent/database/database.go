@@ -121,7 +121,7 @@ func (db *Database) GetLastSyncedETag() (string, error) {
 	defer db.mu.RUnlock()
 
 	if db.deviceSettings.LastSyncedETag == "" {
-		return "", fmt.Errorf("No previous ETag found")
+		return "", fmt.Errorf("no previous ETag found")
 	}
 	return db.deviceSettings.LastSyncedETag, nil
 }
@@ -235,20 +235,25 @@ func (db *Database) save() {
 		return
 	}
 
-	os.MkdirAll(db.dataDir, 0755)
-	tempFile := filepath.Join(db.dataDir, "agent.database.json.tmp")
-	finalFile := filepath.Join(db.dataDir, "agent.database.json")
-
-	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+	if err := os.MkdirAll(db.dataDir, 0750); err != nil {
 		return
 	}
 
-	os.Rename(tempFile, finalFile) // Atomic
+	tempFile := filepath.Join(db.dataDir, "agent.database.json.tmp")
+	finalFile := filepath.Join(db.dataDir, "agent.database.json")
+
+	if err := os.WriteFile(tempFile, data, 0600); err != nil {
+		return
+	}
+
+	if err := os.Rename(tempFile, finalFile); err != nil {
+		return
+	}
 }
 
 func (db *Database) load() {
 	file := filepath.Join(db.dataDir, "agent.database.json")
-	data, err := os.ReadFile(file)
+	data, err := os.ReadFile(filepath.Clean(file))
 	if err != nil {
 		return // File doesn't exist, start fresh
 	}
@@ -358,9 +363,10 @@ func (db *Database) SetComponentStatus(deploymentId, componentName string, statu
 	record.LastUpdated = time.Now()
 
 	// Update overall phase based on component status
-	if status.State == sbi.ComponentStatusStateInstalled {
+	switch status.State {
+	case sbi.ComponentStatusStateInstalled:
 		record.Phase = "running"
-	} else if status.State == sbi.ComponentStatusStateFailed {
+	case sbi.ComponentStatusStateFailed:
 		record.Phase = "failed"
 	}
 
@@ -429,8 +435,8 @@ func (db *Database) NeedsReconciliation(deploymentId string) bool {
 	}
 
 	// Compare the embedded AppDeploymentManifest specs by marshaling to JSON
-	currentSpecBytes, err1 := json.Marshal(record.CurrentState.AppDeploymentManifest.Spec)
-	desiredSpecBytes, err2 := json.Marshal(record.DesiredState.AppDeploymentManifest.Spec)
+	currentSpecBytes, err1 := json.Marshal(record.CurrentState.Spec)
+	desiredSpecBytes, err2 := json.Marshal(record.DesiredState.Spec)
 
 	if err1 != nil || err2 != nil {
 		// If marshaling fails, assume reconciliation is needed

@@ -29,5 +29,5 @@ func TestFetchComposeFileFromURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Println("compose file content", string(data))
+	log.Println("compose file content", (data))
 }

@@ -10,11 +10,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	nonStdWfmNbi "github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 	"io"
 	"log"
 	"net/http"
 	"time"
+
+	nonStdWfmNbi "github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 )
 
 const (
@@ -70,7 +71,7 @@ func WithInsecureTLS() WFMCliOption {
 		cli.httpClient = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // Only for development
+					InsecureSkipVerify: true, // #nosec G402 -- intentional and safe skipping
 				},
 			},
 			Timeout: cli.timeout,

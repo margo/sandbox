@@ -3,19 +3,21 @@ package packageManager
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
+	"io"
+
 	//"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 	"github.com/margo/sandbox/non-standard/pkg/models"
 	"github.com/margo/sandbox/shared-lib/git"
+
 	//"github.com/margo/sandbox/shared-lib/oci"
 	"gopkg.in/yaml.v3"
 )
@@ -126,7 +128,7 @@ func (pm *PackageManager) LoadPackageFromGit(url, branchName, subPath string, au
 	appPackage, err := pm.LoadPackageFromDir(dirPath)
 	if err != nil {
 		// Clean up on failure
-		os.RemoveAll(dirPath)
+		_ = os.RemoveAll(dirPath)
 		return "", nil, fmt.Errorf("failed to load package from cloned repository: %w", err)
 	}
 
@@ -235,180 +237,68 @@ func (pm *PackageManager) LoadPackageFromGit(url, branchName, subPath string, au
 
 // LoadPackageFromOci loads an application package from an OCI registry. USING ORAS CLI.
 func (pm *PackageManager) LoadPackageFromOci(registryUrl, repository, tag string, username, passwordOrToken string, insecure bool, timeout time.Duration) (pkgPath string, pkg *models.AppPkg, err error) {
-    // Create temporary directory for extraction
-    tempDir, err := os.MkdirTemp("", "margo-oci-pkg-*")
-    if err != nil {
-        return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
-    }
-
-    // Detect if the registry uses HTTP or HTTPS
-    isHTTP := strings.HasPrefix(registryUrl, "http://")
-    isHTTPS := strings.HasPrefix(registryUrl, "https://")
-
-    // Strip protocol from registryUrl for ORAS compatibility
-    cleanRegistryUrl := strings.TrimPrefix(registryUrl, "http://")
-    cleanRegistryUrl = strings.TrimPrefix(cleanRegistryUrl, "https://")
-
-    // Construct OCI reference (without protocol)
-    reference := fmt.Sprintf("%s/%s:%s", cleanRegistryUrl, repository, tag)
-
-    // Add authentication if provided
-    if username != "" && passwordOrToken != "" {
-        // Build login command
-        loginArgs := []string{"login", cleanRegistryUrl, "-u", username, "-p", passwordOrToken}
-        
-        // Add appropriate flags based on protocol
-        if isHTTP {
-            loginArgs = append(loginArgs, "--plain-http")
-        } else if isHTTPS && insecure {
-            loginArgs = append(loginArgs, "--insecure")
-        }
-
-        loginCmd := exec.Command("oras", loginArgs...)
-        if err := loginCmd.Run(); err != nil {
-            os.RemoveAll(tempDir)
-            return "", nil, fmt.Errorf("failed to login to OCI registry: %w", err)
-        }
-    }
-
-    // Build pull command
-    pullArgs := []string{"pull", reference}
-    
-    // Add appropriate flags based on protocol
-    if isHTTP {
-        pullArgs = append(pullArgs, "--plain-http")
-    } else if isHTTPS && insecure {
-        pullArgs = append(pullArgs, "--insecure")
-    }
-
-    pullCmd := exec.Command("oras", pullArgs...)
-    pullCmd.Dir = tempDir
-    output, err := pullCmd.CombinedOutput()
-    if err != nil {
-        os.RemoveAll(tempDir)
-        return "", nil, fmt.Errorf("failed to pull OCI artifact: %w, output: %s", err, string(output))
-    }
-
-    // Load package from extracted directory
-    appPackage, err := pm.LoadPackageFromDir(tempDir)
-    if err != nil {
-        os.RemoveAll(tempDir)
-        return "", nil, fmt.Errorf("failed to load package from extracted OCI artifact: %w", err)
-    }
-
-    return tempDir, appPackage, nil
-}
-
-
-// extractImageToDir extracts all layers of an OCI image to a directory.
-//
-// This method processes each layer of an OCI image sequentially, extracting
-// the tar archive contents to the destination directory. It handles directories,
-// regular files, and symbolic links, preserving file permissions and structure.
-//
-// Parameters:
-//   - image: The OCI image to extract
-//   - destDir: The destination directory where contents should be extracted
-//
-// Returns:
-//   - error: An error if layer extraction or file writing fails
-//
-// Extraction behavior:
-//   - Processes layers in order (later layers can overwrite earlier ones)
-//   - Creates directories with original permissions
-//   - Writes regular files with original permissions
-//   - Creates symbolic links preserving link targets
-//   - Skips special file types (block devices, character devices, etc.)
-//
-// Example:
-//
-//	err := extractImageToDir(image, "/tmp/extracted-package")
-//	if err != nil {
-//	    log.Fatal("Failed to extract image:", err)
-//	}
-//
-// Errors:
-//   - Returns error if image layers cannot be accessed
-//   - Returns error if layer decompression fails
-//   - Returns error if tar reading fails
-//   - Returns error if directory creation fails
-//   - Returns error if file writing fails
-func extractImageToDir(image v1.Image, destDir string) error {
-	// Get image layers
-	layers, err := image.Layers()
+	// Create temporary directory for extraction
+	tempDir, err := os.MkdirTemp("", "margo-oci-pkg-*")
 	if err != nil {
-		return fmt.Errorf("failed to get image layers: %w", err)
+		return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 
-	// Extract each layer
-	for i, layer := range layers {
-		// Get uncompressed layer content
-		layerReader, err := layer.Uncompressed()
-		if err != nil {
-			return fmt.Errorf("failed to get uncompressed layer %d: %w", i, err)
+	// Detect if the registry uses HTTP or HTTPS
+	isHTTP := strings.HasPrefix(registryUrl, "http://")
+	isHTTPS := strings.HasPrefix(registryUrl, "https://")
+
+	// Strip protocol from registryUrl for ORAS compatibility
+	cleanRegistryUrl := strings.TrimPrefix(registryUrl, "http://")
+	cleanRegistryUrl = strings.TrimPrefix(cleanRegistryUrl, "https://")
+
+	// Construct OCI reference (without protocol)
+	reference := fmt.Sprintf("%s/%s:%s", cleanRegistryUrl, repository, tag)
+
+	// Add authentication if provided
+	if username != "" && passwordOrToken != "" {
+		// Build login command
+		loginArgs := []string{"login", cleanRegistryUrl, "-u", username, "-p", passwordOrToken}
+
+		// Add appropriate flags based on protocol
+		if isHTTP {
+			loginArgs = append(loginArgs, "--plain-http")
+		} else if isHTTPS && insecure {
+			loginArgs = append(loginArgs, "--insecure")
 		}
-		defer layerReader.Close()
 
-		// Create tar reader
-		tarReader := tar.NewReader(layerReader)
-
-		// Extract all files from the layer
-		for {
-			header, err := tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("failed to read tar header in layer %d: %w", i, err)
-			}
-
-			// Construct target path
-			targetPath := filepath.Join(destDir, header.Name)
-
-			// Handle different file types
-			switch header.Typeflag {
-			case tar.TypeDir:
-				// Create directory
-				if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
-					return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-				}
-
-			case tar.TypeReg:
-				// Create parent directory if needed
-				if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-					return fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
-				}
-
-				// Create and write file
-				outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
-				if err != nil {
-					return fmt.Errorf("failed to create file %s: %w", targetPath, err)
-				}
-
-				if _, err := io.Copy(outFile, tarReader); err != nil {
-					outFile.Close()
-					return fmt.Errorf("failed to write file %s: %w", targetPath, err)
-				}
-				outFile.Close()
-
-			case tar.TypeSymlink:
-				// Create parent directory if needed
-				if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-					return fmt.Errorf("failed to create parent directory for symlink %s: %w", targetPath, err)
-				}
-
-				// Create symlink
-				if err := os.Symlink(header.Linkname, targetPath); err != nil {
-					return fmt.Errorf("failed to create symlink %s: %w", targetPath, err)
-				}
-
-			default:
-				// Skip other types (block devices, character devices, etc.)
-				continue
-			}
+		loginCmd := exec.CommandContext(context.Background(), "oras", loginArgs...)
+		if err := loginCmd.Run(); err != nil {
+			_ = os.RemoveAll(tempDir)
+			return "", nil, fmt.Errorf("failed to login to OCI registry: %w", err)
 		}
 	}
-	return nil
+
+	// Build pull command
+	pullArgs := []string{"pull", reference}
+
+	// Add appropriate flags based on protocol
+	if isHTTP {
+		pullArgs = append(pullArgs, "--plain-http")
+	} else if isHTTPS && insecure {
+		pullArgs = append(pullArgs, "--insecure")
+	}
+
+	pullCmd := exec.CommandContext(context.Background(), "oras", pullArgs...)
+	pullCmd.Dir = tempDir
+	output, err := pullCmd.CombinedOutput()
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to pull OCI artifact: %w, output: %s", err, string(output))
+	}
+
+	// Load package from extracted directory
+	appPackage, err := pm.LoadPackageFromDir(tempDir)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to load package from extracted OCI artifact: %w", err)
+	}
+
+	return tempDir, appPackage, nil
 }
 
 // LoadPackageFromDir loads an application package from a local directory.
@@ -573,7 +463,7 @@ func (pm *PackageManager) findAppDescription(pkgPath string) (string, error) {
 // to allow graceful handling during file discovery.
 func (pm *PackageManager) isValidAppDescription(filePath string) bool {
 	// Read file contents
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return false
 	}
@@ -626,11 +516,13 @@ func (pm *PackageManager) isValidAppDescription(filePath string) bool {
 //   - Future: Will return validation errors for missing required fields
 func (pm *PackageManager) loadAppDescription(filePath string) (*nbi.AppDescription, error) {
 	// Open file for reading
-	reader, err := os.Open(filePath)
+	reader, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open application description file %s: %w", filePath, err)
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	// Parse application description using models package
 	desc, err := models.ParseApplicationDescription(reader, models.ApplicationDescriptionFormatYAML)
@@ -682,6 +574,15 @@ func (pm *PackageManager) loadAppDescription(filePath string) (*nbi.AppDescripti
 //   - Returns error if any file cannot be read
 //   - Returns error if relative path calculation fails
 func (pm *PackageManager) loadAppResources(resourcesPath string, resources map[string][]byte) error {
+	root, err := os.OpenRoot(filepath.Clean(resourcesPath))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = root.Close()
+	}()
+
+	// Use WalkDir to find files, but use root.Open to access them
 	return filepath.Walk(resourcesPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("failed to access path %s: %w", path, err)
@@ -698,10 +599,18 @@ func (pm *PackageManager) loadAppResources(resourcesPath string, resources map[s
 			return fmt.Errorf("failed to calculate relative path for %s: %w", path, err)
 		}
 
-		// Read file content
-		content, err := os.ReadFile(path)
+		f, err := root.Open(filepath.Clean(path))
 		if err != nil {
 			return fmt.Errorf("failed to read resource file %s: %w", path, err)
+		}
+		defer func() {
+			_ = f.Close()
+		}()
+
+		// Read file content using the file handle
+		content, err := io.ReadAll(f)
+		if err != nil {
+			return fmt.Errorf("failed to read resource file %s: %w", relPath, err)
 		}
 
 		// Store resource with relative path as key
@@ -761,7 +670,7 @@ func (pm *PackageManager) loadAppResources(resourcesPath string, resources map[s
 //   - Returns error if any resource file cannot be written
 func (pm *PackageManager) CreatePackage(desc nbi.AppDescription, resources map[string][]byte, outputPath string) error {
 	// Create package directory
-	if err := os.MkdirAll(outputPath, 0755); err != nil {
+	if err := os.MkdirAll(outputPath, 0750); err != nil {
 		return fmt.Errorf("failed to create package directory %s: %w", outputPath, err)
 	}
 
@@ -772,14 +681,14 @@ func (pm *PackageManager) CreatePackage(desc nbi.AppDescription, resources map[s
 	}
 
 	descFile := filepath.Join(outputPath, ExpectedApplicationDescriptionFileName)
-	if err := os.WriteFile(descFile, descData, 0644); err != nil {
+	if err := os.WriteFile(descFile, descData, 0600); err != nil {
 		return fmt.Errorf("failed to write application description to %s: %w", descFile, err)
 	}
 
 	// Create resources directory and files if resources are provided
 	if len(resources) > 0 {
 		resourcesDir := filepath.Join(outputPath, "resources")
-		if err := os.MkdirAll(resourcesDir, 0755); err != nil {
+		if err := os.MkdirAll(resourcesDir, 0750); err != nil {
 			return fmt.Errorf("failed to create resources directory %s: %w", resourcesDir, err)
 		}
 
@@ -789,11 +698,11 @@ func (pm *PackageManager) CreatePackage(desc nbi.AppDescription, resources map[s
 
 			// Create subdirectories if needed
 			resourceDir := filepath.Dir(resourcePath)
-			if err := os.MkdirAll(resourceDir, 0755); err != nil {
+			if err := os.MkdirAll(resourceDir, 0750); err != nil {
 				return fmt.Errorf("failed to create resource subdirectory %s: %w", resourceDir, err)
 			}
 
-			if err := os.WriteFile(resourcePath, content, 0644); err != nil {
+			if err := os.WriteFile(resourcePath, content, 0600); err != nil {
 				return fmt.Errorf("failed to write resource file %s: %w", filename, err)
 			}
 		}
@@ -847,19 +756,25 @@ func (pm *PackageManager) CreatePackage(desc nbi.AppDescription, resources map[s
 // Note: The caller should ensure the output directory exists and is writable.
 func (pm *PackageManager) PackageToTarball(pkg *models.AppPkg, outputPath string) error {
 	// Create output file
-	file, err := os.Create(outputPath)
+	file, err := os.Create(filepath.Clean(outputPath))
 	if err != nil {
 		return fmt.Errorf("failed to create tarball file %s: %w", outputPath, err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Create gzip writer
 	gzWriter := gzip.NewWriter(file)
-	defer gzWriter.Close()
+	defer func() {
+		_ = gzWriter.Close()
+	}()
 
 	// Create tar writer
 	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
+	defer func() {
+		_ = tarWriter.Close()
+	}()
 
 	// Add application description
 	descData, err := yaml.Marshal(pkg.Description)
@@ -898,9 +813,5 @@ func (pm *PackageManager) PackageToTarball(pkg *models.AppPkg, outputPath string
 		}
 	}
 
-	return nil
-}
-
-func (pm *PackageManager) checkPkgUpdates(pkg *models.AppPkg) error {
 	return nil
 }

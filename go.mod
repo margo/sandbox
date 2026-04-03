@@ -2,8 +2,6 @@ module github.com/margo/sandbox
 
 go 1.24.4
 
-toolchain go1.24.7
-
 require (
 	github.com/compose-spec/compose-go/v2 v2.8.1
 	github.com/docker/cli v28.3.3+incompatible

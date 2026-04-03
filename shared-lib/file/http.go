@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,13 +49,11 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 		}
 	}
 
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: options.Timeout,
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
+	defer cancel()
 
 	// Create HTTP request using the reusable methods
-	req, err := createHTTPRequest(httpVerb, url, auth, queryParams, body, options)
+	req, err := createHTTPRequest(ctx, httpVerb, url, auth, queryParams, body, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -77,6 +76,7 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 	}
 
 	// Execute the request
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
@@ -100,7 +100,7 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 	if options.CreateDirs {
 		dir := filepath.Dir(outputPath)
 		if dir != "." && dir != "/" {
-			if err := os.MkdirAll(dir, 0755); err != nil {
+			if err := os.MkdirAll(dir, 0750); err != nil {
 				return nil, fmt.Errorf("failed to create directories: %w", err)
 			}
 		}
@@ -123,7 +123,7 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 }
 
 // createHTTPRequest creates an HTTP request using the reusable HTTP utility methods
-func createHTTPRequest(httpVerb, url string, auth *auth.AuthConfig, queryParams map[string]interface{}, body interface{}, options *DownloadOptions) (*http.Request, error) {
+func createHTTPRequest(ctx context.Context, httpVerb, url string, auth *auth.AuthConfig, queryParams map[string]interface{}, body interface{}, options *DownloadOptions) (*http.Request, error) {
 	// Normalize HTTP verb
 	httpVerb = strings.ToUpper(httpVerb)
 
@@ -133,22 +133,22 @@ func createHTTPRequest(httpVerb, url string, auth *auth.AuthConfig, queryParams 
 	// Use the appropriate HTTP utility method based on verb
 	switch httpVerb {
 	case "GET":
-		req, err = httputils.NewGetRequest(url, auth, queryParams)
+		req, err = httputils.NewGetRequest(ctx, url, auth, queryParams)
 	case "POST":
 		contentType := getContentTypeFromHeaders(options.Headers)
-		req, err = httputils.NewPostRequest(url, auth, body, contentType)
+		req, err = httputils.NewPostRequest(ctx, url, auth, body, contentType)
 	case "PUT":
 		contentType := getContentTypeFromHeaders(options.Headers)
-		req, err = httputils.NewPutRequest(url, auth, body, contentType)
+		req, err = httputils.NewPutRequest(ctx, url, auth, body, contentType)
 	case "PATCH":
 		contentType := getContentTypeFromHeaders(options.Headers)
-		req, err = httputils.NewPatchRequest(url, auth, body, contentType)
+		req, err = httputils.NewPatchRequest(ctx, url, auth, body, contentType)
 	case "DELETE":
-		req, err = httputils.NewDeleteRequest(url, auth, queryParams)
+		req, err = httputils.NewDeleteRequest(ctx, url, auth, queryParams)
 	case "HEAD":
-		req, err = httputils.NewHeadRequest(url, auth, queryParams)
+		req, err = httputils.NewHeadRequest(ctx, url, auth, queryParams)
 	case "OPTIONS":
-		req, err = httputils.NewOptionsRequest(url, auth)
+		req, err = httputils.NewOptionsRequest(ctx, url, auth)
 	default:
 		return nil, fmt.Errorf("unsupported HTTP verb: %s", httpVerb)
 	}
@@ -214,28 +214,6 @@ func validateResponse(resp *http.Response, resumeDownload bool) error {
 	}
 }
 
-// generateFilename generates an output path from URL and response headers
-func generateFilename(url string, resp *http.Response) (string, error) {
-	// Try to get filename from Content-Disposition header
-	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
-		if filename := extractFilenameFromContentDisposition(cd); filename != "" {
-			return filename, nil
-		}
-	}
-
-	// Extract filename from URL
-	if filename := filepath.Base(url); filename != "" && filename != "." && filename != "/" {
-		// Remove query parameters
-		if idx := strings.Index(filename, "?"); idx != -1 {
-			filename = filename[:idx]
-		}
-		return filename, nil
-	}
-
-	// Generate a default filename
-	return fmt.Sprintf("download_%d", time.Now().Unix()), nil
-}
-
 // downloadFile performs the actual file download
 func downloadFile(resp *http.Response, outputPath string, options *DownloadOptions) (*DownloadResult, error) {
 	// Get content length
@@ -257,10 +235,10 @@ func downloadFile(resp *http.Response, outputPath string, options *DownloadOptio
 
 	if options.ResumeDownload && resp.StatusCode == http.StatusPartialContent {
 		// Open file for appending
-		file, err = os.OpenFile(outputPath, os.O_WRONLY|os.O_APPEND, 0644)
+		file, err = os.OpenFile(filepath.Clean(outputPath), os.O_WRONLY|os.O_APPEND, 0600)
 	} else {
 		// Create new file or truncate existing
-		file, err = os.Create(outputPath)
+		file, err = os.Create(filepath.Clean(outputPath))
 	}
 
 	if err != nil {

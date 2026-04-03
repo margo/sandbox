@@ -381,6 +381,7 @@ jobs:
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout status deployment/coredns --timeout=30s
 
+          sleep 10 # Extra wait to ensure CoreDNS is fully ready after restart
           echo "✅ CoreDNS restarted"
 
 

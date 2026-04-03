@@ -14,13 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       symphony_branch_override:
-        description: 'Override SYMPHONY_BRANCH'
+        description: "Override SYMPHONY_BRANCH"
         required: false
-        default: 'development'
+        default: "development"
       sandbox_repo_branch_override:
-        description: 'Override SANDBOX_REPO_BRANCH'
+        description: "Override SANDBOX_REPO_BRANCH"
         required: false
-        default: 'development'
+        default: "development"
 
 jobs:
   sandbox-e2e-functional-test-job:
@@ -394,7 +394,6 @@ jobs:
         run: |
           sudo -E bash ./device-agent.sh k3s start-k3s
 
-
           echo "⏳ Waiting for WFM-Client pod to be ready..."
           for i in {1..30}; do
             if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
@@ -426,6 +425,45 @@ jobs:
             echo "Waiting for Docker container... ($i/30)"
             sleep 2
           done
+
+      - name: Verify DNS resolution in WFM-Client pod
+        run: |
+          echo "🔍 Verifying DNS resolution in WFM-Client pod..."
+          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+            -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
+          echo "Testing DNS resolution for harbor.machine..."
+          for i in {1..30}; do
+            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
+              nslookup harbor.machine >/dev/null 2>&1; then
+              RESOLVED_IP=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
+                nslookup harbor.machine 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
+              echo "✅ DNS working - harbor.machine resolves to: $RESOLVED_IP"
+              if [ "$RESOLVED_IP" = "${RUNNER_IP}" ]; then
+                echo "✅ DNS resolves to correct IP (${RUNNER_IP})"
+                break
+              else
+                echo "⚠️ DNS resolves to wrong IP. Expected: ${RUNNER_IP}, Got: $RESOLVED_IP"
+              fi
+            fi
+            echo "Waiting for DNS propagation in pod... ($i/30)"
+            sleep 2
+          done
+          # Final verification with detailed output
+          echo "Final DNS check:"
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup harbor.machine || {
+            echo "❌ DNS still not working after 60 seconds"
+            echo ""
+            echo "Debugging information:"
+            echo "CoreDNS pods:"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n kube-system -l k8s-app=kube-dns
+            echo ""
+            echo "CoreDNS logs:"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs -n kube-system deployment/coredns --tail=50
+            echo ""
+            echo "Pod's /etc/resolv.conf:"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- cat /etc/resolv.conf
+            exit 1
+          }
 
       - name: 🔧 Install Helm & Authenticate Harbor
         shell: bash

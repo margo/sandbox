@@ -8,17 +8,29 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
-
-  # Allow manual trigger
+  pull_request:
+    branches:
+      - development
   workflow_dispatch:
+    inputs:
+      symphony_branch_override:
+        description: 'Override SYMPHONY_BRANCH'
+        required: false
+        default: 'development'
+      sandbox_repo_branch_override:
+        description: 'Override SANDBOX_REPO_BRANCH'
+        required: false
+        default: 'development'
+
 jobs:
   sandbox-e2e-functional-test-job:
     runs-on: ubuntu-24.04
     env:
       CI: "true"
       # Branches
-      SYMPHONY_BRANCH: development
-      SANDBOX_REPO_BRANCH: development
+      SYMPHONY_BRANCH: ${{ github.event.inputs.symphony_branch_override || 'development' }}
+      SANDBOX_REPO_BRANCH: ${{ github.event.inputs.sandbox_repo_branch_override || 'development' }}
+
       # Ports
       EXPOSED_HARBOR_PORT: 8443
       EXPOSED_SYMPHONY_PORT: 8082

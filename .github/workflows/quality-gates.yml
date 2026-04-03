@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   lint-yaml:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: ibiqlik/action-yamllint@v2
@@ -30,7 +30,7 @@ jobs:
 
 
   lint-go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -41,7 +41,7 @@ jobs:
           version: v2.11
 
   lint-container-manifests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - name: Install Helm
@@ -53,7 +53,7 @@ jobs:
           docker compose -f docker-compose/docker-compose.yaml config > /dev/null
 
   test-go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

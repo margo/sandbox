@@ -108,21 +108,21 @@ func (a *Archiver) CreateArchive() (archiveObject *os.File, digest string, size 
 	}
 
 	if err != nil {
-		os.Remove(a.outputPath)
+		_ = os.Remove(a.outputPath)
 		return nil, "", 0, "", err
 	}
 
 	// Calculate digest and size
 	digest, size, err = a.calculateDigestAndSize()
 	if err != nil {
-		os.Remove(a.outputPath)
+		_ = os.Remove(a.outputPath)
 		return nil, "", 0, "", err
 	}
 
 	// Return archive file as archiveObject
 	archiveFile, err := os.Open(a.outputPath)
 	if err != nil {
-		os.Remove(a.outputPath)
+		_ = os.Remove(a.outputPath)
 		return nil, "", 0, "", fmt.Errorf("failed to open created archive: %w", err)
 	}
 
@@ -130,20 +130,30 @@ func (a *Archiver) CreateArchive() (archiveObject *os.File, digest string, size 
 }
 
 // createTarGzArchive creates a tar.gz archive
-func (a *Archiver) createTarGzArchive(output *os.File) error {
+func (a *Archiver) createTarGzArchive(output *os.File) (err error) {
 	//  Sort entries for deterministic ordering
 	a.sortEntries()
 
 	// Create gzip writer with deterministic settings
 	gzipWriter := gzip.NewWriter(output)
-	gzipWriter.Header.Name = ""                                             //  Clear filename for reproducibility
-	gzipWriter.Header.Comment = ""                                          //  Clear comment for reproducibility
-	gzipWriter.Header.ModTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) //  Fixed timestamp
-	defer gzipWriter.Close()
+	gzipWriter.Name = ""                                             //  Clear filename for reproducibility
+	gzipWriter.Comment = ""                                          //  Clear comment for reproducibility
+	gzipWriter.ModTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) //  Fixed timestamp
+	defer func() {
+		closeErr := gzipWriter.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
 	// Create tar writer
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() {
+		closeErr := tarWriter.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
 	// Add all entries to archive (now sorted)
 	for _, entry := range a.entries {
@@ -165,7 +175,7 @@ func (a *Archiver) createTarGzArchive(output *os.File) error {
 
 // addFileToTar adds a file from filesystem to tar archive
 func (a *Archiver) addFileToTar(tarWriter *tar.Writer, nameInArchive, filePath string) error {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
 		return err
 	}
@@ -233,7 +243,12 @@ func (a *Archiver) calculateDigestAndSize() (string, uint64, error) {
 	if err != nil {
 		return "", 0, err
 	}
+
+	// #nosec G115 -- check has been added to ensure no overflow
 	size := uint64(fileInfo.Size())
+	if fileInfo.Size() <= 0 {
+		size = 0
+	}
 
 	// Calculate SHA256 hash
 	hasher := sha256.New()

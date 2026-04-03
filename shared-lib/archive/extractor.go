@@ -30,7 +30,9 @@ func (e *BundleExtractor) Extract() (map[string][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() {
+		_ = gzipReader.Close()
+	}()
 
 	// Create tar reader
 	tarReader := tar.NewReader(gzipReader)

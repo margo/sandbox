@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,33 +14,28 @@ import (
 )
 
 // NewGetRequest creates a new GET HTTP request with authentication and query parameters
-func NewGetRequest(url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
-	// Build URL with query parameters
+func NewGetRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
 	}
 
-	// Create the request
-	req, err := http.NewRequest("GET", finalURL, nil)
+	// Use NewRequestWithContext
+	req, err := http.NewRequestWithContext(ctx, "GET", finalURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GET request: %w", err)
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewPostRequest creates a new POST HTTP request with authentication and body
-func NewPostRequest(url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
-	// Prepare request body
+func NewPostRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -50,33 +46,28 @@ func NewPostRequest(url string, auth *auth.AuthConfig, body interface{}, content
 		}
 	}
 
-	// Create the request
-	req, err := http.NewRequest("POST", url, bodyReader)
+	// Use NewRequestWithContext
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create POST request: %w", err)
 	}
 
-	// Set content type
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	} else if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewPutRequest creates a new PUT HTTP request with authentication and body
-func NewPutRequest(url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
-	// Prepare request body
+func NewPutRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -87,33 +78,27 @@ func NewPutRequest(url string, auth *auth.AuthConfig, body interface{}, contentT
 		}
 	}
 
-	// Create the request
-	req, err := http.NewRequest("PUT", url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PUT request: %w", err)
 	}
 
-	// Set content type
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	} else if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewPatchRequest creates a new PATCH HTTP request with authentication and body
-func NewPatchRequest(url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
-	// Prepare request body
+func NewPatchRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -124,96 +109,77 @@ func NewPatchRequest(url string, auth *auth.AuthConfig, body interface{}, conten
 		}
 	}
 
-	// Create the request
-	req, err := http.NewRequest("PATCH", url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PATCH request: %w", err)
 	}
 
-	// Set content type
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	} else if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewDeleteRequest creates a new DELETE HTTP request with authentication and optional query parameters
-func NewDeleteRequest(url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
-	// Build URL with query parameters
+func NewDeleteRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
 	}
 
-	// Create the request
-	req, err := http.NewRequest("DELETE", finalURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", finalURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DELETE request: %w", err)
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewHeadRequest creates a new HEAD HTTP request with authentication and query parameters
-func NewHeadRequest(url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
-	// Build URL with query parameters
+func NewHeadRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
 	}
 
-	// Create the request
-	req, err := http.NewRequest("HEAD", finalURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "HEAD", finalURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HEAD request: %w", err)
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 
 // NewOptionsRequest creates a new OPTIONS HTTP request with authentication
-func NewOptionsRequest(url string, auth *auth.AuthConfig) (*http.Request, error) {
-	// Create the request
-	req, err := http.NewRequest("OPTIONS", url, nil)
+func NewOptionsRequest(ctx context.Context, url string, auth *auth.AuthConfig) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, "OPTIONS", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPTIONS request: %w", err)
 	}
 
-	// Apply authentication
 	if err := applyAuthentication(req, auth); err != nil {
 		return nil, fmt.Errorf("failed to apply authentication: %w", err)
 	}
 
-	// Set default headers
 	setDefaultHeaders(req)
-
 	return req, nil
 }
 

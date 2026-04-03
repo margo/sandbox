@@ -132,7 +132,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		return nil, fmt.Errorf("neither kubernetes nor docker runtime objects were able to be attached, please check info if you have misplaced their settings")
 	}
 
-	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg, log)))
+	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg)))
 
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
@@ -209,7 +209,10 @@ func (a *Agent) Start() error {
 	var err error
 
 	// 1. Onboard device
-	deviceSettings, _ := a.database.GetDeviceSettings()
+	deviceSettings, err := a.database.GetDeviceSettings()
+	if err != nil {
+		return err
+	}
 	deviceId = deviceSettings.DeviceClientId
 
 	// 2. Report capabilities
@@ -223,8 +226,10 @@ func (a *Agent) Start() error {
 	} else {
 		capabilities.Properties.Id = deviceId
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		a.auth.ReportCapabilities(ctx, *capabilities)
-		cancel()
+		defer cancel()
+		if err := a.auth.ReportCapabilities(ctx, *capabilities); err != nil {
+			a.log.Errorw("failed to report the capabilities, ", "err", err.Error())
+		}
 	}
 
 	// 3. Start all components
@@ -233,10 +238,7 @@ func (a *Agent) Start() error {
 	a.monitor.Start()
 	a.syncer.Start()
 
-	hasCfgPubCert := false
-	if a.config.DeviceRootIdentity.HasCertificateReference() {
-		hasCfgPubCert = true
-	}
+	hasCfgPubCert := a.config.DeviceRootIdentity.HasCertificateReference()
 
 	a.log.Infow("Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
@@ -260,7 +262,7 @@ func (a *Agent) Stop() error {
 	return nil
 }
 
-func findDeviceRootIdentity(cfg types.Config, logger *zap.SugaredLogger) types.DeviceRootIdentity {
+func findDeviceRootIdentity(cfg types.Config) types.DeviceRootIdentity {
 	return cfg.DeviceRootIdentity
 }
 
@@ -298,7 +300,10 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	agent.Stop()
+	if err := agent.Stop(); err != nil {
+		log.Println("error occured while stopping the agent", err)
+	}
+	log.Println("agent stopped successfully!")
 }
 
 // PreflightLogger returns a RequestEditorFn that logs method, URL, headers (redacted)

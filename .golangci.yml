@@ -1,0 +1,104 @@
+version: "2"
+
+linters:
+  # Default set of linters
+  # Options: standard, all, none, fast
+  default: standard
+
+  # Enable specific linters
+  enable:
+    # Critical: Catch actual bugs
+    - errcheck # Unchecked errors (can hide bugs)
+    - govet # Official Go bug detector
+    - noctx # Missing context in function calls
+    - nilerr # Returning nil when error expected
+    # Important: Code quality & maintainability
+    - staticcheck # Common mistakes and bugs
+    # - unused        # Unused code (variables, functions, imports)
+    - unconvert # Remove unnecessary type conversions
+    - reassign
+    # Security
+    - gosec # Security issues (SQL injection, hardcoded secrets, etc.)
+  disable:
+    - unused
+
+  # Linter-specific settings
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      # Ignore these across the entire project because they mostly are used in defer
+      # and rarely fail or the failure isn't critical (e.g. closing a read-only file)
+      exclude-functions:
+        - (*io.Closer).Close
+        - (*os.File).Close
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+    gosec:
+      config:
+        G104:
+          # Format is "package.Type": ["Method1", "Method2"]
+          - "io.Closer":
+              - Close
+          - "os.File":
+              - Close
+          - "io.ReadCloser":
+              - Close
+
+  # Exclusion rules for linters
+  exclusions:
+    generated: lax
+    warn-unused: false
+    presets: []
+
+    rules:
+      # Tests can have unused variables and short error handling
+      - path: "_test\\.go$"
+        linters:
+          - unused
+          - errcheck
+
+      # Mock files excluded from unused checks
+      - path: "mock_.*\\.go$"
+        linters:
+          - unused
+
+      - path: .
+        linters:
+          - gosec
+        text: "G104:"
+      - path: .
+        linters:
+          - gosec
+        # skipping this as of now, as the code utilizes the docker cli to deploy compose files
+        # and the inputs are also not sanitized, will remove this once the docker sdk is completely
+        # tested
+        text: "G204:"
+
+    paths:
+      - standard/generatedCode/*
+      - non-standard/generatedCode/*
+
+formatters:
+  enable:
+    - goimports # Organize imports (auto-fixable)
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: false
+      print-issued-lines: true
+      colors: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  build-tags:
+    - integration
+
+severity:
+  default: error

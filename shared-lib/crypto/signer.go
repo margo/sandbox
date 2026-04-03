@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lestrrat-go/htmsig/component"
@@ -34,9 +35,8 @@ type HTMPayloadSigner struct {
 	signatureFormat string
 }
 
-func NewSignerFromFile(filepath, signatureAlgo, hashAlgo, signatureFormat string) (HTTPSigner, error) {
-	keyPath := filepath
-	keyBytes, err := os.ReadFile(keyPath)
+func NewSignerFromFile(keyPath, signatureAlgo, hashAlgo, signatureFormat string) (HTTPSigner, error) {
+	keyBytes, err := os.ReadFile(filepath.Clean(keyPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request signer key from %s: %w", keyPath, err)
 	}

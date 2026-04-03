@@ -330,46 +330,44 @@ jobs:
           echo "📡 Using K3s kubeconfig"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
           
-          # Fetch Corefile
+          # Get the full ConfigMap YAML (not just Corefile)
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
+            kubectl -n kube-system get configmap coredns -o yaml > config.yaml
           
-          echo "Original Corefile:"
-          cat Corefile
+          echo "Original ConfigMap:"
+          cat config.yaml
           
-          # Create new Corefile with inline hosts BEFORE the NodeHosts block
+          # Update the Corefile section with our entries inside the NodeHosts block
           awk -v ip="$RUNNER_IP" '
           /hosts \/etc\/coredns\/NodeHosts/ {
-            # Insert our custom inline hosts block BEFORE the NodeHosts block
-            print "    hosts {"
-            print "      " ip " harbor.machine"
-            print "      " ip " symphony.machine"
-            print "      fallthrough"
-            print "    }"
+            print
+            getline
+            print "        " ip " harbor.machine"
+            print "        " ip " symphony.machine"
+            print
+            next
           }
           { print }
-          ' Corefile > Corefile.new
+          ' config.yaml > config-new.yaml
           
-          # Apply config
-          echo "New Corefile content:"
-          cat Corefile.new
+          echo "New ConfigMap:"
+          cat config-new.yaml
           
+          # Apply the updated ConfigMap
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system create configmap coredns \
-            --from-file=Corefile=Corefile.new \
-            -o yaml --dry-run=client | \
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
+            kubectl apply -f config-new.yaml
           
-          # Restart CoreDNS
+          # Restart CoreDNS deployment
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout restart deployment coredns
           
           # Wait for rollout to complete
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout status deployment/coredns --timeout=30s
+            kubectl -n kube-system rollout status deployment/coredns --timeout=60s
           
+          # Give extra time for DNS to propagate
           sleep 10
-          echo "✅ CoreDNS restarted"
+          echo "✅ CoreDNS restarted with updated configuration"
 
 
       - name: WFM-Client (Standalone Cluster) – Start

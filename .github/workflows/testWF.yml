@@ -330,7 +330,7 @@ jobs:
             kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
           
           echo "Original Corefile:"
-          #cat Corefile
+          cat Corefile
           
           # ✅ CORRECTED: Insert IP addresses into existing hosts block
           if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
@@ -365,7 +365,7 @@ jobs:
           
           # Apply config
           echo "New Corefile content:"
-          #cat Corefile.new
+          cat Corefile.new
           
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system create configmap coredns \
@@ -380,7 +380,7 @@ jobs:
           # Wait for rollout to complete (instead of fixed 20s)
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout status deployment/coredns --timeout=30s
-
+          sleep 10
           echo "✅ CoreDNS restarted"
 
 

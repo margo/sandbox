@@ -329,65 +329,48 @@ jobs:
           RUNNER_IP=${RUNNER_IP}
           echo "📡 Using K3s kubeconfig"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
-
+          
           # Fetch Corefile
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
-
+          
           echo "Original Corefile:"
           cat Corefile
-
-          # ✅ CORRECTED: Insert IP addresses into existing hosts block
-          if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
-            echo "hosts block exists: adding custom entries"
-            awk -v ip="$RUNNER_IP" '
-            /hosts \/etc\/coredns\/NodeHosts/ {
-              print
-              getline
-              print
-              print "      " ip " harbor.machine"
-              print "      " ip " symphony.machine"
-              next
-            }
-            { print }
-            ' Corefile > Corefile.new
-          else
-            echo "No hosts block found: creating new one"
-            awk -v ip="$RUNNER_IP" '
-            /prometheus/ && !x {
-              print "    hosts /etc/coredns/NodeHosts {"
-              print "      " ip " harbor.machine"
-              print "      " ip " symphony.machine"
-              print "      ttl 60"
-              print "      reload 15s"
-              print "      fallthrough"
-              print "    }"
-              x=1
-            }
-            { print }
-            ' Corefile > Corefile.new
-          fi
-
+          
+          # Create new Corefile with inline hosts BEFORE the NodeHosts block
+          awk -v ip="$RUNNER_IP" '
+          /hosts \/etc\/coredns\/NodeHosts/ {
+            # Insert our custom inline hosts block BEFORE the NodeHosts block
+            print "    hosts {"
+            print "      " ip " harbor.machine"
+            print "      " ip " symphony.machine"
+            print "      fallthrough"
+            print "    }"
+          }
+          { print }
+          ' Corefile > Corefile.new
+          
           # Apply config
           echo "New Corefile content:"
           cat Corefile.new
-
+          
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system create configmap coredns \
             --from-file=Corefile=Corefile.new \
             -o yaml --dry-run=client | \
             sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
-
+          
           # Restart CoreDNS
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout restart deployment coredns
-
-          # Wait for rollout to complete (instead of fixed 20s)
+          
+          # Wait for rollout to complete
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system rollout status deployment/coredns --timeout=30s
-
-          sleep 10 # Extra wait to ensure CoreDNS is fully ready after restart
+          
+          sleep 10
           echo "✅ CoreDNS restarted"
+
 
       - name: WFM-Client (Standalone Cluster) – Start
         working-directory: pipeline

@@ -63,7 +63,7 @@ func NewDockerComposeCliClient(params DockerConnectivityParams, workingDir strin
 	}
 
 	// Create working directory
-	if err := os.MkdirAll(workingDir, 0755); err != nil {
+	if err := os.MkdirAll(workingDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create working directory: %w", err)
 	}
 
@@ -272,9 +272,7 @@ func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName 
 
 	// Clean up project directory
 	projectDir := filepath.Join(c.workingDir, projectName)
-	os.RemoveAll(projectDir)
-
-	return nil
+	return os.RemoveAll(projectDir)
 }
 
 func (c *DockerComposeCliClient) GetComposeStatus(ctx context.Context, composeFile string, projectName string) (*ComposeStatus, error) {
@@ -504,17 +502,23 @@ func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) 
 }
 
 // fetchComposeFileFromURL - simplified version using io.ReadAll
-func (c *DockerComposeCliClient) fetchComposeFileFromURL(ctx context.Context, url string, projectName string) (string, error) {
+func (c *DockerComposeCliClient) fetchComposeFileFromURL(_ context.Context, url string, projectName string) (string, error) {
 	// Create request with context
-	downloadResult, err := file.DownloadFileUsingHttp("GET", url, nil, nil, nil, &file.DownloadOptions{
-		OutputPath:     c.generateAbsProjectFilepath(projectName),
-		CreateDirs:     true,
-		OverwriteExist: true,
-		ResumeDownload: false,
-		ProgressCallback: func(downloaded, total int64) {
-			fmt.Printf("\nTotal: %d, Downloaded: %d", total, downloaded)
-		},
-	})
+	downloadResult, err := file.DownloadFileUsingHttp(
+		"GET",
+		url,
+		nil,
+		nil,
+		nil,
+		&file.DownloadOptions{
+			OutputPath:     c.generateAbsProjectFilepath(projectName),
+			CreateDirs:     true,
+			OverwriteExist: true,
+			ResumeDownload: false,
+			ProgressCallback: func(downloaded, total int64) {
+				fmt.Printf("\nTotal: %d, Downloaded: %d", total, downloaded)
+			},
+		})
 	if err != nil {
 		return "", fmt.Errorf("failed to download file: %w", err)
 	}

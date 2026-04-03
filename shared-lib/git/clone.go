@@ -59,7 +59,7 @@ func (client *Client) Clone(outputPath *string) (string, error) {
 	}
 
 	// Ensure directory exists, else it should be created with proper writable permissions
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
+	if err := os.MkdirAll(tempDir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	cloneDir := filepath.Join(tempDir, repoName)

@@ -239,16 +239,6 @@ func (ss *StateSyncer) getLastSyncedETag() string {
 	return etag
 }
 
-// getLastSyncedManifestVersion retrieves the manifest version from last successful sync
-func (ss *StateSyncer) getLastSyncedManifestVersion() uint64 {
-	version, err := ss.database.GetLastSyncedManifestVersion()
-	if err != nil {
-		ss.log.Debugw("No previous manifest version found", "error", err)
-		return 0
-	}
-	return version
-}
-
 // persistManifestMetadata stores manifest metadata according to specification
 func (ss *StateSyncer) persistManifestMetadata(manifest *sbi.UnsignedAppStateManifest, response *http.Response) error {
 	// Store manifest version for rollback protection
@@ -474,7 +464,7 @@ func (ss *StateSyncer) processDeploymentsIndividually(ctx context.Context, deplo
 
 // processDeploymentsFromBundle processes deployments extracted from bundle
 
-func (ss *StateSyncer) processDeploymentsFromBundle(ctx context.Context, deploymentRefs []sbi.DeploymentManifestRef, bundleYAMLs map[string][]byte) {
+func (ss *StateSyncer) processDeploymentsFromBundle(_ context.Context, deploymentRefs []sbi.DeploymentManifestRef, bundleYAMLs map[string][]byte) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
 			ss.log.Warnw("Skipping deployment with empty DeploymentId")

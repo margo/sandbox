@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // GetDigestOfFile calculates the SHA256 digest of a file
-func GetDigestOfFile(filepath string) (digest string, err error) {
+func GetDigestOfFile(fPath string) (digest string, err error) {
 	// Validate input
-	if filepath == "" {
+	if fPath == "" {
 		return "", fmt.Errorf("filepath cannot be empty")
 	}
 
 	// Open the file
-	file, err := os.Open(filepath)
+	file, err := os.Open(filepath.Clean(fPath))
 	if err != nil {
-		return "", fmt.Errorf("failed to open file %s: %w", filepath, err)
+		return "", fmt.Errorf("failed to open file %s: %w", fPath, err)
 	}
 	defer file.Close()
 
@@ -27,7 +28,7 @@ func GetDigestOfFile(filepath string) (digest string, err error) {
 
 	// Copy file content to hasher
 	if _, err := io.Copy(hasher, file); err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", filepath, err)
+		return "", fmt.Errorf("failed to read file %s: %w", fPath, err)
 	}
 
 	// Calculate digest
@@ -57,16 +58,16 @@ func GetDigestOfContent(content []byte) (digest string, err error) {
 
 // Alternative implementation if you want to keep the original signature
 // GetDigestOfContentFromFile reads content from file and calculates digest
-func GetDigestOfContentFromFile(filepath string) (digest string, err error) {
+func GetDigestOfContentFromFile(fPath string) (digest string, err error) {
 	// Validate input
-	if filepath == "" {
+	if fPath == "" {
 		return "", fmt.Errorf("filepath cannot be empty")
 	}
 
 	// Read file content
-	content, err := os.ReadFile(filepath)
+	content, err := os.ReadFile(filepath.Clean(fPath))
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", filepath, err)
+		return "", fmt.Errorf("failed to read file %s: %w", fPath, err)
 	}
 
 	// Calculate digest of content

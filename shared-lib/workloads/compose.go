@@ -124,7 +124,7 @@ func NewDockerComposeClient(params DockerConnectivityParams, workingDir string) 
 	// Create Compose API service with CLI
 	composeAPI := compose.NewComposeService(cli)
 
-	if err := os.MkdirAll(workingDir, 0755); err != nil {
+	if err := os.MkdirAll(workingDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create working directory: %w", err)
 	}
 
@@ -247,6 +247,9 @@ func (c *DockerComposeClient) GetComposeStatus(ctx context.Context, composeFile 
 	}
 
 	project, err := c.loadComposeProject(ctx, projectName, composeFile, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	// Get project containers
 	containers, err := c.composeAPI.Ps(ctx, projectName, api.PsOptions{
@@ -360,6 +363,7 @@ func (c *DockerComposeClient) FetchComposeFileFromURL(ctx context.Context, url s
 		CreateDirs:     true,
 		OverwriteExist: true,
 		ResumeDownload: false,
+		Timeout:        time.Second * 30,
 		ProgressCallback: func(downloaded, total int64) {
 			fmt.Printf("\nTotal: %d, Downloaded: %d", total, downloaded)
 		},
@@ -399,9 +403,11 @@ func (c *DockerComposeClient) forceCleanupProject(ctx context.Context, projectNa
 	for _, containerID := range containersToRemove {
 		// Stop first (ignore errors)
 		timeout := 5
-		c.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
+		if err := c.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
 			Timeout: &timeout,
-		})
+		}); err != nil {
+			fmt.Printf("error caught while stopping container: %s, err: %s", containerID, err.Error())
+		}
 
 		// Force remove
 		if err := c.dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{
@@ -418,7 +424,7 @@ func (c *DockerComposeClient) forceCleanupProject(ctx context.Context, projectNa
 }
 
 func (c *DockerComposeClient) ExtractContent(composeFilename string) ([]byte, error) {
-	fileHandler, err := os.Open(composeFilename)
+	fileHandler, err := os.Open(filepath.Clean(composeFilename))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}

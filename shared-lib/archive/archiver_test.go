@@ -324,7 +324,7 @@ func TestArchiver_CreateArchive(t *testing.T) {
 
 // Helper function to calculate expected digest
 func calculateExpectedDigest(t *testing.T, filePath string) (string, uint64) {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,12 +341,17 @@ func calculateExpectedDigest(t *testing.T, filePath string) (string, uint64) {
 	}
 
 	digest := hex.EncodeToString(hasher.Sum(nil))
-	return fmt.Sprintf("sha256:%s", digest), uint64(fileInfo.Size())
+	size := uint64(0)
+	if fileInfo.Size() > 0 {
+		// #nosec G115 -- value is checked above
+		size = uint64(fileInfo.Size())
+	}
+	return fmt.Sprintf("sha256:%s", digest), size
 }
 
 // Helper function to verify archive content
 func verifyArchiveContent(t *testing.T, archivePath string, expectedEntries []ArchiveEntry) {
-	file, err := os.Open(archivePath)
+	file, err := os.Open(filepath.Clean(archivePath))
 	if err != nil {
 		t.Fatal(err)
 	}

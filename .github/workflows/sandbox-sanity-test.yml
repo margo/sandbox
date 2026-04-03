@@ -93,7 +93,7 @@ jobs:
           SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
           echo "✅ wfm.env generated"
-          
+          cat pipeline/wfm.env
 
       - name: Generate device-agent.env for WFM client
         run: |
@@ -108,7 +108,7 @@ jobs:
           workload_Fleet_Management_Client_IMAGE_REF=workload-fleet-management-client:ci-test
           EOF
           echo "✅ device-agent.env generated"
-          
+          cat pipeline/device-agent.env
 
       - name: Update Docker Repository
         run: |
@@ -330,7 +330,7 @@ jobs:
             kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > Corefile
           
           echo "Original Corefile:"
-          #cat Corefile
+          cat Corefile
           
           # ✅ CORRECTED: Insert IP addresses into existing hosts block
           if grep -q 'hosts /etc/coredns/NodeHosts' Corefile; then
@@ -365,7 +365,7 @@ jobs:
           
           # Apply config
           echo "New Corefile content:"
-          #cat Corefile.new
+          cat Corefile.new
           
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
             kubectl -n kube-system create configmap coredns \

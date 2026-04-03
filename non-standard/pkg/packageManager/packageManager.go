@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
 	"github.com/margo/sandbox/non-standard/pkg/models"
 	"github.com/margo/sandbox/shared-lib/git"
@@ -300,117 +299,6 @@ func (pm *PackageManager) LoadPackageFromOci(registryUrl, repository, tag string
 	}
 
 	return tempDir, appPackage, nil
-}
-
-// extractImageToDir extracts all layers of an OCI image to a directory.
-//
-// This method processes each layer of an OCI image sequentially, extracting
-// the tar archive contents to the destination directory. It handles directories,
-// regular files, and symbolic links, preserving file permissions and structure.
-//
-// Parameters:
-//   - image: The OCI image to extract
-//   - destDir: The destination directory where contents should be extracted
-//
-// Returns:
-//   - error: An error if layer extraction or file writing fails
-//
-// Extraction behavior:
-//   - Processes layers in order (later layers can overwrite earlier ones)
-//   - Creates directories with original permissions
-//   - Writes regular files with original permissions
-//   - Creates symbolic links preserving link targets
-//   - Skips special file types (block devices, character devices, etc.)
-//
-// Example:
-//
-//	err := extractImageToDir(image, "/tmp/extracted-package")
-//	if err != nil {
-//	    log.Fatal("Failed to extract image:", err)
-//	}
-//
-// Errors:
-//   - Returns error if image layers cannot be accessed
-//   - Returns error if layer decompression fails
-//   - Returns error if tar reading fails
-//   - Returns error if directory creation fails
-//   - Returns error if file writing fails
-func extractImageToDir(image v1.Image, destDir string) error {
-	// Get image layers
-	layers, err := image.Layers()
-	if err != nil {
-		return fmt.Errorf("failed to get image layers: %w", err)
-	}
-
-	// Extract each layer
-	for i, layer := range layers {
-		// Get uncompressed layer content
-		layerReader, err := layer.Uncompressed()
-		if err != nil {
-			return fmt.Errorf("failed to get uncompressed layer %d: %w", i, err)
-		}
-		defer layerReader.Close()
-
-		// Create tar reader
-		tarReader := tar.NewReader(layerReader)
-
-		// Extract all files from the layer
-		for {
-			header, err := tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("failed to read tar header in layer %d: %w", i, err)
-			}
-
-			// Construct target path
-			targetPath := filepath.Join(destDir, header.Name)
-
-			// Handle different file types
-			switch header.Typeflag {
-			case tar.TypeDir:
-				// Create directory
-				if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
-					return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-				}
-
-			case tar.TypeReg:
-				// Create parent directory if needed
-				if err := os.MkdirAll(filepath.Dir(targetPath), 0750); err != nil {
-					return fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
-				}
-
-				// Create and write file
-				outFile, err := os.OpenFile(filepath.Clean(targetPath), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
-				if err != nil {
-					return fmt.Errorf("failed to create file %s: %w", targetPath, err)
-				}
-
-				if _, err := io.Copy(outFile, tarReader); err != nil {
-					outFile.Close()
-					return fmt.Errorf("failed to write file %s: %w", targetPath, err)
-				}
-				outFile.Close()
-
-			case tar.TypeSymlink:
-				// Create parent directory if needed
-				if err := os.MkdirAll(filepath.Dir(targetPath), 0750); err != nil {
-					return fmt.Errorf("failed to create parent directory for symlink %s: %w", targetPath, err)
-				}
-
-				// Create symlink
-				if err := os.Symlink(header.Linkname, targetPath); err != nil {
-					return fmt.Errorf("failed to create symlink %s: %w", targetPath, err)
-				}
-
-			default:
-				// Skip other types (block devices, character devices, etc.)
-				continue
-			}
-		}
-	}
-	return nil
 }
 
 // LoadPackageFromDir loads an application package from a local directory.

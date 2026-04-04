@@ -18,7 +18,7 @@ deviceRootIdentity:
       pubCertPath: ./config/device-public.crt
 
 wfm:
-  sbiUrl: https://10.139.2.248:8082/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
+  sbiUrl: https://10.139.9.90:9090/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
   clientPlugins:
     requestSigner:
       enabled: true

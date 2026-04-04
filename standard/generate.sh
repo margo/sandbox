@@ -63,6 +63,10 @@ generate_code() {
     log_info "Generating client..."
     oapi-codegen -generate client -package sbi "$WFM_SBI_SPEC" > "$OUTPUT_DIR/wfm/sbi/client.go"
 
+    # Generate server interfaces + models
+    log_info "Generating server..."
+    oapi-codegen -generate types,server,spec -package sbi "$WFM_SBI_SPEC" > "$OUTPUT_DIR/wfm/sbi/server.gen.go"
+
     log_success "Code generation completed!"
 }
 

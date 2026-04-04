@@ -1,0 +1,165 @@
+
+[1;33m╔════════════════════════════════════════════════════════════╗[0m
+[1;33m║  Mock WFM Server - Comprehensive Test Suite                ║[0m
+[1;33m║  Base URL: http://localhost:8090/v1alpha2/margo[0m
+[1;33m╚════════════════════════════════════════════════════════════╝[0m
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m1. ONBOARDING CERTIFICATE TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #1: GET certificate - Valid request[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #2: GET certificate - With Accept header[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m2. ONBOARDING POST TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #3: POST onboarding - Valid request[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 201 (Expected: 201)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #4: POST onboarding - Missing apiVersion[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #5: POST onboarding - Missing kind[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #6: POST onboarding - Empty body[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m3. DEVICE CAPABILITIES PUT TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #7: PUT capabilities - Valid complete payload[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 201 (Expected: 201)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #8: PUT capabilities - Missing apiVersion[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #9: PUT capabilities - Missing properties[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #10: PUT capabilities - Missing resources[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #11: PUT capabilities - Missing peripherals/interfaces[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m4. DEVICE CAPABILITIES POST TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #12: POST capabilities - Valid complete payload[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 201 (Expected: 201)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #13: POST capabilities - Invalid JSON[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #14: POST capabilities - Missing kind[0m
+[0;34mType: NEGATIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 400 (Expected: 400)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m5. GET DEPLOYMENTS TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #15: GET deployments - Valid request[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #16: GET deployments - With Accept header[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #17: GET deployments - Different device ID[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m6. GET SINGLE DEPLOYMENT TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #18: GET deployment by digest - Valid request[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #19: GET deployment - Different digest[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #20: GET deployment - Different deployment ID[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✅ PASSED[0m - Status: 200 (Expected: 200)
+
+[1;33m═══════════════════════════════════════════════════════════[0m
+[1;33m7. POST DEPLOYMENT STATUS TESTS[0m
+[1;33m═══════════════════════════════════════════════════════════[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mTest #21: POST deployment status - Valid request[0m
+[0;34mType: POSITIVE[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;31m❌ FAILED[0m - Status: 400 (Expected: 200)
+Response: HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Date: Thu, 02 Apr 2026 13:40:12 GMT
+Content-Length: 214
+
+{"error_message":"operation APIV1ClientsClientIdDeploymentsDeploymentIdStatusPost: decode request: decode application/json: invalid: apiVersion (field required), kind (field required), components (field required)"}

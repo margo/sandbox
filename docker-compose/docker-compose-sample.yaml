@@ -1,0 +1,23 @@
+services:
+  db:
+    image: public.ecr.aws/docker/library/mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    image: public.ecr.aws/docker/library/nginx:latest
+    depends_on:
+      - db
+
+  proxy:
+    image: public.ecr.aws/docker/library/nginx:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

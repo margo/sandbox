@@ -1644,7 +1644,8 @@ emailAddress=$EMAIL
 
 [v3_req]
 basicConstraints = CA:FALSE
-keyUsage = keyEncipherment, dataEncipherment
+#keyUsage = keyEncipherment, dataEncipherment
+keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 

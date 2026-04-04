@@ -1,0 +1,2050 @@
+{
+  "info": {
+    "_postman_id": "67de586f-c38d-4f98-9b0a-4a5c3e5f2211",
+    "name": "Mock WFM Comprehensive Conformance",
+    "description": "Postman collection that mirrors the mock-wfm comprehensive shell suite. Run the collection top-to-bottom in the Postman Collection Runner so dynamic values such as deployment digests, bundle digests, and ETags are captured before dependent requests execute.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Onboarding Certificate Tests",
+      "item": [
+        {
+          "name": "GET certificate - Valid request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/onboarding/certificate",
+            "description": "Positive certificate retrieval."
+          }
+        },
+        {
+          "name": "GET certificate - With Accept header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/octet-stream"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/onboarding/certificate",
+            "description": "Positive certificate retrieval with explicit Accept header."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Onboarding POST Tests",
+      "item": [
+        {
+          "name": "POST onboarding - Valid request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"-----BEGIN CERTIFICATE-----\\nMIIC...\\n-----END CERTIFICATE-----\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Generic valid apiVersion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"demo.test/v1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"generic-cert\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Missing apiVersion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"test-cert\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Missing kind",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"certificate\": \"test-cert\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Empty body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Empty certificate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Invalid JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{invalid json}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Repeated certificate first call",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const payload = pm.response.json();",
+                  "pm.test('clientId is present', function () {",
+                  "    pm.expect(payload.clientId).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('stableClientId', payload.clientId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"demo.test/v1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"stable-cert\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        },
+        {
+          "name": "POST onboarding - Repeated certificate second call",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const payload = pm.response.json();",
+                  "pm.test('clientId matches previous onboarding', function () {",
+                  "    pm.expect(payload.clientId).to.eql(pm.collectionVariables.get('stableClientId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"demo.test/v1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"stable-cert\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Device Capabilities PUT Tests",
+      "item": [
+        {
+          "name": "PUT capabilities - Valid complete payload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-12345\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\n        \"architecture\": \"amd64\",\n        \"cores\": 4\n      },\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Display\", \"type\": \"display\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Missing apiVersion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\"id\": \"device-001\"}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Missing properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Missing resources",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Standalone Device\"]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Missing peripherals/interfaces",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Invalid role enum",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Invalid Role\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Display\", \"type\": \"display\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Invalid CPU architecture",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"sparc\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Display\", \"type\": \"display\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Invalid peripheral type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Sensor\", \"type\": \"sensor\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "PUT capabilities - Invalid interface type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-001\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"TM-100\",\n    \"serialNumber\": \"SN-123\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Display\", \"type\": \"display\"}],\n      \"interfaces\": [{\"name\": \"zig0\", \"type\": \"zigbee\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Device Capabilities POST Tests",
+      "item": [
+        {
+          "name": "POST capabilities - Valid complete payload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-002\",\n    \"vendor\": \"TestVendor2\",\n    \"modelNumber\": \"TM-200\",\n    \"serialNumber\": \"SN-67890\",\n    \"roles\": [\"Standalone Device\", \"Cluster Leader\"],\n    \"resources\": {\n      \"cpu\": {\n        \"architecture\": \"arm64\",\n        \"cores\": 8\n      },\n      \"memory\": \"16GB\",\n      \"storage\": \"500GB\",\n      \"peripherals\": [{\"name\": \"GPU\", \"type\": \"gpu\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "POST capabilities - Invalid JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{invalid json}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "POST capabilities - Missing kind",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. GET Deployments Tests",
+      "item": [
+        {
+          "name": "GET deployments - Extract manifest refs and ETag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const payload = pm.response.json();",
+                  "const deployments = payload.deployments || [];",
+                  "const bundle = payload.bundle || {};",
+                  "const etag = pm.response.headers.get('ETag');",
+                  "pm.test('manifest ETag is present', function () {",
+                  "    pm.expect(etag).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('manifest includes at least one deployment', function () {",
+                  "    pm.expect(deployments.length).to.be.above(0);",
+                  "});",
+                  "pm.test('manifest includes a bundle digest', function () {",
+                  "    pm.expect(bundle.digest).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('manifestETag', etag);",
+                  "pm.collectionVariables.set('deploymentId', deployments[0].deploymentId);",
+                  "pm.collectionVariables.set('deploymentDigest', deployments[0].digest);",
+                  "pm.collectionVariables.set('bundleDigest', bundle.digest);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{manifestMediaType}}"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments"
+          }
+        },
+        {
+          "name": "GET deployments - Different device ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{altDeviceId}}/deployments"
+          }
+        },
+        {
+          "name": "GET deployments - Unsupported Accept header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 406', function () {",
+                  "    pm.response.to.have.status(406);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments"
+          }
+        },
+        {
+          "name": "GET deployments - Conditional request with matching ETag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 304', function () {",
+                  "    pm.response.to.have.status(304);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{manifestMediaType}}"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{manifestETag}}"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. GET Single Deployment Tests",
+      "item": [
+        {
+          "name": "GET deployment - Verify content and headers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.text();",
+                  "const digest = 'sha256:' + CryptoJS.SHA256(body).toString(CryptoJS.enc.Hex);",
+                  "const etag = pm.response.headers.get('ETag');",
+                  "pm.collectionVariables.set('deploymentETag', etag);",
+                  "pm.test('body digest matches manifest digest', function () {",
+                  "    pm.expect(digest).to.eql(pm.collectionVariables.get('deploymentDigest'));",
+                  "});",
+                  "pm.test('ETag matches deployment digest', function () {",
+                  "    pm.expect(etag).to.eql('\"' + pm.collectionVariables.get('deploymentDigest') + '\"');",
+                  "});",
+                  "pm.test('Cache-Control is immutable', function () {",
+                  "    pm.expect(pm.response.headers.get('Cache-Control')).to.eql('public, max-age=31536000, immutable');",
+                  "});",
+                  "pm.test('Vary is Accept-Encoding', function () {",
+                  "    pm.expect(pm.response.headers.get('Vary')).to.eql('Accept-Encoding');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/{{deploymentDigest}}"
+          }
+        },
+        {
+          "name": "GET deployment - Different client ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/device-xyz/deployments/{{deploymentId}}/{{deploymentDigest}}"
+          }
+        },
+        {
+          "name": "GET deployment - Different digest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/xyz789"
+          }
+        },
+        {
+          "name": "GET deployment - Different deployment ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/deploy-999/{{deploymentDigest}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. POST Deployment Status Tests",
+      "item": [
+        {
+          "name": "POST deployment status - Installed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"installed\"\n  },\n  \"components\": [\n    {\n      \"name\": \"component-1\",\n      \"state\": \"installed\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Pending",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"pending\"\n  },\n  \"components\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Installing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"installing\"\n  },\n  \"components\": [\n    {\n      \"name\": \"container-1\",\n      \"state\": \"installing\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Failed with error",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"ERR_DEPLOY_001\",\n      \"message\": \"Deployment failed due to insufficient disk space\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"component-1\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"COMP_ERR_001\",\n        \"message\": \"Component failed to initialize\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Invalid state value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"unknown_state\"\n  },\n  \"components\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Missing status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"components\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Invalid status format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": \"running\",\n  \"components\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Missing state field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {},\n  \"components\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Invalid component state",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"installed\"\n  },\n  \"components\": [\n    {\n      \"name\": \"component-1\",\n      \"state\": \"rolling_back\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        },
+        {
+          "name": "POST deployment status - Invalid JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{invalid json}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/deployments/{{deploymentId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. GET Bundle Tests",
+      "item": [
+        {
+          "name": "GET bundle - Verify content and headers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const etag = pm.response.headers.get('ETag');",
+                  "pm.collectionVariables.set('bundleETag', etag);",
+                  "pm.test('bundle ETag matches digest', function () {",
+                  "    pm.expect(etag).to.eql('\"' + pm.collectionVariables.get('bundleDigest') + '\"');",
+                  "});",
+                  "pm.test('bundle Cache-Control is immutable', function () {",
+                  "    pm.expect(pm.response.headers.get('Cache-Control')).to.eql('public, max-age=31536000, immutable');",
+                  "});",
+                  "pm.test('bundle response stream is available', function () {",
+                  "    pm.expect(pm.response.stream).to.exist;",
+                  "});",
+                  "if (pm.response.stream) {",
+                  "    const wordArray = CryptoJS.lib.WordArray.create(pm.response.stream);",
+                  "    const digest = 'sha256:' + CryptoJS.SHA256(wordArray).toString(CryptoJS.enc.Hex);",
+                  "    pm.test('bundle digest matches manifest digest', function () {",
+                  "        pm.expect(digest).to.eql(pm.collectionVariables.get('bundleDigest'));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/bundles/{{bundleDigest}}"
+          }
+        },
+        {
+          "name": "GET bundle - Different client ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/device-xyz/bundles/{{bundleDigest}}"
+          }
+        },
+        {
+          "name": "GET bundle - Different digest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/bundles/sha256:abc123"
+          }
+        },
+        {
+          "name": "GET bundle - Conditional request with matching ETag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 304', function () {",
+                  "    pm.response.to.have.status(304);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "If-None-Match",
+                "value": "{{bundleETag}}"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/bundles/{{bundleDigest}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Edge Cases And Error Scenarios",
+      "item": [
+        {
+          "name": "GET certificate - Missing signature header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200 in permissive signature mode', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/onboarding/certificate"
+          }
+        },
+        {
+          "name": "GET invalid endpoint - Malformed path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404 or 400', function () {",
+                  "    pm.expect([400, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/clients//invalid"
+          }
+        },
+        {
+          "name": "Capabilities endpoint - Unsupported PATCH method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 405 or 404', function () {",
+                  "    pm.expect([404, 405]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{deviceId}}/capabilities"
+          }
+        },
+        {
+          "name": "Certificate endpoint - Unsupported POST method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 405 or 404', function () {",
+                  "    pm.expect([404, 405]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/onboarding/certificate"
+          }
+        },
+        {
+          "name": "PUT capabilities - Large but valid payload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"device-large\",\n    \"vendor\": \"LargeVendor\",\n    \"modelNumber\": \"LM-5000\",\n    \"serialNumber\": \"SN-999999\",\n    \"roles\": [\"Standalone Device\", \"Cluster Leader\"],\n    \"resources\": {\n      \"cpu\": {\n        \"architecture\": \"amd64\",\n        \"cores\": 128,\n        \"model\": \"Intel Xeon Platinum\"\n      },\n      \"memory\": \"512GB\",\n      \"storage\": \"10TB\",\n      \"peripherals\": [\n        {\"name\": \"GPU1\", \"type\": \"gpu\"},\n        {\"name\": \"GPU2\", \"type\": \"gpu\"},\n        {\"name\": \"Display\", \"type\": \"display\"},\n        {\"name\": \"Camera\", \"type\": \"camera\"},\n        {\"name\": \"Microphone\", \"type\": \"microphone\"}\n      ],\n      \"interfaces\": [\n        {\"name\": \"eth0\", \"type\": \"ethernet\"},\n        {\"name\": \"eth1\", \"type\": \"ethernet\"},\n        {\"name\": \"wlan0\", \"type\": \"wifi\"},\n        {\"name\": \"usb0\", \"type\": \"usb\"}\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/device-large/capabilities"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Concurrent Device Tests",
+      "item": [
+        {
+          "name": "POST capabilities - First device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"multi-device-1\",\n    \"vendor\": \"Vendor1\",\n    \"modelNumber\": \"M1\",\n    \"serialNumber\": \"S1\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 2},\n      \"memory\": \"4GB\",\n      \"storage\": \"50GB\",\n      \"peripherals\": [],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/multi-device-1/capabilities"
+          }
+        },
+        {
+          "name": "POST capabilities - Second device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"multi-device-2\",\n    \"vendor\": \"Vendor2\",\n    \"modelNumber\": \"M2\",\n    \"serialNumber\": \"S2\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"arm64\", \"cores\": 4},\n      \"memory\": \"8GB\",\n      \"storage\": \"100GB\",\n      \"peripherals\": [{\"name\": \"Camera\", \"type\": \"camera\"}],\n      \"interfaces\": [{\"name\": \"wlan0\", \"type\": \"wifi\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/multi-device-2/capabilities"
+          }
+        },
+        {
+          "name": "POST capabilities - Third device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payload-Signature",
+                "value": "{{payloadSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"multi-device-3\",\n    \"vendor\": \"Vendor3\",\n    \"modelNumber\": \"M3\",\n    \"serialNumber\": \"S3\",\n    \"roles\": [\"Standalone Device\", \"Cluster Leader\"],\n    \"resources\": {\n      \"cpu\": {\"architecture\": \"amd64\", \"cores\": 8},\n      \"memory\": \"16GB\",\n      \"storage\": \"250GB\",\n      \"peripherals\": [{\"name\": \"GPU\", \"type\": \"gpu\"}],\n      \"interfaces\": [{\"name\": \"eth0\", \"type\": \"ethernet\"}, {\"name\": \"usb0\", \"type\": \"usb\"}]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/clients/multi-device-3/capabilities"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8090/v1alpha2/margo"
+    },
+    {
+      "key": "payloadSignature",
+      "value": "valid-signature"
+    },
+    {
+      "key": "deviceId",
+      "value": "device-001"
+    },
+    {
+      "key": "altDeviceId",
+      "value": "device-999"
+    },
+    {
+      "key": "manifestMediaType",
+      "value": "application/vnd.margo.manifest.v1+json"
+    },
+    {
+      "key": "deploymentId",
+      "value": ""
+    },
+    {
+      "key": "deploymentDigest",
+      "value": ""
+    },
+    {
+      "key": "bundleDigest",
+      "value": ""
+    },
+    {
+      "key": "manifestETag",
+      "value": ""
+    },
+    {
+      "key": "deploymentETag",
+      "value": ""
+    },
+    {
+      "key": "bundleETag",
+      "value": ""
+    },
+    {
+      "key": "stableClientId",
+      "value": ""
+    }
+  ]
+}

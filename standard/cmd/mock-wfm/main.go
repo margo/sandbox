@@ -86,7 +86,7 @@ func main() {
 		certFile, keyFile := getCertificatePaths()
 		if certFile == "" || keyFile == "" {
 			fmt.Println("⚠️  HTTPS certificates not found, HTTPS server will not start")
-			fmt.Println("   Generate certificates with: bash generate-certs.sh .")
+			fmt.Println("   Generate certificates with: bash generate-certs.sh")
 			return
 		}
 
@@ -121,21 +121,58 @@ func main() {
 
 // getCertificatePaths returns the paths to the server certificate and key files
 func getCertificatePaths() (certFile, keyFile string) {
-	// Get the directory where the binary is running
-	exePath, err := os.Executable()
-	if err != nil {
-		return "", ""
+	var candidates []struct {
+		cert string
+		key  string
 	}
-	exeDir := filepath.Dir(exePath)
 
-	// Try to find certificates in the same directory as the binary
-	certPath := filepath.Join(exeDir, "server-cert.pem")
-	keyPath := filepath.Join(exeDir, "server-key.pem")
+	// Get the directory where the binary is running
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates,
+			struct {
+				cert string
+				key  string
+			}{
+				filepath.Join(exeDir, "certs", "server-cert.pem"),
+				filepath.Join(exeDir, "certs", "server-key.pem"),
+			},
+			struct {
+				cert string
+				key  string
+			}{
+				filepath.Join(exeDir, "server-cert.pem"),
+				filepath.Join(exeDir, "server-key.pem"),
+			},
+		)
+	}
 
-	// Check if files exist
-	if _, err := os.Stat(certPath); err == nil {
-		if _, err := os.Stat(keyPath); err == nil {
-			return certPath, keyPath
+	// Also check current working directory
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			struct {
+				cert string
+				key  string
+			}{
+				filepath.Join(wd, "certs", "server-cert.pem"),
+				filepath.Join(wd, "certs", "server-key.pem"),
+			},
+			struct {
+				cert string
+				key  string
+			}{
+				filepath.Join(wd, "server-cert.pem"),
+				filepath.Join(wd, "server-key.pem"),
+			},
+		)
+	}
+
+	// Check each candidate location
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate.cert); err == nil {
+			if _, err := os.Stat(candidate.key); err == nil {
+				return candidate.cert, candidate.key
+			}
 		}
 	}
 

@@ -33,3 +33,7 @@ Thumbs.db
 # VS Code (optional)
 # =========================
 .vscode/
+
+*.pem
+*.key
+*.crt

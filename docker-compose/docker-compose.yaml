@@ -16,6 +16,8 @@ services:
       - ./config/device-ecdsa.crt:/config/device-ecdsa.crt
       - ./config/ca-cert.pem:/config/ca-cert.pem
       - ./data:/data
+      - /home/margo/nitin/sandbox/docker-compose:/home/margo/nitin/sandbox/docker-compose
+      - /root/certs/ca-cert.pem:/root/certs/ca-cert.pem
     restart: unless-stopped
     entrypoint: ["./device-agent"]
     command: ["-config", "config/config.yaml"]

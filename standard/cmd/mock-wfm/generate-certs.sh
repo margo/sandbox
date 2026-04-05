@@ -2,11 +2,19 @@
 
 # Generate self-signed TLS certificates for mock WFM server
 # Usage: bash generate-certs.sh [output-dir] [host-ip/hostname]
+# Default: Stores certificates in 'certs' subdirectory
 
 set -e
 
-OUTPUT_DIR="${1:-.}"
-SERVER_HOST="${2:-localhost}"
+OUTPUT_DIR="${1:-./certs}"
+# Auto-detect host IP if not provided; fallback to localhost
+if [[ -z "$2" ]]; then
+  # Try to detect the host IP address
+  HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+  SERVER_HOST="${HOST_IP:-localhost}"
+else
+  SERVER_HOST="$2"
+fi
 DAYS_VALID=365
 
 is_ipv4_address() {
@@ -95,8 +103,6 @@ echo ""
 echo "  Server Certificate:"
 openssl x509 -in "$OUTPUT_DIR/server-cert.pem" -noout -text 2>/dev/null | grep -A 1 "Issuer:\|Subject:\|Not\|DNS:\|IP:"
 echo ""
-echo "📝 Next steps:"
-echo "  1. Copy 'ca-cert.pem' to: ~/sandbox/poc/device/agent/config/"
-echo "  2. Copy 'server-cert.pem' and 'server-key.pem' to mock-wfm directory"
-echo "  3. Update mock server to use HTTPS"
-echo "  4. Configure device-agent with correct server URL"
+echo "📝 Certificates ready for use:"
+echo "  ✅ All certificates generated in: $OUTPUT_DIR"
+echo "  ✅ Copy ca-cert.pem to /root/certs/ca-cert.pem on device VM manually"

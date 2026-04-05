@@ -3,7 +3,7 @@ kind: ApplicationDeployment
 metadata:
   name: compose-sample
   annotations:
-    id: 11111111-1111-1111-1111-111111111111
+    id: a7f3c9d2-4b8e-1a6f-9c3d-5e7b2f8a1c4e
 spec:
   appPackageRef:
     id: compose-sample
@@ -12,5 +12,5 @@ spec:
     components:
       - name: compose-sample
         properties:
-          packageLocation: /home/margo/nitin/sandbox/docker-compose/docker-compose-sample.yaml
+          packageLocation: /var/lib/workload-deployments/docker-compose-sample.yaml
           wait: true

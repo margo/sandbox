@@ -12,5 +12,5 @@ spec:
     components:
       - name: compose-sample
         properties:
-          packageLocation: /var/lib/workload-deployments/docker-compose-sample.yaml
+          packageLocation: https://raw.githubusercontent.com/nginx-proxy/nginx-proxy/refs/heads/main/docker-compose.yml
           wait: true

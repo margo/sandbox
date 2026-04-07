@@ -4,7 +4,7 @@ on:
   # Trigger on push to development branch
   push:
     branches:
-      - enhancement/optimize-sanity-ci
+      - development
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -55,16 +55,7 @@ jobs:
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
           echo "✅ Runner IP: $RUNNER_IP"
 
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/apt/archives/*.deb
-            /var/cache/apt/pkgcache.bin
-            /var/cache/apt/srcpkgcache.bin
-          key: ${{ runner.os }}-apt-${{ hashFiles('**/apt-packages.txt') }}
-
-
+  
       - name: Parallel Setup Phase
         run: |
           # Run all these in parallel

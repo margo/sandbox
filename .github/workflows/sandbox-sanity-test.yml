@@ -1,7 +1,7 @@
 name: sandbox-sanity-test
 
 on:
-  # Trigger on push to development branch
+
   push:
     branches:
       - development

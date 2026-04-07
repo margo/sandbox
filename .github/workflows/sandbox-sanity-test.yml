@@ -34,7 +34,7 @@ jobs:
       # Ports
       EXPOSED_HARBOR_PORT: 8443
       EXPOSED_SYMPHONY_PORT: 8082
-      # Optional GitHub auth
+      # Optional auth
       GITHUB_USER: ""
       GITHUB_TOKEN: ""
       APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package

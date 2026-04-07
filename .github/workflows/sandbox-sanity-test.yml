@@ -82,15 +82,17 @@ jobs:
           ) &
 
           (
+            # Install K3s early (saves time in wfm.sh install)
+            curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
+          ) &
+
+          (
             # Make scripts executable
             chmod +x pipeline/*.sh
           ) &
           
           wait
 
-      # ============================================================
-      # Configure hostnames for Harbor and Symphony
-      # ============================================================
       - name: Environment - Configure /etc/hosts
         run: |
           echo "🔧 Updating /etc/hosts"
@@ -128,9 +130,6 @@ jobs:
           echo "✅ All config files generated"         
 
 
-      # ============================================================
-      # WFM Install (clones Symphony, starts harbor etc...)
-      # ============================================================
       - name: Install WFM Components
         working-directory: pipeline
         run: |
@@ -153,9 +152,7 @@ jobs:
 
           echo "✅ Harbor CA trusted in K3s"
 
-      # ============================================================
-      # Build Symphony/WFM-Client from source (local only, no push)
-      # ============================================================
+
       - name: Fix Docker Permissions
         run: |
           echo "🔧 Fixing Docker permissions..."
@@ -245,9 +242,7 @@ jobs:
 
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-      # ------------------------------------------------
-      # Copy the WFM CA certificate
-      # ------------------------------------------------
+
       - name: WFM - Copy the CA cert to home directory for others to use
         run: |
           CERT="$HOME/symphony/api/certificates/ca-cert.pem"
@@ -535,18 +530,18 @@ jobs:
 
             # Monitor K3s deployment
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-            for ATTEMPT in {1..60}; do
+            for ATTEMPT in {1..30}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
-                echo "❌ K3s deployment failed"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ K3s deployment failed/pending"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              sleep 3
+              sleep 1
             done
           ) &
           K3S_DEPLOY_PID=$!
@@ -567,18 +562,18 @@ jobs:
             echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
             # Monitor Docker deployment
-            for ATTEMPT in {1..60}; do
+            for ATTEMPT in {1..30}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
-                break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
-                echo "❌ Docker deployment failed"
+                break 
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ Docker deployment failed/pending"
                 docker logs workload-fleet-management-client --tail=100 || true
                 exit 1
               fi
-              sleep 3
+              sleep 1
             done
           ) &
           DOCKER_DEPLOY_PID=$!
@@ -589,7 +584,7 @@ jobs:
 
           echo "✅ Both deployments completed successfully!"
 
-      - name: 📋 Final Deployment Status
+      - name: Final Deployment Status
         working-directory: pipeline
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli

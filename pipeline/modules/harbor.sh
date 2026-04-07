@@ -58,7 +58,7 @@ setup_harbor() {
     echo 'Harbor is already running, stopping it first...'
     cd "$HOME/sandbox/pipeline/harbor"
     sudo docker compose down --remove-orphans
-    sleep 5
+    sleep 3
   fi
   
   cd "$HOME/sandbox/pipeline/harbor"
@@ -186,7 +186,7 @@ fi
   done
 
   echo 'Waiting for Harbor to initialize...'
-  sleep 15
+  sleep 10
 
   echo "🔍 Verifying Harbor nginx container ports..."
   docker ps --filter "name=nginx" --format "table {{.Names}}\t{{.Ports}}"
@@ -198,7 +198,7 @@ fi
   create_harbor_systemd_service
 
   echo "⏳ Waiting for all containers to be healthy..."
-  sleep 45
+  sleep 30
 
   healthy_count=$(docker ps --filter "name=harbor" --filter "health=healthy" --format "{{.Names}}" | wc -l)
   total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
@@ -250,7 +250,7 @@ trust_harbor_certificate() {
   sudo docker compose up -d
   
   echo "⏳ Waiting for Harbor to restart..."
-  sleep 50
+  sleep 30
   
   if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q "${EXPOSED_HARBOR_PORT}"; then
     echo "✅ Harbor restarted successfully on port ${EXPOSED_HARBOR_PORT}"

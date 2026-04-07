@@ -58,9 +58,11 @@ jobs:
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
-          path: /var/cache/apt
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/cache/apt/pkgcache.bin
+            /var/cache/apt/srcpkgcache.bin
           key: ${{ runner.os }}-apt-${{ hashFiles('**/apt-packages.txt') }}
-
 
 
       - name: Parallel Setup Phase

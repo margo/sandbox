@@ -45,17 +45,17 @@ jobs:
       REGISTRY: "harbor.machine:8443"
 
     steps:
-     
+
       - name: Checkout repository
         uses: actions/checkout@v4
-     
+
       - name: Environment - Detect runner IP
         run: |
           RUNNER_IP=$(hostname -I | awk '{print $1}')
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
           echo "✅ Runner IP: $RUNNER_IP"
 
-  
+
       - name: Parallel Setup Phase
         run: |
           # Run all these in parallel
@@ -81,7 +81,7 @@ jobs:
             # Make scripts executable
             chmod +x pipeline/*.sh
           ) &
-          
+
           wait
 
       - name: Environment - Configure /etc/hosts
@@ -90,7 +90,7 @@ jobs:
           echo "${RUNNER_IP} harbor.machine" | sudo tee -a /etc/hosts
           echo "${RUNNER_IP} symphony.machine" | sudo tee -a /etc/hosts
           echo "✅ /etc/hosts updated:"
-          
+
       - name: Generate All Config Files
         run: |
           cat > pipeline/wfm.env <<EOF
@@ -106,7 +106,7 @@ jobs:
           RUNNER_IP=${RUNNER_IP}
           SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
-          
+
           cat > pipeline/device-agent.env <<EOF
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
@@ -117,8 +117,8 @@ jobs:
           GITHUB_TOKEN=${GITHUB_TOKEN}
           workload_Fleet_Management_Client_IMAGE_REF=workload-fleet-management-client:ci-test
           EOF
-          
-          echo "✅ All config files generated"         
+
+          echo "✅ All config files generated"
 
 
       - name: Install WFM Components
@@ -152,10 +152,10 @@ jobs:
           sudo chown -R $USER:$USER $HOME/.docker/buildx 2>/dev/null || true
           echo "✅ Docker permissions fixed"
 
-      - name: Build Images in Parallel 
+      - name: Build Images in Parallel
         run: |
           echo "🔨 Building fresh images"
-          
+
           (
             cd "$HOME/symphony"
             DOCKER_BUILDKIT=1 docker build \
@@ -164,7 +164,7 @@ jobs:
               --file api/Dockerfile .
           ) &
           SYMPHONY_PID=$!
-          
+
           (
             cd "$HOME/sandbox"
             DOCKER_BUILDKIT=1 docker build \
@@ -173,7 +173,7 @@ jobs:
               --file poc/device/agent/Dockerfile .
           ) &
           CLIENT_PID=$!
-          
+
           wait $SYMPHONY_PID || exit 1
           wait $CLIENT_PID || exit 1
 
@@ -337,7 +337,7 @@ jobs:
             kubectl -n kube-system rollout status deployment/coredns --timeout=60s
 
           # Give extra time for DNS to propagate
-         
+
           echo "✅ CoreDNS restarted with updated configuration"
 
       - name: WFM-Client (Standalone Cluster) – Start
@@ -558,7 +558,7 @@ jobs:
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
-                break 
+                break
               elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
                 echo "❌ Docker deployment failed/pending"
                 docker logs workload-fleet-management-client --tail=100 || true

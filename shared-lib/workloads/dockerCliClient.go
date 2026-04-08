@@ -511,6 +511,7 @@ func (c *DockerComposeCliClient) fetchComposeFileFromURL(_ context.Context, url 
 		nil,
 		nil,
 		&file.DownloadOptions{
+			Timeout:        time.Second * 10,
 			OutputPath:     c.generateAbsProjectFilepath(projectName),
 			CreateDirs:     true,
 			OverwriteExist: true,

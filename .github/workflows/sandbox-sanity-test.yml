@@ -304,41 +304,59 @@ jobs:
       - name: Configure CoreDNS for k3s
         run: |
           RUNNER_IP=${RUNNER_IP}
-          echo "📡 Using K3s kubeconfig"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
+          echo "📡 Configuring CoreDNS with custom DNS entries..."
 
-          # Get the full ConfigMap YAML (not just Corefile)
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get configmap coredns -o yaml > config.yaml
+          # Retry logic for ConfigMap update
+          for RETRY in {1..3}; do
+            echo "Attempt $RETRY to configure CoreDNS..."
 
-          # Update the Corefile section with our entries inside the NodeHosts block
-          awk -v ip="$RUNNER_IP" '
-          /hosts \/etc\/coredns\/NodeHosts/ {
-            print
-            getline
-            print "        " ip " harbor.machine"
-            print "        " ip " symphony.machine"
-            print
-            next
-          }
-          { print }
-          ' config.yaml > config-new.yaml
+            # Get the full ConfigMap YAML
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl -n kube-system get configmap coredns -o yaml > config.yaml
 
-          # Apply the updated ConfigMap
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl apply -f config-new.yaml
+            # Update the Corefile section
+            awk -v ip="$RUNNER_IP" '
+            /hosts \/etc\/coredns\/NodeHosts/ {
+              print
+              getline
+              print "        " ip " harbor.machine"
+              print "        " ip " symphony.machine"
+              print
+              next
+            }
+            { print }
+            ' config.yaml > config-new.yaml
 
-          # Restart CoreDNS deployment
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout restart deployment coredns
+            # Verify the change was made
+            if grep -q "harbor.machine" config-new.yaml && grep -q "symphony.machine" config-new.yaml; then
+              echo "✅ DNS entries added to ConfigMap"
 
-          # Wait for rollout to complete
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout status deployment/coredns --timeout=60s
+              # Apply the updated ConfigMap
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f config-new.yaml
 
-          # Give extra time for DNS to propagate
+              # Restart CoreDNS
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout restart deployment coredns -n kube-system
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status deployment/coredns -n kube-system --timeout=60s
 
-          echo "✅ CoreDNS restarted with updated configuration"
+              # Wait longer for DNS propagation
+              echo "⏳ Waiting for DNS propagation..."
+              sleep 15
+
+              echo "✅ CoreDNS configured successfully"
+              break
+            else
+              echo "⚠️ DNS entries not found in updated ConfigMap, retrying..."
+              sleep 5
+            fi
+
+            if [ $RETRY -eq 3 ]; then
+              echo "❌ Failed to configure CoreDNS after 3 attempts"
+              echo "ConfigMap contents:"
+              cat config-new.yaml
+              exit 1
+            fi
+          done
+
 
       - name: WFM-Client (Standalone Cluster) – Start
         working-directory: pipeline
@@ -521,7 +539,7 @@ jobs:
 
             # Monitor K3s deployment
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-            for ATTEMPT in {1..30}; do
+            for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
@@ -553,7 +571,7 @@ jobs:
             echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
             # Monitor Docker deployment
-            for ATTEMPT in {1..30}; do
+            for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
@@ -576,6 +594,7 @@ jobs:
           echo "✅ Both deployments completed successfully!"
 
       - name: Final Deployment Status
+        if: always()
         working-directory: pipeline
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
@@ -584,4 +603,56 @@ jobs:
           echo "========================================="
           echo "📋 FINAL DEPLOYMENT STATUS"
           echo "========================================="
-          sudo -E bash ./wfm-cli.sh list-all-non-interactive
+
+          # Get and display all deployments
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          echo "$DEPLOYMENT_OUTPUT"
+
+          echo ""
+          echo "========================================="
+          echo "📋 SYMPHONY API CONTAINER LOGS"
+          echo "========================================="
+          docker logs symphony-api-container --tail=100 2>&1 || echo "Could not retrieve Symphony logs"
+
+          echo ""
+          echo "========================================="
+          echo "📋 K3S CLIENT LOGS"
+          echo "========================================="
+          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+            -o name 2>/dev/null | grep workload-fleet-management-client | head -1 | cut -d'/' -f2 || echo "")
+
+          if [ -n "$POD_NAME" ]; then
+            echo "Pod: $POD_NAME"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs "pod/$POD_NAME" --tail=100 2>&1 || echo "Could not retrieve K3s client logs"
+          else
+            echo "⚠️ K3s WFM client pod not found"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A 2>&1 || echo "Could not list pods"
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 DOCKER CLIENT LOGS"
+          echo "========================================="
+          if docker ps -a --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
+            docker logs workload-fleet-management-client --tail=100 2>&1 || echo "Could not retrieve Docker client logs"
+          else
+            echo "⚠️ Docker WFM client container not found"
+            docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>&1 || echo "Could not list containers"
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 CONTAINER STATUS SUMMARY"
+          echo "========================================="
+          echo "Symphony Container:"
+          docker ps -a --filter "name=symphony-api-container" \
+            --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1 || echo "Could not get Symphony status"
+
+          echo ""
+          echo "All Containers:"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>&1
+
+          echo ""
+          echo "K3s Pods:"
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -o wide 2>&1 || echo "Could not get pod status"
+

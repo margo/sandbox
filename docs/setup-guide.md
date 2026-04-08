@@ -45,8 +45,8 @@ You need to download the setup files to all three VMs. Follow these steps on **e
    cd sandbox
    git sparse-checkout init --no-cone
    git sparse-checkout set \
-        pipeline/*.sh \
-        pipeline/*.env
+        scripts/*.sh \
+        scripts/*.env
    git checkout main
    ```
 ---
@@ -55,9 +55,9 @@ You need to download the setup files to all three VMs. Follow these steps on **e
 
 On each VM, you need to configure environment variables (settings that tell the system where things are).
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Set Environment Variables**
@@ -101,9 +101,9 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 ### On the WFM VM:
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Install Basic Tools**
@@ -147,9 +147,9 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 
 ### On Each Device VM:
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Install Basic Tools**
@@ -226,9 +226,9 @@ You need to copy a security file from the WFM VM to each Device VM.
 
 **On Docker Device VM:**
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Start the device's Workload Fleet Management Client**
@@ -254,9 +254,9 @@ You need to copy a security file from the WFM VM to each Device VM.
 
 **On K3s Device VM:**
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Configure the domain/host(name) resolution in coredns**
@@ -346,7 +346,7 @@ Devices use a push-based architecture - they actively send data to WFM rather th
 
 On each Device VM:
 ```bash
-cd $HOME/workspace/sandbox/pipeline
+cd $HOME/workspace/sandbox/scripts
  sudo -E bash device-agent.sh docker # for docker-compose device
  sudo -E bash device-agent.sh k3s    # for k3s device
 ```
@@ -362,9 +362,9 @@ cd $HOME/workspace/sandbox/pipeline
 
 On the WFM VM:
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Run the Easy CLI script**
@@ -774,7 +774,7 @@ To view the monitoring dashboards, you need your WFM VM's IP address.
    | **Logs (Loki)** | 1. Click **Open Menu**(top left) → **Explore**<br>2. Select **Loki** from data source dropdown<br>3. On **Label filters** select a label (e.g., `job`)<br>4. Select a label value(e.g., dockerlogs or  `default/custom-otel-helm` if otel-app installed)<br>5. Click **Run query**(top right)
 
 
-   Detailed documentation for  [Observability verification](../pipeline/observability/README.md)
+   Detailed documentation for  [Observability verification](../scripts/observability/README.md)
 ---
 
 ## Cleaning Up (Starting Fresh)
@@ -783,9 +783,9 @@ If you want to remove everything and start over:
 
 ### On WFM VM:
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Stop and clean up services**
@@ -798,9 +798,9 @@ If you want to remove everything and start over:
 
 ### On Device VMs:
 
-1. **Navigate to the pipeline folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/pipeline
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Stop and clean up services**

@@ -36,7 +36,7 @@ ClusterRoleBinding to link ServiceAccount with permissions
 The workload-fleet-management-client will authenticate using the ServiceAccount token automatically mounted by Kubernetes at /var/run/secrets/kubernetes.io/serviceaccount/token.
 
 ```bash
-Note: Refer build_start_device_agent_k3s_service() in /sandbox/pipeline/device-agent.sh for details of the method used for creation of ServiceAccount , ClusterRole and ClusterRoleBinding. Also code ensures that the workload-fleet-management-client's ServiceAccount has the necessary permissions to interact with Kubernetes resources, particularly secrets and configmaps.
+Note: Refer build_start_device_agent_k3s_service() in /sandbox/scripts/device-agent.sh for details of the method used for creation of ServiceAccount , ClusterRole and ClusterRoleBinding. Also code ensures that the workload-fleet-management-client's ServiceAccount has the necessary permissions to interact with Kubernetes resources, particularly secrets and configmaps.
 ```
 
 5. Verification:

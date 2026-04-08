@@ -2,7 +2,7 @@
 * @singhmj-1 @vireshnavalli
 
 # Infra and pipeline directory (CI/CD)
-/pipeline/ @nitparihar @sanjujunnuthula
+/scripts/ @nitparihar @sanjujunnuthula
 /.github/ @nitparihar @sanjujunnuthula
 /helmchart @nitparihar @sanjujunnuthula
 /docker-compose @nitparihar @sanjujunnuthula

@@ -22,7 +22,7 @@ sandbox/
 ├── non-standard    # Sandbox enabling APIs/components (these are not defined in MARGO, but needed for a complete workflow for Code-first Sandbox). It is a Go-package and is imported in the main codebase.
 ├── shared-lib      # Go-package. Reusable libraries, and utilities. It is a Go-package and is imported in the main codebase.
 ├── poc             # The runnable implementations and code for code-first-sandbox.
-├── pipeline        # Automation scripts for build, deployment and run.
+├── scripts        # Automation scripts for build, deployment and run.
 ├── docker-compose  # Files related to running Workload Fleet Management Client using docker-compose
 ├── helmchart       # Helmchart files to run Workload Fleet Management Client in kubernetes environment
 ```

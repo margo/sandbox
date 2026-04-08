@@ -3,12 +3,12 @@
 ## Environment Variables Setup
 
 Before running any script, make sure to update the environment variable files according to your system setup.
-The environment files are located here **(wfm.env and device-agent.env)**: cd $HOME/workspace/sandbox/pipeline
+The environment files are located here **(wfm.env and device-agent.env)**: cd $HOME/workspace/sandbox/scripts
   
 
 **For wfm.sh and wfm-cli.sh script**
 
-Environment file path:- $HOME/workspace/sandbox/pipeline/wfm.env
+Environment file path:- $HOME/workspace/sandbox/scripts/wfm.env
 
 Update the following variables:
 ```bash
@@ -22,7 +22,7 @@ export SANDBOX_REPO_BRANCH=main #it can be a tag also
 
 **For k3s/docker device-agent.sh script**
 
-Environment file path:- $HOME/workspace/sandbox/pipeline/device-agent.env
+Environment file path:- $HOME/workspace/sandbox/scripts/device-agent.env
 
 Update the following variables:
 ```bash

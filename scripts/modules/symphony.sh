@@ -96,7 +96,7 @@ start_symphony_api_container() {
 
   # Copy Harbor CA if in CI environment
   if [[ "${CI}" == "true" ]]; then
-    HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+    HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
     if [ -f "$HARBOR_CERT" ]; then
       cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
       echo "✅ Harbor CA copied to Symphony certificates"

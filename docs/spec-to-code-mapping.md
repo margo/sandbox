@@ -26,7 +26,7 @@ This section maps Margo specification features to their implementation in the sa
 | **HTTP Signature Authentication** | WFM Server + Device Agent | • Signing: `shared-lib/crypto/signer.go`<br>• Verification: `symphony-margo/api/pkg/apis/v1alpha1/vendors/margo/device-agent-vendor.go::verifyRequestSignature()`<br>• [Here is Spec](https://github.com/margo/specification-enhancements/blob/main/submitted/api-details-finalization-SUP-folder/api-details-finalization-SUP-WIP.md) |
 | **ETag-based Caching** | WFM Server + Device Agent | • WFM: `symphony-margo/api/pkg/apis/v1alpha1/vendors/margo/device-agent-vendor.go::getDesiredManifest()` (ETag generation)<br>• Device: `poc/device/agent/stateSync.go::getLastSyncedETag()` (If-None-Match)<br>• Spec: `[sup_desired_state_via_manifest_api.md](sup_desired_state_via_manifest_api.md#etag-header)` |
 | **Manifest Version Rollback Protection** | Device Agent | • Validation: `poc/device/agent/stateSync.go::validateManifest()`<br>• Storage: `poc/device/agent/database/database.go::SetLastSyncedManifestVersion()` |
-| **Observability (OTEL + Promtail)** | Device Agent | • Setup: `pipeline/device-agent.sh::install_otel_collector_promtail_wrapper()`<br>• Docker: `pipeline/device-agent.sh::install_otel_collector_promtail_docker()`<br>• K8s: `pipeline/device-agent.sh::install_otel_collector_promtail()` |
+| **Observability (OTEL + Promtail)** | Device Agent | • Setup: `scripts/device-agent.sh::install_otel_collector_promtail_wrapper()`<br>• Docker: `scripts/device-agent.sh::install_otel_collector_promtail_docker()`<br>• K8s: `scripts/device-agent.sh::install_otel_collector_promtail()` |
 
 ---
 

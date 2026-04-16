@@ -3,7 +3,7 @@
 **/README.md
 **/*.sh
 **/*.md
-**/pipeline
+**/scripts
 **/.vscode
 **/.devcontainer
 **/helmchart

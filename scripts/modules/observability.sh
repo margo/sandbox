@@ -93,8 +93,8 @@ install_jaeger() {
 }
 
 install_prometheus() {
-  mkdir -p "$HOME/sandbox/pipeline/observability"
-  cd "$HOME/sandbox/pipeline/observability"
+  mkdir -p "$HOME/sandbox/scripts/observability"
+  cd "$HOME/sandbox/scripts/observability"
   echo "📡 Setting up Prometheus with Remote Write receiver..."
 
   cat <<EOF > prometheus-values.yaml
@@ -159,8 +159,8 @@ EOF
 }
 
 install_loki() {
-  mkdir -p "$HOME/sandbox/pipeline/observability"
-  cd "$HOME/sandbox/pipeline/observability"
+  mkdir -p "$HOME/sandbox/scripts/observability"
+  cd "$HOME/sandbox/scripts/observability"
   echo "📦 Installing Loki for log aggregation..."
 
   cat <<EOF > loki-values.yaml
@@ -244,7 +244,7 @@ install_grafana() {
 
 install_otel_collector_promtail() {
   echo "Installing OTEL Collector and Promtail..."
-  cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+  cd "$HOME/sandbox/scripts/observability" || { echo '❌ observability dir missing'; exit 1; }
   create_observability_namespace
   install_promtail
   install_otel_collector
@@ -377,7 +377,7 @@ EOF
 
 install_otel_collector_promtail_docker() {
   echo "Installing OTEL Collector v0.140.0 and Promtail v2.9.10 as Docker containers..."
-  cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+  cd "$HOME/sandbox/scripts/observability" || { echo '❌ observability dir missing'; exit 1; }
 
   # Get docker group GID for proper permissions
   DOCKER_GID=$(getent group docker | cut -d: -f3)
@@ -554,7 +554,7 @@ uninstall_otel_collector_promtail_wrapper() {
 
 uninstall_otel_collector_promtail_docker() {
   echo "🧹 Uninstalling Promtail and OTEL Collector containers..."
-  cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+  cd "$HOME/sandbox/scripts/observability" || { echo '❌ observability dir missing'; exit 1; }
 
   if [ -f "docker-compose-observability.yml" ]; then
     docker compose -f docker-compose-observability.yml down
@@ -567,7 +567,7 @@ uninstall_otel_collector_promtail_docker() {
 
 uninstall_otel_collector_promtail() {
   echo "🧹 Uninstalling Promtail and OTEL Collector..."
-  cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+  cd "$HOME/sandbox/scripts/observability" || { echo '❌ observability dir missing'; exit 1; }
 
     # Uninstall helm releases only if they exist
     for release in $PROMTAIL_RELEASE $OTEL_RELEASE; do

@@ -31,5 +31,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB}}
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          chmod +x pipeline/build-workload-fleet-client.sh
-          ./pipeline/build-workload-fleet-client.sh
+          chmod +x scripts/build-workload-fleet-client.sh
+          ./scripts/build-workload-fleet-client.sh

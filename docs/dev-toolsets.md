@@ -130,7 +130,7 @@ Development toolsets used and their purposes:
   - Building Symphony UI components
   - JavaScript dependency management
 
-  **Note: Symphony UI is not used. Application, deployment and workload LCM operations are performed using the script /pipeline/wfm-cli.sh which we call it as EasyCLI implemented as a wrapper on top of Maestro CLI**
+  **Note: Symphony UI is not used. Application, deployment and workload LCM operations are performed using the script /scripts/wfm-cli.sh which we call it as EasyCLI implemented as a wrapper on top of Maestro CLI**
 
 #### curl & wget
 - **Uses**:

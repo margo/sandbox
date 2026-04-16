@@ -6,7 +6,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 create_harbor_systemd_service() {
   echo "🔧 Creating systemd service for Harbor auto-start..."
-  local harbor_dir="$HOME/sandbox/pipeline/harbor"
+  local harbor_dir="$HOME/sandbox/scripts/harbor"
 
   sudo tee /etc/systemd/system/harbor.service > /dev/null <<EOF
 [Unit]
@@ -37,7 +37,7 @@ EOF
 }
 
 configure_harbor_restart_policy() {
-  local compose_file="$HOME/sandbox/pipeline/harbor/docker-compose.yml"
+  local compose_file="$HOME/sandbox/scripts/harbor/docker-compose.yml"
 
   if [ ! -f "$compose_file" ]; then
     echo "⚠️ docker-compose.yml not found, will be generated during install"
@@ -56,12 +56,12 @@ configure_harbor_restart_policy() {
 setup_harbor() {
   if docker ps --format '{{.Names}}' | grep -q harbor; then
     echo 'Harbor is already running, stopping it first...'
-    cd "$HOME/sandbox/pipeline/harbor"
+    cd "$HOME/sandbox/scripts/harbor"
     sudo docker compose down --remove-orphans
     sleep 5
   fi
   
-  cd "$HOME/sandbox/pipeline/harbor"
+  cd "$HOME/sandbox/scripts/harbor"
 
   echo "🔐 Configuring Harbor for HTTPS-only on port ${EXPOSED_HARBOR_PORT}..."
   
@@ -246,7 +246,7 @@ trust_harbor_certificate() {
   done
   
   echo "🔄 Restarting Harbor containers..."
-  cd "$HOME/sandbox/pipeline/harbor"
+  cd "$HOME/sandbox/scripts/harbor"
   sudo docker compose up -d
   
   echo "⏳ Waiting for Harbor to restart..."
@@ -265,12 +265,12 @@ stop_harbor_service() {
   echo "6. Stopping and removing Harbor service..."
 
   if docker ps -a --format '{{.Names}}' | grep harbor; then
-    cd "$HOME/sandbox/pipeline/harbor"
+    cd "$HOME/sandbox/scripts/harbor"
     sudo docker compose down --remove-orphans --volumes 2>/dev/null && echo "✅ Stopped Harbor containers"
     sleep 10
   fi
 
-  [ -d "$HOME/sandbox/pipeline/harbor" ] && sudo rm -rf "$HOME/sandbox/pipeline/harbor" && echo "✅ Removed Harbor compose directory"
+  [ -d "$HOME/sandbox/scripts/harbor" ] && sudo rm -rf "$HOME/sandbox/scripts/harbor" && echo "✅ Removed Harbor compose directory"
 }
 
 add_container_registry_mirror_to_k3s() {

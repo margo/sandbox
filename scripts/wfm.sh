@@ -131,7 +131,7 @@ echo "Observability stack installation started"
 
 observability_stack_uninstall(){
     echo "Observability stack uninstall started"
-    cd "$HOME/sandbox/pipeline/observability" || { echo '❌ observability dir missing'; exit 1; }
+    cd "$HOME/sandbox/scripts/observability" || { echo '❌ observability dir missing'; exit 1; }
 
     # Uninstall helm releases only if they exist
     for release in $PROM_RELEASE $JAEGER_RELEASE $GRAFANA_RELEASE $LOKI_RELEASE; do

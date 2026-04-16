@@ -214,7 +214,7 @@ uninstall_prerequisites() {
 create_observability_systemd_service() {
   echo "🔧 Creating systemd service for observability (OTEL + Promtail) auto-start..."
 
-  local obs_dir="$HOME/sandbox/pipeline/observability"
+  local obs_dir="$HOME/sandbox/scripts/observability"
 
   # Create systemd unit file
   sudo tee /etc/systemd/system/observability.service > /dev/null <<EOF

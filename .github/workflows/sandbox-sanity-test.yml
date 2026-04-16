@@ -72,10 +72,10 @@ jobs:
             git
 
       # ============================================================
-      # Make pipeline scripts executable
+      # Make scripts scripts executable
       # ============================================================
       - name: Environment - Make scripts executable
-        run: chmod +x pipeline/*.sh
+        run: chmod +x scripts/*.sh
       # ============================================================
       # Configure hostnames for Harbor and Symphony
       # ============================================================
@@ -91,7 +91,7 @@ jobs:
       # ============================================================
       - name: Generate wfm.env for WFM
         run: |
-          cat > pipeline/wfm.env <<EOF
+          cat > scripts/wfm.env <<EOF
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           EXPOSED_SYMPHONY_HOST=symphony.machine
@@ -105,11 +105,11 @@ jobs:
           SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
           echo "✅ wfm.env generated"
-          cat pipeline/wfm.env
+          cat scripts/wfm.env
 
       - name: Generate device-agent.env for WFM client
         run: |
-          cat > pipeline/device-agent.env <<EOF
+          cat > scripts/device-agent.env <<EOF
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           WFM_HOST=symphony.machine
@@ -120,7 +120,7 @@ jobs:
           workload_Fleet_Management_Client_IMAGE_REF=workload-fleet-management-client:ci-test
           EOF
           echo "✅ device-agent.env generated"
-          cat pipeline/device-agent.env
+          cat scripts/device-agent.env
 
       - name: Update Docker Repository
         run: |
@@ -139,7 +139,7 @@ jobs:
       # WFM Install (clones Symphony, starts harbor etc...)
       # ============================================================
       - name: Install WFM Components
-        working-directory: pipeline
+        working-directory: scripts
         run: |
           echo "Installing WFM / Symphony"
           sudo -E bash ./wfm.sh install
@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "🔐 Configuring K3s to trust Harbor CA..."
 
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
 
           # Copy to K3s containerd certs directory
           sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
@@ -206,7 +206,7 @@ jobs:
 
       - name: Start WFM
         timeout-minutes: 5
-        working-directory: pipeline
+        working-directory: scripts
         run: |
           echo "Starting Symphony with locally built image..."
 
@@ -234,7 +234,7 @@ jobs:
           echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
 
           # Trust Harbor CA certificate first
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
           if [ -f "$HARBOR_CERT" ]; then
             sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
             sudo update-ca-certificates
@@ -265,7 +265,7 @@ jobs:
           echo "✅ CA certs copied to $HOME/certs/"
 
       - name: Upload app packages in parallel
-        working-directory: pipeline
+        working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
@@ -310,7 +310,7 @@ jobs:
           echo "✅ All packages uploaded successfully"
 
       - name: List  all packages and devices
-        working-directory: pipeline
+        working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
@@ -318,7 +318,7 @@ jobs:
           sudo -E bash ./wfm-cli.sh list-packages
 
       - name: WFM-Client (K3s) – Setup
-        working-directory: pipeline
+        working-directory: scripts
         run: |
           sudo -E bash ./device-agent.sh k3s install
           sudo -E bash ./device-agent.sh k3s create-rsa-certs
@@ -370,7 +370,7 @@ jobs:
           echo "✅ CoreDNS restarted with updated configuration"
 
       - name: WFM-Client (Standalone Cluster) – Start
-        working-directory: pipeline
+        working-directory: scripts
         run: |
           sudo -E bash ./device-agent.sh k3s start-k3s
 
@@ -387,7 +387,7 @@ jobs:
           done
 
       - name: WFM-Client (Standalone Device) – Start
-        working-directory: pipeline
+        working-directory: scripts
         run: |
           sudo -E bash ./device-agent.sh docker create-rsa-certs
           sudo -E bash ./device-agent.sh docker create-ecdsa-certs
@@ -462,7 +462,7 @@ jobs:
           echo "✅ Found pod: $POD_NAME"
 
           # Copy Harbor CA certificate into pod
-          HARBOR_CERT="$HOME/sandbox/pipeline/harbor/certs/harbor.crt"
+          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl cp "$HARBOR_CERT" "$POD_NAME:/tmp/harbor-ca.crt"
 
           # Create setup script
@@ -527,7 +527,7 @@ jobs:
           "
 
       - name: 🚀 Deploy to Both Devices in Parallel
-        working-directory: pipeline
+        working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
@@ -605,7 +605,7 @@ jobs:
           echo "✅ Both deployments completed successfully!"
 
       - name: 📋 Final Deployment Status
-        working-directory: pipeline
+        working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |

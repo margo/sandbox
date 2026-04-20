@@ -1,7 +1,7 @@
 name: sandbox-sanity-test
 
 on:
-  # Trigger on push to development branch
+
   push:
     branches:
       - development
@@ -34,7 +34,7 @@ jobs:
       # Ports
       EXPOSED_HARBOR_PORT: 8443
       EXPOSED_SYMPHONY_PORT: 8082
-      # Optional GitHub auth
+      # Optional auth
       GITHUB_USER: ""
       GITHUB_TOKEN: ""
       APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package
@@ -45,51 +45,53 @@ jobs:
       REGISTRY: "harbor.machine:8443"
 
     steps:
-      # ============================================================
-      # Checkout
-      # ============================================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
-      # ============================================================
-      # Detect runner IP (NOT localhost)
-      # ============================================================
+
       - name: Environment - Detect runner IP
         run: |
           RUNNER_IP=$(hostname -I | awk '{print $1}')
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
           echo "✅ Runner IP: $RUNNER_IP"
-      # ============================================================
-      # OS prerequisites (NO docker install)
-      # ============================================================
-      - name: Environment - Install OS dependencies
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y \
-            curl \
-            jq \
-            netcat-openbsd \
-            openssl \
-            git
 
-      # ============================================================
-      # Make scripts scripts executable
-      # ============================================================
-      - name: Environment - Make scripts executable
-        run: chmod +x scripts/*.sh
-      # ============================================================
-      # Configure hostnames for Harbor and Symphony
-      # ============================================================
+
+      - name: Parallel Setup Phase
+        run: |
+          # Run all these in parallel
+          (
+            sudo apt-get update
+            sudo apt-get install -y curl jq openssl git
+            sudo install -m 0755 -d /etc/apt/keyrings
+            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo chmod a+r /etc/apt/keyrings/docker.asc
+            echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+              $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+              sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt-get update
+          ) &
+
+          (
+            # Install K3s early (saves time in wfm.sh install)
+            curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
+          ) &
+
+          (
+            # Make scripts executable
+            chmod +x scripts/*.sh
+          ) &
+
+          wait
+
       - name: Environment - Configure /etc/hosts
         run: |
           echo "🔧 Updating /etc/hosts"
           echo "${RUNNER_IP} harbor.machine" | sudo tee -a /etc/hosts
           echo "${RUNNER_IP} symphony.machine" | sudo tee -a /etc/hosts
           echo "✅ /etc/hosts updated:"
-          cat /etc/hosts
-      # ============================================================
-      # Generate wfm.env (MANDATORY)
-      # ============================================================
-      - name: Generate wfm.env for WFM
+
+      - name: Generate All Config Files
         run: |
           cat > scripts/wfm.env <<EOF
           CI=true
@@ -104,11 +106,7 @@ jobs:
           RUNNER_IP=${RUNNER_IP}
           SYMPHONY_IMAGE_REF=symphony-api:ci-test
           EOF
-          echo "✅ wfm.env generated"
-          cat scripts/wfm.env
 
-      - name: Generate device-agent.env for WFM client
-        run: |
           cat > scripts/device-agent.env <<EOF
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
@@ -119,25 +117,10 @@ jobs:
           GITHUB_TOKEN=${GITHUB_TOKEN}
           workload_Fleet_Management_Client_IMAGE_REF=workload-fleet-management-client:ci-test
           EOF
-          echo "✅ device-agent.env generated"
-          cat scripts/device-agent.env
 
-      - name: Update Docker Repository
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ca-certificates curl
-          sudo install -m 0755 -d /etc/apt/keyrings
-          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-          sudo chmod a+r /etc/apt/keyrings/docker.asc
-          echo \
-            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-            $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
+          echo "✅ All config files generated"
 
-      # ============================================================
-      # WFM Install (clones Symphony, starts harbor etc...)
-      # ============================================================
+
       - name: Install WFM Components
         working-directory: scripts
         run: |
@@ -160,9 +143,7 @@ jobs:
 
           echo "✅ Harbor CA trusted in K3s"
 
-      # ============================================================
-      # Build Symphony/WFM-Client from source (local only, no push)
-      # ============================================================
+
       - name: Fix Docker Permissions
         run: |
           echo "🔧 Fixing Docker permissions..."
@@ -173,29 +154,26 @@ jobs:
 
       - name: Build Images in Parallel
         run: |
-          echo "🔨 Building Symphony API and WFM-Client in parallel..."
+          echo "🔨 Building fresh images"
 
-          # Build Symphony in background
           (
             cd "$HOME/symphony"
             DOCKER_BUILDKIT=1 docker build \
+              --no-cache \
               --tag symphony-api:ci-test \
-              --file api/Dockerfile \
-              . && echo "✅ Symphony built"
+              --file api/Dockerfile .
           ) &
           SYMPHONY_PID=$!
 
-          # Build WFM-Client in background
           (
             cd "$HOME/sandbox"
             DOCKER_BUILDKIT=1 docker build \
+              --no-cache \
               --tag workload-fleet-management-client:ci-test \
-              --file poc/device/agent/Dockerfile \
-              . && echo "✅ WFM-Client built"
+              --file poc/device/agent/Dockerfile .
           ) &
           CLIENT_PID=$!
 
-          # Wait for both
           wait $SYMPHONY_PID || exit 1
           wait $CLIENT_PID || exit 1
 
@@ -203,6 +181,7 @@ jobs:
 
           # Import WFM-Client into K3s
           docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
+
 
       - name: Start WFM
         timeout-minutes: 5
@@ -218,13 +197,13 @@ jobs:
 
           # Wait for Symphony API to be ready
           echo "⏳ Waiting for Symphony API to be ready..."
-          for i in {1..30}; do
+          for i in {1..40}; do
             if curl -k -s https://symphony.machine:8082/health >/dev/null 2>&1; then
               echo "✅ Symphony API is ready"
               break
             fi
-            echo "Waiting for Symphony API... ($i/30)"
-            sleep 2
+            echo "Waiting for Symphony API... ($i/40)"
+            sleep 1
           done
 
       - name: Setup ORAS authentication
@@ -254,10 +233,8 @@ jobs:
 
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-      # ------------------------------------------------
-      # Copy the WFM CA certificate
-      # ------------------------------------------------
-      - name: WFM - Copy the CA cert to home directory for others to use
+
+      - name: WFM - Copy the CA certs
         run: |
           CERT="$HOME/symphony/api/certificates/ca-cert.pem"
           mkdir -p "$HOME/certs"
@@ -316,6 +293,11 @@ jobs:
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
+          echo ""
+          echo "========================================="
+          echo "📋 SYMPHONY API CONTAINER LOGS"
+          echo "========================================="
+          docker logs symphony-api-container --tail=100 2>&1 || echo "Could not retrieve Symphony logs"
 
       - name: WFM-Client (K3s) – Setup
         working-directory: scripts
@@ -327,47 +309,59 @@ jobs:
       - name: Configure CoreDNS for k3s
         run: |
           RUNNER_IP=${RUNNER_IP}
-          echo "📡 Using K3s kubeconfig"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
+          echo "📡 Configuring CoreDNS with custom DNS entries..."
 
-          # Get the full ConfigMap YAML (not just Corefile)
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system get configmap coredns -o yaml > config.yaml
+          # Retry logic for ConfigMap update
+          for RETRY in {1..3}; do
+            echo "Attempt $RETRY to configure CoreDNS..."
 
-          echo "Original ConfigMap:"
-          cat config.yaml
+            # Get the full ConfigMap YAML
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl -n kube-system get configmap coredns -o yaml > config.yaml
 
-          # Update the Corefile section with our entries inside the NodeHosts block
-          awk -v ip="$RUNNER_IP" '
-          /hosts \/etc\/coredns\/NodeHosts/ {
-            print
-            getline
-            print "        " ip " harbor.machine"
-            print "        " ip " symphony.machine"
-            print
-            next
-          }
-          { print }
-          ' config.yaml > config-new.yaml
+            # Update the Corefile section
+            awk -v ip="$RUNNER_IP" '
+            /hosts \/etc\/coredns\/NodeHosts/ {
+              print
+              getline
+              print "        " ip " harbor.machine"
+              print "        " ip " symphony.machine"
+              print
+              next
+            }
+            { print }
+            ' config.yaml > config-new.yaml
 
-          echo "New ConfigMap:"
-          cat config-new.yaml
+            # Verify the change was made
+            if grep -q "harbor.machine" config-new.yaml && grep -q "symphony.machine" config-new.yaml; then
+              echo "✅ DNS entries added to ConfigMap"
 
-          # Apply the updated ConfigMap
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl apply -f config-new.yaml
+              # Apply the updated ConfigMap
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f config-new.yaml
 
-          # Restart CoreDNS deployment
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout restart deployment coredns
+              # Restart CoreDNS
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout restart deployment coredns -n kube-system
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status deployment/coredns -n kube-system --timeout=60s
 
-          # Wait for rollout to complete
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-            kubectl -n kube-system rollout status deployment/coredns --timeout=60s
+              # Wait longer for DNS propagation
+              echo "⏳ Waiting for DNS propagation..."
+              sleep 15
 
-          # Give extra time for DNS to propagate
-          sleep 10
-          echo "✅ CoreDNS restarted with updated configuration"
+              echo "✅ CoreDNS configured successfully"
+              break
+            else
+              echo "⚠️ DNS entries not found in updated ConfigMap, retrying..."
+              sleep 5
+            fi
+
+            if [ $RETRY -eq 3 ]; then
+              echo "❌ Failed to configure CoreDNS after 3 attempts"
+              echo "ConfigMap contents:"
+              cat config-new.yaml
+              exit 1
+            fi
+          done
+
 
       - name: WFM-Client (Standalone Cluster) – Start
         working-directory: scripts
@@ -445,7 +439,7 @@ jobs:
             exit 1
           }
 
-      - name: 🔧 Install Helm & Authenticate Harbor
+      - name: Install Helm & Authenticate Harbor
         shell: bash
         run: |
           set -e
@@ -526,12 +520,12 @@ jobs:
             /tmp/setup-helm.sh
           "
 
-      - name: 🚀 Deploy to Both Devices in Parallel
+      - name: Deploy to Both Devices in Parallel
         working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
-          echo "🚀 Deploying to both devices in parallel..."
+          echo "Deploying to both devices in parallel..."
 
           # Deploy to K3s in background
           (
@@ -556,12 +550,12 @@ jobs:
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
-                echo "❌ K3s deployment failed"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ K3s deployment failed/pending"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              sleep 3
+              sleep 1
             done
           ) &
           K3S_DEPLOY_PID=$!
@@ -588,12 +582,12 @@ jobs:
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "ERROR" ]; then
-                echo "❌ Docker deployment failed"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ Docker deployment failed/pending"
                 docker logs workload-fleet-management-client --tail=100 || true
                 exit 1
               fi
-              sleep 3
+              sleep 1
             done
           ) &
           DOCKER_DEPLOY_PID=$!
@@ -604,7 +598,8 @@ jobs:
 
           echo "✅ Both deployments completed successfully!"
 
-      - name: 📋 Final Deployment Status
+      - name: Final Deployment Status
+        if: always()
         working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
@@ -613,4 +608,55 @@ jobs:
           echo "========================================="
           echo "📋 FINAL DEPLOYMENT STATUS"
           echo "========================================="
-          sudo -E bash ./wfm-cli.sh list-all-non-interactive
+
+          # Get and display all deployments
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          echo "$DEPLOYMENT_OUTPUT"
+
+          echo ""
+          echo "========================================="
+          echo "📋 SYMPHONY API CONTAINER LOGS"
+          echo "========================================="
+          docker logs symphony-api-container --tail=100 2>&1 || echo "Could not retrieve Symphony logs"
+
+          echo ""
+          echo "========================================="
+          echo "📋 K3S CLIENT LOGS"
+          echo "========================================="
+          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+            -o name 2>/dev/null | grep workload-fleet-management-client | head -1 | cut -d'/' -f2 || echo "")
+
+          if [ -n "$POD_NAME" ]; then
+            echo "Pod: $POD_NAME"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs "pod/$POD_NAME" --tail=100 2>&1 || echo "Could not retrieve K3s client logs"
+          else
+            echo "⚠️ K3s WFM client pod not found"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A 2>&1 || echo "Could not list pods"
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 DOCKER CLIENT LOGS"
+          echo "========================================="
+          if docker ps -a --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
+            docker logs workload-fleet-management-client --tail=100 2>&1 || echo "Could not retrieve Docker client logs"
+          else
+            echo "⚠️ Docker WFM client container not found"
+            docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>&1 || echo "Could not list containers"
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 CONTAINER STATUS SUMMARY"
+          echo "========================================="
+          echo "Symphony Container:"
+          docker ps -a --filter "name=symphony-api-container" \
+            --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1 || echo "Could not get Symphony status"
+
+          echo ""
+          echo "All Containers:"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>&1
+
+          echo ""
+          echo "K3s Pods:"
+          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -o wide 2>&1 || echo "Could not get pod status"

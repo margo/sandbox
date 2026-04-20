@@ -158,9 +158,7 @@ The typical workflow for preparing a release is as follows:
 - [ ] GitHub Release page published
 
 ### Post-Release
-- [ ] GitHub Discussion thread opened
-- [ ] Release announced via Teams/channels
-- [ ] Staging smoke tests pass
+- [ ] Release announced via Discourse/Teams/channels
 - [ ] Community feedback collected
 - [ ] Monitor for critical issues
 
@@ -213,9 +211,9 @@ Each release produces the following artifacts, published to GitHub Releases and 
 
 ### Release Announcements
 
-- **Timing**: Announce immediately after release is published (artifacts available in GitHub Releases and GHCR)
+- **Timing**: Announce after release is published (artifacts available in GitHub Releases and GHCR)
 - **Channels**:
-  - Discourse
+  - [Discourse](https://discourse.margo.org/)
   - Teams
   - Other Margo Community channels
 - **Content**:
@@ -224,28 +222,26 @@ Each release produces the following artifacts, published to GitHub Releases and 
 ### Support & Feedback
 
 - **Issue reporting**: Community members report issues in GitHub Issues
-- **Discussion response**: Maintainers respond promptly to Discord and Github Issues
+- **Discussion response**: Maintainers respond promptly to Discourse and Github Issues
 
 ## Roles and Responsibilities
 
 | Role | Who | Responsibilities |
 |------|-----|------------------|
-| **Maintainers** | CODEOWNERS (senior contributors) | Approve PRs, declare freeze, assert readiness, push tags, monitor release |
-| **QA/Community** | Developers + volunteers | Execute tests, report bugs, verify RCs, smoke tests |
-| **DevOps/Release Manager** | CI infrastructure owner | Maintain workflows, push tags, verify artifacts, manage nightly builds |
+| **Maintainers** | Dev Team (See CODEOWNERS) | Approve PRs, declare freeze, assert readiness, push tags, monitor release |
+| **QA/Community** | Dev Team (See CODEOWNERS) + SUP Owners | Execute tests, report bugs, verify RCs, smoke tests |
+| **DevOps/Release Manager** | Dev Team (See CODEOWNERS) | Maintain workflows, push tags, verify artifacts, manage nightly builds |
 
-**Release Lead** (per CODEOWNERS): Confirms code freeze criteria met and signs off on stabilization readiness
+**Release Lead** (per CODEOWNERS, @ajcraig, @phil-abb): Confirms code freeze criteria met and signs off on stabilization readiness
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for developer responsibilities (commit standards, testing, PR process).
 
 ---
 
-### Next Steps
+### Steps currently not covered
 
-**📋 To Implement:**
-- Add minimum test coverage check in the pipeline
-- Configure SBOM generation
-- Add helm chart and docker-compose to the release artifacts as well
-- Add section for `security and compliances strategy` for the release pipeline
-- Add `dependabot` to track vulnerable/outdate dependencies
-- Sign release artifacts
+- Minimum test coverage check in the pipeline
+- SBOM generation
+- HELM chart and docker-compose as part of release artifacts
+- Section for `security and compliances strategy` for the release pipeline
+- Signing of release artifacts

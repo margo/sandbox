@@ -251,8 +251,8 @@ Key points for contributors:
 
 ## Questions?
 
-- **Bug reports**: GitHub Issues
-- **Feature requests**: Via SUPs
-- **Help**: Discord Channel
+- **Bug reports**: [GitHub Issues](https://github.com/margo/sandbox/issues)
+- **Feature requests**: Via [SUPs](https://github.com/margo)
+- **Help**: [Discourse Channel](https://discourse.margo.org/)
 
 Thank you for contributing!

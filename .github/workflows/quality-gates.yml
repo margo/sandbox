@@ -24,7 +24,7 @@ jobs:
             extends: relaxed
             rules:
               line-length:
-                max: 80
+                max: 100
                 level: warning
               indentation: disable
 

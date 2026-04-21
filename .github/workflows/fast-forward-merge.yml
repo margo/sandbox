@@ -3,6 +3,8 @@ on:
   issue_comment:
     types: [created]
 
+  workflow_dispatch:
+
 jobs:
   fast-forward:
     # Only run if the comment is on a PR and contains the command

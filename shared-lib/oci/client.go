@@ -107,19 +107,17 @@ func (c *Client) setupRemoteOptions() error {
 	// Configure TLS settings
 	if c.config.Insecure {
 		transport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, // #nosec G402 -- intentional and safe skipping
 		}
 	}
 
 	// Add custom CA bundle if provided
 	if len(c.config.CABundle) > 0 {
-		// TODO: Implement custom CA bundle loading
-		// This would require creating a custom cert pool
+		return fmt.Errorf("custom ca bundle for oci client is not supported yet")
 	}
 	// Add client certificate if provided
 	if len(c.config.ClientCert) > 0 && len(c.config.ClientKey) > 0 {
-		// TODO: Implement client certificate loading
-		// This would require parsing the cert and key
+		return fmt.Errorf("custom client cert bundle for oci client is not supported yet")
 	}
 	c.remoteOpts = append(c.remoteOpts, remote.WithTransport(transport))
 

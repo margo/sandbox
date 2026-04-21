@@ -99,10 +99,10 @@ func NewVerifier(publicKey string, isPubKeyBase64 bool) (*HTMPayloadVerifier, er
 	return nil, fmt.Errorf("failed to parse public key (tried PKIX, PKCS1 and certificate): %v", parseErr)
 }
 
-func (self *HTMPayloadVerifier) VerifyRequest(ctx context.Context, req *http.Request) error {
-	return self.verifier.VerifyRequest(ctx, req)
+func (payloadVerifier *HTMPayloadVerifier) VerifyRequest(ctx context.Context, req *http.Request) error {
+	return payloadVerifier.verifier.VerifyRequest(ctx, req)
 }
 
-func (self *HTMPayloadVerifier) VerifyResponse(ctx context.Context, resp *http.ResponseWriter) error {
+func (payloadVerifier *HTMPayloadVerifier) VerifyResponse(ctx context.Context, resp *http.ResponseWriter) error {
 	return fmt.Errorf("response verifier is not implemented")
 }

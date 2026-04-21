@@ -88,6 +88,7 @@ func TestDownloadFileUsingHttp_AuthenticationRequired(t *testing.T) {
 		OutputPath:     filepath.Join(tempDir, "auth-file.txt"),
 		CreateDirs:     true,
 		OverwriteExist: true,
+		Timeout:        10 * time.Second,
 	}
 
 	result, err := DownloadFileUsingHttp("GET", server.URL+"/secure", auth, nil, nil, options)
@@ -111,6 +112,7 @@ func TestDownloadFileUsingHttp_FileSizeLimitExceeded(t *testing.T) {
 		MaxFileSize:    1024, // 1KB limit
 		CreateDirs:     true,
 		OverwriteExist: true,
+		Timeout:        10 * time.Second,
 	}
 
 	_, err := DownloadFileUsingHttp("GET", server.URL+"/large-file", nil, nil, nil, options)
@@ -129,6 +131,7 @@ func TestDownloadFileUsingHttp_FileNotFound(t *testing.T) {
 	options := &DownloadOptions{
 		CreateDirs:     true,
 		OverwriteExist: true,
+		Timeout:        10 * time.Second,
 	}
 
 	_, err := DownloadFileUsingHttp("GET", server.URL+"/not-found", nil, nil, nil, options)
@@ -193,7 +196,7 @@ func TestDownloadFileUsingHttp_ResumeDownload(t *testing.T) {
 	filePath := filepath.Join(tempDir, "resume-test.txt")
 
 	// Create partial file
-	err := os.WriteFile(filePath, []byte("Hello"), 0644)
+	err := os.WriteFile(filePath, []byte("Hello"), 0600)
 	require.NoError(t, err)
 
 	options := &DownloadOptions{
@@ -201,6 +204,7 @@ func TestDownloadFileUsingHttp_ResumeDownload(t *testing.T) {
 		CreateDirs:     true,
 		OverwriteExist: true,
 		ResumeDownload: true,
+		Timeout:        10 * time.Second,
 	}
 
 	result, err := DownloadFileUsingHttp("GET", server.URL+"/resume", nil, nil, nil, options)
@@ -239,6 +243,7 @@ func TestDownloadFileUsingHttp_ProgressCallback(t *testing.T) {
 				total      int64
 			}{downloaded, total})
 		},
+		Timeout: 10 * time.Second,
 	}
 
 	result, err := DownloadFileUsingHttp("GET", server.URL+"/progress", nil, nil, nil, options)
@@ -274,6 +279,7 @@ func TestDownloadFileUsingHttp_CustomHeaders(t *testing.T) {
 			"X-Custom-Header": "custom-value",
 			"Accept":          "application/json", // Should override default
 		},
+		Timeout: 10 * time.Second,
 	}
 
 	result, err := DownloadFileUsingHttp("GET", server.URL+"/headers", nil, nil, nil, options)
@@ -293,6 +299,7 @@ func TestDownloadFileUsingHttp_UnsupportedHTTPVerb(t *testing.T) {
 	options := &DownloadOptions{
 		CreateDirs:     true,
 		OverwriteExist: true,
+		Timeout:        10 * time.Second,
 	}
 
 	_, err := DownloadFileUsingHttp("INVALID", server.URL+"/test", nil, nil, nil, options)
@@ -312,7 +319,7 @@ func TestDownloadFileUsingHttp_FileExistsNoOverwrite(t *testing.T) {
 	existingFile := filepath.Join(tempDir, "existing.txt")
 
 	// Create existing file
-	err := os.WriteFile(existingFile, []byte("Existing content"), 0644)
+	err := os.WriteFile(existingFile, []byte("Existing content"), 0600)
 	require.NoError(t, err)
 
 	options := &DownloadOptions{
@@ -320,6 +327,7 @@ func TestDownloadFileUsingHttp_FileExistsNoOverwrite(t *testing.T) {
 		CreateDirs:     true,
 		OverwriteExist: false, // Don't overwrite
 		ResumeDownload: false,
+		Timeout:        10 * time.Second,
 	}
 
 	_, err = DownloadFileUsingHttp("GET", server.URL+"/test", nil, nil, nil, options)
@@ -328,7 +336,7 @@ func TestDownloadFileUsingHttp_FileExistsNoOverwrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "file already exists")
 
 	// Verify original content is preserved
-	content, err := os.ReadFile(existingFile)
+	content, err := os.ReadFile(filepath.Clean(existingFile))
 	require.NoError(t, err)
 	assert.Equal(t, "Existing content", string(content))
 }

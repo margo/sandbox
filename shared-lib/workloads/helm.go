@@ -284,7 +284,7 @@ func (c *HelmClient) InstallChart(ctx context.Context, releaseName, chart, names
 	}
 
 	// Traditional chart installation
-	chartPath, err := install.ChartPathOptions.LocateChart(chart, c.settings)
+	chartPath, err := install.LocateChart(chart, c.settings)
 	if err != nil {
 		return &HelmError{
 			Type:    ErrorTypeChart,
@@ -383,7 +383,7 @@ func (c *HelmClient) InstallChartWithDryRun(ctx context.Context, releaseName, ch
 	install.Version = revision
 	install.DryRun = true
 
-	chartPath, err := install.ChartPathOptions.LocateChart(chart, c.settings)
+	chartPath, err := install.LocateChart(chart, c.settings)
 	if err != nil {
 		return "", &HelmError{
 			Type:    ErrorTypeChart,
@@ -458,7 +458,7 @@ func (c *HelmClient) UpdateChart(ctx context.Context, name, chart, namespace str
 	}
 
 	// Traditional chart upgrade
-	chartPath, err := upgrade.ChartPathOptions.LocateChart(chart, c.settings)
+	chartPath, err := upgrade.LocateChart(chart, c.settings)
 	if err != nil {
 		return &HelmError{
 			Type:    ErrorTypeChart,

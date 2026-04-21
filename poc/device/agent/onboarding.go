@@ -142,7 +142,7 @@ func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId str
 	da.oauthTokenUrl = ""
 	da.log.Infow("Device onboarding successful", "deviceClientId", da.deviceClientId)
 
-	da.db.SetDeviceSettings(database.DeviceSettingsRecord{
+	err = da.db.SetDeviceSettings(database.DeviceSettingsRecord{
 		DeviceClientId:        da.deviceClientId,
 		DeviceRootIdentity:    da.deviceRootIdentity,
 		State:                 types.DeviceOnboardStateOnboarded,
@@ -154,17 +154,14 @@ func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId str
 		CanDeployCompose:      da.canDeployCompose,
 	})
 
-	return da.deviceClientId, nil
+	return da.deviceClientId, err
 }
 
 func (da *DeviceClientSettings) OnboardWithRetries(ctx context.Context, retries uint8) (deviceClientId string, err error) {
 	totalRetries := retries
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	for {
-		if retries == 0 {
-			break
-		}
+	for retries > 0 {
 		retries--
 
 		// Wait for next tick or overall timeout

@@ -5,12 +5,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // LoadCustomCA loads a custom CA certificate and returns a TLS config
 func LoadCustomCA(caPath string) (*tls.Config, error) {
 	// Read the CA certificate file
-	caCert, err := os.ReadFile(caPath)
+	caCert, err := os.ReadFile(filepath.Clean(caPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CA certificate from %s: %w", caPath, err)
 	}

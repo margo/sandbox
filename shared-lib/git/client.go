@@ -30,7 +30,7 @@ func NewClient(auth *Auth, url, branchOrTagName string, outputPath *string) (*Cl
 		if _, err := os.Stat(*outputPath); err != nil {
 			if os.IsNotExist(err) {
 				// Try to create the directory if it doesn't exist
-				if err := os.MkdirAll(*outputPath, 0755); err != nil {
+				if err := os.MkdirAll(*outputPath, 0750); err != nil {
 					return nil, fmt.Errorf("output path does not exist and cannot be created: %w", err)
 				}
 			} else {
@@ -49,11 +49,11 @@ func NewClient(auth *Auth, url, branchOrTagName string, outputPath *string) (*Cl
 
 		// Check if the directory is writable
 		testFile := filepath.Join(*outputPath, ".write_test")
-		if file, err := os.Create(testFile); err != nil {
+		if file, err := os.Create(filepath.Clean(testFile)); err != nil {
 			return nil, fmt.Errorf("output path is not writable: %w", err)
 		} else {
 			file.Close()
-			os.Remove(testFile) // Clean up test file
+			_ = os.Remove(testFile) // Clean up test file
 		}
 
 		// Convert to absolute path for consistency

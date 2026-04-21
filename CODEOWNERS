@@ -1,8 +1,8 @@
 # Default owners for everything
 * @singhmj-1 @vireshnavalli
 
-# Infra and pipeline directory (CI/CD)
-/pipeline/ @nitparihar @sanjujunnuthula
+# Infra and scripts directory (CI/CD)
+/scripts/ @nitparihar @sanjujunnuthula
 /.github/ @nitparihar @sanjujunnuthula
 /helmchart @nitparihar @sanjujunnuthula
 /docker-compose @nitparihar @sanjujunnuthula

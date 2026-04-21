@@ -1,86 +1,223 @@
 package packageManager
 
 import (
+	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/margo/sandbox/non-standard/pkg/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestLoadPackageFromOci_Success tests successful package loading from OCI registry
-// Note: This test requires a real OCI registry or mock implementation
-// TODO: Introduce mock OCI registry for isolated testing
-func TestLoadPackageFromOci_Success(t *testing.T) {
-	t.Skip("Skipping integration test - requires OCI registry setup or mocks")
+func TestNewPackageManager(t *testing.T) {
+	tests := []struct {
+		name   string
+		config *Config
+	}{
+		{
+			name:   "with nil config",
+			config: nil,
+		},
+		{
+			name: "with custom config",
+			config: &Config{
+				EnableValidation: false,
+				MaxPackageSize:   50 * 1024 * 1024,
+			},
+		},
+	}
 
-	pm := NewPackageManager()
-	pkgPath, pkg, err := pm.LoadPackageFromOci(
-		"docker.io",
-		"testuser/testapp",
-		"v1.0.0",
-		"testuser",
-		"testtoken",
-		false,
-		time.Second*30,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := NewPackageManager(tt.config)
+
+			assert.NotNil(t, pm)
+			assert.NotNil(t, pm.loaders)
+			assert.NotNil(t, pm.validator)
+			assert.NotNil(t, pm.config)
+
+			// Verify loaders are registered
+			assert.Len(t, pm.loaders, 2)
+			assert.NotNil(t, pm.loaders[SourceDirectory])
+			assert.NotNil(t, pm.loaders[SourceOCI])
+		})
+	}
+}
+
+func TestPackageManager_RegisterLoader(t *testing.T) {
+	pm := NewPackageManager(nil)
+
+	// Create a custom loader
+	customLoader := &mockLoader{sourceType: "custom"}
+	pm.RegisterLoader(customLoader)
+
+	assert.NotNil(t, pm.loaders["custom"])
+}
+
+func TestPackageManager_Load_UnsupportedSourceType(t *testing.T) {
+	pm := NewPackageManager(nil)
+
+	_, pkg, err := pm.Load(
+		context.Background(),
+		"unsupported",
+		"/some/path",
+		nil,
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, pkg)
+	assert.IsType(t, &ErrUnsupportedSource{}, err)
+}
+
+func TestPackageManager_Load_FromDirectory(t *testing.T) {
+	pkgDir := createValidTestPackage(t, true)
+	defer os.RemoveAll(pkgDir)
+
+	pm := NewPackageManager(nil)
+	_, pkg, err := pm.Load(
+		context.Background(),
+		SourceDirectory,
+		pkgDir,
+		nil,
 	)
 
 	require.NoError(t, err)
-	require.NotNil(t, pkg)
-	require.NotEmpty(t, pkgPath)
-	defer os.RemoveAll(pkgPath) // Cleanup temporary directory
+	assert.NotNil(t, pkg)
+}
 
-	// Verify package path exists
-	_, err = os.Stat(pkgPath)
-	assert.NoError(t, err, "package path should exist")
+func TestPackageManager_Load_WithValidationEnabled(t *testing.T) {
+	pkgDir := createValidTestPackage(t, true)
+	defer os.RemoveAll(pkgDir)
 
-	// Verify package content
+	pm := NewPackageManager(nil)
+	_, pkg, err := pm.Load(
+		context.Background(),
+		SourceDirectory,
+		pkgDir,
+		&LoadOptions{
+			Validate: true,
+		},
+	)
+
+	require.NoError(t, err)
+	assert.NotNil(t, pkg)
+}
+
+func TestPackageManager_Load_InvalidPackageWithValidation(t *testing.T) {
+	dir := t.TempDir()
+	invalidYAML := `
+apiVersion: margo.org/v1alpha1
+kind: WrongKind
+metadata:
+  name: test
+`
+	err := os.WriteFile(
+		filepath.Join(dir, ExpectedDescriptionFileName),
+		[]byte(invalidYAML),
+		0600,
+	)
+	require.NoError(t, err)
+
+	pm := NewPackageManager(nil)
+	_, pkg, err := pm.Load(
+		context.Background(),
+		SourceDirectory,
+		dir,
+		&LoadOptions{
+			Validate: true,
+		},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, pkg)
+	assert.IsType(t, &ErrInvalidDescription{}, err)
+}
+
+func TestPackageManager_LoadFromDirectory(t *testing.T) {
+	pkgDir := createValidTestPackage(t, true)
+	defer os.RemoveAll(pkgDir)
+
+	pm := NewPackageManager(nil)
+	_, pkg, err := pm.LoadFromDirectory(context.Background(), pkgDir)
+
+	require.NoError(t, err)
+	assert.NotNil(t, pkg)
 	assert.NotNil(t, pkg.Description)
-	assert.NotEmpty(t, pkg.Description.Metadata.Name)
-	assert.NotEmpty(t, pkg.Description.Metadata.Version)
+	assert.Equal(t, "test-app", pkg.Description.Metadata.Name)
 }
 
-// TestLoadPackageFromOci_InvalidRegistry tests error handling for invalid registry
-func TestLoadPackageFromOci_InvalidRegistry(t *testing.T) {
-	pm := NewPackageManager()
-	pkgPath, pkg, err := pm.LoadPackageFromOci(
-		"",
-		"testuser/testapp",
-		"v1.0.0",
-		"",
-		"",
-		false,
-		time.Second*30,
+func TestPackageManager_LoadFromDirectory_InvalidPath(t *testing.T) {
+	pm := NewPackageManager(nil)
+	_, pkg, err := pm.LoadFromDirectory(
+		context.Background(),
+		"/non/existent/path",
 	)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to initialize OCI client")
-	assert.Empty(t, pkgPath)
+	assert.Error(t, err)
 	assert.Nil(t, pkg)
 }
 
-// TestLoadPackageFromOci_CleanupOnFailure tests that temp directories are cleaned up on failure
-// Note: Mock OCI client can be introduced here to simulate pull failures
-// TODO: Add mock to test cleanup behavior without external dependencies
-func TestLoadPackageFromOci_CleanupOnFailure(t *testing.T) {
-	t.Skip("Skipping - requires mock OCI client to simulate failures")
+func TestNewPackageManager_WithNilConfig(t *testing.T) {
+	pm := NewPackageManager(nil)
 
-	pm := NewPackageManager()
-	pkgPath, pkg, err := pm.LoadPackageFromOci(
-		"docker.io",
-		"nonexistent/repo",
-		"nonexistent",
+	assert.NotNil(t, pm)
+	assert.NotNil(t, pm.loaders)
+	assert.NotNil(t, pm.validator)
+	assert.NotNil(t, pm.config)
+	assert.True(t, pm.config.EnableValidation)
+}
+
+func TestNewPackageManager_WithCustomConfig(t *testing.T) {
+	customConfig := &Config{
+		EnableValidation: false,
+		MaxPackageSize:   50 * 1024 * 1024,
+	}
+
+	pm := NewPackageManager(customConfig)
+
+	assert.NotNil(t, pm)
+	assert.False(t, pm.config.EnableValidation)
+	assert.Equal(t, int64(50*1024*1024), pm.config.MaxPackageSize)
+}
+
+func TestPackageManager_LoadFromOCI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping OCI integration test")
+	}
+
+	pm := NewPackageManager(nil)
+
+	_, _, err := pm.LoadFromOCI(
+		context.Background(),
+		"localhost:5000",
+		"test-package",
+		"latest",
 		"",
 		"",
-		false,
+		true,
 		time.Second*30,
 	)
 
-	require.Error(t, err)
-	assert.Empty(t, pkgPath)
-	assert.Nil(t, pkg)
+	// Expected to fail without real registry
+	assert.Error(t, err)
+}
 
-	// Verify no temporary directories are left behind
-	// This would be properly tested with mocks
+// Mock loader for testing
+type mockLoader struct {
+	sourceType SourceType
+}
+
+func (m *mockLoader) Load(
+	ctx context.Context,
+	source string,
+	opts *LoadOptions,
+) (string, *models.AppPkg, error) {
+	return "", &models.AppPkg{}, nil
+}
+
+func (m *mockLoader) Type() SourceType {
+	return m.sourceType
 }

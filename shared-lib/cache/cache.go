@@ -25,7 +25,7 @@ type Cache struct {
 
 // NewCache creates a new cache instance
 func NewCache(baseDir string) (*Cache, error) {
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := os.MkdirAll(baseDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -48,12 +48,12 @@ func (c *Cache) Store(cacheType CacheType, key, digest string, data []byte) erro
 
 	// Create cache path
 	cachePath := filepath.Join(c.baseDir, string(cacheType), key, digest)
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0750); err != nil {
 		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	// Write data
-	if err := os.WriteFile(cachePath, data, 0644); err != nil {
+	if err := os.WriteFile(cachePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
 
@@ -67,7 +67,7 @@ func (c *Cache) Get(cacheType CacheType, key, digest string) ([]byte, error) {
 	defer c.mu.RUnlock()
 
 	cachePath := filepath.Join(c.baseDir, string(cacheType), key, digest)
-	data, err := os.ReadFile(cachePath)
+	data, err := os.ReadFile(filepath.Clean(cachePath))
 	if err != nil {
 		return nil, fmt.Errorf("cache miss: %w", err)
 	}
@@ -77,7 +77,7 @@ func (c *Cache) Get(cacheType CacheType, key, digest string) ([]byte, error) {
 	actualDigest := fmt.Sprintf("sha256:%x", hash)
 	if actualDigest != digest {
 		// Cache corruption detected - remove corrupted file
-		os.Remove(cachePath)
+		_ = os.Remove(cachePath)
 		return nil, fmt.Errorf("cache corruption detected: expected %s, got %s", digest, actualDigest)
 	}
 
@@ -90,7 +90,7 @@ func (c *Cache) GetLastDigest(cacheType CacheType, key string) (string, error) {
 	defer c.mu.RUnlock()
 
 	metaPath := filepath.Join(c.baseDir, string(cacheType), key, "metadata.json")
-	data, err := os.ReadFile(metaPath)
+	data, err := os.ReadFile(filepath.Clean(metaPath))
 	if err != nil {
 		return "", fmt.Errorf("no cached metadata: %w", err)
 	}
@@ -159,7 +159,7 @@ func (c *Cache) updateMetadata(cacheType CacheType, key, digest string) error {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	return os.WriteFile(metaPath, metaData, 0644)
+	return os.WriteFile(metaPath, metaData, 0600)
 }
 
 // GetCacheStats returns statistics about the cache

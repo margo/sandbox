@@ -78,7 +78,11 @@ func (c *Cache) Get(cacheType CacheType, key, digest string) ([]byte, error) {
 	if actualDigest != digest {
 		// Cache corruption detected - remove corrupted file
 		_ = os.Remove(cachePath)
-		return nil, fmt.Errorf("cache corruption detected: expected %s, got %s", digest, actualDigest)
+		return nil, fmt.Errorf(
+			"cache corruption detected: expected %s, got %s",
+			digest,
+			actualDigest,
+		)
 	}
 
 	return data, nil

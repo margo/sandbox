@@ -23,7 +23,11 @@ func TestFetchComposeFileFromURL(t *testing.T) {
 	}
 
 	url := "https://github.com/docker/awesome-compose/blob/master/nextcloud-redis-mariadb/compose.yaml"
-	data, err := composeClient.FetchComposeFileFromURL(context.Background(), url, "file1.compose.yaml")
+	data, err := composeClient.FetchComposeFileFromURL(
+		context.Background(),
+		url,
+		"file1.compose.yaml",
+	)
 
 	if err != nil {
 		t.Fatal(err)

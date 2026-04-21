@@ -32,7 +32,8 @@ package device
 // }
 
 // // NewManualCapabilitiesManager creates a new CapabilitiesManager
-// func NewManualCapabilitiesManager(log *zap.SugaredLogger, config *types.Config, apiClientFactory wfm.SBIAPIClientInterface) CapabilitiesManager {
+// func NewManualCapabilitiesManager(log *zap.SugaredLogger, config *types.Config, apiClientFactory
+// wfm.SBIAPIClientInterface) CapabilitiesManager {
 // 	return &manualCapabilitiesManager{
 // 		config:           config,
 // 		log:              log,
@@ -76,7 +77,8 @@ package device
 // }
 
 // // GetCapabilities discovers and returns the device's capabilities
-// func (cm *manualCapabilitiesManager) GetCapabilities(ctx context.Context) (sbi.Properties, error) {
+// func (cm *manualCapabilitiesManager) GetCapabilities(ctx context.Context) (sbi.Properties, error)
+// {
 // 	cm.log.Info("Getting device capabilities...")
 
 // 	// Check if manager is started
@@ -142,13 +144,15 @@ package device
 // }
 
 // // discoverCapabilities reads the device capabilities from the specified file
-// func (cm *manualCapabilitiesManager) discoverCapabilities(ctx context.Context) (*sbi.Properties, error) {
-// 	cm.log.Infow("Reading device capabilities from file", "file", cm.config.Capabilities.ReadFromFile)
+// func (cm *manualCapabilitiesManager) discoverCapabilities(ctx context.Context) (*sbi.Properties,
+// error) { 	cm.log.Infow("Reading device capabilities from file", "file",
+// cm.config.Capabilities.ReadFromFile)
 
 // 	// 1. Read the file
 // 	data, err := os.ReadFile(cm.config.Capabilities.ReadFromFile)
 // 	if err != nil {
-// 		cm.log.Errorw("Failed to read capabilities file", "file", cm.config.Capabilities.ReadFromFile, "error", err)
+// 		cm.log.Errorw("Failed to read capabilities file", "file", cm.config.Capabilities.ReadFromFile,
+// "error", err)
 // 		return nil, fmt.Errorf("failed to read capabilities file: %w", err)
 // 	}
 
@@ -156,7 +160,8 @@ package device
 // 	// 2. Unmarshal the JSON data
 // 	err = json.Unmarshal(data, &capabilities)
 // 	if err != nil {
-// 		cm.log.Errorw("Failed to unmarshal capabilities data", "file", cm.config.Capabilities.ReadFromFile, "error", err)
+// 		cm.log.Errorw("Failed to unmarshal capabilities data", "file",
+// cm.config.Capabilities.ReadFromFile, "error", err)
 // 		return nil, fmt.Errorf("failed to unmarshal capabilities data: %w", err)
 // 	}
 // 	var properties sbi.Properties = capabilities.Properties

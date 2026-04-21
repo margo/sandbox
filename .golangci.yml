@@ -82,6 +82,7 @@ linters:
 formatters:
   enable:
     - goimports # Organize imports (auto-fixable)
+    - golines
 
 output:
   formats:

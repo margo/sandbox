@@ -14,7 +14,7 @@ import (
 // DeviceRootIdentity represents the device's root identity/attestation used for onboarding.
 type DeviceRootIdentity struct {
 	IdentityType string            `yaml:"identityType" validate:"required"`
-	Attestation  DeviceAttestation `yaml:"attestation" validate:"required"`
+	Attestation  DeviceAttestation `yaml:"attestation"  validate:"required"`
 }
 
 type DeviceAttestation struct {
@@ -27,7 +27,7 @@ type RandomAttestation struct {
 }
 
 type PKIAttestation struct {
-	PubCertPath string `yaml:"pubCertPath" validate:"required"`
+	PubCertPath string `yaml:"pubCertPath"      validate:"required"`
 	Issuer      string `yaml:"issuer,omitempty"`
 }
 
@@ -46,12 +46,12 @@ const (
 
 // Config struct
 type Config struct {
-	Logging            LoggingConfig               `yaml:"logging" validate:"required"`
+	Logging            LoggingConfig               `yaml:"logging"            validate:"required"`
 	DeviceRootIdentity DeviceRootIdentity          `yaml:"deviceRootIdentity" validate:"required"`
-	Wfm                WFMConfig                   `yaml:"wfm" validate:"required"`
-	StateSeeking       StateSeekingConfig          `yaml:"stateSeeking" validate:"required"`
-	Capabilities       CapabilitiesDiscoveryConfig `yaml:"capabilities" validate:"required"`
-	Runtimes           []RuntimeInfo               `yaml:"runtimes" validate:"required"`
+	Wfm                WFMConfig                   `yaml:"wfm"                validate:"required"`
+	StateSeeking       StateSeekingConfig          `yaml:"stateSeeking"       validate:"required"`
+	Capabilities       CapabilitiesDiscoveryConfig `yaml:"capabilities"       validate:"required"`
+	Runtimes           []RuntimeInfo               `yaml:"runtimes"           validate:"required"`
 }
 
 type StateSeekingConfig struct {
@@ -59,7 +59,7 @@ type StateSeekingConfig struct {
 }
 
 type WFMConfig struct {
-	SbiURL        string              `yaml:"sbiUrl" validate:"required"`
+	SbiURL        string              `yaml:"sbiUrl"                  validate:"required"`
 	ClientPlugins ClientPluginsConfig `yaml:"clientPlugins,omitempty"`
 }
 
@@ -71,8 +71,8 @@ type ClientPluginsConfig struct {
 
 type RequestSignerConfig struct {
 	Enabled         bool   `yaml:"enabled"`
-	SignatureAlgo   string `yaml:"signatureAlgo" validate:"required"`
-	HashAlgo        string `yaml:"hashAlgo" validate:"required"`
+	SignatureAlgo   string `yaml:"signatureAlgo"   validate:"required"`
+	HashAlgo        string `yaml:"hashAlgo"        validate:"required"`
 	SignatureFormat string `yaml:"signatureFormat" validate:"required"`
 	// KeyRef describes where the private key used for request signing is located.
 	KeyRef *KeyRef `yaml:"keyRef,omitempty"`
@@ -112,18 +112,18 @@ type KubernetesConfig struct {
 
 type TLSConfig struct {
 	CacertPath *string `yaml:"cacertPath" validate:"required"`
-	CertPath   *string `yaml:"certPath" validate:"required"`
-	KeyPath    *string `yaml:"keyPath" validate:"required"`
+	CertPath   *string `yaml:"certPath"   validate:"required"`
+	KeyPath    *string `yaml:"keyPath"    validate:"required"`
 }
 
 type DockerConfig struct {
-	Url                 string     `yaml:"url" validator:"url"`
+	Url                 string     `yaml:"url"                 validator:"url"`
 	TLS                 *TLSConfig `yaml:"tls"`
 	TLSSkipVerification *bool      `yaml:"tlsSkipVerification"`
 }
 
 type RuntimeInfo struct {
-	Type       string            `yaml:"type" validate:"required"`
+	Type       string            `yaml:"type"                 validate:"required"`
 	Kubernetes *KubernetesConfig `yaml:"kubernetes,omitempty"`
 	Docker     *DockerConfig     `yaml:"docker,omitempty"`
 }
@@ -170,10 +170,14 @@ func validateConfig(config *Config) error {
 	if config.Logging.Level == "" {
 		return fmt.Errorf("logging.level is required in configuration")
 	}
-	// If request signer plugin is enabled, require a KeyRef for signing (explicitly decoupled from deviceRootIdentity)
-	if config.Wfm.ClientPlugins.RequestSigner != nil && config.Wfm.ClientPlugins.RequestSigner.Enabled {
+	// If request signer plugin is enabled, require a KeyRef for signing (explicitly decoupled from
+	// deviceRootIdentity)
+	if config.Wfm.ClientPlugins.RequestSigner != nil &&
+		config.Wfm.ClientPlugins.RequestSigner.Enabled {
 		if config.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
-			return fmt.Errorf("wfm.clientPlugins.requestSigner.keyRef is required when request signer is enabled")
+			return fmt.Errorf(
+				"wfm.clientPlugins.requestSigner.keyRef is required when request signer is enabled",
+			)
 		}
 	}
 
@@ -189,7 +193,8 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("capabilities.readFromFile is required in configuration")
 	}
 
-	// Basic checks for client plugins (no strict validation here; plugin-specific validation should exist in plugin)
+	// Basic checks for client plugins (no strict validation here; plugin-specific validation should
+	// exist in plugin)
 	return nil
 }
 
@@ -198,7 +203,11 @@ func (d DeviceRootIdentity) PublicCertificatePEM() (string, error) {
 	if d.Attestation.PKI != nil && d.Attestation.PKI.PubCertPath != "" {
 		certBytes, err := os.ReadFile(d.Attestation.PKI.PubCertPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read certificate file %s: %w", d.Attestation.PKI.PubCertPath, err)
+			return "", fmt.Errorf(
+				"failed to read certificate file %s: %w",
+				d.Attestation.PKI.PubCertPath,
+				err,
+			)
 		}
 		return string(certBytes), nil
 	}

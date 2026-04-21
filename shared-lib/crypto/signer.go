@@ -35,12 +35,15 @@ type HTMPayloadSigner struct {
 	signatureFormat string
 }
 
-func NewSignerFromFile(keyPath, signatureAlgo, hashAlgo, signatureFormat string) (HTTPSigner, error) {
+func NewSignerFromFile(
+	keyPath, signatureAlgo, hashAlgo, signatureFormat string,
+) (HTTPSigner, error) {
 	keyBytes, err := os.ReadFile(filepath.Clean(keyPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request signer key from %s: %w", keyPath, err)
 	}
-	// derive a deterministic keyid from the private key so signatures include a stable key identifier
+	// derive a deterministic keyid from the private key so signatures include a stable key
+	// identifier
 	keyid, err := ComputeKeyIDFromPrivateKeyPEM(string(keyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive keyid from private key: %w", err)
@@ -56,7 +59,13 @@ func NewSignerFromFile(keyPath, signatureAlgo, hashAlgo, signatureFormat string)
 // currently not all mapped; for now we support defaulting to rsa/ecdsa with
 // sha-256 and the default signature format. This function accepts a keyid
 // parameter which will be included in the produced Signature header.
-func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlgo string, signatureFormat string) (HTTPSigner, error) {
+func NewSigner(
+	privateKeyPEM string,
+	keyid string,
+	signatureAlgo string,
+	hashAlgo string,
+	signatureFormat string,
+) (HTTPSigner, error) {
 	// validate basic config values (we keep mapping to htmsig minimal for now)
 	switch strings.ToLower(signatureAlgo) {
 	case "", "auto", "rsa", "ecdsa":
@@ -102,7 +111,11 @@ func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlg
 	default:
 		parsedKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, fmt.Errorf("unsupported or invalid private key PEM (type=%s): %w", block.Type, err)
+			return nil, fmt.Errorf(
+				"unsupported or invalid private key PEM (type=%s): %w",
+				block.Type,
+				err,
+			)
 		}
 	}
 
@@ -124,7 +137,8 @@ func NewSigner(privateKeyPEM string, keyid string, signatureAlgo string, hashAlg
 
 	// Per Margo spec, content-digest MUST be part of the signature for requests with a body.
 	// For requests without a body (e.g., GET, DELETE), content-digest is omitted.
-	// See: https://docs.margo.org/specification/margo-management-interface/api-requirements-and-security
+	// See:
+	// https://docs.margo.org/specification/margo-management-interface/api-requirements-and-security
 	requestSignerWithBody := htmsighttp.NewSigner(
 		parsedKey,
 		keyid,

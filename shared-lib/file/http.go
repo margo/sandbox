@@ -38,7 +38,13 @@ type DownloadOptions struct {
 }
 
 // DownloadFileUsingHttp downloads a file using the specified HTTP method with authentication
-func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryParams map[string]interface{}, body interface{}, options *DownloadOptions) (*DownloadResult, error) {
+func DownloadFileUsingHttp(
+	httpVerb, url string,
+	auth *auth.AuthConfig,
+	queryParams map[string]interface{},
+	body interface{},
+	options *DownloadOptions,
+) (*DownloadResult, error) {
 	// Set default options if not provided
 	if options == nil {
 		options = &DownloadOptions{
@@ -123,7 +129,14 @@ func DownloadFileUsingHttp(httpVerb, url string, auth *auth.AuthConfig, queryPar
 }
 
 // createHTTPRequest creates an HTTP request using the reusable HTTP utility methods
-func createHTTPRequest(ctx context.Context, httpVerb, url string, auth *auth.AuthConfig, queryParams map[string]interface{}, body interface{}, options *DownloadOptions) (*http.Request, error) {
+func createHTTPRequest(
+	ctx context.Context,
+	httpVerb, url string,
+	auth *auth.AuthConfig,
+	queryParams map[string]interface{},
+	body interface{},
+	options *DownloadOptions,
+) (*http.Request, error) {
 	// Normalize HTTP verb
 	httpVerb = strings.ToUpper(httpVerb)
 
@@ -215,7 +228,11 @@ func validateResponse(resp *http.Response, resumeDownload bool) error {
 }
 
 // downloadFile performs the actual file download
-func downloadFile(resp *http.Response, outputPath string, options *DownloadOptions) (*DownloadResult, error) {
+func downloadFile(
+	resp *http.Response,
+	outputPath string,
+	options *DownloadOptions,
+) (*DownloadResult, error) {
 	// Get content length
 	contentLength := resp.ContentLength
 	if contentLengthStr := resp.Header.Get("Content-Length"); contentLengthStr != "" {
@@ -226,7 +243,11 @@ func downloadFile(resp *http.Response, outputPath string, options *DownloadOptio
 
 	// Check file size limit
 	if options.MaxFileSize > 0 && contentLength > options.MaxFileSize {
-		return nil, fmt.Errorf("file size (%d bytes) exceeds maximum allowed size (%d bytes)", contentLength, options.MaxFileSize)
+		return nil, fmt.Errorf(
+			"file size (%d bytes) exceeds maximum allowed size (%d bytes)",
+			contentLength,
+			options.MaxFileSize,
+		)
 	}
 
 	// Open output file
@@ -334,7 +355,10 @@ func setDownloadHeaders(req *http.Request) {
 	// Override some default headers for downloads
 	// req.Header.Set("Accept", "*/*")
 	// req.Header.Set("Accept-Encoding", "gzip, deflate")
-	req.Header.Set("Accept", "application/json, application/yaml, application/x-yaml, text/yaml, text/plain, */*")
+	req.Header.Set(
+		"Accept",
+		"application/json, application/yaml, application/x-yaml, text/yaml, text/plain, */*",
+	)
 	req.Header.Set("User-Agent", "margo-device-agent/1.0")
 	req.Header.Set("Accept-Encoding", "identity") // Request uncompressed content
 }

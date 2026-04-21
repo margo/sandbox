@@ -107,7 +107,12 @@ func WithAuth() WFMCliOption {
 //	cli := NewNbiHTTPCli("localhost", 8080, nil,
 //	    WithTimeout(60*time.Second),
 //	    WithLogger(customLogger))
-func NewNbiHTTPCli(host string, port uint16, nbiBasePath *string, opts ...WFMCliOption) *NbiApiClient {
+func NewNbiHTTPCli(
+	host string,
+	port uint16,
+	nbiBasePath *string,
+	opts ...WFMCliOption,
+) *NbiApiClient {
 	nbiBaseURLPath := northboundBaseURL
 	if nbiBasePath != nil {
 		nbiBaseURLPath = *nbiBasePath
@@ -150,12 +155,22 @@ func (cli *NbiApiClient) createContext() (context.Context, context.CancelFunc) {
 }
 
 // handleErrorResponse processes error responses consistently
-func (cli *NbiApiClient) handleErrorResponse(errBody []byte, statusCode int, operation string) error {
+func (cli *NbiApiClient) handleErrorResponse(
+	errBody []byte,
+	statusCode int,
+	operation string,
+) error {
 	// Read response body safely
 	body, err := io.ReadAll(bytes.NewReader(errBody))
 	if err != nil {
-		// cli.logger.Printf("%s request failed with error %d (could not read response body, reason: %s)", operation, statusCode, err.Error())
-		return fmt.Errorf("%s failed: error (status %d) (could not read response body, reason: %s)", operation, statusCode, err.Error())
+		// cli.logger.Printf("%s request failed with error %d (could not read response body, reason:
+		// %s)", operation, statusCode, err.Error())
+		return fmt.Errorf(
+			"%s failed: error (status %d) (could not read response body, reason: %s)",
+			operation,
+			statusCode,
+			err.Error(),
+		)
 	}
 	// cli.logger.Printf("%s request failed with error %d: %s", operation, statusCode, string(body))
 	return fmt.Errorf("%s failed: error (status %d): %s", operation, statusCode, string(body))
@@ -216,13 +231,18 @@ func (cli *NbiApiClient) OnboardAppPkg(params AppPkgOnboardingReq) (*AppPkgOnboa
 	// Handle response based on status code
 	switch pkgResp.StatusCode() {
 	case 200, 202:
-		// cli.logger.Printf("Application onboard request accepted for package: %s", params.Metadata.Name)
+		// cli.logger.Printf("Application onboard request accepted for package: %s",
+		// params.Metadata.Name)
 		if pkgResp.JSON202 != nil {
 			return pkgResp.JSON202, nil
 		}
 		return nil, nil
 	default:
-		return nil, cli.handleErrorResponse(pkgResp.Body, pkgResp.StatusCode(), "onboard app package")
+		return nil, cli.handleErrorResponse(
+			pkgResp.Body,
+			pkgResp.StatusCode(),
+			"onboard app package",
+		)
 	}
 }
 
@@ -375,13 +395,18 @@ func (cli *NbiApiClient) CreateDeployment(params DeploymentReq) (*DeploymentResp
 	// Handle response based on status code
 	switch pkgResp.StatusCode() {
 	case 200, 202:
-		// cli.logger.Printf("Application deployment request accepted for package: %s", params.Spec.AppPackageRef.Id)
+		// cli.logger.Printf("Application deployment request accepted for package: %s",
+		// params.Spec.AppPackageRef.Id)
 		if pkgResp.JSON202 != nil {
 			return pkgResp.JSON202, nil
 		}
 		return nil, nil
 	default:
-		return nil, cli.handleErrorResponse(pkgResp.Body, pkgResp.StatusCode(), "create app deployment")
+		return nil, cli.handleErrorResponse(
+			pkgResp.Body,
+			pkgResp.StatusCode(),
+			"create app deployment",
+		)
 	}
 }
 
@@ -415,7 +440,11 @@ func (cli *NbiApiClient) GetDeployment(deploymentId string) (*DeploymentResp, er
 		// cli.logger.Printf("Successfully retrieved package: %s", deploymentId)
 		return deploymentResp.JSON200, nil
 	default:
-		return nil, cli.handleErrorResponse(deploymentResp.Body, deploymentResp.StatusCode(), "get app deployment")
+		return nil, cli.handleErrorResponse(
+			deploymentResp.Body,
+			deploymentResp.StatusCode(),
+			"get app deployment",
+		)
 	}
 }
 
@@ -449,7 +478,11 @@ func (cli *NbiApiClient) ListDeployments(params DeploymentListParams) (*Deployme
 		// cli.logger.Printf("Successfully listed %d deployments", packageCount)
 		return deploymentListResp.JSON200, nil
 	default:
-		return nil, cli.handleErrorResponse(deploymentListResp.Body, deploymentListResp.StatusCode(), "list app deployments")
+		return nil, cli.handleErrorResponse(
+			deploymentListResp.Body,
+			deploymentListResp.StatusCode(),
+			"list app deployments",
+		)
 	}
 }
 
@@ -482,7 +515,11 @@ func (cli *NbiApiClient) DeleteDeployment(deploymentId string) error {
 		// cli.logger.Printf("Successfully deleted deployment: %s", deploymentId)
 		return nil
 	default:
-		return cli.handleErrorResponse(deploymentResp.Body, deploymentResp.StatusCode(), "delete app deployment")
+		return cli.handleErrorResponse(
+			deploymentResp.Body,
+			deploymentResp.StatusCode(),
+			"delete app deployment",
+		)
 	}
 }
 
@@ -515,6 +552,10 @@ func (cli *NbiApiClient) ListDevices() (*DeviceListResp, error) {
 		// cli.logger.Printf("Successfully listed %d devices", deviceCount)
 		return deviceListResp.JSON200, nil
 	default:
-		return nil, cli.handleErrorResponse(deviceListResp.Body, deviceListResp.StatusCode(), "list devices")
+		return nil, cli.handleErrorResponse(
+			deviceListResp.Body,
+			deviceListResp.StatusCode(),
+			"list devices",
+		)
 	}
 }

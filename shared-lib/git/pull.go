@@ -115,7 +115,10 @@ func (client *Client) CheckForNewCommits() (hasNewCommits bool, newCommits []Com
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Pulled %d new commits\n", len(commits))
-func PullLatestChanges(repoPath, branchName string, auth *Auth) (pulledCommits []CommitInfo, err error) {
+func PullLatestChanges(
+	repoPath, branchName string,
+	auth *Auth,
+) (pulledCommits []CommitInfo, err error) {
 	// Validate inputs
 	if repoPath == "" {
 		return nil, fmt.Errorf("repository path cannot be empty")
@@ -220,7 +223,10 @@ func GetLatestCommitInfo(repoPath, branchName string) (commitInfo CommitInfo, er
 
 	var ref *goGitPlumbing.Reference
 	if branchName != "" {
-		ref, err = repo.Reference(goGitPlumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branchName)), true)
+		ref, err = repo.Reference(
+			goGitPlumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branchName)),
+			true,
+		)
 	} else {
 		ref, err = repo.Head()
 	}
@@ -266,7 +272,10 @@ func fetchFromRemote(repo *goGit.Repository, auth *Auth) error {
 }
 
 // Helper function to get commits between two hashes
-func getCommitsBetween(repo *goGit.Repository, fromHash, toHash goGitPlumbing.Hash) ([]CommitInfo, error) {
+func getCommitsBetween(
+	repo *goGit.Repository,
+	fromHash, toHash goGitPlumbing.Hash,
+) ([]CommitInfo, error) {
 	var commits []CommitInfo
 
 	// Get commit iterator from the target hash

@@ -64,7 +64,8 @@ func NewAgent(configPath string) (*Agent, error) {
 	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
 
 	hasRequestSigningKey := false
-	// If request signer plugin enabled in the configuration, then create signer object and add it as http client option/RequestEditorFn
+	// If request signer plugin enabled in the configuration, then create signer object and add it
+	// as http client option/RequestEditorFn
 	if cfg.Wfm.ClientPlugins.RequestSigner != nil && cfg.Wfm.ClientPlugins.RequestSigner.Enabled {
 		if cfg.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
 			return nil, fmt.Errorf("request signer enabled but no keyRef provided in configuration")
@@ -86,14 +87,20 @@ func NewAgent(configPath string) (*Agent, error) {
 	}
 
 	hasServerTLSVerificationEnabled := false
-	// If tls plugin is enabled in the configuration, then pass the http tls client option/RequestEditorFn
+	// If tls plugin is enabled in the configuration, then pass the http tls client
+	// option/RequestEditorFn
 	if cfg.Wfm.ClientPlugins.TLSHelper != nil && cfg.Wfm.ClientPlugins.TLSHelper.Enabled {
 		if cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef == nil {
-			return nil, fmt.Errorf("tls helper plugin is enabled but no caKeyRef is not provided in configuration")
+			return nil, fmt.Errorf(
+				"tls helper plugin is enabled but no caKeyRef is not provided in configuration",
+			)
 		}
 
 		// adapter to the generated client's RequestEditorFn signature
-		clientOptions = append(clientOptions, TLSVerifier(&cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef.Path))
+		clientOptions = append(
+			clientOptions,
+			TLSVerifier(&cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef.Path),
+		)
 		hasServerTLSVerificationEnabled = true
 	}
 
@@ -117,11 +124,14 @@ func NewAgent(configPath string) (*Agent, error) {
 
 		if runtime.Docker != nil {
 			// Create docker compose client
-			composeClient, err = workloads.NewDockerComposeCliClient(workloads.DockerConnectivityParams{
-				ViaSocket: &workloads.DockerConnectionViaSocket{
-					SocketPath: runtime.Docker.Url,
+			composeClient, err = workloads.NewDockerComposeCliClient(
+				workloads.DockerConnectivityParams{
+					ViaSocket: &workloads.DockerConnectionViaSocket{
+						SocketPath: runtime.Docker.Url,
+					},
 				},
-			}, "data/composeFiles")
+				"data/composeFiles",
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -129,7 +139,9 @@ func NewAgent(configPath string) (*Agent, error) {
 		}
 	}
 	if helmClient == nil && composeClient == nil {
-		return nil, fmt.Errorf("neither kubernetes nor docker runtime objects were able to be attached, please check info if you have misplaced their settings")
+		return nil, fmt.Errorf(
+			"neither kubernetes nor docker runtime objects were able to be attached, please check info if you have misplaced their settings",
+		)
 	}
 
 	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg)))
@@ -158,13 +170,16 @@ func NewAgent(configPath string) (*Agent, error) {
 		log.Infow("Device already onboarded, skipping onboarding")
 	}
 
-	// Determine signature/certificate availability from deviceSettings (adapt to new attestation model)
+	// Determine signature/certificate availability from deviceSettings (adapt to new attestation
+	// model)
 	hasValidDeviceCertificate := false
 	if deviceSettings != nil {
 		if deviceSettings.deviceRootIdentity.HasCertificateReference() {
 			hasValidDeviceCertificate = true
 		}
-		if deviceSettings.deviceRootIdentity.IdentityType == "Random" && deviceSettings.deviceRootIdentity.Attestation.Random != nil && deviceSettings.deviceRootIdentity.Attestation.Random.Value != "" {
+		if deviceSettings.deviceRootIdentity.IdentityType == "Random" &&
+			deviceSettings.deviceRootIdentity.Attestation.Random != nil &&
+			deviceSettings.deviceRootIdentity.Attestation.Random.Value != "" {
 			hasValidDeviceCertificate = true
 		}
 	}
@@ -181,13 +196,20 @@ func NewAgent(configPath string) (*Agent, error) {
 		// "hasClientId", len(deviceSettings.oauthClientId) != 0,
 		// "hasClientSecret", len(deviceSettings.oAuthClientSecret) != 0,
 		// "hasTokenUrl", len(deviceSettings.oauthTokenUrl) != 0,
-		// "tokenBasedAuthDetails", (len(deviceSettings.oauthClientId) != 0) && (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
+		// "tokenBasedAuthDetails", (len(deviceSettings.oauthClientId) != 0) &&
+		// (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
 	)
 
 	// Create components
 	deployer := NewDeploymentManager(db, helmClient, composeClient, log)
 	monitor := NewDeploymentMonitor(db, helmClient, composeClient, log)
-	syncer := NewStateSyncer(db, wfmClient, deviceSettings.deviceClientId, cfg.StateSeeking.Interval, log)
+	syncer := NewStateSyncer(
+		db,
+		wfmClient,
+		deviceSettings.deviceClientId,
+		cfg.StateSeeking.Interval,
+		log,
+	)
 	statusReporter := NewStatusReporter(db, wfmClient, deviceSettings.deviceClientId, log)
 
 	return &Agent{
@@ -309,7 +331,10 @@ func main() {
 // PreflightLogger returns a RequestEditorFn that logs method, URL, headers (redacted)
 // and a truncated preview of the request body. It restores req.Body so the request
 // remains intact for other editors (e.g. signing) and for sending.
-func PreflightLogger(maxPreviewBytes int, logger *zap.SugaredLogger) func(ctx context.Context, req *http.Request) error {
+func PreflightLogger(
+	maxPreviewBytes int,
+	logger *zap.SugaredLogger,
+) func(ctx context.Context, req *http.Request) error {
 	// headers we always redact
 	redact := map[string]struct{}{
 		"authorization":       {},
@@ -321,7 +346,8 @@ func PreflightLogger(maxPreviewBytes int, logger *zap.SugaredLogger) func(ctx co
 
 	isTextLike := func(ct string) bool {
 		ct = strings.ToLower(ct)
-		if strings.Contains(ct, "json") || strings.Contains(ct, "xml") || strings.HasPrefix(ct, "text/") {
+		if strings.Contains(ct, "json") || strings.Contains(ct, "xml") ||
+			strings.HasPrefix(ct, "text/") {
 			return true
 		}
 		return false
@@ -368,7 +394,8 @@ func PreflightLogger(maxPreviewBytes int, logger *zap.SugaredLogger) func(ctx co
 					preview = string(b)
 				} else {
 					// try to detect small textual content, else base64
-					if http.DetectContentType(b)[:4] == "text" || strings.Contains(strings.ToLower(req.Header.Get("Content-Type")), "json") {
+					if http.DetectContentType(b)[:4] == "text" ||
+						strings.Contains(strings.ToLower(req.Header.Get("Content-Type")), "json") {
 						preview = string(b)
 					} else {
 						preview = base64.StdEncoding.EncodeToString(b)
@@ -403,7 +430,11 @@ func PreflightLogger(maxPreviewBytes int, logger *zap.SugaredLogger) func(ctx co
 					} else {
 						// detect if it's actually textual
 						detected := http.DetectContentType(b)
-						if strings.HasPrefix(detected, "text/") || strings.Contains(strings.ToLower(req.Header.Get("Content-Type")), "json") {
+						if strings.HasPrefix(detected, "text/") ||
+							strings.Contains(
+								strings.ToLower(req.Header.Get("Content-Type")),
+								"json",
+							) {
 							preview = string(b)
 						} else {
 							preview = base64.StdEncoding.EncodeToString(b)

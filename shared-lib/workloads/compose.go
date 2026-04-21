@@ -62,12 +62,18 @@ type ServiceStatus struct {
 	Health      string   `json:"health"`
 }
 
-func NewDockerComposeClient(params DockerConnectivityParams, workingDir string) (*DockerComposeClient, error) {
+func NewDockerComposeClient(
+	params DockerConnectivityParams,
+	workingDir string,
+) (*DockerComposeClient, error) {
 	var dockerClient *client.Client
 	var err error
 
 	if workingDir == "" {
-		return nil, fmt.Errorf("working directory path should be a valid path, existing value was: %s", workingDir)
+		return nil, fmt.Errorf(
+			"working directory path should be a valid path, existing value was: %s",
+			workingDir,
+		)
 	}
 
 	if params.ViaSocket != nil {
@@ -76,10 +82,19 @@ func NewDockerComposeClient(params DockerConnectivityParams, workingDir string) 
 			client.WithAPIVersionNegotiation(),
 		)
 	} else if params.ViaHttp != nil {
-		hostURL := fmt.Sprintf("%s://%s:%d", params.ViaHttp.Protocol, params.ViaHttp.Host, params.ViaHttp.Port)
+		hostURL := fmt.Sprintf(
+			"%s://%s:%d",
+			params.ViaHttp.Protocol,
+			params.ViaHttp.Host,
+			params.ViaHttp.Port,
+		)
 		dockerClient, err = client.NewClientWithOpts(
 			client.WithHost(hostURL),
-			client.WithTLSClientConfig(params.ViaHttp.CaCertPath, params.ViaHttp.CertPath, params.ViaHttp.KeyPath),
+			client.WithTLSClientConfig(
+				params.ViaHttp.CaCertPath,
+				params.ViaHttp.CertPath,
+				params.ViaHttp.KeyPath,
+			),
 			client.WithAPIVersionNegotiation(),
 		)
 	} else {
@@ -135,7 +150,12 @@ func NewDockerComposeClient(params DockerConnectivityParams, workingDir string) 
 	}, nil
 }
 
-func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (c *DockerComposeClient) DeployCompose(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	if strings.TrimSpace(projectName) == "" {
 		return fmt.Errorf("project name cannot be empty")
 	}
@@ -146,7 +166,14 @@ func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName str
 		return fmt.Errorf("failed to load compose project: %w", err)
 	}
 
-	fmt.Println("ProjectName", project.Name, "working directory", project.WorkingDir, "filename", project.Configs)
+	fmt.Println(
+		"ProjectName",
+		project.Name,
+		"working directory",
+		project.WorkingDir,
+		"filename",
+		project.Configs,
+	)
 
 	err = c.composeAPI.Down(ctx, project.Name, api.DownOptions{
 		RemoveOrphans: true,
@@ -170,7 +197,14 @@ func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName str
 		return fmt.Errorf("failed to load compose project: %w", err)
 	}
 
-	fmt.Println("ProjectName", project.Name, "working directory", project.WorkingDir, "filename", project.Configs)
+	fmt.Println(
+		"ProjectName",
+		project.Name,
+		"working directory",
+		project.WorkingDir,
+		"filename",
+		project.Configs,
+	)
 
 	// Create containers first
 	err = c.composeAPI.Create(ctx, project, api.CreateOptions{
@@ -195,7 +229,14 @@ func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName str
 		return fmt.Errorf("failed to load compose project: %w", err)
 	}
 
-	fmt.Println("ProjectName", project.Name, "working directory", project.WorkingDir, "filename", project.Configs)
+	fmt.Println(
+		"ProjectName",
+		project.Name,
+		"working directory",
+		project.WorkingDir,
+		"filename",
+		project.Configs,
+	)
 	err = c.composeAPI.Start(ctx, project.Name, api.StartOptions{
 		Project: project,
 		Wait:    true,
@@ -212,7 +253,12 @@ func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName str
 	return nil
 }
 
-func (c *DockerComposeClient) DeployComposeFromURL(ctx context.Context, projectName string, composeFileURL string, envVars map[string]string) error {
+func (c *DockerComposeClient) DeployComposeFromURL(
+	ctx context.Context,
+	projectName string,
+	composeFileURL string,
+	envVars map[string]string,
+) error {
 	if strings.TrimSpace(projectName) == "" {
 		return fmt.Errorf("project name cannot be empty")
 	}
@@ -241,7 +287,11 @@ func (c *DockerComposeClient) RemoveCompose(ctx context.Context, projectName str
 	})
 }
 
-func (c *DockerComposeClient) GetComposeStatus(ctx context.Context, composeFile string, projectName string) (*ComposeStatus, error) {
+func (c *DockerComposeClient) GetComposeStatus(
+	ctx context.Context,
+	composeFile string,
+	projectName string,
+) (*ComposeStatus, error) {
 	if strings.TrimSpace(projectName) == "" {
 		return nil, fmt.Errorf("project name cannot be empty")
 	}
@@ -317,11 +367,20 @@ func (c *DockerComposeClient) RestartCompose(ctx context.Context, projectName st
 	return c.composeAPI.Restart(ctx, projectName, api.RestartOptions{})
 }
 
-func (c *DockerComposeClient) UpdateCompose(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (c *DockerComposeClient) UpdateCompose(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	return c.DeployCompose(ctx, projectName, composeFile, envVars)
 }
 
-func (c *DockerComposeClient) ComposeExists(ctx context.Context, composeFile string, projectName string) (bool, error) {
+func (c *DockerComposeClient) ComposeExists(
+	ctx context.Context,
+	composeFile string,
+	projectName string,
+) (bool, error) {
 	_, err := c.GetComposeStatus(ctx, composeFile, projectName)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -333,7 +392,12 @@ func (c *DockerComposeClient) ComposeExists(ctx context.Context, composeFile str
 }
 
 // Helper function to load compose project
-func (c *DockerComposeClient) loadComposeProject(ctx context.Context, projectName string, composeFile string, envVars map[string]string) (*types.Project, error) {
+func (c *DockerComposeClient) loadComposeProject(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) (*types.Project, error) {
 	// Prepare environment
 	environment := make([]string, 0)
 	for k, v := range envVars {
@@ -356,18 +420,29 @@ func (c *DockerComposeClient) loadComposeProject(ctx context.Context, projectNam
 }
 
 // FetchComposeFileFromURL - simplified version using io.ReadAll
-func (c *DockerComposeClient) FetchComposeFileFromURL(ctx context.Context, url string, filenameToUse string) (string, error) {
+func (c *DockerComposeClient) FetchComposeFileFromURL(
+	ctx context.Context,
+	url string,
+	filenameToUse string,
+) (string, error) {
 	// Create request with context
-	downloadResult, err := file.DownloadFileUsingHttp("GET", url, nil, nil, nil, &file.DownloadOptions{
-		OutputPath:     filepath.Join(c.workingDir, filenameToUse),
-		CreateDirs:     true,
-		OverwriteExist: true,
-		ResumeDownload: false,
-		Timeout:        time.Second * 30,
-		ProgressCallback: func(downloaded, total int64) {
-			fmt.Printf("\nTotal: %d, Downloaded: %d", total, downloaded)
+	downloadResult, err := file.DownloadFileUsingHttp(
+		"GET",
+		url,
+		nil,
+		nil,
+		nil,
+		&file.DownloadOptions{
+			OutputPath:     filepath.Join(c.workingDir, filenameToUse),
+			CreateDirs:     true,
+			OverwriteExist: true,
+			ResumeDownload: false,
+			Timeout:        time.Second * 30,
+			ProgressCallback: func(downloaded, total int64) {
+				fmt.Printf("\nTotal: %d, Downloaded: %d", total, downloaded)
+			},
 		},
-	})
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to download file: %w", err)
 	}
@@ -392,7 +467,8 @@ func (c *DockerComposeClient) forceCleanupProject(ctx context.Context, projectNa
 			cleanName := strings.TrimPrefix(name, "/")
 
 			// Check if container name starts with our project name
-			if strings.HasPrefix(cleanName, projectName+"-") || strings.HasPrefix(cleanName, projectName+"_") {
+			if strings.HasPrefix(cleanName, projectName+"-") ||
+				strings.HasPrefix(cleanName, projectName+"_") {
 				containersToRemove = append(containersToRemove, containerObj.ID)
 				break
 			}
@@ -406,7 +482,11 @@ func (c *DockerComposeClient) forceCleanupProject(ctx context.Context, projectNa
 		if err := c.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
 			Timeout: &timeout,
 		}); err != nil {
-			fmt.Printf("error caught while stopping container: %s, err: %s", containerID, err.Error())
+			fmt.Printf(
+				"error caught while stopping container: %s, err: %s",
+				containerID,
+				err.Error(),
+			)
 		}
 
 		// Force remove
@@ -443,14 +523,24 @@ func (c *DockerComposeClient) ExtractContent(composeFilename string) ([]byte, er
 }
 
 // Helper function to get compose content from package location
-func (c *DockerComposeClient) DownloadCompose(ctx context.Context, packageLocation string, keyLocation *string, filenameToUse string) (string, error) {
+func (c *DockerComposeClient) DownloadCompose(
+	ctx context.Context,
+	packageLocation string,
+	keyLocation *string,
+	filenameToUse string,
+) (string, error) {
 	// This is a simplified implementation
 	// 1. Download from URL if it's a remote location
 	// 2. Read from file system if it's a local path
-	if strings.HasPrefix(packageLocation, "http://") || strings.HasPrefix(packageLocation, "https://") {
+	if strings.HasPrefix(packageLocation, "http://") ||
+		strings.HasPrefix(packageLocation, "https://") {
 		filename, err := c.FetchComposeFileFromURL(ctx, packageLocation, filenameToUse)
 		if err != nil {
-			return "", fmt.Errorf("failed to download the compose file from: %s, err: %s", packageLocation, err.Error())
+			return "", fmt.Errorf(
+				"failed to download the compose file from: %s, err: %s",
+				packageLocation,
+				err.Error(),
+			)
 		}
 
 		return filename, nil

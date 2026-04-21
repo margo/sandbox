@@ -73,7 +73,10 @@ func (c *Client) ListRepositories(ctx context.Context) ([]string, error) {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Repository has %d tags\n", len(info.Tags))
-func (c *Client) GetRepositoryInfo(ctx context.Context, repository string) (*RepositoryInfo, error) {
+func (c *Client) GetRepositoryInfo(
+	ctx context.Context,
+	repository string,
+) (*RepositoryInfo, error) {
 	if repository == "" {
 		return nil, fmt.Errorf("repository cannot be empty")
 	}

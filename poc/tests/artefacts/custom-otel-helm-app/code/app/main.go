@@ -190,7 +190,12 @@ func step3(ctx context.Context) {
 func step4(ctx context.Context) {
 	_, span := tracer.Start(ctx, "Choose Delivery or Pickup")
 	defer span.End()
-	logger.DebugContext(ctx, "Executing Choose Delivery or Pickup", "detail", "Choose Delivery or Pickup")
+	logger.DebugContext(
+		ctx,
+		"Executing Choose Delivery or Pickup",
+		"detail",
+		"Choose Delivery or Pickup",
+	)
 	span.SetAttributes(attribute.String("step.detail", "Choose Delivery or Pickup"))
 	time.Sleep(90 * time.Millisecond)
 }

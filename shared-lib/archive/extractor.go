@@ -66,7 +66,9 @@ func (e *BundleExtractor) Extract() (map[string][]byte, error) {
 }
 
 // ExtractWithDigestVerification extracts and verifies each file's digest
-func (e *BundleExtractor) ExtractWithDigestVerification(expectedDigests map[string]string) (map[string][]byte, error) {
+func (e *BundleExtractor) ExtractWithDigestVerification(
+	expectedDigests map[string]string,
+) (map[string][]byte, error) {
 	entries, err := e.Extract()
 	if err != nil {
 		return nil, err

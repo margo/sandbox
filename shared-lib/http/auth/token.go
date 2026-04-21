@@ -19,7 +19,10 @@ type OAuthTokenResponse struct {
 }
 
 // GetOAuthToken retrieves an OAuth 2.0 access token using the client credentials grant type.
-func GetOAuthToken(ctx context.Context, clientID, clientSecret, tokenURL string) (*OAuthTokenResponse, error) {
+func GetOAuthToken(
+	ctx context.Context,
+	clientID, clientSecret, tokenURL string,
+) (*OAuthTokenResponse, error) {
 	// 1. Prepare the request body.
 	data := url.Values{}
 	data.Set("grant_type", "client_credentials")
@@ -27,7 +30,12 @@ func GetOAuthToken(ctx context.Context, clientID, clientSecret, tokenURL string)
 	data.Set("client_secret", clientSecret)
 
 	// 2. Create the HTTP request.
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		tokenURL,
+		strings.NewReader(data.Encode()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -79,7 +87,10 @@ const (
 
 type AuthOption = func(context.Context, *http.Request) error
 
-func WithSignRequest(ctx context.Context, signer func(ctx context.Context, req *http.Request) error) AuthOption {
+func WithSignRequest(
+	ctx context.Context,
+	signer func(ctx context.Context, req *http.Request) error,
+) AuthOption {
 	return func(ctx context.Context, req *http.Request) error {
 		return signer(ctx, req)
 	}
@@ -92,7 +103,10 @@ func WithOAuth(ctx context.Context, clientId, clientSecret, tokenUrl string) Aut
 			return err
 		}
 		if tokenResp.AccessToken == "" {
-			return fmt.Errorf("got empty oauth token from the url: %s, and no error received", tokenUrl)
+			return fmt.Errorf(
+				"got empty oauth token from the url: %s, and no error received",
+				tokenUrl,
+			)
 		}
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenResp.AccessToken))
 		return nil

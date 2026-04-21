@@ -14,7 +14,12 @@ import (
 )
 
 // NewGetRequest creates a new GET HTTP request with authentication and query parameters
-func NewGetRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
+func NewGetRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	queryParams map[string]interface{},
+) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
@@ -35,7 +40,13 @@ func NewGetRequest(ctx context.Context, url string, auth *auth.AuthConfig, query
 }
 
 // NewPostRequest creates a new POST HTTP request with authentication and body
-func NewPostRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
+func NewPostRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	body interface{},
+	contentType string,
+) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -67,7 +78,13 @@ func NewPostRequest(ctx context.Context, url string, auth *auth.AuthConfig, body
 }
 
 // NewPutRequest creates a new PUT HTTP request with authentication and body
-func NewPutRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
+func NewPutRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	body interface{},
+	contentType string,
+) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -98,7 +115,13 @@ func NewPutRequest(ctx context.Context, url string, auth *auth.AuthConfig, body 
 }
 
 // NewPatchRequest creates a new PATCH HTTP request with authentication and body
-func NewPatchRequest(ctx context.Context, url string, auth *auth.AuthConfig, body interface{}, contentType string) (*http.Request, error) {
+func NewPatchRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	body interface{},
+	contentType string,
+) (*http.Request, error) {
 	var bodyReader io.Reader
 	var err error
 
@@ -128,8 +151,14 @@ func NewPatchRequest(ctx context.Context, url string, auth *auth.AuthConfig, bod
 	return req, nil
 }
 
-// NewDeleteRequest creates a new DELETE HTTP request with authentication and optional query parameters
-func NewDeleteRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
+// NewDeleteRequest creates a new DELETE HTTP request with authentication and optional query
+// parameters
+func NewDeleteRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	queryParams map[string]interface{},
+) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
@@ -149,7 +178,12 @@ func NewDeleteRequest(ctx context.Context, url string, auth *auth.AuthConfig, qu
 }
 
 // NewHeadRequest creates a new HEAD HTTP request with authentication and query parameters
-func NewHeadRequest(ctx context.Context, url string, auth *auth.AuthConfig, queryParams map[string]interface{}) (*http.Request, error) {
+func NewHeadRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+	queryParams map[string]interface{},
+) (*http.Request, error) {
 	finalURL, err := buildURLWithParams(url, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL with parameters: %w", err)
@@ -169,7 +203,11 @@ func NewHeadRequest(ctx context.Context, url string, auth *auth.AuthConfig, quer
 }
 
 // NewOptionsRequest creates a new OPTIONS HTTP request with authentication
-func NewOptionsRequest(ctx context.Context, url string, auth *auth.AuthConfig) (*http.Request, error) {
+func NewOptionsRequest(
+	ctx context.Context,
+	url string,
+	auth *auth.AuthConfig,
+) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, "OPTIONS", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPTIONS request: %w", err)

@@ -67,7 +67,11 @@ func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClie
 	return apiClient, nil
 }
 
-func (sbiClient *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceCertificate []byte, overrideOptions ...HTTPApiClientRequestEditorOptions) (clientId string, endpoints []string, err error) {
+func (sbiClient *SbiHttpClient) OnboardDeviceClient(
+	ctx context.Context,
+	deviceCertificate []byte,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) (clientId string, endpoints []string, err error) {
 	cert := base64.StdEncoding.EncodeToString(deviceCertificate)
 
 	onboardingReq := sbi.PostApiV1OnboardingJSONRequestBody{
@@ -100,15 +104,26 @@ func (sbiClient *SbiHttpClient) OnboardDeviceClient(ctx context.Context, deviceC
 	}
 
 	if *onboardingResp.JSON201.ClientId == "" {
-		return "", nil, fmt.Errorf("the clientid is empty in the onboarding response, this should never happen")
+		return "", nil, fmt.Errorf(
+			"the clientid is empty in the onboarding response, this should never happen",
+		)
 	}
 
 	var endpointsList []string
 	return *onboardingResp.JSON201.ClientId, endpointsList, nil
 }
 
-func (sbiClient *SbiHttpClient) ReportCapabilities(ctx context.Context, deviceClientId string, capabilities sbi.DeviceCapabilitiesManifest, overrideOptions ...HTTPApiClientRequestEditorOptions) error {
-	resp, err := sbiClient.client.PostApiV1ClientsClientIdCapabilities(ctx, deviceClientId, capabilities)
+func (sbiClient *SbiHttpClient) ReportCapabilities(
+	ctx context.Context,
+	deviceClientId string,
+	capabilities sbi.DeviceCapabilitiesManifest,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) error {
+	resp, err := sbiClient.client.PostApiV1ClientsClientIdCapabilities(
+		ctx,
+		deviceClientId,
+		capabilities,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to report capabilities: %w", err)
 	}
@@ -121,7 +136,12 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(ctx context.Context, deviceCl
 	return nil
 }
 
-func (sbiClient *SbiHttpClient) SyncState(ctx context.Context, deviceClientId string, etag string, overrideOptions ...HTTPApiClientRequestEditorOptions) (desiredStates *sbi.UnsignedAppStateManifest, err error) {
+func (sbiClient *SbiHttpClient) SyncState(
+	ctx context.Context,
+	deviceClientId string,
+	etag string,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) (desiredStates *sbi.UnsignedAppStateManifest, err error) {
 	// Prepare parameters
 	params := &sbi.GetApiV1ClientsClientIdDeploymentsParams{
 		Accept: pointers.Ptr("application/vnd.margo.manifest.v1+json"),
@@ -171,8 +191,14 @@ func (sbiClient *SbiHttpClient) SyncState(ctx context.Context, deviceClientId st
 	}
 }
 
-// SyncStateWithResponse retrieves the desired state manifest and returns the HTTP response for header access
-func (sbiClient *SbiHttpClient) SyncStateWithResponse(ctx context.Context, deviceClientId string, etag string, overrideOptions ...HTTPApiClientRequestEditorOptions) (desiredStates *sbi.UnsignedAppStateManifest, response *http.Response, err error) {
+// SyncStateWithResponse retrieves the desired state manifest and returns the HTTP response for
+// header access
+func (sbiClient *SbiHttpClient) SyncStateWithResponse(
+	ctx context.Context,
+	deviceClientId string,
+	etag string,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) (desiredStates *sbi.UnsignedAppStateManifest, response *http.Response, err error) {
 	// Prepare parameters
 	params := &sbi.GetApiV1ClientsClientIdDeploymentsParams{
 		Accept: pointers.Ptr("application/vnd.margo.manifest.v1+json"),
@@ -223,11 +249,20 @@ func (sbiClient *SbiHttpClient) SyncStateWithResponse(ctx context.Context, devic
 
 	default:
 		resp.Body.Close()
-		return nil, nil, fmt.Errorf("unexpected status code returned by server: %d", resp.StatusCode)
+		return nil, nil, fmt.Errorf(
+			"unexpected status code returned by server: %d",
+			resp.StatusCode,
+		)
 	}
 }
 
-func (sbiClient *SbiHttpClient) ReportDeploymentStatus(ctx context.Context, deviceID, appID string, overallAppStatus sbi.DeploymentStatusManifestStatusState, components []sbi.ComponentStatus, deploymentErr error) error {
+func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
+	ctx context.Context,
+	deviceID, appID string,
+	overallAppStatus sbi.DeploymentStatusManifestStatusState,
+	components []sbi.ComponentStatus,
+	deploymentErr error,
+) error {
 	appUUID, err := uuid.Parse(appID)
 	if err != nil {
 		return err
@@ -266,7 +301,12 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(ctx context.Context, devi
 		},
 	}
 
-	resp, err := sbiClient.client.PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(ctx, deviceID, appUUID.String(), deploymentStatus)
+	resp, err := sbiClient.client.PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus(
+		ctx,
+		deviceID,
+		appUUID.String(),
+		deploymentStatus,
+	)
 	if err != nil {
 		return err
 	}
@@ -276,7 +316,11 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(ctx context.Context, devi
 }
 
 // FetchDeploymentYAML with caching support and enhanced logging
-func (sbiClient *SbiHttpClient) FetchDeploymentYAML(ctx context.Context, deviceClientId, deploymentId, digest string, overrideOptions ...HTTPApiClientRequestEditorOptions) (yamlContent []byte, err error) {
+func (sbiClient *SbiHttpClient) FetchDeploymentYAML(
+	ctx context.Context,
+	deviceClientId, deploymentId, digest string,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) (yamlContent []byte, err error) {
 	// Check if we have this deployment cached
 	cachedDigest, cacheErr := sbiClient.deploymentCache.GetLastDeploymentDigest(deploymentId)
 
@@ -338,7 +382,11 @@ func (sbiClient *SbiHttpClient) FetchDeploymentYAML(ctx context.Context, deviceC
 	}
 
 	// Store in cache (digest verification happens inside cache.Store)
-	if err := sbiClient.deploymentCache.StoreDeployment(deploymentId, digest, yamlContent); err != nil {
+	if err := sbiClient.deploymentCache.StoreDeployment(
+		deploymentId,
+		digest,
+		yamlContent,
+	); err != nil {
 		fmt.Printf("WARNING: [Cache] Failed to cache deployment %s: %v\n", deploymentId[:8], err)
 	} else {
 		fmt.Printf("INFO: [Cache] Stored deployment %s (digest: %s...)\n",
@@ -349,7 +397,11 @@ func (sbiClient *SbiHttpClient) FetchDeploymentYAML(ctx context.Context, deviceC
 }
 
 // DownloadBundle with caching support and enhanced logging
-func (sbiClient *SbiHttpClient) DownloadBundle(ctx context.Context, deviceClientId, digest string, overrideOptions ...HTTPApiClientRequestEditorOptions) (bundleData []byte, err error) {
+func (sbiClient *SbiHttpClient) DownloadBundle(
+	ctx context.Context,
+	deviceClientId, digest string,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) (bundleData []byte, err error) {
 	// Check if we have this bundle cached
 	cachedDigest, cacheErr := sbiClient.bundleCache.GetLastBundleDigest(deviceClientId)
 
@@ -377,8 +429,10 @@ func (sbiClient *SbiHttpClient) DownloadBundle(ctx context.Context, deviceClient
 
 	// Handle 304 Not Modified
 	if resp.StatusCode == http.StatusNotModified {
-		fmt.Printf("INFO: [Cache HIT] Bundle not modified (304) - using cached version (device: %s)\n",
-			deviceClientId[:8])
+		fmt.Printf(
+			"INFO: [Cache HIT] Bundle not modified (304) - using cached version (device: %s)\n",
+			deviceClientId[:8],
+		)
 
 		cachedData, err := sbiClient.bundleCache.GetBundle(deviceClientId, digest)
 		if err != nil {

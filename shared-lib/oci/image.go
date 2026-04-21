@@ -58,7 +58,11 @@ type PullResult struct {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Pushed image with digest: %s\n", result.Digest)
-func (c *Client) PushImage(ctx context.Context, image v1.Image, reference string) (*PushResult, error) {
+func (c *Client) PushImage(
+	ctx context.Context,
+	image v1.Image,
+	reference string,
+) (*PushResult, error) {
 	if image == nil {
 		return nil, fmt.Errorf("image cannot be nil")
 	}
@@ -371,7 +375,10 @@ func (c *Client) ImageExists(ctx context.Context, reference string) (bool, error
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Copied image with digest: %s\n", result.Digest)
-func (c *Client) CopyImage(ctx context.Context, srcReference, dstReference string) (*PushResult, error) {
+func (c *Client) CopyImage(
+	ctx context.Context,
+	srcReference, dstReference string,
+) (*PushResult, error) {
 	if srcReference == "" {
 		return nil, fmt.Errorf("source reference cannot be empty")
 	}

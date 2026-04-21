@@ -41,7 +41,10 @@ func NewArchiver(format ArchiveFormats) *Archiver {
 }
 
 // AppendFile adds a file from the filesystem to the archive
-func (a *Archiver) AppendFile(filePathInsideArchive string, pathToTheFileYouWantToCopyInArchive string) error {
+func (a *Archiver) AppendFile(
+	filePathInsideArchive string,
+	pathToTheFileYouWantToCopyInArchive string,
+) error {
 	// Validate input
 	if filePathInsideArchive == "" {
 		return fmt.Errorf("filePathInsideArchive cannot be empty")
@@ -69,7 +72,10 @@ func (a *Archiver) AppendFile(filePathInsideArchive string, pathToTheFileYouWant
 }
 
 // AppendContent adds content directly to the archive
-func (a *Archiver) AppendContent(content []byte, filePathInArchive string) (digest string, size uint64, err error) {
+func (a *Archiver) AppendContent(
+	content []byte,
+	filePathInArchive string,
+) (digest string, size uint64, err error) {
 	// Validate input
 	if filePathInArchive == "" {
 		return "", 0, fmt.Errorf("filePathInArchive cannot be empty")
@@ -208,7 +214,11 @@ func (a *Archiver) addFileToTar(tarWriter *tar.Writer, nameInArchive, filePath s
 }
 
 // Update addContentToTar to use fixed timestamps
-func (a *Archiver) addContentToTar(tarWriter *tar.Writer, nameInArchive string, content []byte) error {
+func (a *Archiver) addContentToTar(
+	tarWriter *tar.Writer,
+	nameInArchive string,
+	content []byte,
+) error {
 	// Use fixed timestamp for reproducible archives (Exact Bytes Rule)
 	fixedTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 

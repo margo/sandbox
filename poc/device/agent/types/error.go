@@ -51,7 +51,12 @@ func (e AgentError) Error() string {
 	return fmt.Sprintf("[%s:%s] %v", e.Component, e.Operation, e.Err)
 }
 
-func NewAgentError(component AgentComponent, operation AgentOperation, err error, retryable bool) AgentError {
+func NewAgentError(
+	component AgentComponent,
+	operation AgentOperation,
+	err error,
+	retryable bool,
+) AgentError {
 	return AgentError{
 		Component: component,
 		Operation: operation,

@@ -37,7 +37,11 @@ func ComputeKeyIDFromPrivateKeyPEM(privateKeyPEM string) (string, error) {
 		// Try PKCS#8 as a fallback
 		priv, err = x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return "", fmt.Errorf("unsupported or invalid private key PEM (type=%s): %w", block.Type, err)
+			return "", fmt.Errorf(
+				"unsupported or invalid private key PEM (type=%s): %w",
+				block.Type,
+				err,
+			)
 		}
 	}
 

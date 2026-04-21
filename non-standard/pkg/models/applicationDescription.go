@@ -16,7 +16,10 @@ const (
 	ApplicationDescriptionFormatJSON ApplicationDescriptionFormat = "json"
 )
 
-func ParseApplicationDescription(r io.Reader, format ApplicationDescriptionFormat) (nbi.AppDescription, error) {
+func ParseApplicationDescription(
+	r io.Reader,
+	format ApplicationDescriptionFormat,
+) (nbi.AppDescription, error) {
 	description := nbi.AppDescription{}
 	switch format {
 	case ApplicationDescriptionFormatYAML:

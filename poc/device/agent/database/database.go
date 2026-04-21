@@ -269,16 +269,25 @@ func (db *Database) load() {
 	db.deviceSettings = dump.DeviceSettings
 }
 
-func (db *Database) Subscribe(callback func(string, *DeploymentRecord, DeploymentRecordChangeType)) {
+func (db *Database) Subscribe(
+	callback func(string, *DeploymentRecord, DeploymentRecordChangeType),
+) {
 	db.subscriberMu.Lock()
 	defer db.subscriberMu.Unlock()
 	db.subscribers = append(db.subscribers, callback)
 }
 
-func (db *Database) notify(appID string, record *DeploymentRecord, changeType DeploymentRecordChangeType) {
+func (db *Database) notify(
+	appID string,
+	record *DeploymentRecord,
+	changeType DeploymentRecordChangeType,
+) {
 	db.subscriberMu.RLock()
 	defer db.subscriberMu.RUnlock()
-	subscribers := make([]func(string, *DeploymentRecord, DeploymentRecordChangeType), len(db.subscribers))
+	subscribers := make(
+		[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
+		len(db.subscribers),
+	)
 	copy(subscribers, db.subscribers)
 
 	for _, callback := range subscribers {
@@ -304,7 +313,8 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 	}
 
 	// Only update if actually different
-	// if record.DesiredState == nil || record.DesiredState.AppDeploymentYAMLHash != state.AppDeploymentYAMLHash {
+	// if record.DesiredState == nil || record.DesiredState.AppDeploymentYAMLHash !=
+	// state.AppDeploymentYAMLHash {
 	record.DesiredState = &state
 	record.LastUpdated = time.Now()
 	// Store the digest and URL from the state
@@ -350,7 +360,10 @@ func (db *Database) SetPhase(deploymentId, phase, message string) {
 	db.notify(deploymentId, record, DeploymentChangeTypeComponentPhaseChanged)
 }
 
-func (db *Database) SetComponentStatus(deploymentId, componentName string, status sbi.ComponentStatus) {
+func (db *Database) SetComponentStatus(
+	deploymentId, componentName string,
+	status sbi.ComponentStatus,
+) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 

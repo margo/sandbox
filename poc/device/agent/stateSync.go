@@ -59,7 +59,9 @@ func (ss *StateSyncer) Stop() {
 }
 
 func (ss *StateSyncer) syncLoop() {
-	ticker := time.NewTicker(time.Duration(ss.stateSyncingIntervalInSec) * time.Second)
+	ticker := time.NewTicker(
+		time.Duration(ss.stateSyncingIntervalInSec) * time.Second,
+	)
 	defer ticker.Stop()
 
 	for {
@@ -80,7 +82,13 @@ func (ss *StateSyncer) performSync() {
 	// Get device settings
 	device, err := ss.database.GetDeviceSettings()
 	if err != nil {
-		ss.log.Errorw("Sync failed", "err", err.Error(), "msg", "failed to fetch device settings")
+		ss.log.Errorw(
+			"Sync failed",
+			"err",
+			err.Error(),
+			"msg",
+			"failed to fetch device settings",
+		)
 		return
 	}
 
@@ -96,7 +104,12 @@ func (ss *StateSyncer) performSync() {
 			ctx,
 			device.DeviceClientId,
 			currentETag,
-			auth.WithOAuth(ctx, device.OAuthClientId, device.OAuthClientSecret, device.OAuthTokenEndpointUrl),
+			auth.WithOAuth(
+				ctx,
+				device.OAuthClientId,
+				device.OAuthClientSecret,
+				device.OAuthTokenEndpointUrl,
+			),
 		)
 	} else {
 		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
@@ -107,18 +120,32 @@ func (ss *StateSyncer) performSync() {
 	}
 
 	if err != nil {
-		ss.log.Errorw("Sync failed", "err", err.Error(), "deviceId", device.DeviceClientId)
+		ss.log.Errorw(
+			"Sync failed",
+			"err",
+			err.Error(),
+			"deviceId",
+			device.DeviceClientId,
+		)
 		return
 	}
 
 	// Handle 304 Not Modified
 	if response != nil && response.StatusCode == http.StatusNotModified {
-		ss.log.Infow("Sync completed", "msg", "No change in desired and current states (304 Not Modified)")
+		ss.log.Infow(
+			"Sync completed",
+			"msg",
+			"No change in desired and current states (304 Not Modified)",
+		)
 		return
 	}
 
 	if desiredStateManifest == nil {
-		ss.log.Infow("Sync completed", "msg", "No change in desired and current states")
+		ss.log.Infow(
+			"Sync completed",
+			"msg",
+			"No change in desired and current states",
+		)
 		return
 	}
 
@@ -126,7 +153,8 @@ func (ss *StateSyncer) performSync() {
 		"version", desiredStateManifest.ManifestVersion,
 		"deployments", len(desiredStateManifest.Deployments),
 		"bundleDigest", func() string {
-			if desiredStateManifest.Bundle != nil && desiredStateManifest.Bundle.Digest != nil {
+			if desiredStateManifest.Bundle != nil &&
+				desiredStateManifest.Bundle.Digest != nil {
 				return *desiredStateManifest.Bundle.Digest
 			}
 			return "none"
@@ -147,24 +175,43 @@ func (ss *StateSyncer) performSync() {
 		// Decide: bundle download vs individual fetch
 		if ss.shouldDownloadBundle(desiredStateManifest) {
 			// Download and extract bundle
-			bundleYAMLs, err := ss.downloadAndExtractBundle(ctx, desiredStateManifest.Bundle)
+			bundleYAMLs, err := ss.downloadAndExtractBundle(
+				ctx,
+				desiredStateManifest.Bundle,
+			)
 			if err != nil {
-				ss.log.Errorw("Failed to download bundle, falling back to individual fetch",
-					"error", err)
+				ss.log.Errorw(
+					"Failed to download bundle, falling back to individual fetch",
+					"error",
+					err,
+				)
 				// Fall back to individual fetch
-				ss.processDeploymentsIndividually(ctx, desiredStateManifest.Deployments)
+				ss.processDeploymentsIndividually(
+					ctx,
+					desiredStateManifest.Deployments,
+				)
 			} else {
 				// Process deployments from bundle
-				ss.processDeploymentsFromBundle(ctx, desiredStateManifest.Deployments, bundleYAMLs)
+				ss.processDeploymentsFromBundle(
+					ctx,
+					desiredStateManifest.Deployments,
+					bundleYAMLs,
+				)
 			}
 		} else {
 			// Fetch deployments individually
-			ss.processDeploymentsIndividually(ctx, desiredStateManifest.Deployments)
+			ss.processDeploymentsIndividually(
+				ctx,
+				desiredStateManifest.Deployments,
+			)
 		}
 	}
 
 	// Store the new manifest metadata (including ETag from response)
-	if err := ss.persistManifestMetadata(desiredStateManifest, response); err != nil {
+	if err := ss.persistManifestMetadata(
+		desiredStateManifest,
+		response,
+	); err != nil {
 		ss.log.Errorw("Failed to persist manifest metadata", "error", err)
 	}
 
@@ -172,7 +219,9 @@ func (ss *StateSyncer) performSync() {
 	ss.log.Debugw("Sync completed", "desiredStates", deploymentCount)
 }
 
-func (ss *StateSyncer) detectRemovedDeployments(desiredDeployments []sbi.DeploymentManifestRef) {
+func (ss *StateSyncer) detectRemovedDeployments(
+	desiredDeployments []sbi.DeploymentManifestRef,
+) {
 	currentDeployments := ss.database.ListDeployments()
 
 	desiredIDs := make(map[string]bool)
@@ -193,7 +242,10 @@ func (ss *StateSyncer) detectRemovedDeployments(desiredDeployments []sbi.Deploym
 			removingState := *current.DesiredState
 			removingState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoving
 
-			if err := ss.database.SetDesiredState(current.DeploymentID, removingState); err != nil {
+			if err := ss.database.SetDesiredState(
+				current.DeploymentID,
+				removingState,
+			); err != nil {
 				ss.log.Errorw("Failed to mark deployment for removal",
 					"deploymentId", current.DeploymentID,
 					"error", err)
@@ -203,7 +255,9 @@ func (ss *StateSyncer) detectRemovedDeployments(desiredDeployments []sbi.Deploym
 }
 
 // validateManifest performs security and version checks according to specification
-func (ss *StateSyncer) validateManifest(manifest *sbi.UnsignedAppStateManifest) error {
+func (ss *StateSyncer) validateManifest(
+	manifest *sbi.UnsignedAppStateManifest,
+) error {
 	if manifest.ManifestVersion == 0 {
 		return fmt.Errorf("manifest version is required")
 	}
@@ -215,8 +269,11 @@ func (ss *StateSyncer) validateManifest(manifest *sbi.UnsignedAppStateManifest) 
 	// If we have a previous version, ensure new version is not less than current
 	// Allow equal versions for unchanged manifests (especially empty ones)
 	if currentVersionInt > 0 && newVersionInt < currentVersionInt {
-		return fmt.Errorf("potential rollback attack: new version %d < current version %d",
-			newVersionInt, currentVersionInt)
+		return fmt.Errorf(
+			"potential rollback attack: new version %d < current version %d",
+			newVersionInt,
+			currentVersionInt,
+		)
 	}
 
 	// Log when receiving same version (normal for unchanged manifests)
@@ -240,12 +297,17 @@ func (ss *StateSyncer) getLastSyncedETag() string {
 }
 
 // persistManifestMetadata stores manifest metadata according to specification
-func (ss *StateSyncer) persistManifestMetadata(manifest *sbi.UnsignedAppStateManifest, response *http.Response) error {
+func (ss *StateSyncer) persistManifestMetadata(
+	manifest *sbi.UnsignedAppStateManifest,
+	response *http.Response,
+) error {
 	// Store manifest version for rollback protection
 
 	manifestVersionInt := uint64(manifest.ManifestVersion)
 	if manifestVersionInt != 0 {
-		if err := ss.database.SetLastSyncedManifestVersion(manifestVersionInt); err != nil {
+		if err := ss.database.SetLastSyncedManifestVersion(
+			manifestVersionInt,
+		); err != nil {
 			return fmt.Errorf("failed to store manifest version: %w", err)
 		}
 	}
@@ -264,19 +326,28 @@ func (ss *StateSyncer) persistManifestMetadata(manifest *sbi.UnsignedAppStateMan
 			etag = fmt.Sprintf("\"%s\"", *manifest.Bundle.Digest)
 
 			// Store bundle digest
-			if err := ss.database.SetLastSyncedBundleDigest(*manifest.Bundle.Digest); err != nil {
+			if err := ss.database.SetLastSyncedBundleDigest(
+				*manifest.Bundle.Digest,
+			); err != nil {
 				return fmt.Errorf("failed to store bundle digest: %w", err)
 			}
 		} else {
 			// Empty bundle: Compute digest of manifest JSON
 			manifestJSON, err := json.Marshal(manifest)
 			if err != nil {
-				return fmt.Errorf("failed to marshal manifest for digest: %w", err)
+				return fmt.Errorf(
+					"failed to marshal manifest for digest: %w",
+					err,
+				)
 			}
 			hash := sha256.Sum256(manifestJSON)
 			etag = fmt.Sprintf("\"sha256:%x\"", hash)
 		}
-		ss.log.Warnw("ETag not in response header, computed fallback", "etag", etag)
+		ss.log.Warnw(
+			"ETag not in response header, computed fallback",
+			"etag",
+			etag,
+		)
 	}
 
 	// Store ETag for HTTP caching (enables 304 Not Modified responses)
@@ -293,7 +364,10 @@ func (ss *StateSyncer) persistManifestMetadata(manifest *sbi.UnsignedAppStateMan
 	return nil
 }
 
-func (ss *StateSyncer) fetchDeploymentYAML(ctx context.Context, deploymentRef sbi.DeploymentManifestRef) (*sbi.AppDeploymentManifest, error) {
+func (ss *StateSyncer) fetchDeploymentYAML(
+	ctx context.Context,
+	deploymentRef sbi.DeploymentManifestRef,
+) (*sbi.AppDeploymentManifest, error) {
 	ss.log.Infow("Fetching deployment YAML",
 		"deploymentId", deploymentRef.DeploymentId,
 		"digest", deploymentRef.Digest)
@@ -311,7 +385,12 @@ func (ss *StateSyncer) fetchDeploymentYAML(ctx context.Context, deploymentRef sb
 			device.DeviceClientId,
 			deploymentRef.DeploymentId,
 			deploymentRef.Digest,
-			auth.WithOAuth(ctx, device.OAuthClientId, device.OAuthClientSecret, device.OAuthTokenEndpointUrl),
+			auth.WithOAuth(
+				ctx,
+				device.OAuthClientId,
+				device.OAuthClientSecret,
+				device.OAuthTokenEndpointUrl,
+			),
 		)
 	} else {
 		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
@@ -352,7 +431,10 @@ func (ss *StateSyncer) fetchDeploymentYAML(ctx context.Context, deploymentRef sb
 }
 
 // downloadAndExtractBundle downloads the bundle and extracts deployment YAMLs
-func (ss *StateSyncer) downloadAndExtractBundle(ctx context.Context, bundleRef *sbi.DeploymentBundleRef) (map[string][]byte, error) {
+func (ss *StateSyncer) downloadAndExtractBundle(
+	ctx context.Context,
+	bundleRef *sbi.DeploymentBundleRef,
+) (map[string][]byte, error) {
 	if bundleRef == nil || bundleRef.Digest == nil {
 		return nil, fmt.Errorf("invalid bundle reference")
 	}
@@ -371,7 +453,12 @@ func (ss *StateSyncer) downloadAndExtractBundle(ctx context.Context, bundleRef *
 			ctx,
 			device.DeviceClientId,
 			*bundleRef.Digest,
-			auth.WithOAuth(ctx, device.OAuthClientId, device.OAuthClientSecret, device.OAuthTokenEndpointUrl),
+			auth.WithOAuth(
+				ctx,
+				device.OAuthClientId,
+				device.OAuthClientSecret,
+				device.OAuthTokenEndpointUrl,
+			),
 		)
 	} else {
 		bundleData, err = ss.apiClient.DownloadBundle(
@@ -410,7 +497,9 @@ func (ss *StateSyncer) downloadAndExtractBundle(ctx context.Context, bundleRef *
 }
 
 // shouldDownloadBundle determines if we should download the bundle or individual deployments
-func (ss *StateSyncer) shouldDownloadBundle(manifest *sbi.UnsignedAppStateManifest) bool {
+func (ss *StateSyncer) shouldDownloadBundle(
+	manifest *sbi.UnsignedAppStateManifest,
+) bool {
 	// If no bundle available, must fetch individually
 	if manifest.Bundle == nil || manifest.Bundle.Digest == nil {
 		return false
@@ -424,7 +513,8 @@ func (ss *StateSyncer) shouldDownloadBundle(manifest *sbi.UnsignedAppStateManife
 	}
 
 	// Heuristic: If bundle size is reasonable (< 50MB), use bundle
-	if manifest.Bundle.SizeBytes != nil && *manifest.Bundle.SizeBytes < 50*1024*1024 {
+	if manifest.Bundle.SizeBytes != nil &&
+		*manifest.Bundle.SizeBytes < 50*1024*1024 {
 		ss.log.Infow("Using bundle download (reasonable size)",
 			"sizeBytes", *manifest.Bundle.SizeBytes)
 		return true
@@ -437,7 +527,10 @@ func (ss *StateSyncer) shouldDownloadBundle(manifest *sbi.UnsignedAppStateManife
 }
 
 // processDeploymentsIndividually fetches and stores each deployment individually
-func (ss *StateSyncer) processDeploymentsIndividually(ctx context.Context, deploymentRefs []sbi.DeploymentManifestRef) {
+func (ss *StateSyncer) processDeploymentsIndividually(
+	ctx context.Context,
+	deploymentRefs []sbi.DeploymentManifestRef,
+) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
 			ss.log.Warnw("Skipping deployment with empty DeploymentId")
@@ -464,7 +557,11 @@ func (ss *StateSyncer) processDeploymentsIndividually(ctx context.Context, deplo
 
 // processDeploymentsFromBundle processes deployments extracted from bundle
 
-func (ss *StateSyncer) processDeploymentsFromBundle(_ context.Context, deploymentRefs []sbi.DeploymentManifestRef, bundleYAMLs map[string][]byte) {
+func (ss *StateSyncer) processDeploymentsFromBundle(
+	_ context.Context,
+	deploymentRefs []sbi.DeploymentManifestRef,
+	bundleYAMLs map[string][]byte,
+) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
 			ss.log.Warnw("Skipping deployment with empty DeploymentId")
@@ -541,7 +638,11 @@ func (ss *StateSyncer) processDeploymentsFromBundle(_ context.Context, deploymen
 }
 
 // storeDeployment stores a deployment in the database
-func (ss *StateSyncer) storeDeployment(deploymentId string, deploymentRef sbi.DeploymentManifestRef, deploymentYAML *sbi.AppDeploymentManifest) {
+func (ss *StateSyncer) storeDeployment(
+	deploymentId string,
+	deploymentRef sbi.DeploymentManifestRef,
+	deploymentYAML *sbi.AppDeploymentManifest,
+) {
 	desiredState := database.AppDeploymentState{
 		AppDeploymentManifest: *deploymentYAML,
 		Status: sbi.DeploymentStatusManifest{
@@ -580,7 +681,8 @@ func (ss *StateSyncer) storeDeployment(deploymentId string, deploymentRef sbi.De
 		"digest", deploymentRef.Digest)
 }
 
-// convertYAMLToJSON converts YAML-style maps (interface{} keys) to JSON-compatible maps (string keys)
+// convertYAMLToJSON converts YAML-style maps (interface{} keys) to JSON-compatible maps (string
+// keys)
 func convertYAMLToJSON(i interface{}) interface{} {
 	switch x := i.(type) {
 	case map[interface{}]interface{}:

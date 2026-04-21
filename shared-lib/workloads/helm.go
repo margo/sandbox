@@ -72,7 +72,12 @@ func NewHelmClient(kubeconfigPath string) (*HelmClient, error) {
 	config := new(action.Configuration)
 
 	// Initialize action configuration
-	if err := config.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := config.Init(
+		settings.RESTClientGetter(),
+		settings.Namespace(),
+		os.Getenv("HELM_DRIVER"),
+		log.Printf,
+	); err != nil {
 		return nil, fmt.Errorf("failed to initialize helm configuration: %w", err)
 	}
 
@@ -262,7 +267,12 @@ func (c *HelmClient) AddRepository(name, url string, auth HelmRepoAuth) error {
 }
 
 // InstallChart installs a Helm chart with enhanced error handling
-func (c *HelmClient) InstallChart(ctx context.Context, releaseName, chart, namespace, revision string, wait bool, values map[string]interface{}) error {
+func (c *HelmClient) InstallChart(
+	ctx context.Context,
+	releaseName, chart, namespace, revision string,
+	wait bool,
+	values map[string]interface{},
+) error {
 	if err := validateInput(releaseName, chart); err != nil {
 		return err
 	}
@@ -316,7 +326,12 @@ func (c *HelmClient) InstallChart(ctx context.Context, releaseName, chart, names
 }
 
 // installChartFromOCI installs a chart from OCI registry
-func (c *HelmClient) installChartFromOCI(ctx context.Context, install *action.Install, chartRef, version string, values map[string]interface{}) error {
+func (c *HelmClient) installChartFromOCI(
+	ctx context.Context,
+	install *action.Install,
+	chartRef, version string,
+	values map[string]interface{},
+) error {
 	// Pull chart from OCI registry
 	// extract port from
 	port, err := http.ExtractPortFromURI(chartRef)
@@ -333,7 +348,11 @@ func (c *HelmClient) installChartFromOCI(ctx context.Context, install *action.In
 		registry.ClientOptPlainHTTP()(c.registryClient)
 	}
 
-	chartRef = fmt.Sprintf("%s:%s", chartRef, version) // "ghcr.io/nginxinc/charts/nginx-ingress:0.0.0-edge"
+	chartRef = fmt.Sprintf(
+		"%s:%s",
+		chartRef,
+		version,
+	) // "ghcr.io/nginxinc/charts/nginx-ingress:0.0.0-edge"
 	result, err := c.registryClient.Pull(chartRef, registry.PullOptWithChart(true))
 	if err != nil {
 		fmt.Println("installChartFromOCI", "err", err.Error())
@@ -368,7 +387,11 @@ func (c *HelmClient) installChartFromOCI(ctx context.Context, install *action.In
 }
 
 // InstallChartWithDryRun performs a dry run installation
-func (c *HelmClient) InstallChartWithDryRun(ctx context.Context, releaseName, chart, namespace, revision string, values map[string]interface{}) (string, error) {
+func (c *HelmClient) InstallChartWithDryRun(
+	ctx context.Context,
+	releaseName, chart, namespace, revision string,
+	values map[string]interface{},
+) (string, error) {
 	if err := validateInput(releaseName, chart); err != nil {
 		return "", err
 	}
@@ -439,7 +462,11 @@ func (c *HelmClient) UninstallChart(ctx context.Context, name, namespace string)
 }
 
 // UpdateChart upgrades a Helm release with enhanced error handling
-func (c *HelmClient) UpdateChart(ctx context.Context, name, chart, namespace string, values map[string]interface{}) error {
+func (c *HelmClient) UpdateChart(
+	ctx context.Context,
+	name, chart, namespace string,
+	values map[string]interface{},
+) error {
 	if err := validateInput(name, chart); err != nil {
 		return err
 	}
@@ -490,7 +517,12 @@ func (c *HelmClient) UpdateChart(ctx context.Context, name, chart, namespace str
 }
 
 // updateChartFromOCI upgrades a chart from OCI registry
-func (c *HelmClient) updateChartFromOCI(ctx context.Context, upgrade *action.Upgrade, releaseName, chartRef string, values map[string]interface{}) error {
+func (c *HelmClient) updateChartFromOCI(
+	ctx context.Context,
+	upgrade *action.Upgrade,
+	releaseName, chartRef string,
+	values map[string]interface{},
+) error {
 	// Get the current release to determine the version if not specified
 	status := action.NewStatus(c.config)
 	currentRelease, err := status.Run(releaseName)
@@ -516,7 +548,16 @@ func (c *HelmClient) updateChartFromOCI(ctx context.Context, upgrade *action.Upg
 	// Pull chart from OCI registry
 	result, err := c.registryClient.Pull(chartRef, registry.PullOptWithChart(true))
 	if err != nil {
-		fmt.Println("failed to pull chart", err.Error(), "chartref", chartRef, "releaseName", releaseName, "values", values)
+		fmt.Println(
+			"failed to pull chart",
+			err.Error(),
+			"chartref",
+			chartRef,
+			"releaseName",
+			releaseName,
+			"values",
+			values,
+		)
 		return &HelmError{
 			Type:    ErrorTypeRegistry,
 			Message: "failed to pull OCI chart for upgrade",
@@ -562,7 +603,10 @@ type ReleaseStatus struct {
 }
 
 // GetReleaseStatus retrieves the status of a Helm release
-func (c *HelmClient) GetReleaseStatus(ctx context.Context, releaseName, namespace string) (*ReleaseStatus, error) {
+func (c *HelmClient) GetReleaseStatus(
+	ctx context.Context,
+	releaseName, namespace string,
+) (*ReleaseStatus, error) {
 	if strings.TrimSpace(releaseName) == "" {
 		return nil, &HelmError{
 			Type:    ErrorTypeInvalidInput,
@@ -605,7 +649,11 @@ func (c *HelmClient) GetReleaseStatus(ctx context.Context, releaseName, namespac
 	}
 
 	if release.Chart != nil && release.Chart.Metadata != nil {
-		releaseStatus.Chart = fmt.Sprintf("%s-%s", release.Chart.Metadata.Name, release.Chart.Metadata.Version)
+		releaseStatus.Chart = fmt.Sprintf(
+			"%s-%s",
+			release.Chart.Metadata.Name,
+			release.Chart.Metadata.Version,
+		)
 		releaseStatus.AppVersion = release.Chart.Metadata.AppVersion
 	}
 
@@ -649,7 +697,11 @@ func (c *HelmClient) ListReleases(ctx context.Context, namespace string) ([]*Rel
 		}
 
 		if release.Chart != nil && release.Chart.Metadata != nil {
-			status.Chart = fmt.Sprintf("%s-%s", release.Chart.Metadata.Name, release.Chart.Metadata.Version)
+			status.Chart = fmt.Sprintf(
+				"%s-%s",
+				release.Chart.Metadata.Name,
+				release.Chart.Metadata.Version,
+			)
 			status.AppVersion = release.Chart.Metadata.AppVersion
 		}
 
@@ -660,7 +712,10 @@ func (c *HelmClient) ListReleases(ctx context.Context, namespace string) ([]*Rel
 }
 
 // GetReleaseHistory gets the revision history for a release
-func (c *HelmClient) GetReleaseHistory(ctx context.Context, releaseName, namespace string) ([]*ReleaseStatus, error) {
+func (c *HelmClient) GetReleaseHistory(
+	ctx context.Context,
+	releaseName, namespace string,
+) ([]*ReleaseStatus, error) {
 	history := action.NewHistory(c.config)
 
 	releases, err := history.Run(releaseName)
@@ -681,7 +736,11 @@ func (c *HelmClient) GetReleaseHistory(ctx context.Context, releaseName, namespa
 		status.Updated = release.Info.LastDeployed.Format("2006-01-02 15:04:05")
 
 		if release.Chart != nil && release.Chart.Metadata != nil {
-			status.Chart = fmt.Sprintf("%s-%s", release.Chart.Metadata.Name, release.Chart.Metadata.Version)
+			status.Chart = fmt.Sprintf(
+				"%s-%s",
+				release.Chart.Metadata.Name,
+				release.Chart.Metadata.Version,
+			)
 			status.AppVersion = release.Chart.Metadata.AppVersion
 		}
 
@@ -692,11 +751,20 @@ func (c *HelmClient) GetReleaseHistory(ctx context.Context, releaseName, namespa
 }
 
 // ReleaseExists checks if a release exists
-func (c *HelmClient) ReleaseExists(ctx context.Context, releaseName, namespace string) (bool, error) {
+func (c *HelmClient) ReleaseExists(
+	ctx context.Context,
+	releaseName, namespace string,
+) (bool, error) {
 	_, err := c.GetReleaseStatus(ctx, releaseName, namespace)
 	if err != nil {
 		// If the error is "not found", return false without error
-		if fmt.Sprintf("%v", err) == fmt.Sprintf("failed to get status for release %s: release: not found", releaseName) {
+		if fmt.Sprintf(
+			"%v",
+			err,
+		) == fmt.Sprintf(
+			"failed to get status for release %s: release: not found",
+			releaseName,
+		) {
 			return false, nil
 		}
 		return false, err

@@ -9,7 +9,8 @@ import (
 type Client struct {
 	url         string
 	branchOrTag string
-	// currentPath: a random path will be decide at the time of cloning if the currentRepoPath is not provided by the user
+	// currentPath: a random path will be decide at the time of cloning if the currentRepoPath is
+	// not provided by the user
 	repoPath *string
 	auth     *Auth
 }
@@ -31,7 +32,10 @@ func NewClient(auth *Auth, url, branchOrTagName string, outputPath *string) (*Cl
 			if os.IsNotExist(err) {
 				// Try to create the directory if it doesn't exist
 				if err := os.MkdirAll(*outputPath, 0750); err != nil {
-					return nil, fmt.Errorf("output path does not exist and cannot be created: %w", err)
+					return nil, fmt.Errorf(
+						"output path does not exist and cannot be created: %w",
+						err,
+					)
 				}
 			} else {
 				return nil, fmt.Errorf("failed to access output path: %w", err)

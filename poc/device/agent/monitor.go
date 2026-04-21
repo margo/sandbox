@@ -28,7 +28,12 @@ type DeploymentMonitor struct {
 	stopChan      chan struct{}
 }
 
-func NewDeploymentMonitor(db database.DatabaseIfc, helmClient *workloads.HelmClient, composeClient *workloads.DockerComposeCliClient, log *zap.SugaredLogger) *DeploymentMonitor {
+func NewDeploymentMonitor(
+	db database.DatabaseIfc,
+	helmClient *workloads.HelmClient,
+	composeClient *workloads.DockerComposeCliClient,
+	log *zap.SugaredLogger,
+) *DeploymentMonitor {
 	return &DeploymentMonitor{
 		database:      db,
 		helmClient:    helmClient,
@@ -89,7 +94,13 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
 		helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
 		if err != nil {
-			hm.log.Warnw("Failed to convert component to Helm component", "appID", appID, "error", err)
+			hm.log.Warnw(
+				"Failed to convert component to Helm component",
+				"appID",
+				appID,
+				"error",
+				err,
+			)
 			continue
 		}
 

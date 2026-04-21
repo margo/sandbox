@@ -23,7 +23,9 @@ import (
 //   - url: The HTTPS Git repository URL to clone (required, cannot be empty)
 //   - branchOrTagName: The name of the branch to clone (required, cannot be empty)
 //   - auth: Optional authentication credentials for private repositories
-//   - cloneToDir: Path to clone directory (optional, if not given a random path will be used inside /tmp directory)
+//
+// - cloneToDir: Path to clone directory (optional, if not given a random path will be used inside
+// /tmp directory)
 //
 // Returns:
 //   - outputDirPath: The absolute path to the cloned repository directory
@@ -32,7 +34,9 @@ import (
 // Important Notes:
 //   - The caller is responsible for cleaning up the returned directory path
 //   - Only HTTP(S)-based Git URLs are supported; SSH URLs are not supported
-//   - If outputPath var is not provided then the function creates a temporary directory with the pattern like "margo-git-{timestamp}"
+//
+// - If outputPath var is not provided then the function creates a temporary directory with the
+// pattern like "margo-git-{timestamp}"
 //   - Progress information is written to os.Stdout during cloning
 //   - The function performs a single-branch clone for efficiency
 //
@@ -112,7 +116,8 @@ func (client *Client) Clone(outputPath *string) (string, error) {
 	return cloneDir, nil
 }
 
-// getAuthMethod returns the appropriate authentication method(basic auth etc..) based on the Git URL and authentication credentials.
+// getAuthMethod returns the appropriate authentication method(basic auth etc..) based on the Git
+// URL and authentication credentials.
 //
 // Supported URL formats:
 //   - HTTPS: https://github.com/user/repo.git

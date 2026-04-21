@@ -24,7 +24,12 @@ type StatusReporter struct {
 	stopChan  chan struct{}
 }
 
-func NewStatusReporter(db database.DatabaseIfc, client wfm.SBIAPIClientInterface, deviceID string, log *zap.SugaredLogger) *StatusReporter {
+func NewStatusReporter(
+	db database.DatabaseIfc,
+	client wfm.SBIAPIClientInterface,
+	deviceID string,
+	log *zap.SugaredLogger,
+) *StatusReporter {
 	return &StatusReporter{
 		database:  db,
 		apiClient: client,
@@ -43,7 +48,11 @@ func (sr *StatusReporter) Stop() {
 	close(sr.stopChan)
 }
 
-func (sr *StatusReporter) onDeploymentChange(appID string, record *database.DeploymentRecord, changeType database.DeploymentRecordChangeType) {
+func (sr *StatusReporter) onDeploymentChange(
+	appID string,
+	record *database.DeploymentRecord,
+	changeType database.DeploymentRecordChangeType,
+) {
 	// Concise logging with only important fields
 	logFields := []interface{}{
 		"appId", appID,
@@ -107,7 +116,13 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		}
 
 		// For non-failed states, skip reporting
-		sr.log.Debugw("Skipping status report - no current state yet", "appId", appID, "phase", record.Phase)
+		sr.log.Debugw(
+			"Skipping status report - no current state yet",
+			"appId",
+			appID,
+			"phase",
+			record.Phase,
+		)
 		return
 	}
 
@@ -143,7 +158,13 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		case "REMOVED", "removed":
 			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
 		default:
-			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING", "appId", appID, "phase", record.Phase)
+			sr.log.Warnw(
+				"Unknown deployment phase, defaulting to PENDING",
+				"appId",
+				appID,
+				"phase",
+				record.Phase,
+			)
 			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
 		}
 	}
@@ -187,12 +208,22 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		return
 	}
 
-	sr.log.Infow("Status reported successfully", "appId", appID, "phase", record.Phase, "state", deploymentState)
+	sr.log.Infow(
+		"Status reported successfully",
+		"appId",
+		appID,
+		"phase",
+		record.Phase,
+		"state",
+		deploymentState,
+	)
 }
 
 // deriveOverallState computes the overall deployment state from component states
 // using the Margo spec precedence: failed > removing > installing > pending > removed > installed.
-func deriveOverallState(components map[string]sbi.ComponentStatus) sbi.DeploymentStatusManifestStatusState {
+func deriveOverallState(
+	components map[string]sbi.ComponentStatus,
+) sbi.DeploymentStatusManifestStatusState {
 	if len(components) == 0 {
 		return sbi.DeploymentStatusManifestStatusStatePending
 	}

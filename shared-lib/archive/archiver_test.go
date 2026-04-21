@@ -109,7 +109,11 @@ func TestArchiver_AppendFile(t *testing.T) {
 				if err == nil {
 					t.Error("Expected error but got none")
 				} else if !strings.Contains(err.Error(), tt.expectedErrorContains) {
-					t.Errorf("Expected error containing '%s', got '%s'", tt.expectedErrorContains, err.Error())
+					t.Errorf(
+						"Expected error containing '%s', got '%s'",
+						tt.expectedErrorContains,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {
@@ -175,7 +179,11 @@ func TestArchiver_AppendContent(t *testing.T) {
 				if err == nil {
 					t.Error("Expected error but got none")
 				} else if !strings.Contains(err.Error(), tt.expectedErrorContains) {
-					t.Errorf("Expected error containing '%s', got '%s'", tt.expectedErrorContains, err.Error())
+					t.Errorf(
+						"Expected error containing '%s', got '%s'",
+						tt.expectedErrorContains,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {
@@ -193,7 +201,11 @@ func TestArchiver_AppendContent(t *testing.T) {
 					t.Errorf("Expected name %s, got %s", expectedPath, entry.Name)
 				}
 				if string(entry.Content) != string(tt.content) {
-					t.Errorf("Expected content %s, got %s", string(tt.content), string(entry.Content))
+					t.Errorf(
+						"Expected content %s, got %s",
+						string(tt.content),
+						string(entry.Content),
+					)
 				}
 			}
 		})

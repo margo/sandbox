@@ -12,14 +12,22 @@ import (
 func ParseAppDeploymentFromBase64(base64Yaml string) (*sbi.AppDeploymentManifest, error) {
 	decodedYaml, err := base64.StdEncoding.DecodeString(base64Yaml)
 	if err != nil {
-		// da.log.Errorw("Failed to decode base64 AppDeploymentYAML", "appId", state.AppId, "error", err)
-		return nil, fmt.Errorf("failed to decode the app deployment yaml from its base64 format, err: %w", err)
+		// da.log.Errorw("Failed to decode base64 AppDeploymentYAML", "appId", state.AppId, "error",
+		// err)
+		return nil, fmt.Errorf(
+			"failed to decode the app deployment yaml from its base64 format, err: %w",
+			err,
+		)
 	}
 
 	var appDeployment sbi.AppDeploymentManifest
 	if err := json.Unmarshal(decodedYaml, &appDeployment); err != nil {
-		// da.log.Errorw("Failed to unmarshal JSON AppDeployment", "appId", state.AppId, "error", err)
-		return nil, fmt.Errorf("failed to parse the app deployment object from the yaml, err: %w", err)
+		// da.log.Errorw("Failed to unmarshal JSON AppDeployment", "appId", state.AppId, "error",
+		// err)
+		return nil, fmt.Errorf(
+			"failed to parse the app deployment object from the yaml, err: %w",
+			err,
+		)
 	}
 
 	return &appDeployment, nil
@@ -27,7 +35,10 @@ func ParseAppDeploymentFromBase64(base64Yaml string) (*sbi.AppDeploymentManifest
 
 // ConvertAppDeploymentParamsToValues converts AppDeploymentParams to a map[string]interface{}
 // that can be used for Helm chart value overrides
-func ConvertAppDeploymentParamsToValues(params sbi.AppDeploymentParams, componentName string) (map[string]interface{}, error) {
+func ConvertAppDeploymentParamsToValues(
+	params sbi.AppDeploymentParams,
+	componentName string,
+) (map[string]interface{}, error) {
 	values := make(map[string]interface{})
 
 	for paramName, paramValue := range params {
@@ -41,7 +52,11 @@ func ConvertAppDeploymentParamsToValues(params sbi.AppDeploymentParams, componen
 			if containsComponent(target.Components, componentName) {
 				err := setNestedValue(values, target.Pointer, paramValue.Value)
 				if err != nil {
-					return nil, fmt.Errorf("failed to set value for parameter %s: %w", paramName, err)
+					return nil, fmt.Errorf(
+						"failed to set value for parameter %s: %w",
+						paramName,
+						err,
+					)
 				}
 			}
 		}
@@ -51,7 +66,9 @@ func ConvertAppDeploymentParamsToValues(params sbi.AppDeploymentParams, componen
 }
 
 // ConvertAllAppDeploymentParamsToValues converts all parameters to a component-wise map
-func ConvertAllAppDeploymentParamsToValues(params sbi.AppDeploymentParams) (map[string]map[string]interface{}, error) {
+func ConvertAllAppDeploymentParamsToValues(
+	params sbi.AppDeploymentParams,
+) (map[string]map[string]interface{}, error) {
 	/*componentNameVsValues*/
 	componentValues := make(map[string]map[string]interface{})
 

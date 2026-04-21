@@ -15,7 +15,8 @@ import (
 
 type DeviceClientSettings struct {
 	deviceClientId string
-	// a temporary solution to simulate oem based device, later on once the onboarding story is clear
+	// a temporary solution to simulate oem based device, later on once the onboarding story is
+	// clear
 	// we can go ahead and implement something better over here
 	deviceRootIdentity                              types.DeviceRootIdentity
 	authEnabled                                     bool
@@ -62,7 +63,12 @@ func WithDeviceRootIdentity(identity types.DeviceRootIdentity) Option {
 	}
 }
 
-func NewDeviceSettings(client wfm.SBIAPIClientInterface, db database.DatabaseIfc, log *zap.SugaredLogger, opts ...Option) (*DeviceClientSettings, error) {
+func NewDeviceSettings(
+	client wfm.SBIAPIClientInterface,
+	db database.DatabaseIfc,
+	log *zap.SugaredLogger,
+	opts ...Option,
+) (*DeviceClientSettings, error) {
 	existingRecord, err := db.GetDeviceSettings()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get device settings from database, %s", err.Error())
@@ -129,7 +135,10 @@ func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId str
 	}
 
 	da.log.Infow("Starting device onboarding", "hasValidDeviceSignature", len(devicePubCert) != 0)
-	clientId, wfmEndpointsForClient, err := da.apiClient.OnboardDeviceClient(ctx, []byte(devicePubCert))
+	clientId, wfmEndpointsForClient, err := da.apiClient.OnboardDeviceClient(
+		ctx,
+		[]byte(devicePubCert),
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to onboard device client: %s", err.Error())
 	}
@@ -157,7 +166,10 @@ func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId str
 	return da.deviceClientId, err
 }
 
-func (da *DeviceClientSettings) OnboardWithRetries(ctx context.Context, retries uint8) (deviceClientId string, err error) {
+func (da *DeviceClientSettings) OnboardWithRetries(
+	ctx context.Context,
+	retries uint8,
+) (deviceClientId string, err error) {
 	totalRetries := retries
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -169,7 +181,15 @@ func (da *DeviceClientSettings) OnboardWithRetries(ctx context.Context, retries 
 
 		deviceClientId, err := da.Onboard(ctx)
 		if err != nil {
-			da.log.Infow("onboard operation failed", "tryCount", totalRetries-retries, "totalRetriesAllowed", totalRetries, "err", err.Error())
+			da.log.Infow(
+				"onboard operation failed",
+				"tryCount",
+				totalRetries-retries,
+				"totalRetriesAllowed",
+				totalRetries,
+				"err",
+				err.Error(),
+			)
 			continue
 		}
 		return deviceClientId, err
@@ -178,11 +198,20 @@ func (da *DeviceClientSettings) OnboardWithRetries(ctx context.Context, retries 
 	return "", fmt.Errorf("unable to onboard the device")
 }
 
-func (da *DeviceClientSettings) ReportCapabilities(ctx context.Context, capabilities sbi.DeviceCapabilitiesManifest) error {
+func (da *DeviceClientSettings) ReportCapabilities(
+	ctx context.Context,
+	capabilities sbi.DeviceCapabilitiesManifest,
+) error {
 	da.log.Infow("Starting capabilities reporting", "deviceClientId", da.deviceClientId)
 	err := da.apiClient.ReportCapabilities(ctx, da.deviceClientId, capabilities)
 	if err != nil {
-		da.log.Errorw("Failed to report capabilities", "error", err, "deviceClientId", da.deviceClientId)
+		da.log.Errorw(
+			"Failed to report capabilities",
+			"error",
+			err,
+			"deviceClientId",
+			da.deviceClientId,
+		)
 		return fmt.Errorf("failed to report capabilities: %w", err)
 	}
 

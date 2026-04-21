@@ -1,0 +1,40 @@
+name: Fast-Forward Merge Action
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  fast-forward:
+    # Only run if the comment is on a PR and contains the command
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/fast-forward')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Use your PAT here to allow the push to trigger other workflows
+          token: ${{ secrets.FAST_FORWARD_CI_BOT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Fast-forward and Push
+        run: |
+          # 1. Configure the bot identity
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 2. Get PR details using GitHub CLI
+          # The CLI uses the GH_TOKEN env variable defined below
+          PR_DATA=$(gh pr view ${{ github.event.issue.number }} --json headRefName,baseRefName)
+          HEAD_BRANCH=$(echo $PR_DATA | jq -r .headRefName)
+          BASE_BRANCH=$(echo $PR_DATA | jq -r .baseRefName)
+
+          # 3. Perform the fast-forward merge
+          git fetch origin $HEAD_BRANCH
+          git checkout $BASE_BRANCH
+          git merge --ff-only origin/$HEAD_BRANCH
+
+          # 4. Push changes back to the base branch
+          git push origin $BASE_BRANCH
+        env:
+          # Use the PAT for GH CLI commands as well
+          GH_TOKEN: ${{ secrets.FAST_FORWARD_CI_BOT_TOKEN }}

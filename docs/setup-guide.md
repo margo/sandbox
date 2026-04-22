@@ -45,8 +45,7 @@ You need to download the setup files to all three VMs. Follow these steps on **e
    cd sandbox
    git sparse-checkout init --no-cone
    git sparse-checkout set \
-        scripts/*.sh \
-        scripts/*.env
+      scripts/*
    git checkout main
    ```
 ---
@@ -85,11 +84,11 @@ On each VM, you need to configure environment variables (settings that tell the 
       fe00::0 ip6-localnet
       ff00::0 ip6-mcastprefix
       ff02::1 ip6-allnodes
-      
+
       192.11.11.11 symphony.machine # <---- newly appended line here with ip
       192.11.11.11 harbor.machine # <--- newly appended line with ip
       ```
-   
+
 🔴 **Important:** Complete this step on all three VMs before proceeding.
 
 ---
@@ -124,7 +123,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Type `3` and press Enter
    - Choose: `Option 3: Symphony Start`
 
-   This starts the Workload Fleet Manager service. 
+   This starts the Workload Fleet Manager service.
 > Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
 4. **Add Monitoring Tools**
@@ -260,7 +259,7 @@ You need to copy a security file from the WFM VM to each Device VM.
    ```
 
 2. **Configure the domain/host(name) resolution in coredns**
-   
+
    The k3s based setups don't pick the changes from `/etc/hosts` system file, hence it is better to add hostname details in the the coredns config itself.
 
    2.1. Fetch the coredns config first:
@@ -302,7 +301,7 @@ You need to copy a security file from the WFM VM to each Device VM.
    ```bash
    kubectl apply -f config.yaml
    ```
-   
+
    2.4. Finally restart the coredns pods:
    ```bash
    kubectl -n kube-system rollout restart deployment coredns

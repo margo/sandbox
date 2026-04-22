@@ -17,7 +17,8 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
+      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X
+        main.date={{.CommitDate}}
     goos:
       - linux
     goarch:
@@ -26,7 +27,7 @@ builds:
 
 dockers_v2:
   - images:
-    - "ghcr.io/margo/workload-fleet-management-client"
+      - "ghcr.io/margo/workload-fleet-management-client"
     dockerfile: ./poc/device/agent/Dockerfile
     platforms:
       - linux/amd64
@@ -37,18 +38,22 @@ dockers_v2:
       COMMIT: "{{.Commit}}"
     labels:
       org.opencontainers.image.title: "{{.ProjectName}}"
-      org.opencontainers.image.description: "Margo sandbox workload fleet management client. A reference implementation."
+      org.opencontainers.image.description: "Margo sandbox workload fleet management
+        client. A reference implementation."
       org.opencontainers.image.source: "{{.GitURL}}"
       org.opencontainers.image.version: "{{.Version}}"
       org.opencontainers.image.revision: "{{.FullCommit}}"
       org.opencontainers.image.created: "{{.CommitDate}}"
+    extra_files:
+      - go.mod
+      - go.sum
 
 report_sizes: true
 
 archives:
   - formats:
-    - tar.gz
-    name_template: '{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}'
+      - tar.gz
+    name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
     files:
       - README.md
       - LICENSE
@@ -60,9 +65,9 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - 'README'
+      - "^docs:"
+      - "^test:"
+      - "README"
       - Merge pull request
       - Merge branch
 

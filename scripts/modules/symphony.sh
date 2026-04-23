@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/symphony.sh - Symphony API management functions
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 build_maestro_cli() {
   CLI_DIR="$HOME/symphony/cli"
@@ -88,20 +88,18 @@ remove_symphony_api_systemd_service() {
 
 start_symphony_api_container() {
   cd "$HOME/symphony/api"
-  
+
   echo "Stopping and removing existing symphony-api-container if present..."
   docker stop symphony-api-container 2>/dev/null || true
   docker rm symphony-api-container 2>/dev/null || true
   pkill -f "symphony-api" 2>/dev/null || true
 
   # Copy Harbor CA if in CI environment
-  if [[ "${CI}" == "true" ]]; then
     HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
     if [ -f "$HARBOR_CERT" ]; then
       cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
       echo "✅ Harbor CA copied to Symphony certificates"
     fi
-  fi
 
   # Only check/pull from GHCR if not using a local image
   if [[ "${SYMPHONY_IMAGE_REF}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
@@ -127,7 +125,7 @@ start_symphony_api_container() {
       -v $HOME/symphony/api/certificates:/certificates \
       -v $HOME/symphony/api:/configs \
       -e CONFIG=symphony-api-margo.json"
-  
+
   # Add CI-specific environment and host mappings
   if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
     DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
@@ -135,15 +133,14 @@ start_symphony_api_container() {
       --add-host symphony.machine:${RUNNER_IP} \
       -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
   fi
-  
+
   # Execute docker run
   eval "$DOCKER_RUN_CMD ${SYMPHONY_IMAGE_REF}"
-  
+
   # Wait for container to start
   sleep 5
-  
-  # Install Harbor CA in container if in CI
-  if [[ "${CI}" == "true" ]] && docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+
+  if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
     docker exec symphony-api-container sh -c '
       if [ -f /certificates/harbor-ca.crt ]; then
         mkdir -p /usr/local/share/ca-certificates
@@ -153,7 +150,7 @@ start_symphony_api_container() {
       fi
     ' || true
   fi
-      
+
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
       echo "✅ Symphony API container started successfully"
       echo "📡 Container is running on port 8082 (host network)"

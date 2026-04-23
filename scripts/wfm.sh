@@ -25,7 +25,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 SYMPHONY_BRANCH="${SYMPHONY_BRANCH:-main}"
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
 EXPOSED_HARBOR_HOST="${EXPOSED_HARBOR_HOST:-127.0.0.1}"
-EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8081}"
+EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8443}"
 EXPOSED_SYMPHONY_HOST="${EXPOSED_SYMPHONY_HOST:-127.0.0.1}"
 EXPOSED_SYMPHONY_PORT="${EXPOSED_SYMPHONY_PORT:-8082}"
 REGISTRY_URL="${REGISTRY_URL:-https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}}"
@@ -75,7 +75,7 @@ install_prerequisites() {
   setup_harbor
   trust_harbor_certificate
   build_custom_otel_container_images
-  
+
   echo ""
   echo "-----------------------------------------------------------------------"
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry..."
@@ -87,7 +87,7 @@ install_prerequisites() {
 
 install_basic_utilities() {
   local PACKAGES="curl dos2unix build-essential gcc libc6-dev jq"
-  
+
   echo "🔄 Installing Basic utilities..."
   INSTALLATION_NEEDED="false"
   for pkg in $PACKAGES ; do
@@ -96,7 +96,7 @@ install_basic_utilities() {
       break
     fi
   done
-  
+
   if [[ "${INSTALLATION_NEEDED}" == "true" ]] ; then
     sudo apt update && sudo apt install -y $PACKAGES
     echo "✅ Basic utilities installed"
@@ -152,7 +152,7 @@ observability_stack_uninstall(){
 
     # CHANGED: Remove only prometheus-values.yaml and loki-values.yaml
     rm -f prometheus-values.yaml loki-values.yaml
-    
+
     echo "Observability stack uninstall completed"
 }
 

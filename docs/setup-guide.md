@@ -427,7 +427,7 @@ Enter choice [1-9]: 1
 | af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 10:00 | 2025-12-02 10:00 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8081","repository":"library/cust |                  |                  |
+|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
 |                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
 |                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
@@ -547,7 +547,7 @@ Enter choice [1-9]: 6
 | ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8081","repository":"library/cust |                  |                  |
+|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
 |                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
 |                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
@@ -599,7 +599,7 @@ Enter choice [1-9]: 7
 | ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8081","repository":"library/cust |                  |                  |
+|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
 |                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
 |                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+

@@ -19,46 +19,50 @@ spec:
       containers:
         - name: {{ include "agentchart.podname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}          
-          command:
-            - /bin/sh
-            - -c
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          command: ["/bin/sh", "-c"]
           args:
             - |
               update-ca-certificates
               exec ./device-agent -config /config/config.yaml
+
           env:
             - name: KUBERNETES_SERVICE_HOST
               value: "kubernetes.default.svc"
             - name: KUBERNETES_SERVICE_PORT
               value: "443"
+
           volumeMounts:
             - name: agent-config-volume
               mountPath: /config
               readOnly: true
+
             - name: data-volume
               mountPath: /data
+
             - name: certs
               mountPath: /certs
               readOnly: true
-            
-            - name: certs
-               mountPath: /usr/local/share/ca-certificates/harbor.crt
-               subPath: harbor.crt
-               readOnly: true
 
-              
+            - name: certs
+              mountPath: /usr/local/share/ca-certificates/harbor.crt
+              subPath: harbor.crt
+              readOnly: true
+
       volumes:
         - name: agent-config-volume
           configMap:
             name: {{ include "agentchart.configmapname" . }}
+
         - name: data-volume
-          {{- if .Values.persistence.enabled }}
+{{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim | default (include "agentchart.pvcname" .) }}
-          {{- else }}
+{{- else }}
           emptyDir: {}
-          {{- end }}
+{{- end }}
+
         - name: certs
           secret:
             secretName: {{ include "agentchart.certsecretname" . }}

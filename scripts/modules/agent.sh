@@ -73,12 +73,12 @@ enable_docker_runtime() {
 # Update build_device_agent_docker()
 build_device_agent_docker() {
   cd "$HOME/sandbox"
-  
+
   # CI mode: use locally built image
   if [[ "${CI:-false}" == "true" ]]; then
     echo "🔧 CI mode: Using locally built image"
     export workload_Fleet_Management_Client_IMAGE_REF="workload-fleet-management-client:ci-test"
-    
+
     if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${workload_Fleet_Management_Client_IMAGE_REF}$"; then
       echo "✅ Local CI image found: ${workload_Fleet_Management_Client_IMAGE_REF}"
       return 0
@@ -87,17 +87,17 @@ build_device_agent_docker() {
       return 1
     fi
   fi
-  
+
   # Production mode: pull from GHCR
   echo 'Checking if workload-fleet-management-client image already exists in GHCR...'
   echo "Checking GHCR image: ${workload_Fleet_Management_Client_IMAGE_REF}"
-  
+
   if docker manifest inspect "${workload_Fleet_Management_Client_IMAGE_REF}" >/dev/null 2>&1; then
     echo "Image exists in GHCR"
   else
     echo "Image does NOT exist in GHCR"
     return 1
-  fi  
+  fi
 
   echo "⬇️ Pulling image from GHCR..."
   docker pull "${workload_Fleet_Management_Client_IMAGE_REF}" || return 1
@@ -169,7 +169,7 @@ start_device_agent_docker_service() {
   # Export the image reference for docker-compose
   export workload_Fleet_Management_Client_IMAGE_REF="${workload_Fleet_Management_Client_IMAGE_REF}"
   echo "Using image: ${workload_Fleet_Management_Client_IMAGE_REF}"
-  
+
 
   docker compose up -d
 
@@ -204,12 +204,12 @@ build_start_device_agent_k3s_service() {
     cd "$HOME/sandbox"
     echo "Deploying workload-fleet-management-client on Kubernetes..."
 
-    
+
     # Determine image reference based on CI mode
     if [[ "${CI:-false}" == "true" ]]; then
       echo "🔧 CI mode: Using locally built image"
       export workload_Fleet_Management_Client_IMAGE_REF="workload-fleet-management-client:ci-test"
-      
+
       # Verify image exists in K3s containerd
       if sudo crictl images | grep -q "workload-fleet-management-client.*ci-test"; then
         echo "✅ CI image found in K3s containerd"
@@ -227,11 +227,11 @@ build_start_device_agent_k3s_service() {
       # Original GHCR logic
 
     echo "Importing image into k3s..."
-    
+
     if command -v crictl >/dev/null 2>&1; then
         echo "Using crictl to pull image directly into k3s..."
         sudo crictl pull "${workload_Fleet_Management_Client_IMAGE_REF}"
-      
+
         if [ $? -eq 0 ]; then
             echo "✅ Image imported into k3s cluster via crictl"
         else
@@ -273,6 +273,7 @@ build_start_device_agent_k3s_service() {
             --from-file=device-ecdsa.key="$HOME/certs/device-ecdsa.key" \
             --from-file=device-ecdsa.crt="$HOME/certs/device-ecdsa.crt" \
             --from-file=ca-cert.pem="$HOME/certs/ca-cert.pem" \
+            --from-file=harbor.crt="$HOME/certs/harbor.crt" \
             --namespace=default
 
         if [ $? -eq 0 ]; then
@@ -294,7 +295,7 @@ build_start_device_agent_k3s_service() {
     sleep 5
 
     echo "Installing workload-fleet-management-client with persistent storage..."
-    
+
      helm install workload-fleet-management-client . \
         --set image.repository=$(echo "${workload_Fleet_Management_Client_IMAGE_REF}" | cut -d: -f1) \
         --set image.tag=$(echo "${workload_Fleet_Management_Client_IMAGE_REF}" | cut -d: -f2) \
@@ -314,7 +315,7 @@ build_start_device_agent_k3s_service() {
     echo "✅ Helm installation successful with persistent storage"
 
     echo "🔍 Verifying deployment..."
-                             
+
     if kubectl auth can-i create secrets --as=system:serviceaccount:default:workload-fleet-management-client-sa -n default | grep -q "yes"; then
       echo "✅ RBAC permissions verified"
     else
@@ -328,7 +329,7 @@ build_start_device_agent_k3s_service() {
       echo "⚠️ PVC not found"
       kubectl get events -n default --sort-by='.lastTimestamp' | tail -10
     fi
-    echo "✅ Device-workload-fleet-management-client deployed successfully"		  
+    echo "✅ Device-workload-fleet-management-client deployed successfully"
 
     echo ""
     echo "Deployment Summary:"

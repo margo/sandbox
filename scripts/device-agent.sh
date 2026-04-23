@@ -177,7 +177,7 @@ install_prerequisites() {
   # Only install k3s for k3s device type
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     setup_k3s
-    add_container_registry_mirror_to_k3s
+    configure_harbor_trust_for_k3s
   fi
 
   echo 'prerequisites installation completed.'

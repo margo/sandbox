@@ -273,67 +273,38 @@ stop_harbor_service() {
   [ -d "$HOME/sandbox/scripts/harbor" ] && sudo rm -rf "$HOME/sandbox/scripts/harbor" && echo "✅ Removed Harbor compose directory"
 }
 
-add_container_registry_mirror_to_k3s() {
-  echo "Configuring container registry mirror for k3s (HTTPS)..."
 
-  registry_url="https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
-  registry_user="${REGISTRY_USER:-admin}"
-  registry_password="${REGISTRY_PASS:-Harbor12345}"
+configure_harbor_trust_for_k3s() {
+  echo "🔐 Configuring Harbor CA trust for k3s node..."
 
-  echo "Using registry mirror: $registry_url"
-  echo "Using registry credentials: $registry_user / ******"
+  HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+  HOST="${EXPOSED_HARBOR_HOST}"
+  PORT="${EXPOSED_HARBOR_PORT}"
+  CERT_DIR="/var/lib/rancher/k3s/agent/etc/containerd/certs.d/${HOST}:${PORT}"
 
-  sudo mkdir -p /var/lib/rancher/k3s
-  sudo mkdir -p /etc/rancher/k3s
-
-  if [ -f /var/lib/rancher/k3s/registries.yml ]; then
-    sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yml.backup.$(date +%s)
-    echo "✅ Backed up /var/lib/rancher/k3s/registries.yml"
+  if [ -f "$CERT_DIR/ca.crt" ] && [ -f "$CERT_DIR/hosts.toml" ]; then
+    echo "✅ Harbor trust already present — skipping k3s restart"
+    return 0
   fi
 
-  cat <<EOF | sudo tee /var/lib/rancher/k3s/registries.yml >/dev/null
-mirrors:
-  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
-    endpoint:
-      - "${registry_url}"
+  sudo mkdir -p "$CERT_DIR"
+  sudo cp "$HARBOR_CERT" "$CERT_DIR/ca.crt"
 
-configs:
-  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}":
-    auth:
-      username: "${registry_user}"
-      password: "${registry_password}"
-    tls:
-      insecure_skip_verify: true
+  sudo tee "$CERT_DIR/hosts.toml" >/dev/null <<EOF
+server = "https://${HOST}:${PORT}"
+
+[host."https://${HOST}:${PORT}"]
+  capabilities = ["pull", "resolve"]
+  ca = "ca.crt"
 EOF
 
-  sudo cp /var/lib/rancher/k3s/registries.yml /var/lib/rancher/k3s/registries.yaml
-  sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yml
-  sudo cp /var/lib/rancher/k3s/registries.yml /etc/rancher/k3s/registries.yaml
+  sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
+  sudo update-ca-certificates
 
-  echo "✅ Created k3s registry mirror configuration for HTTPS"
+  echo "🔁 Restarting k3s (one‑time trust activation)..."
+  sudo systemctl restart k3s
+  sleep 10
 
-  echo "Restarting k3s..."
-  if sudo systemctl restart k3s; then
-    echo "✅ k3s restarted successfully"
-  else
-    echo "❌ Failed to restart k3s"
-    return 1
-  fi
-
-  echo "Waiting for k3s to come up..."
-  for i in {1..30}; do
-    if sudo systemctl is-active --quiet k3s; then
-      echo "✅ k3s is running"
-      break
-    fi
-    sleep 2
-  done
-
-  if sudo k3s kubectl get nodes >/dev/null 2>&1; then
-    echo "✅ k3s cluster is responding"
-  else
-    echo "⚠️ k3s cluster not ready yet"
-  fi
-
-  echo "✅ Registry mirror configuration completed for HTTPS"
+  echo "✅ Harbor trust configured for k3s"
 }
+

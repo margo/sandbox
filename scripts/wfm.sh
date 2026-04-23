@@ -71,7 +71,7 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
-  add_container_registry_mirror_to_k3s
+
   setup_harbor
   trust_harbor_certificate
   build_custom_otel_container_images

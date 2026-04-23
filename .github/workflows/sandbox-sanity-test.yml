@@ -237,9 +237,12 @@ jobs:
       - name: WFM - Copy the CA certs
         run: |
           CERT="$HOME/symphony/api/certificates/ca-cert.pem"
+          Harbor_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
           cp "$CERT" "$HOME/certs/"
+          cp "$Harbor_CERT" "$HOME/certs/"
           echo "✅ CA certs copied to $HOME/certs/"
+
 
       - name: Upload app packages in parallel
         working-directory: scripts

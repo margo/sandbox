@@ -2,7 +2,7 @@
 
 # Harbor-specific functions
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 create_harbor_systemd_service() {
   echo "🔧 Creating systemd service for Harbor auto-start..."
@@ -60,28 +60,28 @@ setup_harbor() {
     sudo docker compose down --remove-orphans
     sleep 5
   fi
-  
+
   cd "$HOME/sandbox/scripts/harbor"
 
   echo "🔐 Configuring Harbor for HTTPS-only on port ${EXPOSED_HARBOR_PORT}..."
-  
+
   cp harbor.yml harbor.yml.backup.$(date +%s) 2>/dev/null || true
-  
+
   # Disable HTTP completely
   sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
   sed -i 's|^http:|# http:|' harbor.yml
   sed -i 's|^  port: 80|#   port: 80|' harbor.yml
   sed -i 's|^  port: 8081|#   port: 8081|' harbor.yml
-  
+
   # Enable HTTPS
   sed -i 's|^#https:|https:|' harbor.yml
   sed -i "s|^  #port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
   sed -i 's|^  #certificate: /your/certificate/path|  certificate: /data/cert/harbor.crt|' harbor.yml
   sed -i 's|^  #private_key: /your/private/key/path|  private_key: /data/cert/harbor.key|' harbor.yml
-  
+
   echo "📋 Verifying harbor.yml HTTPS configuration..."
   grep -A 5 "^https:" harbor.yml
-  
+
   echo "📜 Generating self-signed certificates for Harbor..."
   mkdir -p ./certs
 
@@ -101,7 +101,7 @@ O=Margo
 CN=${EXPOSED_HARBOR_HOST}
 
 [v3_req]
-basicConstraints = CA:FALSE
+basicConstraints = CA:TRUE
 keyUsage = keyEncipherment, digitalSignature
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
@@ -126,25 +126,25 @@ EOF
   sudo chmod 600 /data/cert/harbor.key
 
   echo "✅ Harbor certificates generated and installed"
-  
+
   echo 'Preparing Harbor configuration with HTTPS...'
   chmod +x prepare
   sudo ./prepare
-  
-  
+
+
  echo "🔧 Removing port 80 binding from docker-compose.yml..."
 
 if [ -f docker-compose.yml ]; then
   # Backup the generated docker-compose.yml
   cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
-  
+
   # Remove the port 80 binding from nginx/proxy service
   # Match with any amount of leading whitespace
   sed -i '/^\s*-\s*80:8080$/d' docker-compose.yml
   sed -i '/^\s*-\s*.*:80:8080$/d' docker-compose.yml
-  
+
   echo "✅ Port 80 binding removed from docker-compose.yml"
-  
+
   # Verify the change
   echo "📋 Verifying proxy/nginx ports in docker-compose.yml:"
   if grep -A 10 "proxy:" docker-compose.yml | grep -A 5 "ports:" | grep -v "^--$"; then
@@ -152,7 +152,7 @@ if [ -f docker-compose.yml ]; then
   else
     echo "ℹ️ No ports section found or empty"
   fi
-  
+
   # Double-check port 80 is not present
   if grep -q "80:8080" docker-compose.yml; then
     echo "⚠️ WARNING: Port 80:8080 still found in docker-compose.yml!"
@@ -164,7 +164,7 @@ else
   echo "⚠️ docker-compose.yml not found after prepare"
 fi
 
-  
+
   echo "🔍 Verifying docker-compose.yml has port ${EXPOSED_HARBOR_PORT}..."
   if grep -q "${EXPOSED_HARBOR_PORT}" docker-compose.yml; then
     echo "✅ docker-compose.yml configured for HTTPS on port ${EXPOSED_HARBOR_PORT}"
@@ -204,14 +204,14 @@ fi
   total_count=$(docker ps --filter "name=harbor" --format "{{.Names}}" | wc -l)
 
   echo "✅ Harbor status: $healthy_count/$total_count containers healthy"
-  
+
   echo "🔍 Testing Harbor HTTPS endpoint..."
   if curl -k -s https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/v2/ | grep -q "errors"; then
     echo "✅ Harbor HTTPS endpoint responding correctly"
   else
     echo "⚠️ Harbor HTTPS endpoint may not be ready yet"
   fi
-  
+
   # Verify port 80 is NOT in use
   echo "🔍 Verifying port 80 is not bound..."
   if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q ":80->"; then
@@ -219,7 +219,7 @@ fi
   else
     echo "✅ Port 80 is NOT bound - HTTPS-only mode confirmed"
   fi
-  
+
   echo "🔐 Harbor is now running with HTTPS-only on port ${EXPOSED_HARBOR_PORT}"
   echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 }
@@ -227,16 +227,16 @@ fi
 
 trust_harbor_certificate() {
   echo "📜 Adding Harbor certificate to system trust store..."
-  
+
   sudo cp /data/cert/harbor.crt /usr/local/share/ca-certificates/harbor.crt
   sudo update-ca-certificates
-  
+
   sudo mkdir -p /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}
   sudo cp /data/cert/harbor.crt /etc/docker/certs.d/${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/ca.crt
-  
+
   echo "🔄 Restarting Docker daemon to apply certificate changes..."
   sudo systemctl restart docker
-  
+
   for i in {1..30}; do
     if sudo systemctl is-active --quiet docker; then
       echo "✅ Docker daemon restarted"
@@ -244,20 +244,20 @@ trust_harbor_certificate() {
     fi
     sleep 1
   done
-  
+
   echo "🔄 Restarting Harbor containers..."
   cd "$HOME/sandbox/scripts/harbor"
   sudo docker compose up -d
-  
+
   echo "⏳ Waiting for Harbor to restart..."
   sleep 50
-  
+
   if docker ps --filter "name=nginx" --format "{{.Ports}}" | grep -q "${EXPOSED_HARBOR_PORT}"; then
     echo "✅ Harbor restarted successfully on port ${EXPOSED_HARBOR_PORT}"
   else
     echo "⚠️ Harbor may still be starting..."
   fi
-  
+
   echo "✅ Harbor certificate trusted by system and Docker"
 }
 
@@ -279,7 +279,7 @@ add_container_registry_mirror_to_k3s() {
   registry_url="https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   registry_user="${REGISTRY_USER:-admin}"
   registry_password="${REGISTRY_PASS:-Harbor12345}"
-  
+
   echo "Using registry mirror: $registry_url"
   echo "Using registry credentials: $registry_user / ******"
 

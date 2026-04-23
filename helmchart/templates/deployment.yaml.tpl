@@ -19,9 +19,14 @@ spec:
       containers:
         - name: {{ include "agentchart.podname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["./device-agent"]
-          args: ["-config", "/config/config.yaml"]
+          imagePullPolicy: {{ .Values.image.pullPolicy }}          
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              update-ca-certificates
+              exec ./device-agent -config /config/config.yaml
           env:
             - name: KUBERNETES_SERVICE_HOST
               value: "kubernetes.default.svc"
@@ -36,6 +41,12 @@ spec:
             - name: certs
               mountPath: /certs
               readOnly: true
+            
+            - name: certs
+               mountPath: /usr/local/share/ca-certificates/harbor.crt
+               subPath: harbor.crt
+               readOnly: true
+
               
       volumes:
         - name: agent-config-volume

@@ -273,7 +273,6 @@ build_start_device_agent_k3s_service() {
             --from-file=device-ecdsa.key="$HOME/certs/device-ecdsa.key" \
             --from-file=device-ecdsa.crt="$HOME/certs/device-ecdsa.crt" \
             --from-file=ca-cert.pem="$HOME/certs/ca-cert.pem" \
-            --from-file=harbor.crt="$HOME/certs/harbor.crt" \
             --namespace=default
 
         if [ $? -eq 0 ]; then

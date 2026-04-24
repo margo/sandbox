@@ -650,7 +650,12 @@ jobs:
                 echo ""
                 echo "⏳ Waiting for deployments to be removed..."
                 for ATTEMPT in {1..30}; do
-                  REMAINING=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep -c "INSTALLED" || echo "0")
+                  # Count deployments that are NOT in TOTAL row and have INSTALLED or REMOVING status
+                  REMAINING=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | \
+                    grep -E "INSTALLED|REMOVING" | \
+                    grep -v "TOTAL" | \
+                    grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | \
+                    wc -l | tr -d ' ')
 
                   if [ "$REMAINING" -eq 0 ]; then
                     echo "✅ All deployments removed successfully"
@@ -681,5 +686,6 @@ jobs:
           echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
           echo "$DEPLOYMENT_OUTPUT"
+
 
 

@@ -127,22 +127,6 @@ jobs:
           echo "Installing WFM / Symphony"
           sudo -E bash ./wfm.sh install
 
-      - name: Trust Harbor CA in K3s
-        run: |
-          echo "🔐 Configuring K3s to trust Harbor CA..."
-
-          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
-
-          # Copy to K3s containerd certs directory
-          sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}
-          sudo cp "$HARBOR_CERT" /var/lib/rancher/k3s/agent/etc/containerd/certs.d/harbor.machine:${EXPOSED_HARBOR_PORT}/ca.crt
-
-          # Also add to system trust store for K3s
-          sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor-k3s.crt
-          sudo update-ca-certificates
-
-          echo "✅ Harbor CA trusted in K3s"
-
 
       - name: Fix Docker Permissions
         run: |
@@ -583,3 +567,103 @@ jobs:
           echo ""
           echo "K3s Pods:"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -o wide 2>&1 || echo "Could not get pod status"
+
+
+
+      - name: Cleanup - Delete App Packages
+        if: always()
+        working-directory: scripts
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
+        run: |
+          echo ""
+          echo "========================================="
+          echo "🗑️ CLEANING UP APP PACKAGES"
+          echo "========================================="
+
+          # Delete K3s app package
+          echo "Getting K3s package ID..."
+          K3S_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>/dev/null | tail -n1 || echo "")
+
+          if [ -n "$K3S_PACKAGE_ID" ] && [ "$K3S_PACKAGE_ID" != "null" ]; then
+            echo "Deleting K3s package: $K3S_PACKAGE_ID"
+            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$K3S_PACKAGE_ID" || echo "⚠️ Failed to delete K3s package"
+          else
+            echo "ℹ️ K3s package not found or already deleted"
+          fi
+
+          # Delete Docker app package
+          echo "Getting Docker package ID..."
+          DOCKER_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>/dev/null | tail -n1 || echo "")
+
+          if [ -n "$DOCKER_PACKAGE_ID" ] && [ "$DOCKER_PACKAGE_ID" != "null" ]; then
+            echo "Deleting Docker package: $DOCKER_PACKAGE_ID"
+            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$DOCKER_PACKAGE_ID" || echo "⚠️ Failed to delete Docker package"
+          else
+            echo "ℹ️ Docker package not found or already deleted"
+          fi
+
+          echo "✅ App packages cleanup completed"
+
+          echo ""
+          echo "Final verification - listing all packages and deployments:"
+          sudo -E bash ./wfm-cli.sh list-all-non-interactive || echo "Could not list resources"
+
+
+      - name: Cleanup - Delete Deployment Instances
+        if: always()
+        working-directory: scripts
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
+        run: |
+          echo ""
+          echo "========================================="
+          echo "🗑️ CLEANING UP DEPLOYMENT INSTANCES"
+          echo "========================================="
+
+          # Get deployment IDs and delete them
+          echo "Getting deployment IDs..."
+
+          # List all deployments to find IDs
+          DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
+
+          if [ -n "$DEPLOYMENTS" ]; then
+            echo "Raw deployment output:"
+            echo "$DEPLOYMENTS"
+            echo ""
+
+            # Extract lines containing INSTALLED status and get their deployment IDs
+            INSTALLED_DEPLOYMENTS=$(echo "$DEPLOYMENTS" | grep "INSTALLED" || echo "")
+
+            if [ -n "$INSTALLED_DEPLOYMENTS" ]; then
+              # Extract deployment IDs from INSTALLED deployments only
+              DEPLOYMENT_IDS=$(echo "$INSTALLED_DEPLOYMENTS" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || echo "")
+
+              if [ -n "$DEPLOYMENT_IDS" ]; then
+                echo "Found INSTALLED deployments to delete:"
+                echo "$DEPLOYMENT_IDS"
+
+                # Delete each deployment
+                while IFS= read -r deployment_id; do
+                  if [ -n "$deployment_id" ]; then
+                    echo "Deleting INSTALLED deployment: $deployment_id"
+                    sudo -E bash ./wfm-cli.sh delete-instance-non-interactive "$deployment_id" || echo "⚠️ Failed to delete deployment $deployment_id"
+                  fi
+                done <<< "$DEPLOYMENT_IDS"
+              else
+                echo "ℹ️ No deployment IDs found in INSTALLED deployments"
+              fi
+            else
+              echo "ℹ️ No deployments in INSTALLED state found"
+            fi
+          else
+            echo "ℹ️ No deployments found"
+          fi
+
+          sleep 10  
+          echo "✅ Deployment instances cleanup completed"
+          echo ""
+          echo "Final verification - listing all deployments:"
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          echo "$DEPLOYMENT_OUTPUT"
+

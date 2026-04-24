@@ -5,6 +5,13 @@ services:
     container_name: workload-fleet-management-client
     image: ${workload_Fleet_Management_Client_IMAGE_REF:-ghcr.io/margo/margo.org/workload-fleet-management-client:latest}
     pull_policy: never  # Options: always, never, missing, build
+    # Add log rotation configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"      # Maximum size of each log file
+        max-file: "3"        # Keep 3 rotated files (30MB total)
+        compress: "true"     # Compress rotated logs (optional)
     volumes:
       # - /root/.kube/config:/root/.kube/config:ro # to manage kubernetes runtimes
       - /var/run/docker.sock:/var/run/docker.sock # to manage docker runtimes

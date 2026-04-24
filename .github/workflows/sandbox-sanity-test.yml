@@ -605,11 +605,6 @@ jobs:
 
           echo "✅ App packages cleanup completed"
 
-          echo ""
-          echo "Final verification - listing all packages and deployments:"
-          sudo -E bash ./wfm-cli.sh list-all-non-interactive || echo "Could not list resources"
-
-
       - name: Cleanup - Delete Deployment Instances
         if: always()
         working-directory: scripts
@@ -650,6 +645,26 @@ jobs:
                     sudo -E bash ./wfm-cli.sh delete-instance-non-interactive "$deployment_id" || echo "⚠️ Failed to delete deployment $deployment_id"
                   fi
                 done <<< "$DEPLOYMENT_IDS"
+
+                # Wait for deployments to be fully removed
+                echo ""
+                echo "⏳ Waiting for deployments to be removed..."
+                for ATTEMPT in {1..30}; do
+                  REMAINING=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep -c "INSTALLED" || echo "0")
+
+                  if [ "$REMAINING" -eq 0 ]; then
+                    echo "✅ All deployments removed successfully"
+                    break
+                  fi
+
+                  echo "Attempt $ATTEMPT/30: $REMAINING deployment(s) still pending removal..."
+                  sleep 2
+
+                  if [ $ATTEMPT -eq 30 ]; then
+                    echo "⚠️ Warning: Some deployments may still be pending removal after 60 seconds"
+                    sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || true
+                  fi
+                done
               else
                 echo "ℹ️ No deployment IDs found in INSTALLED deployments"
               fi
@@ -660,10 +675,11 @@ jobs:
             echo "ℹ️ No deployments found"
           fi
 
-          sleep 10
           echo "✅ Deployment instances cleanup completed"
+
           echo ""
-          echo "Final verification - listing all deployments:"
+          echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
           echo "$DEPLOYMENT_OUTPUT"
+
 

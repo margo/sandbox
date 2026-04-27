@@ -21,7 +21,7 @@ Examples:
 ---
 
 ### Below are example commands for your reference.
-> **Note** 172.19.59.148:8443 is Harbor IP and Port
+> **Note** 172.19.59.148:8443 is Harbor IP and Port, we will be using hostname harbor.machine instead of IP
 
 **Push Images**
 ```bash
@@ -29,13 +29,13 @@ Examples:
 docker pull nginx:1.25.0
 
 ## Tag for Harbor
-docker tag nginx:1.25.0 172.19.59.148:8443/library/nginx:1.25.0
+docker tag nginx:1.25.0 harbor.machine:8443/library/nginx:1.25.0
 
 ## Login to Harbor
-docker login 172.19.59.148:8443 -u admin -p Harbor12345
+docker login harbor.machine:8443 -u admin -p Harbor12345
 
 ## Push to Harbor
-docker push 172.19.59.148:8443/library/nginx:1.25.0
+docker push  harbor.machine:8443/library/nginx:1.25.0
 ```
 
 **Push Helm Chart**
@@ -45,19 +45,18 @@ docker push 172.19.59.148:8443/library/nginx:1.25.0
 # To push Helm Chart (. is the current directory where all helmcharts are present navigate to the directory and run below commands)
 helm package .
 helm push nginx-helm-1.0.0.tgz oci://172.19.59.148:8443/library --plain-http
+helm push nginx-helm-1.0.0.tgz oci://harbor.machine:8443/library
 ```
 
 **Push Application Package**
 > Ensure to push package with tag **latest** as while pulling from the harbor the tag latest will be considered.
 ```bash
 # Login to Harbor
-echo "Harbor12345" | oras login 172.19.59.148:8443 \
-  -u admin --password-stdin --plain-http
+echo "Harbor12345" | oras login harbor.machine:8443   -u admin --password-stdin
 
 # Navigate to package directory where margo.yaml and /resources present and push package
-oras push 172.19.59.148:8443/library/nginx-helm-app-package:latest \
+oras push harbor.machine:8443/library/nginx-helm-app-package:latest \
   --artifact-type "application/vnd.margo.app.v1+json" \
-  --plain-http \
   margo.yaml:application/vnd.margo.app.description.v1+yaml \
   resources/description.md:text/markdown \
   resources/license.md:text/markdown \

@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: "go_modules"
+    directory: "/"
+    schedule:
+      interval: "daily"

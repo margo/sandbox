@@ -68,18 +68,14 @@ checksum:
   name_template: "{{.ProjectName}}_checksums.txt"
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "README"
-      - Merge pull request
-      - Merge branch
+  use: github-native
 
 release:
+  make_latest: true
+  header: |
+    ## This release targets the Margo spec version: {{.Env.MARGO_SPEC_VERSION}}, which can be tracked here, https://github.com/margo/specification .
   footer: |
-    ## This release targets the Margo specification version: {{.Env.MARGO_SPEC_VERSION}}, and can be tracked here, https://github.com/margo/specification .
+    **Full Changelog**: https://github.com/margo/sandbox/compare/{{ .PreviousTag }}...{{ .Tag }}
   github:
     owner: margo
     name: sandbox

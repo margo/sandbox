@@ -1,6 +1,6 @@
 module otel
 
-go 1.23.0
+go 1.25.5
 
 require (
 	go.opentelemetry.io/otel v1.37.0

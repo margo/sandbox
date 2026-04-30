@@ -48,7 +48,6 @@ const (
 	Amd64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "amd64"
 	Arm   DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm"
 	Arm64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm64"
-	X8664 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "x86_64"
 )
 
 // Defines values for DeviceCapabilitiesManifestPropertiesRoles.

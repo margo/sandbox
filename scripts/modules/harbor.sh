@@ -307,4 +307,3 @@ EOF
 
   echo "✅ Harbor trust configured for k3s"
 }
-

@@ -47,22 +47,40 @@ type ServiceStatus struct {
 	Health      string   `json:"health"`
 }
 
-func NewDockerComposeClient(params DockerConnectivityParams, workingDir string) (*DockerComposeClient, error) {
+func NewDockerComposeClient(
+	params DockerConnectivityParams,
+	workingDir string,
+) (*DockerComposeClient, error) {
 	return nil, fmt.Errorf("docker compose support not compiled in (use -tags=compose to enable)")
 }
 
-func (c *DockerComposeClient) DeployCompose(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (c *DockerComposeClient) DeployCompose(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	return fmt.Errorf("docker compose support not compiled in")
 }
 
-func (c *DockerComposeClient) RemoveCompose(ctx context.Context, projectName string) error {
+func (c *DockerComposeClient) RemoveCompose(
+	ctx context.Context,
+	projectName string,
+) error {
 	return fmt.Errorf("docker compose support not compiled in")
 }
 
-func (c *DockerComposeClient) GetComposeStatus(ctx context.Context, projectName string) (*ComposeStatus, error) {
+func (c *DockerComposeClient) GetComposeStatus(
+	ctx context.Context,
+	projectName string,
+) (*ComposeStatus, error) {
 	return nil, fmt.Errorf("docker compose support not compiled in")
 }
 
-func (c *DockerComposeClient) FetchComposeFileFromURL(ctx context.Context, url string, filename string) (string, error) {
+func (c *DockerComposeClient) FetchComposeFileFromURL(
+	ctx context.Context,
+	url string,
+	filename string,
+) (string, error) {
 	return "", fmt.Errorf("docker compose support not compiled in (use -tags=compose to enable)")
 }

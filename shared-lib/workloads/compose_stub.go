@@ -62,3 +62,7 @@ func (c *DockerComposeClient) RemoveCompose(ctx context.Context, projectName str
 func (c *DockerComposeClient) GetComposeStatus(ctx context.Context, projectName string) (*ComposeStatus, error) {
 	return nil, fmt.Errorf("docker compose support not compiled in")
 }
+
+func (c *DockerComposeClient) FetchComposeFileFromURL(ctx context.Context, url string, filename string) (string, error) {
+	return "", fmt.Errorf("docker compose support not compiled in (use -tags=compose to enable)")
+}

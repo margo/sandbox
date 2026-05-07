@@ -51,10 +51,35 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-      - name: Run govulncheck (PRINT + SAVE)
+      - name: Run govulncheck with annotations
         run: |
           echo "===== Running Go Vulnerability Scan ====="
+
+          # Run scan and save output
           govulncheck ./... | tee govulncheck-report.txt
+
+          echo ""
+          echo "===== Processing Results ====="
+
+          # Flag to track if vulnerabilities found
+          FOUND=false
+
+          # Highlight vulnerabilities in GitHub UI
+          while IFS= read -r line; do
+            if echo "$line" | grep -i "vulnerability" > /dev/null; then
+              echo "::warning::$line"
+              FOUND=true
+            fi
+          done < govulncheck-report.txt
+
+          echo ""
+          echo "===== Scan Summary ====="
+
+          if [ "$FOUND" = true ]; then
+            echo "::warning::⚠️ Vulnerabilities detected. Check warnings above."
+          else
+            echo "✅ No vulnerabilities found"
+          fi
 
       # -------------------------------
       # Upload report (optional download)

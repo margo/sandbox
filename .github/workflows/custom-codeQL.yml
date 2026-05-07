@@ -64,5 +64,3 @@ jobs:
         with:
           name: go-vulnerability-report
           path: govulncheck-report.txt
-
-      

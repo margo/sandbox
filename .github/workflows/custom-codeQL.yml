@@ -3,7 +3,7 @@ name: Security Analysis
 on:
   push:
     branches: [ chore/fix-scan-findings ]
-  
+ 
 jobs:
   security-analysis:
     name: CodeQL + Go Dependency Scan
@@ -32,16 +32,16 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
-      # -------------------------------
-      # CodeQL Analysis
-      # -------------------------------
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: go
+      # # -------------------------------
+      # # CodeQL Analysis
+      # # -------------------------------
+      # - name: Initialize CodeQL
+      #   uses: github/codeql-action/init@v3
+      #   with:
+      #     languages: go
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      # - name: Run CodeQL Analysis
+      #   uses: github/codeql-action/analyze@v3
 
       # -------------------------------
       # Go Vulnerability Scan

@@ -1,89 +1,36 @@
-name: Security Analysis
-
 on:
   push:
-    branches: [ chore/fix-scan-findings ]
- 
-jobs:
-  security-analysis:
-    name: CodeQL + Go Dependency Scan
-    runs-on: ubuntu-latest
+    branches: [ chore/fix-scan-findingsv ]
+  pull_request:
+    branches: [ chore/fix-scan-findingsv ]
 
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       security-events: write
-      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ] # Change to your language
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # -------------------------------
-      # Set up Go
-      # -------------------------------
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.5'
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
 
-      # -------------------------------
-      # Install dependencies
-      # -------------------------------
-      - name: Install Dependencies
-        run: go mod download
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
 
-      # # -------------------------------
-      # # CodeQL Analysis
-      # # -------------------------------
-      # - name: Initialize CodeQL
-      #   uses: github/codeql-action/init@v3
-      #   with:
-      #     languages: go
-
-      # - name: Run CodeQL Analysis
-      #   uses: github/codeql-action/analyze@v3
-
-      # -------------------------------
-      # Go Vulnerability Scan
-      # -------------------------------
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
-      - name: Run govulncheck with annotations
-        run: |
-          echo "===== Running Go Vulnerability Scan ====="
-
-          # Run scan and save output
-          govulncheck ./... | tee govulncheck-report.txt
-
-          echo ""
-          echo "===== Processing Results ====="
-
-          # Flag to track if vulnerabilities found..
-          FOUND=false
-
-          # Highlight vulnerabilities in GitHub UI
-          while IFS= read -r line; do
-            if echo "$line" | grep -i "vulnerability" > /dev/null; then
-              echo "::warning::$line"
-              FOUND=true
-            fi
-          done < govulncheck-report.txt
-
-          echo ""
-          echo "===== Scan Summary ====="
-
-          if [ "$FOUND" = true ]; then
-            echo "::warning::⚠️ Vulnerabilities detected. Check warnings above."
-          else
-            echo "✅ No vulnerabilities found"
-          fi
-
-      # -------------------------------
-      # Upload report (optional download)
-      # -------------------------------
-      - name: Upload govulncheck report
-        uses: actions/upload-artifact@v4
-        with:
-          name: go-vulnerability-report
-          path: govulncheck-report.txt
+    - name: Upload SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+       category: "go-codeql-dev"

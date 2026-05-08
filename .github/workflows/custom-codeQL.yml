@@ -3,9 +3,7 @@ name: Security Analysis
 on:
   push:
     branches: [ chore/fix-scan-findings ]
-  pull_request:
-    branches: [ chore/fix-scan-findings ]
-
+  
 jobs:
   security-analysis:
     name: CodeQL + Go Dependency Scan

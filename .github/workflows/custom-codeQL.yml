@@ -61,7 +61,7 @@ jobs:
           echo ""
           echo "===== Processing Results ====="
 
-          # Flag to track if vulnerabilities found
+          # Flag to track if vulnerabilities found..
           FOUND=false
 
           # Highlight vulnerabilities in GitHub UI

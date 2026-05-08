@@ -1,8 +1,8 @@
 on:
   push:
-    branches: [ chore/fix-scan-findingsv ]
+    branches: [ chore/fix-scan-findings ]
   pull_request:
-    branches: [ chore/fix-scan-findingsv ]
+    branches: [ chore/fix-scan-findings ]
 
 jobs:
   analyze:

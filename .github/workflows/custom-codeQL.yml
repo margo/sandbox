@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python' ] # Change to your language
+        language: [ 'go' ] # Change to your language
 
     steps:
     - name: Checkout repository

@@ -231,7 +231,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 	var err error
 
 	switch profileType {
-	case sbi.HelmV3:
+	case sbi.Helm:
 		//  Check if Helm client is available
 		if dm.helmClient == nil {
 			err = fmt.Errorf(
@@ -280,9 +280,11 @@ func (dm *DeploymentManager) deployOrUpdate(
 				Error: &struct {
 					Code    *string `json:"code,omitempty"`
 					Message *string `json:"message,omitempty"`
+					Source  *string `json:"source,omitempty"`
 				}{
 					Code:    strPtr("DEPLOYMENT_ERROR"),
 					Message: &errMsg,
+					Source: nil, // NOTE: this is added by Gateway SUP, and hence not set here
 				},
 			})
 		}
@@ -594,7 +596,7 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 	var removeErr error
 	switch profileType {
-	case sbi.HelmV3:
+	case sbi.Helm:
 		removeErr = dm.removeHelm(ctx, deploymentId, appDeployment)
 	case sbi.Compose:
 		removeErr = dm.removeCompose(ctx, deploymentId, appDeployment)
@@ -617,9 +619,11 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 				Error: &struct {
 					Code    *string `json:"code,omitempty"`
 					Message *string `json:"message,omitempty"`
+					Source  *string `json:"source,omitempty"`
 				}{
 					Code:    strPtr("REMOVAL_ERROR"),
 					Message: strPtr(removeErr.Error()),
+					Source: nil, // NOTE: this field is introduced by Gateway SUP, and hence not set here
 				},
 			})
 		} else {

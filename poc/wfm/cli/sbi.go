@@ -119,8 +119,9 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 	capabilities sbi.DeviceCapabilitiesManifest,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) error {
-	resp, err := sbiClient.client.PostApiV1ClientsClientIdCapabilities(
+	resp, err := sbiClient.client.PostApiV1ClientsClientIdCapabilitiesDeviceId(
 		ctx,
+		deviceClientId,
 		deviceClientId,
 		capabilities,
 	)
@@ -272,12 +273,14 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	var errorStruct *struct {
 		Code    *string `json:"code,omitempty"`
 		Message *string `json:"message,omitempty"`
+		Source  *string `json:"source,omitempty"`
 	}
 
 	if deploymentErr != nil {
 		errorStruct = &struct {
 			Code    *string `json:"code,omitempty"`
 			Message *string `json:"message,omitempty"`
+			Source  *string `json:"source,omitempty"`
 		}{
 			Code:    pointers.Ptr("DEPLOYMENT_ERROR"),
 			Message: pointers.Ptr(deploymentErr.Error()),
@@ -293,6 +296,7 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 			Error *struct {
 				Code    *string "json:\"code,omitempty\""
 				Message *string "json:\"message,omitempty\""
+				Source  *string "json:\"source,omitempty\""
 			} "json:\"error,omitempty\""
 			State sbi.DeploymentStatusManifestStatusState "json:\"state\""
 		}{

@@ -94,15 +94,18 @@ type ClientInterface interface {
 	// GetApiV1ClientsClientIdBundlesDigest request
 	GetApiV1ClientsClientIdBundlesDigest(ctx context.Context, clientId string, digest string, params *GetApiV1ClientsClientIdBundlesDigestParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostApiV1ClientsClientIdCapabilitiesWithBody request with any body
-	PostApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeleteApiV1ClientsClientIdCapabilitiesDeviceId request
+	DeleteApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostApiV1ClientsClientIdCapabilities(ctx context.Context, clientId string, body PostApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBody request with any body
+	PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PutApiV1ClientsClientIdCapabilitiesWithBody request with any body
-	PutApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, body PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutApiV1ClientsClientIdCapabilities(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBody request with any body
+	PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, body PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiV1ClientsClientIdDeployments request
 	GetApiV1ClientsClientIdDeployments(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -136,8 +139,8 @@ func (c *Client) GetApiV1ClientsClientIdBundlesDigest(ctx context.Context, clien
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody(c.Server, clientId, contentType, body)
+func (c *Client) DeleteApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiV1ClientsClientIdCapabilitiesDeviceIdRequest(c.Server, clientId, deviceId)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +151,8 @@ func (c *Client) PostApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Contex
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostApiV1ClientsClientIdCapabilities(ctx context.Context, clientId string, body PostApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostApiV1ClientsClientIdCapabilitiesRequest(c.Server, clientId, body)
+func (c *Client) PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(c.Server, clientId, deviceId, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +163,8 @@ func (c *Client) PostApiV1ClientsClientIdCapabilities(ctx context.Context, clien
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody(c.Server, clientId, contentType, body)
+func (c *Client) PostApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, body PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequest(c.Server, clientId, deviceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -172,8 +175,20 @@ func (c *Client) PutApiV1ClientsClientIdCapabilitiesWithBody(ctx context.Context
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutApiV1ClientsClientIdCapabilities(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutApiV1ClientsClientIdCapabilitiesRequest(c.Server, clientId, body)
+func (c *Client) PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(c.Server, clientId, deviceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1ClientsClientIdCapabilitiesDeviceId(ctx context.Context, clientId string, deviceId DeviceId, body PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequest(c.Server, clientId, deviceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -324,19 +339,8 @@ func NewGetApiV1ClientsClientIdBundlesDigestRequest(server string, clientId stri
 	return req, nil
 }
 
-// NewPostApiV1ClientsClientIdCapabilitiesRequest calls the generic PostApiV1ClientsClientIdCapabilities builder with application/json body
-func NewPostApiV1ClientsClientIdCapabilitiesRequest(server string, clientId string, body PostApiV1ClientsClientIdCapabilitiesJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody(server, clientId, "application/json", bodyReader)
-}
-
-// NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody generates requests for PostApiV1ClientsClientIdCapabilities with any type of body
-func NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, clientId string, contentType string, body io.Reader) (*http.Request, error) {
+// NewDeleteApiV1ClientsClientIdCapabilitiesDeviceIdRequest generates requests for DeleteApiV1ClientsClientIdCapabilitiesDeviceId
+func NewDeleteApiV1ClientsClientIdCapabilitiesDeviceIdRequest(server string, clientId string, deviceId DeviceId) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -346,12 +350,71 @@ func NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, clien
 		return nil, err
 	}
 
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "deviceId", runtime.ParamLocationPath, deviceId)
+	if err != nil {
+		return nil, err
+	}
+
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1/clients/%s/capabilities", pathParam0)
+	operationPath := fmt.Sprintf("/api/v1/clients/%s/capabilities/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequest calls the generic PostApiV1ClientsClientIdCapabilitiesDeviceId builder with application/json body
+func NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequest(server string, clientId string, deviceId DeviceId, body PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(server, clientId, deviceId, "application/json", bodyReader)
+}
+
+// NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody generates requests for PostApiV1ClientsClientIdCapabilitiesDeviceId with any type of body
+func NewPostApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(server string, clientId string, deviceId DeviceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clientId", runtime.ParamLocationPath, clientId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "deviceId", runtime.ParamLocationPath, deviceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/clients/%s/capabilities/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -371,19 +434,19 @@ func NewPostApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, clien
 	return req, nil
 }
 
-// NewPutApiV1ClientsClientIdCapabilitiesRequest calls the generic PutApiV1ClientsClientIdCapabilities builder with application/json body
-func NewPutApiV1ClientsClientIdCapabilitiesRequest(server string, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody) (*http.Request, error) {
+// NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequest calls the generic PutApiV1ClientsClientIdCapabilitiesDeviceId builder with application/json body
+func NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequest(server string, clientId string, deviceId DeviceId, body PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody(server, clientId, "application/json", bodyReader)
+	return NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(server, clientId, deviceId, "application/json", bodyReader)
 }
 
-// NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody generates requests for PutApiV1ClientsClientIdCapabilities with any type of body
-func NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, clientId string, contentType string, body io.Reader) (*http.Request, error) {
+// NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody generates requests for PutApiV1ClientsClientIdCapabilitiesDeviceId with any type of body
+func NewPutApiV1ClientsClientIdCapabilitiesDeviceIdRequestWithBody(server string, clientId string, deviceId DeviceId, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -393,12 +456,19 @@ func NewPutApiV1ClientsClientIdCapabilitiesRequestWithBody(server string, client
 		return nil, err
 	}
 
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "deviceId", runtime.ParamLocationPath, deviceId)
+	if err != nil {
+		return nil, err
+	}
+
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1/clients/%s/capabilities", pathParam0)
+	operationPath := fmt.Sprintf("/api/v1/clients/%s/capabilities/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -719,15 +789,18 @@ type ClientWithResponsesInterface interface {
 	// GetApiV1ClientsClientIdBundlesDigestWithResponse request
 	GetApiV1ClientsClientIdBundlesDigestWithResponse(ctx context.Context, clientId string, digest string, params *GetApiV1ClientsClientIdBundlesDigestParams, reqEditors ...RequestEditorFn) (*GetApiV1ClientsClientIdBundlesDigestResponse, error)
 
-	// PostApiV1ClientsClientIdCapabilitiesWithBodyWithResponse request with any body
-	PostApiV1ClientsClientIdCapabilitiesWithBodyWithResponse(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesResponse, error)
+	// DeleteApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse request
+	DeleteApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, reqEditors ...RequestEditorFn) (*DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error)
 
-	PostApiV1ClientsClientIdCapabilitiesWithResponse(ctx context.Context, clientId string, body PostApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesResponse, error)
+	// PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse request with any body
+	PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error)
 
-	// PutApiV1ClientsClientIdCapabilitiesWithBodyWithResponse request with any body
-	PutApiV1ClientsClientIdCapabilitiesWithBodyWithResponse(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesResponse, error)
+	PostApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, body PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error)
 
-	PutApiV1ClientsClientIdCapabilitiesWithResponse(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesResponse, error)
+	// PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse request with any body
+	PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error)
+
+	PutApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, body PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error)
 
 	// GetApiV1ClientsClientIdDeploymentsWithResponse request
 	GetApiV1ClientsClientIdDeploymentsWithResponse(ctx context.Context, clientId string, params *GetApiV1ClientsClientIdDeploymentsParams, reqEditors ...RequestEditorFn) (*GetApiV1ClientsClientIdDeploymentsResponse, error)
@@ -770,13 +843,13 @@ func (r GetApiV1ClientsClientIdBundlesDigestResponse) StatusCode() int {
 	return 0
 }
 
-type PostApiV1ClientsClientIdCapabilitiesResponse struct {
+type DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r PostApiV1ClientsClientIdCapabilitiesResponse) Status() string {
+func (r DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -784,20 +857,20 @@ func (r PostApiV1ClientsClientIdCapabilitiesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostApiV1ClientsClientIdCapabilitiesResponse) StatusCode() int {
+func (r DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PutApiV1ClientsClientIdCapabilitiesResponse struct {
+type PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r PutApiV1ClientsClientIdCapabilitiesResponse) Status() string {
+func (r PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -805,7 +878,28 @@ func (r PutApiV1ClientsClientIdCapabilitiesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PutApiV1ClientsClientIdCapabilitiesResponse) StatusCode() int {
+func (r PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -941,38 +1035,47 @@ func (c *ClientWithResponses) GetApiV1ClientsClientIdBundlesDigestWithResponse(c
 	return ParseGetApiV1ClientsClientIdBundlesDigestResponse(rsp)
 }
 
-// PostApiV1ClientsClientIdCapabilitiesWithBodyWithResponse request with arbitrary body returning *PostApiV1ClientsClientIdCapabilitiesResponse
-func (c *ClientWithResponses) PostApiV1ClientsClientIdCapabilitiesWithBodyWithResponse(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesResponse, error) {
-	rsp, err := c.PostApiV1ClientsClientIdCapabilitiesWithBody(ctx, clientId, contentType, body, reqEditors...)
+// DeleteApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse request returning *DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse
+func (c *ClientWithResponses) DeleteApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, reqEditors ...RequestEditorFn) (*DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	rsp, err := c.DeleteApiV1ClientsClientIdCapabilitiesDeviceId(ctx, clientId, deviceId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostApiV1ClientsClientIdCapabilitiesResponse(rsp)
+	return ParseDeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostApiV1ClientsClientIdCapabilitiesWithResponse(ctx context.Context, clientId string, body PostApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesResponse, error) {
-	rsp, err := c.PostApiV1ClientsClientIdCapabilities(ctx, clientId, body, reqEditors...)
+// PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse request with arbitrary body returning *PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse
+func (c *ClientWithResponses) PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	rsp, err := c.PostApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx, clientId, deviceId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostApiV1ClientsClientIdCapabilitiesResponse(rsp)
+	return ParsePostApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp)
 }
 
-// PutApiV1ClientsClientIdCapabilitiesWithBodyWithResponse request with arbitrary body returning *PutApiV1ClientsClientIdCapabilitiesResponse
-func (c *ClientWithResponses) PutApiV1ClientsClientIdCapabilitiesWithBodyWithResponse(ctx context.Context, clientId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesResponse, error) {
-	rsp, err := c.PutApiV1ClientsClientIdCapabilitiesWithBody(ctx, clientId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, body PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	rsp, err := c.PostApiV1ClientsClientIdCapabilitiesDeviceId(ctx, clientId, deviceId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutApiV1ClientsClientIdCapabilitiesResponse(rsp)
+	return ParsePostApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp)
 }
 
-func (c *ClientWithResponses) PutApiV1ClientsClientIdCapabilitiesWithResponse(ctx context.Context, clientId string, body PutApiV1ClientsClientIdCapabilitiesJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesResponse, error) {
-	rsp, err := c.PutApiV1ClientsClientIdCapabilities(ctx, clientId, body, reqEditors...)
+// PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse request with arbitrary body returning *PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse
+func (c *ClientWithResponses) PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBodyWithResponse(ctx context.Context, clientId string, deviceId DeviceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	rsp, err := c.PutApiV1ClientsClientIdCapabilitiesDeviceIdWithBody(ctx, clientId, deviceId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutApiV1ClientsClientIdCapabilitiesResponse(rsp)
+	return ParsePutApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse(ctx context.Context, clientId string, deviceId DeviceId, body PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	rsp, err := c.PutApiV1ClientsClientIdCapabilitiesDeviceId(ctx, clientId, deviceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp)
 }
 
 // GetApiV1ClientsClientIdDeploymentsWithResponse request returning *GetApiV1ClientsClientIdDeploymentsResponse
@@ -1052,15 +1155,15 @@ func ParseGetApiV1ClientsClientIdBundlesDigestResponse(rsp *http.Response) (*Get
 	return response, nil
 }
 
-// ParsePostApiV1ClientsClientIdCapabilitiesResponse parses an HTTP response from a PostApiV1ClientsClientIdCapabilitiesWithResponse call
-func ParsePostApiV1ClientsClientIdCapabilitiesResponse(rsp *http.Response) (*PostApiV1ClientsClientIdCapabilitiesResponse, error) {
+// ParseDeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse parses an HTTP response from a DeleteApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse call
+func ParseDeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp *http.Response) (*DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostApiV1ClientsClientIdCapabilitiesResponse{
+	response := &DeleteApiV1ClientsClientIdCapabilitiesDeviceIdResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1068,15 +1171,31 @@ func ParsePostApiV1ClientsClientIdCapabilitiesResponse(rsp *http.Response) (*Pos
 	return response, nil
 }
 
-// ParsePutApiV1ClientsClientIdCapabilitiesResponse parses an HTTP response from a PutApiV1ClientsClientIdCapabilitiesWithResponse call
-func ParsePutApiV1ClientsClientIdCapabilitiesResponse(rsp *http.Response) (*PutApiV1ClientsClientIdCapabilitiesResponse, error) {
+// ParsePostApiV1ClientsClientIdCapabilitiesDeviceIdResponse parses an HTTP response from a PostApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse call
+func ParsePostApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp *http.Response) (*PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PutApiV1ClientsClientIdCapabilitiesResponse{
+	response := &PostApiV1ClientsClientIdCapabilitiesDeviceIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutApiV1ClientsClientIdCapabilitiesDeviceIdResponse parses an HTTP response from a PutApiV1ClientsClientIdCapabilitiesDeviceIdWithResponse call
+func ParsePutApiV1ClientsClientIdCapabilitiesDeviceIdResponse(rsp *http.Response) (*PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiV1ClientsClientIdCapabilitiesDeviceIdResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

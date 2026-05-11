@@ -115,9 +115,11 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 				Error: &struct {
 					Code    *string `json:"code,omitempty"`
 					Message *string `json:"message,omitempty"`
+					Source  *string `json:"source,omitempty"`
 				}{
 					Code:    strPtr("HELM_STATUS_ERROR"),
 					Message: &errMsg,
+					Source: nil, // NOTE: This field is introduced by Gateway SUP, hence not set here
 				},
 			}
 			hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)

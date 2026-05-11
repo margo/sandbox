@@ -132,14 +132,14 @@ deploy_instance() {
   if command -v jq >/dev/null 2>&1; then
     package_name=$(echo "$app_packages" | jq -r --arg pkg_id "$package_id" '
       .Data[0].items[] |
-      select(.metadata.id == $pkg_id or .metadata.name == $pkg_id) |
+      select(.id == $pkg_id or .metadata.name == $pkg_id) |
       .metadata.name
     ')
     
     if [ -z "$package_name" ] || [ "$package_name" = "null" ]; then
       echo "❌ Package '$package_id' not found in the package list"
       echo "Available packages:"
-      echo "$app_packages" | jq -r '.Data[0].items[] | "  - Name: \(.metadata.name), ID: \(.metadata.id)"'
+      echo "$app_packages" | jq -r '.Data[0].items[] | "  - Name: \(.metadata.name), ID: \(.id)"'
       return 1
     fi
   else
@@ -241,14 +241,14 @@ deploy_instance_non_interactive() {
   if command -v jq >/dev/null 2>&1; then
     package_name=$(echo "$app_packages" | jq -r --arg pkg_id "$package_id" '
       .Data[0].items[] |
-      select(.metadata.id == $pkg_id or .metadata.name == $pkg_id) |
+      select(.id == $pkg_id or .metadata.name == $pkg_id) |
       .metadata.name
     ')
     
     if [ -z "$package_name" ] || [ "$package_name" = "null" ]; then
       echo "❌ Package '$package_id' not found in the package list"
       echo "Available packages:"
-      echo "$app_packages" | jq -r '.Data[0].items[] | "  - Name: \(.metadata.name), ID: \(.metadata.id)"'
+      echo "$app_packages" | jq -r '.Data[0].items[] | "  - Name: \(.metadata.name), ID: \(.id)"'
       return 1
     fi
   else

@@ -53,6 +53,7 @@ const (
 // Defines values for DeviceCapabilitiesManifestPropertiesRoles.
 const (
 	ClusterLeader     DeviceCapabilitiesManifestPropertiesRoles = "Cluster Leader"
+	Gateway           DeviceCapabilitiesManifestPropertiesRoles = "Gateway"
 	StandaloneCluster DeviceCapabilitiesManifestPropertiesRoles = "Standalone Cluster"
 	StandaloneDevice  DeviceCapabilitiesManifestPropertiesRoles = "Standalone Device"
 )
@@ -80,7 +81,7 @@ const (
 // Defines values for AppDeploymentProfileType.
 const (
 	Compose AppDeploymentProfileType = "compose"
-	HelmV3  AppDeploymentProfileType = "helm.v3"
+	Helm    AppDeploymentProfileType = "helm"
 )
 
 // Defines values for PostApiV1OnboardingJSONBodyKind.
@@ -93,6 +94,7 @@ type ComponentStatus struct {
 	Error *struct {
 		Code    *string `json:"code,omitempty"`
 		Message *string `json:"message,omitempty"`
+		Source  *string `json:"source,omitempty"`
 	} `json:"error,omitempty"`
 	Name  string               `json:"name"`
 	State ComponentStatusState `json:"state"`
@@ -118,7 +120,7 @@ type DeploymentBundleRef struct {
 
 // DeploymentManifestRef Reference to a deployment manifest with content addressing and integrity verification.
 type DeploymentManifestRef struct {
-	// DeploymentId The unique UUID from the ApplicationDeployment's metadata.annotations.id.
+	// DeploymentId Unique identifier for the application deployment.
 	DeploymentId string `json:"deploymentId"`
 
 	// Digest The digest of the individual ApplicationDeployment YAML file. MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in that deployment endpoint's HTTP 200 OK response body.
@@ -136,11 +138,13 @@ type DeploymentStatusManifest struct {
 	ApiVersion   string                       `json:"apiVersion"`
 	Components   []ComponentStatus            `json:"components"`
 	DeploymentId string                       `json:"deploymentId"`
+	DeviceId     *DeviceId                    `json:"deviceId,omitempty"`
 	Kind         DeploymentStatusManifestKind `json:"kind"`
 	Status       struct {
 		Error *struct {
 			Code    *string `json:"code,omitempty"`
 			Message *string `json:"message,omitempty"`
+			Source  *string `json:"source,omitempty"`
 		} `json:"error,omitempty"`
 		State DeploymentStatusManifestStatusState `json:"state"`
 	} `json:"status"`
@@ -157,9 +161,9 @@ type DeviceCapabilitiesManifest struct {
 	ApiVersion string                         `json:"apiVersion"`
 	Kind       DeviceCapabilitiesManifestKind `json:"kind"`
 	Properties struct {
-		Id          string `json:"id"`
-		ModelNumber string `json:"modelNumber"`
-		Resources   struct {
+		Id          DeviceId `json:"id"`
+		ModelNumber string   `json:"modelNumber"`
+		Resources   *struct {
 			Cpu struct {
 				Architecture *DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture `json:"architecture,omitempty"`
 				Cores        float32                                                       `json:"cores"`
@@ -168,7 +172,7 @@ type DeviceCapabilitiesManifest struct {
 			Memory      string                         `json:"memory"`
 			Peripherals []DevicePeripheral             `json:"peripherals"`
 			Storage     string                         `json:"storage"`
-		} `json:"resources"`
+		} `json:"resources,omitempty"`
 		Roles        []DeviceCapabilitiesManifestPropertiesRoles `json:"roles"`
 		SerialNumber string                                      `json:"serialNumber"`
 		Vendor       string                                      `json:"vendor"`
@@ -191,6 +195,12 @@ type DeviceCommunicationInterface struct {
 
 // DeviceCommunicationInterfaceType defines model for DeviceCommunicationInterface.Type.
 type DeviceCommunicationInterfaceType string
+
+// DeviceId defines model for DeviceId.
+type DeviceId = string
+
+// DeviceIdWithAsterisk defines model for DeviceId_with_asterisk.
+type DeviceIdWithAsterisk = string
 
 // DevicePeripheral defines model for DevicePeripheral.
 type DevicePeripheral struct {
@@ -222,6 +232,9 @@ type AppDeploymentManifest struct {
 	// ApiVersion API version
 	ApiVersion string `json:"apiVersion"`
 
+	// Id Unique identifier for the application deployment
+	Id *string `json:"id,omitempty"`
+
 	// Kind Resource kind
 	Kind     string                `json:"kind"`
 	Metadata AppDeploymentMetadata `json:"metadata"`
@@ -232,11 +245,7 @@ type AppDeploymentManifest struct {
 
 // AppDeploymentMetadata defines model for appDeploymentMetadata.
 type AppDeploymentMetadata struct {
-	// Annotations Annotations for the resource
-	Annotations *map[string]string `json:"annotations,omitempty"`
-
-	// Id Unique identifier for the application deployment
-	Id *string `json:"id,omitempty"`
+	DeviceId DeviceIdWithAsterisk `json:"deviceId"`
 
 	// Labels Labels for the resource
 	Labels *map[string]string `json:"labels,omitempty"`
@@ -245,7 +254,7 @@ type AppDeploymentMetadata struct {
 	Name string `json:"name"`
 
 	// Namespace Namespace of the resource
-	Namespace *string `json:"namespace,omitempty"`
+	Namespace string `json:"namespace"`
 }
 
 // AppDeploymentParams Application Parameters
@@ -270,6 +279,9 @@ type AppDeploymentProfileType string
 
 // AppDeploymentSpec Application Deployment specification
 type AppDeploymentSpec struct {
+	// ApplicationId An identifier for the application. The id is used to help create unique identifiers where required, such as namespaces. The id must be lower case letters and numbers and MAY contain dashes. Uppercase letters, underscores and periods MUST NOT be used. The id MUST NOT be more than 200 characters. The applicationId MUST match the associated application description's top-level "id" attribute.
+	ApplicationId string `json:"applicationId"`
+
 	// DeploymentProfile Application Deployment Profile
 	DeploymentProfile AppDeploymentProfile `json:"deploymentProfile"`
 
@@ -303,7 +315,7 @@ type ComposeApplicationDeploymentProfileComponent struct {
 		// KeyLocation Key location of the component
 		KeyLocation *string `json:"keyLocation,omitempty"`
 
-		// PackageLocation Package location of the component
+		// PackageLocation The URL indicating the Compose package's location. It should be a direct path to the compose.yaml or compose.yaml file archived in tar.gz
 		PackageLocation string `json:"packageLocation"`
 
 		// Timeout Timeout for the component
@@ -372,11 +384,11 @@ type PostApiV1OnboardingJSONBody struct {
 // PostApiV1OnboardingJSONBodyKind defines parameters for PostApiV1Onboarding.
 type PostApiV1OnboardingJSONBodyKind string
 
-// PostApiV1ClientsClientIdCapabilitiesJSONRequestBody defines body for PostApiV1ClientsClientIdCapabilities for application/json ContentType.
-type PostApiV1ClientsClientIdCapabilitiesJSONRequestBody = DeviceCapabilitiesManifest
+// PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody defines body for PostApiV1ClientsClientIdCapabilitiesDeviceId for application/json ContentType.
+type PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody = DeviceCapabilitiesManifest
 
-// PutApiV1ClientsClientIdCapabilitiesJSONRequestBody defines body for PutApiV1ClientsClientIdCapabilities for application/json ContentType.
-type PutApiV1ClientsClientIdCapabilitiesJSONRequestBody = DeviceCapabilitiesManifest
+// PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody defines body for PutApiV1ClientsClientIdCapabilitiesDeviceId for application/json ContentType.
+type PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody = DeviceCapabilitiesManifest
 
 // PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody defines body for PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus for application/json ContentType.
 type PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody = DeploymentStatusManifest

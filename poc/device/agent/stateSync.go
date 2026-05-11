@@ -653,6 +653,7 @@ func (ss *StateSyncer) storeDeployment(
 				Error *struct {
 					Code    *string `json:"code,omitempty"`
 					Message *string `json:"message,omitempty"`
+					Source  *string `json:"source,omitempty"`
 				} `json:"error,omitempty"`
 				State sbi.DeploymentStatusManifestStatusState `json:"state"`
 			}{

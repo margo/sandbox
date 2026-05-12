@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/compose-spec/compose-go/v2 v2.9.1
 	github.com/docker/cli v29.2.1+incompatible
-	github.com/docker/compose/v2 v2.38.2
+	github.com/docker/compose/v2 v2.40.2
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/go-git/go-git/v5 v5.19.0
 	github.com/go-playground/validator/v10 v10.30.2
@@ -24,7 +24,6 @@ require (
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
-	github.com/AlecAivazis/survey/v2 v2.3.7 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/DefangLabs/secret-detector v0.0.0-20250403165618-22662109213e // indirect
@@ -85,9 +84,7 @@ require (
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
 	github.com/docker/go-connections v0.7.0 // indirect
-	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203 // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -143,7 +140,6 @@ require (
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
@@ -162,7 +158,6 @@ require (
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
@@ -185,12 +180,10 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
-	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/buildkit v0.28.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -291,7 +284,6 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
-	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
@@ -331,27 +323,3 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface v1.1.0 // indirect
 )
-
-exclude github.com/docker/buildx v0.33.0
-
-exclude github.com/docker/buildx v0.29.1
-
-exclude github.com/docker/buildx v0.29.0
-
-exclude github.com/docker/compose/v2 v2.40.0
-
-exclude github.com/docker/compose/v2 v2.40.1
-
-exclude github.com/docker/compose/v2 v2.40.2
-
-exclude github.com/docker/compose/v2 v2.40.3
-
-exclude github.com/docker/compose/v2 v2.39.0
-
-exclude github.com/docker/compose/v2 v2.39.1
-
-exclude github.com/docker/compose/v2 v2.39.2
-
-exclude github.com/docker/compose/v2 v2.39.3
-
-exclude github.com/docker/compose/v2 v2.39.4

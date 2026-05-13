@@ -456,7 +456,7 @@ func PreflightLogger(
 			"body_truncated", truncated,
 			"body_len", bodyLen,
 		}
-		logger.Infow("Preflight-http-request", fields...)
+		// logger.Infow("Preflight-http-request", fields...)
 		return nil
 	}
 }

@@ -105,7 +105,8 @@ This includes the following elements -
 
 #### Symphony WFM
 - This Code First Sandbox uses [Eclipse Symphony](https://github.com/margo/symphony) as Workload Fleet Manager.
-- As mentioned in Margo architecture and overlay architecture WFM connects through Margo envisioned communication mechanisms
+- As mentioned in Margo architecture and overlay architecture WFM connects through Margo envisioned communication mechanisms.
+- In case you want to contribute to its repo, then a developer's guide has been can be found [here](https://github.com/margo/symphony/blob/development/MARGO_DEV_GUIDE.md).
 
 #### Repositories and Registry
 - Harbor provide application registry and images/helm-charts repository functionalities.

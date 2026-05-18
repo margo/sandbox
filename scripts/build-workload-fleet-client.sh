@@ -60,5 +60,6 @@ docker buildx build \
   .
 
 
+  
 echo "✅ Image pushed successfully"
 echo "docker pull ${IMAGE_REPO}:latest"

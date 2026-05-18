@@ -50,19 +50,15 @@ fi
 # --------------------------------------------------
 # Build image
 # --------------------------------------------------
-echo "🏗️ Building Docker image...."
-docker build \
+
+echo "👉 Platforms: linux/amd64, linux/arm64"
+docker buildx build \
   -f "${DOCKERFILE_PATH}" \
+  --platform linux/amd64,linux/arm64 \
   $(printf -- "-t %s " "${TAGS[@]}") \
+  --push \
   .
 
-# --------------------------------------------------
-# Push image
-# --------------------------------------------------
-echo "📤 Pushing image to GHCR..."
-for tag in "${TAGS[@]}"; do
-  docker push "$tag"
-done
 
 echo "✅ Image pushed successfully"
 echo "docker pull ${IMAGE_REPO}:latest"

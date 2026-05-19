@@ -561,10 +561,26 @@ func prepareDockerEnv(params DockerConnectivityParams, envVars map[string]string
 	return env
 }
 
-func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) string {
-	filename := "docker-compose.yaml"
+// composeFileNames lists supported compose file names in order of preference.
+var composeFileNames = []string{
+	"docker-compose.yaml",
+	"docker-compose.yml",
+	"compose.yaml",
+	"compose.yml",
+}
 
-	return filepath.Join(c.workingDir, projectName, filename)
+func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) string {
+	projectDir := filepath.Join(c.workingDir, projectName)
+
+	for _, name := range composeFileNames {
+		path := filepath.Join(projectDir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	// Default fallback when file doesn't exist yet
+	return filepath.Join(projectDir, composeFileNames[0])
 }
 
 // fetchComposeFileFromURL - simplified version using io.ReadAll
@@ -635,26 +651,12 @@ func (c *DockerComposeCliClient) downloadAndExtractTarGz(
 ) (string, error) {
 	projectDir := filepath.Join(c.workingDir, projectName)
 	archivePath := filepath.Join(projectDir, ".archive.tar.gz")
-	finalComposePath := filepath.Join(projectDir, "docker-compose.yaml")
+	extractDir := filepath.Join(projectDir, ".extracted")
 
-	// Ensure cleanup happens even on error
-	defer func() {
-		// errcheck: handle os.Remove error
-		if err := os.Remove(archivePath); err != nil && !os.IsNotExist(err) {
-			fmt.Printf("Warning: failed to remove archive: %v\n", err)
-		}
-		// errcheck: handle os.RemoveAll error
-		if err := os.RemoveAll(filepath.Join(projectDir, ".extracted")); err != nil {
-			fmt.Printf("Warning: failed to remove extracted dir: %v\n", err)
-		}
-	}()
-
-	// Create project directory once
 	if err := os.MkdirAll(projectDir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create project directory: %w", err)
 	}
 
-	// Download archive
 	if _, err := file.DownloadFileUsingHttp(
 		"GET",
 		archiveURL,
@@ -670,16 +672,16 @@ func (c *DockerComposeCliClient) downloadAndExtractTarGz(
 		return "", fmt.Errorf("failed to download archive: %w", err)
 	}
 
-	// Extract and find compose file in one operation
-	extractDir := filepath.Join(projectDir, ".extracted")
 	composeFile, err := c.extractAndFindCompose(archivePath, extractDir)
 	if err != nil {
 		return "", err
 	}
 
-	// Move instead of copy (faster)
+	// Preserve original filename (compose.yaml, docker-compose.yml, etc.)
+	finalComposePath := filepath.Join(projectDir, filepath.Base(composeFile))
+
 	if err := os.Rename(composeFile, finalComposePath); err != nil {
-		// Fallback to copy if rename fails (cross-device)
+
 		if copyErr := c.copyFile(composeFile, finalComposePath); copyErr != nil {
 			return "", fmt.Errorf("failed to move compose file: %w", copyErr)
 		}
@@ -710,11 +712,10 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 
 	tr := tar.NewReader(gzr)
 
-	composeNames := map[string]bool{
-		"docker-compose.yaml": true,
-		"docker-compose.yml":  true,
-		"compose.yaml":        true,
-		"compose.yml":         true,
+	composeNames := make(map[string]bool, len(composeFileNames))
+	for _, name := range composeFileNames {
+		composeNames[name] = true
+
 	}
 
 	var foundCompose string

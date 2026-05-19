@@ -22,7 +22,6 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
     -o device-agent ./poc/device/agent
 
-
 # Stage 2: Get Docker binary and compose plugin from official image
 FROM docker:28.3.3-cli AS docker-source
 

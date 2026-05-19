@@ -214,20 +214,10 @@ func (c *DockerComposeCliClient) forceRemoveProjectContainers(
 		containerID := parts[0]
 		containerName := parts[1]
 
-		fmt.Printf(
-			"Force removing container: %s (%s)\n",
-			containerName,
-			containerID,
-		)
+		fmt.Printf("Force removing container: %s (%s)\n", containerName, containerID)
 
 		// Stop and remove container
-		removeCmd := exec.CommandContext(
-			ctx,
-			c.dockerBinary,
-			"rm",
-			"-f",
-			containerID,
-		)
+		removeCmd := exec.CommandContext(ctx, c.dockerBinary, "rm", "-f", containerID)
 		removeCmd.Env = prepareDockerEnv(c.params, nil)
 
 		if removeOutput, err := removeCmd.CombinedOutput(); err != nil {
@@ -260,11 +250,7 @@ func (c *DockerComposeCliClient) DeployComposeFromURL(
 	}
 
 	// Fetch compose file content
-	composeFile, err := c.fetchComposeFileFromURL(
-		ctx,
-		composeFileURL,
-		projectName,
-	)
+	composeFile, err := c.fetchComposeFileFromURL(ctx, composeFileURL, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to fetch compose file: %w", err)
 	}
@@ -272,10 +258,7 @@ func (c *DockerComposeCliClient) DeployComposeFromURL(
 	return c.DeployCompose(ctx, projectName, composeFile, envVars)
 }
 
-func (c *DockerComposeCliClient) RemoveCompose(
-	ctx context.Context,
-	projectName string,
-) error {
+func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName string) error {
 	if strings.TrimSpace(projectName) == "" {
 		return fmt.Errorf("project name cannot be empty")
 	}
@@ -314,10 +297,8 @@ func (c *DockerComposeCliClient) RemoveCompose(
 		// Try one more time with force removal if verification fails
 		fmt.Printf("Verification failed, attempting final cleanup: %v\n", err)
 		if finalErr := c.forceRemoveProjectContainers(ctx, projectName); finalErr != nil {
-			return fmt.Errorf(
-				"containers still running after all removal attempts: %w",
-				err,
-			)
+
+			return fmt.Errorf("containers still running after all removal attempts: %w", err)
 		}
 	}
 
@@ -360,11 +341,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	// Capture both stdout and stderr
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to get compose status: %w, output: %s",
-			err,
-			string(output),
-		)
+		return nil, fmt.Errorf("failed to get compose status: %w, output: %s", err, string(output))
 	}
 
 	fmt.Printf("[DEBUG] Raw docker compose ps output: %s\n", string(output))
@@ -396,11 +373,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 
 			var container ComposeContainer
 			if err := json.Unmarshal([]byte(line), &container); err != nil {
-				fmt.Printf(
-					"[DEBUG] Failed to parse line as JSON: %s, error: %v\n",
-					line,
-					err,
-				)
+				fmt.Printf("[DEBUG] Failed to parse line as JSON: %s, error: %v\n", line, err)
 				continue
 			}
 			containers = append(containers, container)
@@ -445,11 +418,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 			if publisher.PublishedPort > 0 {
 				ports = append(
 					ports,
-					fmt.Sprintf(
-						"%d:%d",
-						publisher.PublishedPort,
-						publisher.TargetPort,
-					),
+					fmt.Sprintf("%d:%d", publisher.PublishedPort, publisher.TargetPort),
 				)
 			}
 		}
@@ -481,10 +450,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	}, nil
 }
 
-func (c *DockerComposeCliClient) RestartCompose(
-	ctx context.Context,
-	projectName string,
-) error {
+func (c *DockerComposeCliClient) RestartCompose(ctx context.Context, projectName string) error {
 	composeFile := c.generateAbsProjectFilepath(projectName)
 
 	cmd := exec.CommandContext(ctx, c.dockerBinary, "compose",
@@ -499,10 +465,9 @@ func (c *DockerComposeCliClient) RestartCompose(
 	fmt.Printf("Restart command output: %s\n", string(output))
 
 	if err != nil {
-		return fmt.Errorf(
-			"failed to restart compose project: %s",
-			string(output),
-		)
+
+		return fmt.Errorf("failed to restart compose project: %s", string(output))
+
 	}
 
 	return nil
@@ -562,18 +527,14 @@ func (c *DockerComposeCliClient) ComposeExists(
 }
 
 // Helper function to prepare Docker environment variables
-func prepareDockerEnv(
-	params DockerConnectivityParams,
-	envVars map[string]string,
-) []string {
+func prepareDockerEnv(params DockerConnectivityParams, envVars map[string]string) []string {
 	env := os.Environ()
 
 	// Set Docker host
 	if params.ViaSocket != nil {
-		env = append(
-			env,
-			fmt.Sprintf("DOCKER_HOST=unix://%s", params.ViaSocket.SocketPath),
-		)
+
+		env = append(env, fmt.Sprintf("DOCKER_HOST=unix://%s", params.ViaSocket.SocketPath))
+
 	} else if params.ViaHttp != nil {
 		hostURL := fmt.Sprintf(
 			"%s://%s:%d",
@@ -600,9 +561,7 @@ func prepareDockerEnv(
 	return env
 }
 
-func (c *DockerComposeCliClient) generateAbsProjectFilepath(
-	projectName string,
-) string {
+func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) string {
 	filename := "docker-compose.yaml"
 
 	return filepath.Join(c.workingDir, projectName, filename)
@@ -645,6 +604,7 @@ func (c *DockerComposeCliClient) DownloadCompose(
 	projectName string,
 ) (string, error) {
 	// Handle remote URLs
+
 	isHTTP := strings.HasPrefix(packageLocation, "http://") ||
 		strings.HasPrefix(packageLocation, "https://")
 	if isHTTP {

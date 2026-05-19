@@ -51,14 +51,16 @@ fi
 # Build image
 # --------------------------------------------------
 
-echo "👉 Platforms: linux/amd64, linux/arm64"
+echo "Platforms: linux/amd64, linux/arm64"
+
 docker buildx build \
   -f "${DOCKERFILE_PATH}" \
   --platform linux/amd64,linux/arm64 \
   $(printf -- "-t %s " "${TAGS[@]}") \
+  --cache-from=type=gha \
+  --cache-to=type=gha,mode=max \
   --push \
   .
-
 
   
 echo "✅ Image pushed successfully"

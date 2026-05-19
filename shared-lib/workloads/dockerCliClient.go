@@ -94,9 +94,6 @@ func (c *DockerComposeCliClient) DeployCompose(
 		return fmt.Errorf("project name cannot be empty")
 	}
 
-
-
-
 	// Ensure compose file exists
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return fmt.Errorf("compose file does not exist: %s", composeFile)
@@ -105,7 +102,6 @@ func (c *DockerComposeCliClient) DeployCompose(
 	// Extract directory and filename separately
 	projectDir := filepath.Dir(composeFile)
 	composeFileName := filepath.Base(composeFile)
-
 
 	downCmd := exec.CommandContext(ctx, c.dockerBinary, "compose",
 		"-f", composeFileName,
@@ -118,7 +114,6 @@ func (c *DockerComposeCliClient) DeployCompose(
 	if _, err := downCmd.CombinedOutput(); err != nil {
 		_ = c.forceRemoveProjectContainers(ctx, projectName)
 	}
-
 
 	pullCmd := exec.CommandContext(ctx, c.dockerBinary, "compose",
 		"-f", composeFileName,
@@ -149,7 +144,6 @@ func (c *DockerComposeCliClient) DeployCompose(
 		return fmt.Errorf("deployment verification failed: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -170,7 +164,6 @@ func (c *DockerComposeCliClient) forceRemoveProjectContainers(
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) == 1 && lines[0] == "" {
-
 		return nil
 	}
 
@@ -201,7 +194,6 @@ func (c *DockerComposeCliClient) forceRemoveProjectContainers(
 					string(removeOutput),
 				),
 			)
-
 
 		}
 	}
@@ -236,11 +228,9 @@ func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName 
 		return fmt.Errorf("project name cannot be empty")
 	}
 
-
 	composeFile := c.generateAbsProjectFilepath(projectName)
 
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
-
 		return c.forceRemoveProjectContainers(ctx, projectName)
 	}
 
@@ -256,7 +246,6 @@ func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName 
 	if _, err := cmd.CombinedOutput(); err != nil {
 		errs = multierr.Append(
 			errs,
-
 			fmt.Errorf("compose down failed: %w", err),
 		)
 		if forceErr := c.forceRemoveProjectContainers(ctx, projectName); forceErr != nil {
@@ -268,10 +257,7 @@ func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName 
 		}
 	}
 
-
 	if err := c.verifyContainersRemoved(ctx, projectName); err != nil {
-
-
 		if forceErr := c.forceRemoveProjectContainers(ctx, projectName); forceErr != nil {
 			return multierr.Append(
 				errs,
@@ -282,7 +268,6 @@ func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName 
 			)
 		}
 	}
-
 
 	projectDir := filepath.Join(c.workingDir, projectName)
 	if err := os.RemoveAll(projectDir); err != nil {
@@ -304,11 +289,9 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 		return nil, fmt.Errorf("project name cannot be empty")
 	}
 
-
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("compose file does not exist: %s", composeFile)
 	}
-
 
 	absComposeFile, err := filepath.Abs(composeFile)
 	if err != nil {
@@ -322,7 +305,6 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 
 	cmd.Dir = filepath.Dir(absComposeFile)
 	cmd.Env = prepareDockerEnv(c.params, nil)
-
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -347,9 +329,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	// Parse JSON output - try array first, then line-by-line
 	var containers []ComposeContainer
 
-
 	if err := json.Unmarshal(output, &containers); err != nil {
-
 		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 		containers = make([]ComposeContainer, 0, len(lines))
 
@@ -361,12 +341,10 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 
 			var container ComposeContainer
 			if err := json.Unmarshal([]byte(line), &container); err != nil {
-
 				continue
 			}
 			containers = append(containers, container)
 		}
-
 
 		if len(containers) == 0 {
 			return nil, fmt.Errorf(
@@ -375,7 +353,6 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 			)
 		}
 	}
-
 
 	if len(containers) == 0 {
 		return &ComposeStatus{
@@ -393,13 +370,10 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	for _, container := range containers {
 		status := "stopped"
 		if strings.Contains(strings.ToLower(container.State), "running") ||
-
-
 			strings.Contains(strings.ToLower(container.State), "up") {
 			status = "running"
 			runningCount++
 		}
-
 
 		ports := []string{}
 		for _, publisher := range container.Publishers {
@@ -420,7 +394,6 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 			Health:      container.Health,
 		})
 	}
-
 
 	overallStatus := "stopped"
 	if runningCount == len(services) {
@@ -450,7 +423,6 @@ func (c *DockerComposeCliClient) RestartCompose(ctx context.Context, projectName
 	cmd.Env = prepareDockerEnv(c.params, nil)
 
 	output, err := cmd.CombinedOutput()
-
 
 	if err != nil {
 		return fmt.Errorf(
@@ -501,7 +473,6 @@ func (c *DockerComposeCliClient) ComposeExists(
 	projectName string,
 ) (bool, error) {
 
-
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return false, nil
 	}
@@ -520,7 +491,6 @@ func (c *DockerComposeCliClient) ComposeExists(
 // prepareDockerEnv builds the environment variable slice for docker commands.
 func prepareDockerEnv(params DockerConnectivityParams, envVars map[string]string) []string {
 	env := os.Environ()
-
 
 	if params.ViaSocket != nil {
 		env = append(
@@ -547,7 +517,6 @@ func prepareDockerEnv(params DockerConnectivityParams, envVars map[string]string
 			env = append(env, "DOCKER_TLS_VERIFY=1")
 		}
 	}
-
 
 	for k, v := range envVars {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
@@ -578,7 +547,6 @@ func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) 
 	return filepath.Join(projectDir, composeFileNames[0])
 }
 
-
 func (c *DockerComposeCliClient) fetchComposeFileFromURL(
 	_ context.Context,
 	url string,
@@ -597,7 +565,6 @@ func (c *DockerComposeCliClient) fetchComposeFileFromURL(
 			CreateDirs:     true,
 			OverwriteExist: true,
 			ResumeDownload: false,
-
 		})
 	if err != nil {
 		return "", fmt.Errorf("failed to download file: %w", err)
@@ -612,7 +579,6 @@ func (c *DockerComposeCliClient) DownloadCompose(
 	keyLocation *string,
 	projectName string,
 ) (string, error) {
-
 
 	isHTTP := strings.HasPrefix(packageLocation, "http://") ||
 		strings.HasPrefix(packageLocation, "https://")
@@ -708,7 +674,7 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 		return "", fmt.Errorf("invalid gzip format: %w", err)
 	}
 	defer func() {
-		_ = gzr.Close() 
+		_ = gzr.Close()
 	}()
 
 	tr := tar.NewReader(gzr)
@@ -759,7 +725,6 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 					err,
 				)
 			}
-
 
 			outFile, err := os.OpenFile( //nolint:gosec // path is sanitized above
 				target,

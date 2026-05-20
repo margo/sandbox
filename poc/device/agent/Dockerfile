@@ -1,5 +1,5 @@
-# Stage 1: Build
-FROM golang:1.25.10 AS builder
+# Stage 1: Build for correct arc
+FROM --platform=$BUILDPLATFORM golang:1.24.4 AS builder
 
 ARG VERSION
 ARG COMMIT
@@ -25,7 +25,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
 
     
 # Stage 2: Get Docker binary and compose plugin from official image
-FROM docker:28.3.3-cli AS docker-source
+# FROM docker:28.3.3-cli AS docker-source
+FROM --platform=$BUILDPLATFORM docker:28.3.3-cli AS docker-source
 
 # Stage 3: Runtime
 FROM alpine:3.18

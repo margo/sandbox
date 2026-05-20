@@ -59,8 +59,10 @@ docker buildx build \
   $(printf -- "-t %s " "${TAGS[@]}") \
   --cache-from=type=gha \
   --cache-to=type=gha,mode=max \
+  --provenance=false \
   --push \
   .
+
 
   
 echo "✅ Image pushed successfully"

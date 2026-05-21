@@ -1,5 +1,5 @@
-# Stage 1: Build for correct arc
-FROM --platform=$BUILDPLATFORM golang:1.24.4 AS builder
+# Stage 1: Build for correct OS Architecture
+FROM --platform=$BUILDPLATFORM golang:1.25.10 AS builder
 
 ARG VERSION
 ARG COMMIT

@@ -1,9 +1,13 @@
-# Stage 1: Build
-FROM golang:1.25.10 AS builder
+# Stage 1: Build for correct OS Architecture
+FROM --platform=$BUILDPLATFORM golang:1.25.10 AS builder
 
 ARG VERSION
 ARG COMMIT
 ARG DATE
+
+ARG TARGETOS
+ARG TARGETARCH
+
 
 WORKDIR /app
 
@@ -13,13 +17,16 @@ RUN go mod download
 COPY . .
 
 # Build a static binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -trimpath \
     -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
     -o device-agent ./poc/device/agent
 
+
+    
 # Stage 2: Get Docker binary and compose plugin from official image
-FROM docker:28.3.3-cli AS docker-source
+# FROM docker:28.3.3-cli AS docker-source
+FROM --platform=$BUILDPLATFORM docker:28.3.3-cli AS docker-source
 
 # Stage 3: Runtime
 FROM alpine:3.18

@@ -60,9 +60,11 @@ archives:
   - formats:
       - tar.gz
     name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    wrap_in_directory: device-agent   
     files:
-      - README.md
       - LICENSE
+      - src: docs/binary-getting-started.md
+        dst: BINARY_GETTING_STARTED.md
 
 checksum:
   name_template: "{{.ProjectName}}_checksums.txt"

@@ -1,0 +1,2193 @@
+{
+    "item": [
+        {
+            "id": "9d8dcd02-847f-4a02-b7ac-44f9fedc3205",
+            "name": "Download Root CA certificate",
+            "request": {
+                "name": "Download Root CA certificate",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "onboarding",
+                        "certificate"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": []
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": null
+            },
+            "response": [
+                {
+                    "id": "a02ebb36-6a0a-462d-9354-d36678e8623f",
+                    "name": "Root CA certificate",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "onboarding",
+                                "certificate"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"certificate\": \"proident\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "87a0b241-9ded-4d6f-b5de-813d43c97bfa",
+            "name": "Complete onboarding with client certificate",
+            "request": {
+                "name": "Complete onboarding with client certificate",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "onboarding"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": []
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                },
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "aff971b4-c8b6-4b84-b61e-6ce41fe1284a",
+                    "name": "New client onboarded successfully.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "onboarding"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Created",
+                    "code": 201,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"clientId\": \"sed ad ea eu\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "b2aa86e5-4399-43bb-868f-7290f6309747",
+                    "name": "Invalid certificate format or structure.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "onboarding"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Bad Request",
+                    "code": 400,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"error\": \"Invalid certificate\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "605addfb-bb0d-4f0f-bf63-94a0b125b043",
+                    "name": "Client certificate not trusted or client rejected.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "onboarding"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Forbidden",
+                    "code": 403,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"error\": \"Client rejected\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "d027ec7e-b74e-45f0-93d0-b8cf19116ea5",
+            "name": "Report device capabilities",
+            "request": {
+                "name": "Report device capabilities",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "capabilities"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                },
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "51974fd8-9c81-4c1d-9820-9695460ef8e1",
+                    "name": "Capabilities reported successfully",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Created",
+                    "code": 201,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "e560fa91-b704-4c62-84dc-bea0cea58bc4",
+                    "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Bad Request",
+                    "code": 400,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "ea41bab5-8b75-43b8-8ba6-ac324adda632",
+                    "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unauthorized",
+                    "code": 401,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "b3435ccc-53fb-4e7b-9c18-4b4b9bb86372",
+                    "name": "Client certificate is not trusted or has been revoked.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Forbidden",
+                    "code": 403,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "31fead54-72f3-4ce3-88e7-b0f21d62cba4",
+                    "name": "Request body includes a semantic error.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "10820d3e-7daf-4183-b2b6-7e0755620d9e",
+            "name": "Update device capabilities (Update)",
+            "request": {
+                "name": "Update device capabilities (Update)",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "capabilities"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "PUT",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                },
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "6bfa9a7d-f52e-4f95-a428-0e3f426f688e",
+                    "name": "Capabilities reported successfully",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Created",
+                    "code": 201,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "e6a6a92e-f162-4a4c-bcd8-6846840c0812",
+                    "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Bad Request",
+                    "code": 400,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "2e535d12-5997-477d-ab2a-00f9c0da121c",
+                    "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unauthorized",
+                    "code": 401,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "a7447c72-d946-4d34-b0bc-e7dcfad7e4fa",
+                    "name": "Client certificate is not trusted or has been revoked.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Forbidden",
+                    "code": 403,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "d36514dd-9eaa-4225-ad74-06835f1c0499",
+                    "name": "Request body includes a semantic error.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "capabilities"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "f369c234-ae5c-45aa-890a-a88777c22b1d",
+            "name": "Retrieve bundle information for a specific device and digest",
+            "request": {
+                "name": "Retrieve bundle information for a specific device and digest",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "bundles",
+                        ":digest"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) Unique identifier of the device-client",
+                                "type": "text/plain"
+                            }
+                        },
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "digest",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) Content-addressable digest of the bundle archive. MUST conform to the 'digest' attribute in the Digest Specification and MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in the HTTP 200 OK response body. If the server cannot produce content whose digest matches this value it MUST return 404 Not Found.",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "disabled": true,
+                        "description": {
+                            "content": "Quoted ETag (same as digest) previously returned for this bundle.",
+                            "type": "text/plain"
+                        },
+                        "key": "If-None-Match",
+                        "value": "fugiat officia aute"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/vnd.margo.bundle.v1+tar+gzip"
+                    }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "9ef8b374-d79b-4e01-9daa-8275154a17fd",
+                    "name": "Bundle archive (immutable)",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "bundles",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Quoted ETag (same as digest) previously returned for this bundle.",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/vnd.margo.bundle.v1+tar+gzip"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/vnd.margo.bundle.v1+tar+gzip"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "New ETag for the returned manifest",
+                                "type": "text/plain"
+                            },
+                            "key": "ETag",
+                            "value": "fugiat officia aute"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "public, max-age=31536000, immutable",
+                                "type": "text/plain"
+                            },
+                            "key": "Cache-Control",
+                            "value": "fugiat officia aute"
+                        }
+                    ],
+                    "body": "labore",
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "c928f152-1928-4062-aedb-1b29d292f510",
+                    "name": "Representation not modified",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "bundles",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Quoted ETag (same as digest) previously returned for this bundle.",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Not Modified",
+                    "code": 304,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "12589d18-f504-4332-8707-fa95dfd8cd30",
+                    "name": "Invalid request.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "bundles",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Quoted ETag (same as digest) previously returned for this bundle.",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Bad Request",
+                    "code": 400,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "64fcb6bd-7db2-480a-b754-5f57a69cda2d",
+                    "name": "Bundle not found for the given digest",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "bundles",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Quoted ETag (same as digest) previously returned for this bundle.",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Not Found",
+                    "code": 404,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "cdc7ee6f-defb-498c-9556-4e9d636b6d7f",
+            "name": "Retrieve the complete desired state for all workloads assigned to a device",
+            "request": {
+                "name": "Retrieve the complete desired state for all workloads assigned to a device",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "deployments"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) The unique identifier of the Edge Compute Device making the request",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "disabled": true,
+                        "description": {
+                            "content": "ETag value of the last successfully synced manifest. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                            "type": "text/plain"
+                        },
+                        "key": "If-None-Match",
+                        "value": "fugiat officia aute"
+                    },
+                    {
+                        "disabled": true,
+                        "description": {
+                            "content": "Indicates which manifest formats the client supports. Supported values: application/vnd.margo.manifest.v1+json.\n",
+                            "type": "text/plain"
+                        },
+                        "key": "Accept",
+                        "value": "fugiat officia aute"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/vnd.margo.manifest.v1+json"
+                    }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "3a3cabea-7909-4099-81ee-5fe0f65f1c0a",
+                    "name": "Manifest returned in the negotiated format",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "ETag value of the last successfully synced manifest. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Indicates which manifest formats the client supports. Supported values: application/vnd.margo.manifest.v1+json.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "Accept",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/vnd.margo.manifest.v1+json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/vnd.margo.manifest.v1+json"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "Format of the returned manifest",
+                                "type": "text/plain"
+                            },
+                            "key": "Content-Type",
+                            "value": "fugiat officia aute"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "New ETag for the returned manifest",
+                                "type": "text/plain"
+                            },
+                            "key": "ETag",
+                            "value": "fugiat officia aute"
+                        }
+                    ],
+                    "body": "{\n  \"manifestVersion\": 77561763.3393602,\n  \"bundle\": {\n    \"mediaType\": \"commodo adipisicing\",\n    \"digest\": \"deserunt voluptate mollit\",\n    \"sizeBytes\": -29246844.585795403,\n    \"url\": \"eiusmod ex quis\"\n  },\n  \"deployments\": [\n    {\n      \"deploymentId\": \"cul\",\n      \"digest\": \"in do ea ipsum aliqua\",\n      \"url\": \"anim ex\",\n      \"sizeBytes\": -28673879.909586206\n    },\n    {\n      \"deploymentId\": \"ullamco\",\n      \"digest\": \"amet est\",\n      \"url\": \"dolore Excepteur sit\",\n      \"sizeBytes\": -67444268.01590455\n    }\n  ],\n  \"bundle.mediaType\": -68621201.16811919,\n  \"bundle.digest\": false,\n  \"bundle.url\": \"sunt mollit aliquip\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "3bc4b4ef-92ab-486b-93e7-a31f4ead7473",
+                    "name": "Not Modified - Manifest has not changed",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "ETag value of the last successfully synced manifest. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Indicates which manifest formats the client supports. Supported values: application/vnd.margo.manifest.v1+json.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "Accept",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Not Modified",
+                    "code": 304,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "cd7c7977-c0ec-47ea-ae53-8fc1e3d2134d",
+                    "name": "Not Acceptable - Server cannot generate a response matching the Accept header",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "ETag value of the last successfully synced manifest. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Indicates which manifest formats the client supports. Supported values: application/vnd.margo.manifest.v1+json.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "Accept",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Not Acceptable",
+                    "code": 406,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "640f081b-36eb-4aa3-b1e0-794878ac5f7d",
+            "name": "Retrieve an individual ApplicationDeployment YAML file",
+            "request": {
+                "name": "Retrieve an individual ApplicationDeployment YAML file",
+                "description": {
+                    "content": "This endpoint is used by the client to fetch the YAML for a single ApplicationDeployment after it has processed a new State Manifest and identified a small number of new or updated deployments. This allows for highly efficient, incremental updates without needing to download the full bundle. To make individual workload retrievals race-free and cache-friendly, this endpoint is content-addressable: the digest of the expected YAML is part of the URL. This guarantees immutability of the fetched resource and prevents a time-of-check / time-of-use race where a deployment changes between manifest retrieval and content fetch.\n",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "deployments",
+                        ":deploymentId",
+                        ":digest"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) Unique identifier of the Edge Compute Device",
+                                "type": "text/plain"
+                            }
+                        },
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "deploymentId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) UUID of the ApplicationDeployment (metadata.annotations.id)",
+                                "type": "text/plain"
+                            }
+                        },
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "digest",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) Content-addressable digest of the ApplicationDeployment YAML file. MUST conform to the Digest Specification and MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in the HTTP 200 OK response body. If the server cannot produce content whose digest matches this value it MUST return 404 Not Found.\n",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "disabled": true,
+                        "description": {
+                            "content": "Optional ETag for caching. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                            "type": "text/plain"
+                        },
+                        "key": "If-None-Match",
+                        "value": "fugiat officia aute"
+                    },
+                    {
+                        "disabled": true,
+                        "description": {
+                            "content": "Indicates supported compression formats (e.g., gzip, br)",
+                            "type": "text/plain"
+                        },
+                        "key": "Accept-Encoding",
+                        "value": "fugiat officia aute"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/yaml"
+                    }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "03995854-0838-49e1-90b7-83c52928c53c",
+                    "name": "The response body is the raw ApplicationDeployment YAML file (Content-Type: application/yaml). The content MUST match the {digest} path segment; the server MUST return 404 if it does not have the exact digest referenced.\n",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Optional ETag for caching. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Indicates supported compression formats (e.g., gzip, br)",
+                                    "type": "text/plain"
+                                },
+                                "key": "Accept-Encoding",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/yaml"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/yaml"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "application/yaml",
+                                "type": "text/plain"
+                            },
+                            "key": "Content-Type",
+                            "value": "fugiat officia aute"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                "type": "text/plain"
+                            },
+                            "key": "ETag",
+                            "value": "fugiat officia aute"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "public, max-age=31536000, immutable",
+                                "type": "text/plain"
+                            },
+                            "key": "Cache-Control",
+                            "value": "fugiat officia aute"
+                        },
+                        {
+                            "disabled": true,
+                            "description": {
+                                "content": "Accept-Encoding",
+                                "type": "text/plain"
+                            },
+                            "key": "Vary",
+                            "value": "fugiat officia aute"
+                        }
+                    ],
+                    "body": "cupidatat ad cillum",
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "0227075a-6e1b-4df6-9389-8829717b3b5c",
+                    "name": "Deployment not found for the given digest",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                ":digest"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Optional ETag for caching. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.\n",
+                                    "type": "text/plain"
+                                },
+                                "key": "If-None-Match",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "disabled": true,
+                                "description": {
+                                    "content": "Indicates supported compression formats (e.g., gzip, br)",
+                                    "type": "text/plain"
+                                },
+                                "key": "Accept-Encoding",
+                                "value": "fugiat officia aute"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Not Found",
+                    "code": 404,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "290f1b61-7342-4ea2-80b9-ebdb5df8f05a",
+            "name": "Report deployment status",
+            "request": {
+                "name": "Report deployment status",
+                "description": {},
+                "url": {
+                    "path": [
+                        "api",
+                        "v1",
+                        "clients",
+                        ":clientId",
+                        "deployments",
+                        ":deploymentId",
+                        "status"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "clientId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        },
+                        {
+                            "type": "any",
+                            "value": "fugiat officia aute",
+                            "key": "deploymentId",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ]
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                },
+                "auth": {
+                    "type": "apikey",
+                    "apikey": [
+                        {
+                            "key": "key",
+                            "value": "X-Payload-Signature"
+                        },
+                        {
+                            "key": "value",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "in",
+                            "value": "header"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "6a386c12-6727-4140-b989-55334db771ed",
+                    "name": "The deployment status was added, or updated, successfully.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                "status"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "3fca1b27-13c2-4323-9a41-070f5335b21b",
+                    "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the base64-encoded payload is included.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                "status"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Bad Request",
+                    "code": 400,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "363981e1-06c7-4f4b-b663-75742a178c54",
+                    "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                "status"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unauthorized",
+                    "code": 401,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "92c741eb-2ce0-4ddb-b004-0c88caf942ea",
+                    "name": "Client certificate is not trusted or has been revoked.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                "status"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Forbidden",
+                    "code": 403,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "f7b9c658-9c3f-4e16-b933-6a6a5f29cc98",
+                    "name": "Request body includes a semantic error.",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "api",
+                                "v1",
+                                "clients",
+                                ":clientId",
+                                "deployments",
+                                ":deploymentId",
+                                "status"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "description": {
+                                    "content": "Added as a part of security scheme: apikey",
+                                    "type": "text/plain"
+                                },
+                                "key": "X-Payload-Signature",
+                                "value": "<API Key>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        }
+    ],
+    "auth": {
+        "type": "apikey",
+        "apikey": [
+            {
+                "type": "any",
+                "value": "X-Payload-Signature",
+                "key": "key"
+            },
+            {
+                "type": "any",
+                "value": "{{apiKey}}",
+                "key": "value"
+            },
+            {
+                "type": "any",
+                "value": "header",
+                "key": "in"
+            }
+        ]
+    },
+    "event": [],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://wfm.margo.org/"
+        }
+    ],
+    "info": {
+        "_postman_id": "0ad646fa-6865-413f-a20e-ae515b0031ee",
+        "name": "Margo Workload Management API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "description": {
+            "content": "API for managing workloads on Margo-compliant edge devices. Includes the APIs for exchanging desired state and current state. Communication is secured using server-side TLS (TLS 1.3 preferred), and payloads are signed using X.509 certificates.",
+            "type": "text/plain"
+        }
+    }
+}

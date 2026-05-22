@@ -1186,7 +1186,7 @@ make kill-server
 | `make run-tests` | Run tests |
 | `make demo` | Build → start server → run tests → show report |
 | `make kill-server` | Stop server |
-| `make clean` | Delete bin/ and go.sum |
+| `make clean` | Delete bin/ only (preserves go.sum) |
 
 ---
 

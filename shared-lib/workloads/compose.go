@@ -22,7 +22,7 @@ import (
 
 type DockerComposeClient struct {
 	dockerClient *client.Client
-	composeAPI   api.Service
+	composeAPI   api.Compose
 	workingDir   string
 }
 

@@ -4,6 +4,7 @@
 - [Introduction](#introduction)
 - [Quick Start Guide](#quick-start-guide)
   - [Development Toolset](#development-toolset)
+  - [Binary Setup (Quick Run)](#binary-setup-quick-run)
 - [Specification Mapping](#specification-mapping)
 - [Structure of the Repository](#structure-of-the-repository)
 - [3rd Party Components](#3rd-party-components)
@@ -135,6 +136,19 @@ This includes the following elements -
 - For API integrity, the device's management client is issued a client-specific X.509 certificate. The issuer of the client X.509 certificate is trusted under the assumption that the root CA download to the Workload Fleet Management server occurs as a precondition to onboarding the devices. This CA can be provided to the device in any offline mode.
 
 ---
+
+
+#### Binary Setup (Quick Run)
+
+If you want to quickly try the device-agent without setting up the full sandbox environment, you can run the prebuilt binary directly from the release package.
+
+👉 Follow the Binary Quick Start Guide here:  
+[Device Agent – Binary Setup Guide](./docs/binary-getting-started.md)
+
+This method is useful for:
+- Quick validation and testing
+- Lightweight setups without Docker/K3s
+- Direct execution on supported systems
 
 ### Release Notes
 Details of version updates, bug fixes, and new features.

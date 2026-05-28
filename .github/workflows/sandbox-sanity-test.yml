@@ -23,7 +23,7 @@ on:
         default: "development"
 
 permissions:
-  contents: read        
+  contents: read
 
 jobs:
   sandbox-e2e-functional-test-job:

@@ -336,12 +336,15 @@ func PreflightLogger(
 	logger *zap.SugaredLogger,
 ) func(ctx context.Context, req *http.Request) error {
 	// headers we always redact
-	redact := map[string]struct{}{
-		"authorization":       {},
-		"proxy-authorization": {},
-		"cookie":              {},
-		"set-cookie":          {},
-		"x-auth-token":        {},
+	allow := map[string]struct{}{
+		"content-type":     {},
+		"content-length":   {},
+		"accept":           {},
+		"accept-encoding":  {},
+		"user-agent":       {},
+		"x-request-id":     {},
+		"x-correlation-id": {},
+		"if-none-match":    {},
 	}
 
 	isTextLike := func(ct string) bool {
@@ -358,17 +361,19 @@ func PreflightLogger(
 		method := req.Method
 		urlStr := ""
 		if req.URL != nil {
-			urlStr = req.URL.String()
+			sanitized := *req.URL
+			if sanitized.RawQuery != "" {
+				sanitized.RawQuery = "[REDACTED]"
+			}
+			urlStr = sanitized.String()
 		}
 
-		// headers (redact sensitive)
-		headers := map[string][]string{}
+		headers := make(map[string][]string, len(req.Header))
 		for k, vv := range req.Header {
-			kl := strings.ToLower(k)
-			if _, ok := redact[kl]; ok {
-				headers[k] = []string{"[REDACTED]"}
-			} else {
+			if _, ok := allow[strings.ToLower(k)]; ok {
 				headers[k] = vv
+			} else {
+				headers[k] = []string{"[REDACTED]"}
 			}
 		}
 

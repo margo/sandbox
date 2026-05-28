@@ -22,6 +22,9 @@ on:
         required: false
         default: "development"
 
+permissions:
+  contents: read        
+
 jobs:
   sandbox-e2e-functional-test-job:
     runs-on: ubuntu-24.04

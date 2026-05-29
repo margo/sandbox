@@ -1,7 +1,7 @@
 {
     "item": [
         {
-            "id": "9d8dcd02-847f-4a02-b7ac-44f9fedc3205",
+            "id": "dc7a02ba-be8f-4a50-a95d-084a02839652",
             "name": "Download Root CA certificate",
             "request": {
                 "name": "Download Root CA certificate",
@@ -31,7 +31,7 @@
             },
             "response": [
                 {
-                    "id": "a02ebb36-6a0a-462d-9354-d36678e8623f",
+                    "id": "c42f4b7d-992a-4af0-924b-2eb4d787678a",
                     "name": "Root CA certificate",
                     "originalRequest": {
                         "url": {
@@ -72,7 +72,7 @@
                             "value": "application/json"
                         }
                     ],
-                    "body": "{\n  \"certificate\": \"proident\"\n}",
+                    "body": "{\n  \"certificate\": \"eiusmod\"\n}",
                     "cookie": [],
                     "_postman_previewlanguage": "json"
                 }
@@ -83,7 +83,7 @@
             }
         },
         {
-            "id": "87a0b241-9ded-4d6f-b5de-813d43c97bfa",
+            "id": "0dd06053-e16c-419a-a533-f8cddb42471a",
             "name": "Complete onboarding with client certificate",
             "request": {
                 "name": "Complete onboarding with client certificate",
@@ -113,7 +113,7 @@
                 "method": "POST",
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                    "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
                     "options": {
                         "raw": {
                             "headerFamily": "json",
@@ -141,7 +141,7 @@
             },
             "response": [
                 {
-                    "id": "aff971b4-c8b6-4b84-b61e-6ce41fe1284a",
+                    "id": "0b95ee4e-dc64-4119-b07e-69c3342da26a",
                     "name": "New client onboarded successfully.",
                     "originalRequest": {
                         "url": {
@@ -177,7 +177,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -194,12 +194,12 @@
                             "value": "application/json"
                         }
                     ],
-                    "body": "{\n  \"clientId\": \"sed ad ea eu\"\n}",
+                    "body": "{\n  \"clientId\": \"enim deserunt\"\n}",
                     "cookie": [],
                     "_postman_previewlanguage": "json"
                 },
                 {
-                    "id": "b2aa86e5-4399-43bb-868f-7290f6309747",
+                    "id": "f9e10c20-8474-47ec-81c0-fc7c0823891d",
                     "name": "Invalid certificate format or structure.",
                     "originalRequest": {
                         "url": {
@@ -235,7 +235,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -257,7 +257,7 @@
                     "_postman_previewlanguage": "json"
                 },
                 {
-                    "id": "605addfb-bb0d-4f0f-bf63-94a0b125b043",
+                    "id": "e89bca4b-f257-434a-8397-d604c2b42eb8",
                     "name": "Client certificate not trusted or client rejected.",
                     "originalRequest": {
                         "url": {
@@ -293,7 +293,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"id\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"minim esse\"\n}",
+                            "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -321,7 +321,7 @@
             }
         },
         {
-            "id": "d027ec7e-b74e-45f0-93d0-b8cf19116ea5",
+            "id": "165f8444-a0e2-4ef1-8bbb-58295b3e02a2",
             "name": "Report device capabilities",
             "request": {
                 "name": "Report device capabilities",
@@ -341,7 +341,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -360,7 +360,7 @@
                 "method": "POST",
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                    "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                     "options": {
                         "raw": {
                             "headerFamily": "json",
@@ -388,7 +388,7 @@
             },
             "response": [
                 {
-                    "id": "51974fd8-9c81-4c1d-9820-9695460ef8e1",
+                    "id": "0510e725-a124-415f-a9b9-0d369e1d94e2",
                     "name": "Capabilities reported successfully",
                     "originalRequest": {
                         "url": {
@@ -422,7 +422,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -438,7 +438,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "e560fa91-b704-4c62-84dc-bea0cea58bc4",
+                    "id": "f206fb46-f592-45ea-a6f1-6569371ee515",
                     "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
                     "originalRequest": {
                         "url": {
@@ -472,7 +472,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -488,7 +488,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "ea41bab5-8b75-43b8-8ba6-ac324adda632",
+                    "id": "5fc47546-2c1a-4956-9b6a-cfdfb31b88f6",
                     "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
                     "originalRequest": {
                         "url": {
@@ -522,7 +522,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -538,7 +538,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "b3435ccc-53fb-4e7b-9c18-4b4b9bb86372",
+                    "id": "066c0155-a489-428e-9535-dabb36c7aaf6",
                     "name": "Client certificate is not trusted or has been revoked.",
                     "originalRequest": {
                         "url": {
@@ -572,7 +572,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -588,7 +588,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "31fead54-72f3-4ce3-88e7-b0f21d62cba4",
+                    "id": "a3f7146c-5c7f-41f1-82d4-9ed75c84ec24",
                     "name": "Request body includes a semantic error.",
                     "originalRequest": {
                         "url": {
@@ -622,7 +622,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -644,7 +644,7 @@
             }
         },
         {
-            "id": "10820d3e-7daf-4183-b2b6-7e0755620d9e",
+            "id": "a99303f4-742b-494a-a822-31265b7f8443",
             "name": "Update device capabilities (Update)",
             "request": {
                 "name": "Update device capabilities (Update)",
@@ -664,7 +664,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -683,7 +683,7 @@
                 "method": "PUT",
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                    "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                     "options": {
                         "raw": {
                             "headerFamily": "json",
@@ -711,7 +711,7 @@
             },
             "response": [
                 {
-                    "id": "6bfa9a7d-f52e-4f95-a428-0e3f426f688e",
+                    "id": "8bb41ecf-4010-4dd0-ba9e-11033cfe66cd",
                     "name": "Capabilities reported successfully",
                     "originalRequest": {
                         "url": {
@@ -745,7 +745,7 @@
                         "method": "PUT",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -761,7 +761,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "e6a6a92e-f162-4a4c-bcd8-6846840c0812",
+                    "id": "eb9e178c-5df0-420c-8169-c223cc174a86",
                     "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
                     "originalRequest": {
                         "url": {
@@ -795,7 +795,7 @@
                         "method": "PUT",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -811,7 +811,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "2e535d12-5997-477d-ab2a-00f9c0da121c",
+                    "id": "7b600483-4a8d-41ea-957c-88600e2a5f83",
                     "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
                     "originalRequest": {
                         "url": {
@@ -845,7 +845,7 @@
                         "method": "PUT",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -861,7 +861,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "a7447c72-d946-4d34-b0bc-e7dcfad7e4fa",
+                    "id": "6fb8f5bb-2932-4287-adb3-4e2f0b477a90",
                     "name": "Client certificate is not trusted or has been revoked.",
                     "originalRequest": {
                         "url": {
@@ -895,7 +895,7 @@
                         "method": "PUT",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -911,7 +911,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "d36514dd-9eaa-4225-ad74-06835f1c0499",
+                    "id": "8ec05b96-3f1d-4030-b2c6-67c9e98bf811",
                     "name": "Request body includes a semantic error.",
                     "originalRequest": {
                         "url": {
@@ -945,7 +945,7 @@
                         "method": "PUT",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"cupidatat ut dolor sit pariatur\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"exercitation\",\n    \"vendor\": \"adipisicing incididunt cillum\",\n    \"modelNumber\": \"dolore pariatur\",\n    \"serialNumber\": \"Duis anim do\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 77135928.40058818,\n        \"architecture\": \"arm\"\n      },\n      \"memory\": \"enim mollit id do\",\n      \"storage\": \"labore ut\",\n      \"peripherals\": [\n        {\n          \"type\": \"camera\",\n          \"manufacturer\": \"elit dolor\",\n          \"model\": \"incididunt labore deserunt eiusmod in\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nostrud sit sunt\",\n          \"model\": \"dolore commodo m\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"rs232\"\n        },\n        {\n          \"type\": \"usb\"\n        }\n      ]\n    }\n  }\n}",
+                            "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -967,7 +967,7 @@
             }
         },
         {
-            "id": "f369c234-ae5c-45aa-890a-a88777c22b1d",
+            "id": "7bcc0bad-9d1c-4514-8243-be92aafcf609",
             "name": "Retrieve bundle information for a specific device and digest",
             "request": {
                 "name": "Retrieve bundle information for a specific device and digest",
@@ -988,7 +988,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -998,7 +998,7 @@
                         },
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "digest",
                             "disabled": false,
                             "description": {
@@ -1016,7 +1016,7 @@
                             "type": "text/plain"
                         },
                         "key": "If-None-Match",
-                        "value": "fugiat officia aute"
+                        "value": "aute magna"
                     },
                     {
                         "key": "Accept",
@@ -1045,7 +1045,7 @@
             },
             "response": [
                 {
-                    "id": "9ef8b374-d79b-4e01-9daa-8275154a17fd",
+                    "id": "195c5f23-c8c7-491a-b622-3ce29a0aa9c4",
                     "name": "Bundle archive (immutable)",
                     "originalRequest": {
                         "url": {
@@ -1071,7 +1071,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "key": "Accept",
@@ -1103,7 +1103,7 @@
                                 "type": "text/plain"
                             },
                             "key": "ETag",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         },
                         {
                             "disabled": true,
@@ -1112,15 +1112,15 @@
                                 "type": "text/plain"
                             },
                             "key": "Cache-Control",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         }
                     ],
-                    "body": "labore",
+                    "body": "ut nostrud",
                     "cookie": [],
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "c928f152-1928-4062-aedb-1b29d292f510",
+                    "id": "5755e4a7-8329-4ceb-b210-8c41e6423569",
                     "name": "Representation not modified",
                     "originalRequest": {
                         "url": {
@@ -1146,7 +1146,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1167,7 +1167,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "12589d18-f504-4332-8707-fa95dfd8cd30",
+                    "id": "a7d2c754-66c3-4e45-aecb-987e481d9343",
                     "name": "Invalid request.",
                     "originalRequest": {
                         "url": {
@@ -1193,7 +1193,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1214,7 +1214,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "64fcb6bd-7db2-480a-b754-5f57a69cda2d",
+                    "id": "80315591-d033-4c57-8d63-9979889e6317",
                     "name": "Bundle not found for the given digest",
                     "originalRequest": {
                         "url": {
@@ -1240,7 +1240,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1267,7 +1267,7 @@
             }
         },
         {
-            "id": "cdc7ee6f-defb-498c-9556-4e9d636b6d7f",
+            "id": "215cf5ba-da42-4358-bc8f-daae289826cd",
             "name": "Retrieve the complete desired state for all workloads assigned to a device",
             "request": {
                 "name": "Retrieve the complete desired state for all workloads assigned to a device",
@@ -1287,7 +1287,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -1305,7 +1305,7 @@
                             "type": "text/plain"
                         },
                         "key": "If-None-Match",
-                        "value": "fugiat officia aute"
+                        "value": "aute magna"
                     },
                     {
                         "disabled": true,
@@ -1314,7 +1314,7 @@
                             "type": "text/plain"
                         },
                         "key": "Accept",
-                        "value": "fugiat officia aute"
+                        "value": "aute magna"
                     },
                     {
                         "key": "Accept",
@@ -1343,7 +1343,7 @@
             },
             "response": [
                 {
-                    "id": "3a3cabea-7909-4099-81ee-5fe0f65f1c0a",
+                    "id": "2bd8b6a4-ac94-435b-a365-42f07a064bc3",
                     "name": "Manifest returned in the negotiated format",
                     "originalRequest": {
                         "url": {
@@ -1368,7 +1368,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "disabled": true,
@@ -1377,7 +1377,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "Accept",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "key": "Accept",
@@ -1409,7 +1409,7 @@
                                 "type": "text/plain"
                             },
                             "key": "Content-Type",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         },
                         {
                             "disabled": true,
@@ -1418,15 +1418,15 @@
                                 "type": "text/plain"
                             },
                             "key": "ETag",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         }
                     ],
-                    "body": "{\n  \"manifestVersion\": 77561763.3393602,\n  \"bundle\": {\n    \"mediaType\": \"commodo adipisicing\",\n    \"digest\": \"deserunt voluptate mollit\",\n    \"sizeBytes\": -29246844.585795403,\n    \"url\": \"eiusmod ex quis\"\n  },\n  \"deployments\": [\n    {\n      \"deploymentId\": \"cul\",\n      \"digest\": \"in do ea ipsum aliqua\",\n      \"url\": \"anim ex\",\n      \"sizeBytes\": -28673879.909586206\n    },\n    {\n      \"deploymentId\": \"ullamco\",\n      \"digest\": \"amet est\",\n      \"url\": \"dolore Excepteur sit\",\n      \"sizeBytes\": -67444268.01590455\n    }\n  ],\n  \"bundle.mediaType\": -68621201.16811919,\n  \"bundle.digest\": false,\n  \"bundle.url\": \"sunt mollit aliquip\"\n}",
+                    "body": "{\n  \"manifestVersion\": -83824536.23767403,\n  \"bundle\": {\n    \"mediaType\": \"Lorem\",\n    \"digest\": \"non i\",\n    \"sizeBytes\": -77785071.88778825,\n    \"url\": \"ad exercitation sint cupidatat\"\n  },\n  \"deployments\": [\n    {\n      \"deploymentId\": \"culpa\",\n      \"digest\": \"eiusmod\",\n      \"url\": \"sed occaecat\",\n      \"sizeBytes\": 37257419.806667894\n    },\n    {\n      \"deploymentId\": \"Duis occaecat\",\n      \"digest\": \"ad irure\",\n      \"url\": \"in\",\n      \"sizeBytes\": -51875188.13968461\n    }\n  ],\n  \"bundle.mediaType\": false,\n  \"bundle.digest\": false,\n  \"bundle.url\": false\n}",
                     "cookie": [],
                     "_postman_previewlanguage": "json"
                 },
                 {
-                    "id": "3bc4b4ef-92ab-486b-93e7-a31f4ead7473",
+                    "id": "17a2b787-ca67-4dd6-a72b-27cd1290bebc",
                     "name": "Not Modified - Manifest has not changed",
                     "originalRequest": {
                         "url": {
@@ -1451,7 +1451,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "disabled": true,
@@ -1460,7 +1460,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "Accept",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1481,7 +1481,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "cd7c7977-c0ec-47ea-ae53-8fc1e3d2134d",
+                    "id": "f54748a1-72c1-4fb9-a64f-7e4b2b36ba54",
                     "name": "Not Acceptable - Server cannot generate a response matching the Accept header",
                     "originalRequest": {
                         "url": {
@@ -1506,7 +1506,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "disabled": true,
@@ -1515,7 +1515,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "Accept",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1542,7 +1542,7 @@
             }
         },
         {
-            "id": "640f081b-36eb-4aa3-b1e0-794878ac5f7d",
+            "id": "d772612f-ef4c-48ab-bb98-5cc30eb30465",
             "name": "Retrieve an individual ApplicationDeployment YAML file",
             "request": {
                 "name": "Retrieve an individual ApplicationDeployment YAML file",
@@ -1567,7 +1567,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -1577,7 +1577,7 @@
                         },
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "deploymentId",
                             "disabled": false,
                             "description": {
@@ -1587,7 +1587,7 @@
                         },
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "digest",
                             "disabled": false,
                             "description": {
@@ -1605,7 +1605,7 @@
                             "type": "text/plain"
                         },
                         "key": "If-None-Match",
-                        "value": "fugiat officia aute"
+                        "value": "aute magna"
                     },
                     {
                         "disabled": true,
@@ -1614,7 +1614,7 @@
                             "type": "text/plain"
                         },
                         "key": "Accept-Encoding",
-                        "value": "fugiat officia aute"
+                        "value": "aute magna"
                     },
                     {
                         "key": "Accept",
@@ -1643,7 +1643,7 @@
             },
             "response": [
                 {
-                    "id": "03995854-0838-49e1-90b7-83c52928c53c",
+                    "id": "36fdd629-6c79-4991-86a2-49be8dbcf96f",
                     "name": "The response body is the raw ApplicationDeployment YAML file (Content-Type: application/yaml). The content MUST match the {digest} path segment; the server MUST return 404 if it does not have the exact digest referenced.\n",
                     "originalRequest": {
                         "url": {
@@ -1670,7 +1670,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "disabled": true,
@@ -1679,7 +1679,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "Accept-Encoding",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "key": "Accept",
@@ -1711,7 +1711,7 @@
                                 "type": "text/plain"
                             },
                             "key": "Content-Type",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         },
                         {
                             "disabled": true,
@@ -1720,7 +1720,7 @@
                                 "type": "text/plain"
                             },
                             "key": "ETag",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         },
                         {
                             "disabled": true,
@@ -1729,7 +1729,7 @@
                                 "type": "text/plain"
                             },
                             "key": "Cache-Control",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         },
                         {
                             "disabled": true,
@@ -1738,15 +1738,15 @@
                                 "type": "text/plain"
                             },
                             "key": "Vary",
-                            "value": "fugiat officia aute"
+                            "value": "aute magna"
                         }
                     ],
-                    "body": "cupidatat ad cillum",
+                    "body": "officia dolor",
                     "cookie": [],
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "0227075a-6e1b-4df6-9389-8829717b3b5c",
+                    "id": "e0358da8-3b31-4278-af5f-84d5e347bacd",
                     "name": "Deployment not found for the given digest",
                     "originalRequest": {
                         "url": {
@@ -1773,7 +1773,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "If-None-Match",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "disabled": true,
@@ -1782,7 +1782,7 @@
                                     "type": "text/plain"
                                 },
                                 "key": "Accept-Encoding",
-                                "value": "fugiat officia aute"
+                                "value": "aute magna"
                             },
                             {
                                 "description": {
@@ -1809,7 +1809,7 @@
             }
         },
         {
-            "id": "290f1b61-7342-4ea2-80b9-ebdb5df8f05a",
+            "id": "4fd5d28a-d4c1-434c-b00d-2b136be54402",
             "name": "Report deployment status",
             "request": {
                 "name": "Report deployment status",
@@ -1831,7 +1831,7 @@
                     "variable": [
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "clientId",
                             "disabled": false,
                             "description": {
@@ -1841,7 +1841,7 @@
                         },
                         {
                             "type": "any",
-                            "value": "fugiat officia aute",
+                            "value": "aute magna",
                             "key": "deploymentId",
                             "disabled": false,
                             "description": {
@@ -1860,7 +1860,7 @@
                 "method": "POST",
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                    "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                     "options": {
                         "raw": {
                             "headerFamily": "json",
@@ -1888,7 +1888,7 @@
             },
             "response": [
                 {
-                    "id": "6a386c12-6727-4140-b989-55334db771ed",
+                    "id": "6283ddb7-ae5b-4602-ae16-fa7b3aff0bc0",
                     "name": "The deployment status was added, or updated, successfully.",
                     "originalRequest": {
                         "url": {
@@ -1924,7 +1924,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -1940,7 +1940,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "3fca1b27-13c2-4323-9a41-070f5335b21b",
+                    "id": "aee967e3-204c-4193-b500-2559110e5c02",
                     "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the base64-encoded payload is included.",
                     "originalRequest": {
                         "url": {
@@ -1976,7 +1976,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -1992,7 +1992,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "363981e1-06c7-4f4b-b663-75742a178c54",
+                    "id": "387e5c5b-1a88-42a8-8c8d-e46e7aa20865",
                     "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
                     "originalRequest": {
                         "url": {
@@ -2028,7 +2028,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -2044,7 +2044,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "92c741eb-2ce0-4ddb-b004-0c88caf942ea",
+                    "id": "292d8e91-d376-4d2b-81d9-7c44cbc89ef3",
                     "name": "Client certificate is not trusted or has been revoked.",
                     "originalRequest": {
                         "url": {
@@ -2080,7 +2080,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -2096,7 +2096,7 @@
                     "_postman_previewlanguage": "text"
                 },
                 {
-                    "id": "f7b9c658-9c3f-4e16-b933-6a6a5f29cc98",
+                    "id": "6e674338-64ef-434c-9905-3ddff3d14877",
                     "name": "Request body includes a semantic error.",
                     "originalRequest": {
                         "url": {
@@ -2132,7 +2132,7 @@
                         "method": "POST",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"apiVersion\": \"eu\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"enim est in irure\",\n  \"status\": {\n    \"state\": \"removing\",\n    \"error\": {\n      \"code\": \"magna commodo re\",\n      \"message\": \"cupidatat consequat\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"magna ea occaecat\",\n      \"state\": \"failed\",\n      \"error\": {\n        \"code\": \"al\",\n        \"message\": \"esse tempor mollit\"\n      }\n    },\n    {\n      \"name\": \"Duis ut\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"ex tempor do\",\n        \"message\": \"i\"\n      }\n    }\n  ]\n}",
+                            "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
                             "options": {
                                 "raw": {
                                     "headerFamily": "json",
@@ -2182,7 +2182,7 @@
         }
     ],
     "info": {
-        "_postman_id": "0ad646fa-6865-413f-a20e-ae515b0031ee",
+        "_postman_id": "6babf73f-f617-4f25-a1b6-414b665ed6b5",
         "name": "Margo Workload Management API",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "description": {

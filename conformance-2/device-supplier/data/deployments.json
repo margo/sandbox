@@ -1,0 +1,52 @@
+{
+  "362a87dd-5606-430c-a26d-00109e98b4a1:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "362a87dd-5606-430c-a26d-00109e98b4a1",
+    "status_history": []
+  },
+  "37bc9584-3c3e-44c2-ad76-cf3651c2ba7f:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "37bc9584-3c3e-44c2-ad76-cf3651c2ba7f",
+    "status_history": []
+  },
+  "3caa7d27-b603-4314-b318-1fc09d9fc0df:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "3caa7d27-b603-4314-b318-1fc09d9fc0df",
+    "status_history": []
+  },
+  "999ff99f-6d8e-4480-8d34-434087df0832:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "999ff99f-6d8e-4480-8d34-434087df0832",
+    "status_history": []
+  },
+  "b0934296-0d80-424e-909f-cf00254beedd:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "b0934296-0d80-424e-909f-cf00254beedd",
+    "status_history": []
+  },
+  "c4b4ba12-d964-409e-8258-8e7874fabae3:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "c4b4ba12-d964-409e-8258-8e7874fabae3",
+    "status_history": [
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      }
+    ]
+  },
+  "c63925d4-c8e4-4317-967e-45065b12d876:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "c63925d4-c8e4-4317-967e-45065b12d876",
+    "status_history": []
+  }
+}

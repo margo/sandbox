@@ -12,6 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFORMANCE_DIR="$SCRIPT_DIR"
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
+GROUP_DIR="$DATA_GEN_DIR/groups"
 
 ################################################################################
 # Logging Functions
@@ -623,93 +624,87 @@ REQUIREMENTS:
 EOF
 }
 
+
 ################################################################################
 # Interactive Menu Loop
 ################################################################################
-
 interactive_mode() {
     while true; do
         show_persona_menu
-        
         read -p "Select option (1-2, H, or Q): " choice
-        
+
         case "${choice,,}" in
+
             1|wfm)
                 echo ""
                 info "You selected: WFM Supplier"
-                echo ""
-                # Show test type selection for WFM
+
                 while true; do
                     show_device_test_type_menu
                     read -p "Select test type (1-2, B, or Q): " test_choice
+
                     case "${test_choice,,}" in
+
                         1|openapi|contract)
                             echo ""
-                            read -p "Enter OpenAPI Spec Path (URL or local file): " spec_path
-                            echo ""
+                            read -p "Enter OpenAPI Spec Path: " spec_path
                             generate_wfm_tests "$spec_path"
-                            break
                             ;;
+
                         2|margo|functional|template)
                             echo ""
-                            read -p "Enter Postman Collection JSON Path: " collection_path
-                            echo ""
-                            generate_wfm_functional_tests "$collection_path"
-                            break
+                            info "Functional Test Mode Selected"
+
+                            # ✅ enter group menu directly
+                            group_management_menu
                             ;;
+
                         b|back)
-                            info "Going back to persona menu..."
+                            # ✅ back to persona menu
                             break
                             ;;
+
                         q|quit)
                             info "Exiting..."
                             exit 0
                             ;;
+
                         *)
-                            error "Invalid option. Please select 1, 2, B, or Q"
+                            warn "Invalid option"
                             ;;
                     esac
                 done
                 ;;
+
             2|device)
                 echo ""
                 info "You selected: Device Supplier"
-                echo ""
-                # Show device supplier options menu
+
                 while true; do
                     show_device_supplier_options_menu
                     read -p "Select option (1-2, B, or Q): " device_choice
+
                     case "${device_choice,,}" in
-                        1|existing)
-                            echo ""
-                            info "Using existing test-scenarios.json"
+                        1)
                             generate_device_tests "$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
-                            break
                             ;;
-                        2|custom|provide)
-                            echo ""
-                            info "Provide your custom test scenarios"
-                            info "Template example: $CONFORMANCE_DIR/device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json"
-                            echo ""
-                            read -p "Enter path to your custom test scenarios JSON: " custom_path
-                            echo ""
-                            if [[ -z "$custom_path" ]]; then
-                                error "Path cannot be empty"
-                                continue
-                            fi
+
+                        2)
+                            read -p "Enter custom JSON path: " custom_path
                             generate_device_tests "$custom_path"
+                            ;;
+
+                        b)
                             break
                             ;;
-                        b|back)
-                            info "Going back to persona menu..."
-                            break
-                            ;;
-                        q|quit)
+
+                        q)
                             info "Exiting..."
                             exit 0
                             ;;
+
                         *)
-                            error "Invalid option. Please select 1, 2, B, or Q"
+                            warn "Invalid option"
                             ;;
                     esac
                 done
@@ -718,24 +713,19 @@ interactive_mode() {
             h|help)
                 show_help
                 ;;
+
             q|quit)
                 info "Exiting..."
                 exit 0
                 ;;
+
             *)
-                error "Invalid option. Please select 1, 2, H, or Q"
+                warn "Invalid option"
                 ;;
         esac
-        
-        echo ""
-        read -p "Press Enter to continue or Q to quit: " continue_choice
-        if [[ "${continue_choice,,}" == "q" ]]; then
-            info "Exiting..."
-            exit 0
-        fi
-        clear
     done
 }
+
 
 ################################################################################
 # Command Line Argument Parsing
@@ -824,6 +814,256 @@ Usage: bash conformance.sh [wfm|device|help]
 Run 'bash conformance.sh help' for detailed instructions."
             ;;
     esac
+}
+
+
+create_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    # ✅ Group name
+    if [[ -z "${GROUP_NAME:-}" ]]; then
+        echo ""
+        read -p "Enter group name: " GROUP_NAME
+        [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
+    fi
+
+    # ✅ Version
+    echo ""
+    read -p "Enter version of Margo Specification: " VERSION
+    [[ -z "$VERSION" ]] && VERSION="1.0.0"
+
+    # ✅ Description
+    echo ""
+    read -p "Enter a short description for group: " DESCRIPTION
+    [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
+
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
+
+    # ✅ Append mode
+    APPEND_MODE=false
+    if [[ -d "$GROUP_PATH" ]]; then
+        echo ""
+        echo "⚠️ Using existing group: $GROUP_NAME"
+        echo "👉 New test cases will be appended"
+        APPEND_MODE=true
+    else
+        mkdir -p "$GROUP_PATH"
+    fi
+
+    # ✅ Folder path instead of single file
+    echo ""
+    read -p "Enter folder path containing JSON files: " INPUT_PATH
+
+    if [[ ! -d "$INPUT_PATH" ]]; then
+        error "Provided path is not a folder!"
+    fi
+
+    log "📁 Reading all JSON files from folder..."
+
+    ALL_TESTS=()
+
+    # ✅ Loop all JSON files
+    for file in "$INPUT_PATH"/*.json; do
+        [[ -e "$file" ]] || continue
+
+        log "📄 Processing: $(basename "$file")"
+
+        # ✅ Copy file to group folder
+        cp "$file" "$GROUP_PATH/"
+
+        # ✅ Extract IDs
+        mapfile -t IDS < <(jq -r '.. | .id? // empty' "$file")
+
+        # ✅ fallback to names
+        if [[ ${#IDS[@]} -eq 0 ]]; then
+            mapfile -t IDS < <(
+                jq -r '.. | .name? // empty' "$file" \
+                | sed 's/ /_/g' \
+                | tr '[:upper:]' '[:lower:]'
+            )
+        fi
+
+        ALL_TESTS+=("${IDS[@]}")
+    done
+
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        error "No test cases found in folder!"
+    fi
+
+    log "✅ Total extracted test cases: ${#ALL_TESTS[@]}"
+
+    # ✅ Convert to JSON
+    TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
+
+    # ✅ Merge logic
+    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
+        log "🔄 Merging with existing test cases..."
+
+        OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
+
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "WfmSupplier" \
+            --arg desc "$DESCRIPTION" \
+            --argjson old "$OLD_TESTS" \
+            --argjson new "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: ($old + $new | unique)
+            }' > "$GROUP_PATH/group.json"
+
+    else
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "WfmSupplier" \
+            --arg desc "$DESCRIPTION" \
+            --argjson tests "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: $tests
+            }' > "$GROUP_PATH/group.json"
+    fi
+
+    success "✅ Group created/updated successfully!"
+    info "📁 Folder: $GROUP_PATH"
+    info "📊 Total test cases: $(jq '.testCases | length' "$GROUP_PATH/group.json")"
+}
+
+
+group_management_menu() {
+    while true; do
+        echo ""
+
+        echo "📂 Available Groups (already created):"
+        echo "--------------------------------------"
+        list_test_groups
+
+        echo ""
+        echo "❓ Do you want to use an existing group or create a new one?"
+        echo ""
+
+        echo "Options:"
+        echo "1. Use existing group"
+        echo "2. Create new group"
+        echo "B. Back"
+        echo "Q. Quit"
+        echo ""
+
+        read -p "Select option: " gchoice
+
+        case "${gchoice,,}" in
+
+            1)
+                echo ""
+                read -p "Enter existing group name: " GROUP_NAME
+
+                [[ -z "$GROUP_NAME" ]] && warn "Group name cannot be empty" && continue
+
+                GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
+
+                if [[ ! -d "$GROUP_PATH" ]]; then
+                    warn "Group does not exist!"
+                    continue
+                fi
+
+                echo ""
+                info "Using existing group: $GROUP_NAME (will overwrite test cases)"
+
+                create_test_group   # ✅ reuse same function (overwrite behavior)
+                ;;
+
+            2)
+                create_test_group
+                ;;
+
+            b)
+                break
+                ;;
+
+            q)
+                info "Exiting..."
+                exit 0
+                ;;
+
+            *)
+                warn "Invalid option"
+                ;;
+        esac
+    done
+}
+
+
+list_test_groups() {
+    mkdir -p "$GROUP_DIR"
+
+    if ls -d "$GROUP_DIR"/*/ > /dev/null 2>&1; then
+        for dir in "$GROUP_DIR"/*/; do
+            echo " - $(basename "$dir")"
+        done
+    else
+        echo "No groups found"
+    fi
+}
+
+
+
+delete_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    echo ""
+    echo "🗑️ Select group to delete:"
+    echo "--------------------------"
+
+    # ✅ FIXED: use find instead of ls
+    mapfile -t GROUPS < <(find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d)
+
+    if [[ ${#GROUPS[@]} -eq 0 ]]; then
+        warn "No groups found"
+        return
+    fi
+
+    # ✅ Show list
+    for i in "${!GROUPS[@]}"; do
+        echo "$((i+1)). $(basename "${GROUPS[$i]}")"
+    done
+
+    echo ""
+    read -p "Enter number to delete (or B to go back): " choice
+
+    if [[ "${choice,,}" == "b" ]]; then
+        return
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        error "Invalid input!"
+    fi
+
+    idx=$((choice-1))
+
+    if [[ $idx -lt 0 || $idx -ge ${#GROUPS[@]} ]]; then
+        error "Invalid selection!"
+    fi
+
+    GROUP_NAME=$(basename "${GROUPS[$idx]}")
+
+    read -p "Are you sure you want to delete '$GROUP_NAME'? (y/n): " confirm
+
+    if [[ "${confirm,,}" != "y" ]]; then
+        info "Delete cancelled"
+        return
+    fi
+
+    rm -rf "${GROUPS[$idx]}"
+
+    success "✅ Group '$GROUP_NAME' deleted successfully"
 }
 
 # Run main function

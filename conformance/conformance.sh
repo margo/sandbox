@@ -820,37 +820,36 @@ Run 'bash conformance.sh help' for detailed instructions."
 create_test_group() {
     mkdir -p "$GROUP_DIR"
 
-    # ✅ Group name
+    #Group name
     if [[ -z "${GROUP_NAME:-}" ]]; then
         echo ""
         read -p "Enter group name: " GROUP_NAME
         [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
     fi
 
-    # ✅ Version
+    # Version
     echo ""
     read -p "Enter version of Margo Specification: " VERSION
     [[ -z "$VERSION" ]] && VERSION="1.0.0"
 
-    # ✅ Description
+    # Description
     echo ""
     read -p "Enter a short description for group: " DESCRIPTION
     [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
 
     GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
 
-    # ✅ Append mode
+    #Append mode
     APPEND_MODE=false
     if [[ -d "$GROUP_PATH" ]]; then
         echo ""
-        echo "⚠️ Using existing group: $GROUP_NAME"
-        echo "👉 New test cases will be appended"
+        echo "Using existing group: $GROUP_NAME"
         APPEND_MODE=true
     else
         mkdir -p "$GROUP_PATH"
     fi
 
-    # ✅ Folder path instead of single file
+    #Folder path instead of single file
     echo ""
     read -p "Enter folder path containing JSON files: " INPUT_PATH
 
@@ -858,23 +857,23 @@ create_test_group() {
         error "Provided path is not a folder!"
     fi
 
-    log "📁 Reading all JSON files from folder..."
+    log "Reading all JSON files from folder..."
 
     ALL_TESTS=()
 
-    # ✅ Loop all JSON files
+    #Loop all JSON files
     for file in "$INPUT_PATH"/*.json; do
         [[ -e "$file" ]] || continue
 
-        log "📄 Processing: $(basename "$file")"
+        log "Processing: $(basename "$file")"
 
-        # ✅ Copy file to group folder
+        #Copy file to group folder
         cp "$file" "$GROUP_PATH/"
 
-        # ✅ Extract IDs
+        #Extract IDs
         mapfile -t IDS < <(jq -r '.. | .id? // empty' "$file")
 
-        # ✅ fallback to names
+        #fallback to names
         if [[ ${#IDS[@]} -eq 0 ]]; then
             mapfile -t IDS < <(
                 jq -r '.. | .name? // empty' "$file" \
@@ -890,14 +889,13 @@ create_test_group() {
         error "No test cases found in folder!"
     fi
 
-    log "✅ Total extracted test cases: ${#ALL_TESTS[@]}"
+    log "Total extracted test cases: ${#ALL_TESTS[@]}"
 
-    # ✅ Convert to JSON
+    # Convert to JSON
     TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
 
-    # ✅ Merge logic
+    # Merge logic
     if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
-        log "🔄 Merging with existing test cases..."
 
         OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
 
@@ -931,10 +929,8 @@ create_test_group() {
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
     fi
-
-    success "✅ Group created/updated successfully!"
-    info "📁 Folder: $GROUP_PATH"
-    info "📊 Total test cases: $(jq '.testCases | length' "$GROUP_PATH/group.json")"
+    info "Target Folder: $GROUP_PATH"
+    info "Total test cases: $(jq '.testCases | length' "$GROUP_PATH/group.json")"
 }
 
 
@@ -942,12 +938,12 @@ group_management_menu() {
     while true; do
         echo ""
 
-        echo "📂 Available Groups (already created):"
+        echo "Available Groups:"
         echo "--------------------------------------"
         list_test_groups
 
         echo ""
-        echo "❓ Do you want to use an existing group or create a new one?"
+        echo "Do you want to use an existing group or create a new one?"
         echo ""
 
         echo "Options:"
@@ -960,28 +956,61 @@ group_management_menu() {
         read -p "Select option: " gchoice
 
         case "${gchoice,,}" in
-
             1)
                 echo ""
                 read -p "Enter existing group name: " GROUP_NAME
-
-                [[ -z "$GROUP_NAME" ]] && warn "Group name cannot be empty" && continue
-
-                GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
-
-                if [[ ! -d "$GROUP_PATH" ]]; then
-                    warn "Group does not exist!"
+                [[ -z "$GROUP_NAME" ]] && {
+                    warn "Group name cannot be empty"
                     continue
-                fi
+                }
 
+                create_test_group
                 echo ""
-                info "Using existing group: $GROUP_NAME (will overwrite test cases)"
+                echo "Options:"
+                echo "B. Back"
+                echo "Q. Quit"
+                echo ""
 
-                create_test_group   # ✅ reuse same function (overwrite behavior)
+                read -p "Select option: " post_choice
+
+                case "${post_choice,,}" in
+                    b)
+                        continue
+                        ;;
+                    q)
+                        info "Exiting..."
+                        exit 0
+                        ;;
+                    *)
+                        warn "Invalid option"
+                        ;;
+                esac
                 ;;
 
             2)
+                unset GROUP_NAME
                 create_test_group
+                echo ""
+                echo ""
+                echo "Options:"
+                echo "B. Back to Group Menu"
+                echo "Q. Quit"
+                echo ""
+
+                read -p "Select option: " post_choice
+
+                case "${post_choice,,}" in
+                    b)
+                        continue
+                        ;;
+                    q)
+                        info "Exiting..."
+                        exit 0
+                        ;;
+                    *)
+                        warn "Invalid option"
+                        ;;
+                esac
                 ;;
 
             b)
@@ -999,7 +1028,6 @@ group_management_menu() {
         esac
     done
 }
-
 
 list_test_groups() {
     mkdir -p "$GROUP_DIR"
@@ -1022,7 +1050,7 @@ delete_test_group() {
     echo "🗑️ Select group to delete:"
     echo "--------------------------"
 
-    # ✅ FIXED: use find instead of ls
+    # FIXED: use find instead of ls
     mapfile -t GROUPS < <(find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d)
 
     if [[ ${#GROUPS[@]} -eq 0 ]]; then
@@ -1030,7 +1058,7 @@ delete_test_group() {
         return
     fi
 
-    # ✅ Show list
+    # Show list
     for i in "${!GROUPS[@]}"; do
         echo "$((i+1)). $(basename "${GROUPS[$i]}")"
     done
@@ -1063,7 +1091,7 @@ delete_test_group() {
 
     rm -rf "${GROUPS[$idx]}"
 
-    success "✅ Group '$GROUP_NAME' deleted successfully"
+    success " Group '$GROUP_NAME' deleted successfully"
 }
 
 # Run main function

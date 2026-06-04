@@ -890,6 +890,7 @@ create_test_group() {
     fi
 
     log "Total extracted test cases: ${#ALL_TESTS[@]}"
+    log "Reading JSON files, extracting test case IDs, and adding them to the group.json"
 
     # Convert to JSON
     TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
@@ -929,10 +930,8 @@ create_test_group() {
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
     fi
-    info "Target Folder: $GROUP_PATH"
-    info "Total test cases: $(jq '.testCases | length' "$GROUP_PATH/group.json")"
+    info "Target Group Folder: $GROUP_PATH"
 }
-
 
 group_management_menu() {
     while true; do
@@ -1028,6 +1027,7 @@ group_management_menu() {
         esac
     done
 }
+
 
 list_test_groups() {
     mkdir -p "$GROUP_DIR"

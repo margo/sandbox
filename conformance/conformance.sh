@@ -12,18 +12,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFORMANCE_DIR="$SCRIPT_DIR"
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
-GROUP_DIR="$DATA_GEN_DIR/groups"
+GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
 
 ################################################################################
 # Logging Functions
 ################################################################################
 
 log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 📝 $*"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')]  $*"
 }
 
 success() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ✅ $*"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')]  $*"
 }
 
 error() {
@@ -936,97 +936,74 @@ create_test_group() {
 group_management_menu() {
     while true; do
         echo ""
-
-        echo "Available Groups:"
+        echo "Available Groups"
         echo "--------------------------------------"
-        list_test_groups
+
+        mapfile -t groups < <(ls "$GROUP_DIR")
+
+        if [ ${#groups[@]} -eq 0 ]; then
+            echo "  No groups available"
+        else
+            for i in "${!groups[@]}"; do
+                echo "  $((i+1))) ${groups[i]}"
+            done
+        fi
 
         echo ""
-        echo "Do you want to use an existing group or create a new one?"
+        echo "Enter a number to select a group"
+        echo "Press 0 to create a new group"
         echo ""
+        echo "--------------------------------------"
 
-        echo "Options:"
-        echo "1. Use existing group"
-        echo "2. Create new group"
-        echo "B. Back"
-        echo "Q. Quit"
-        echo ""
+        read -p "Enter your choice: " choice
 
-        read -p "Select option: " gchoice
+        # CREATE NEW (0)
+        if [[ "$choice" == "0" ]]; then
+            unset GROUP_NAME
+            create_test_group
 
-        case "${gchoice,,}" in
-            1)
-                echo ""
-                read -p "Enter existing group name: " GROUP_NAME
-                [[ -z "$GROUP_NAME" ]] && {
-                    warn "Group name cannot be empty"
-                    continue
-                }
+        #  EXISTING GROUP
+        elif [[ "$choice" =~ ^[0-9]+$ ]]; then
+            index=$((choice-1))
 
+            if [[ -n "${groups[index]}" ]]; then
+                GROUP_NAME="${groups[index]}"
+                info "Selected existing group: $GROUP_NAME"
                 create_test_group
-                echo ""
-                echo "Options:"
-                echo "B. Back"
-                echo "Q. Quit"
-                echo ""
+            else
+                warn "Invalid group number"
+                continue
+            fi
 
-                read -p "Select option: " post_choice
+        else
+            warn "Invalid input. Please enter a valid number."
+            continue
+        fi
 
-                case "${post_choice,,}" in
-                    b)
-                        continue
-                        ;;
-                    q)
-                        info "Exiting..."
-                        exit 0
-                        ;;
-                    *)
-                        warn "Invalid option"
-                        ;;
-                esac
-                ;;
+        # POST MENU (ONLY after work)
+        echo ""
+        echo "Options: "
+        echo "  B → Back"
+        echo "  Q → Quit"
+        echo ""
 
-            2)
-                unset GROUP_NAME
-                create_test_group
-                echo ""
-                echo ""
-                echo "Options:"
-                echo "B. Back to Group Menu"
-                echo "Q. Quit"
-                echo ""
+        read -p "Select option: " post_choice
 
-                read -p "Select option: " post_choice
-
-                case "${post_choice,,}" in
-                    b)
-                        continue
-                        ;;
-                    q)
-                        info "Exiting..."
-                        exit 0
-                        ;;
-                    *)
-                        warn "Invalid option"
-                        ;;
-                esac
-                ;;
-
+        case "${post_choice,,}" in
             b)
-                break
+                continue   # go back to group list
                 ;;
-
             q)
                 info "Exiting..."
                 exit 0
                 ;;
-
             *)
                 warn "Invalid option"
                 ;;
         esac
     done
 }
+
 
 
 list_test_groups() {

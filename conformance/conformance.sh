@@ -936,9 +936,14 @@ create_test_group() {
 group_management_menu() {
     while true; do
         echo ""
+
+        echo "Enter a number to select an existing group or press 0 to create a new group"
+        echo ""
+
         echo "Available Groups"
         echo "--------------------------------------"
 
+        mkdir -p "$GROUP_DIR"
         mapfile -t groups < <(ls "$GROUP_DIR")
 
         if [ ${#groups[@]} -eq 0 ]; then
@@ -950,19 +955,28 @@ group_management_menu() {
         fi
 
         echo ""
-        echo "Enter a number to select a group"
-        echo "Press 0 to create a new group"
+        echo "B → Back"
+        echo "Q → Quit"
         echo ""
-        echo "--------------------------------------"
-
         read -p "Enter your choice: " choice
 
-        # CREATE NEW (0)
+        # BACK
+        if [[ "${choice,,}" == "b" ]]; then
+            return
+        fi
+
+        # QUIT
+        if [[ "${choice,,}" == "q" ]]; then
+            info "Exiting..."
+            exit 0
+        fi
+
+        #  CREATE NEW (0)
         if [[ "$choice" == "0" ]]; then
             unset GROUP_NAME
             create_test_group
 
-        #  EXISTING GROUP
+        # EXISTING GROUP
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
             index=$((choice-1))
 
@@ -976,13 +990,13 @@ group_management_menu() {
             fi
 
         else
-            warn "Invalid input. Please enter a valid number."
+            warn "Invalid input. Please enter a valid option."
             continue
         fi
 
-        # POST MENU (ONLY after work)
+        #  POST MENU (same as yours)
         echo ""
-        echo "Options: "
+        echo "Options:"
         echo "  B → Back"
         echo "  Q → Quit"
         echo ""
@@ -990,19 +1004,13 @@ group_management_menu() {
         read -p "Select option: " post_choice
 
         case "${post_choice,,}" in
-            b)
-                continue   # go back to group list
-                ;;
-            q)
-                info "Exiting..."
-                exit 0
-                ;;
-            *)
-                warn "Invalid option"
-                ;;
+            b) continue ;;
+            q) info "Exiting..."; exit 0 ;;
+            *) warn "Invalid option" ;;
         esac
     done
 }
+
 
 
 

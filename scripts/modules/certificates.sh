@@ -42,7 +42,7 @@ CN=$CN
 emailAddress=$EMAIL
 
 [v3_req]
-basicConstraints = CA:FALSE
+basicConstraints = CA:TRUE
 keyUsage = keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
@@ -101,12 +101,12 @@ generate_server_certs() {
         echo "Error: Cannot write to $CERT_DIR"
         return 1
     fi
-    
+
     local server_key="$CERT_DIR/server-key.pem"
     local server_csr="$CERT_DIR/server.csr"
     local server_cert="$CERT_DIR/server-cert.pem"
     local server_config="$CERT_DIR/server.conf"
-    
+
     generate_ca
     generate_config_for_certs "$server_config" "server"
 

@@ -937,7 +937,7 @@ group_management_menu() {
     while true; do
         echo ""
 
-        echo "Enter a number to select an existing group or press 0 to create a new group"
+        echo "Enter a number to select an existing group from the list below, or press 0 to create a new group "
         echo ""
 
         echo "Available Groups"

@@ -4,6 +4,33 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
+# Certificate paths
+HARBOR_CERT_LOCAL="./certs/harbor.crt"
+HARBOR_CERT_PRODUCTION="/data/cert/harbor.crt"
+HARBOR_CERT_SYMPHONY="$HOME/symphony/api/certificates/harbor-ca.crt"
+
+# Helper function to locate and copy Harbor certificate
+copy_harbor_certificate() {
+  local dest="$1"
+
+  # Check local CI environment path first
+  if [ -f "$HARBOR_CERT_LOCAL" ]; then
+    cp "$HARBOR_CERT_LOCAL" "$dest"
+    echo "✅ Harbor CA copied from local CI path"
+    return 0
+  fi
+
+  # Check production path
+  if [ -f "$HARBOR_CERT_PRODUCTION" ]; then
+    cp "$HARBOR_CERT_PRODUCTION" "$dest"
+    echo "✅ Harbor CA copied from production path"
+    return 0
+  fi
+
+  echo "⚠️  Harbor certificate not found in any location"
+  return 1
+}
+
 create_harbor_systemd_service() {
   echo "🔧 Creating systemd service for Harbor auto-start..."
   local harbor_dir="$HOME/sandbox/scripts/harbor"
@@ -15,7 +42,6 @@ Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
 
-
 [Service]
 Type=oneshot
 RemainAfterExit=yes
@@ -23,9 +49,11 @@ WorkingDirectory=${harbor_dir}
 ExecStartPre=/bin/sleep 10
 ExecStart=/usr/bin/docker compose up -d
 ExecStartPost=/bin/bash -c '\
+sleep 10; \
 if [ -f /data/cert/harbor.crt ]; then \
   mkdir -p '"$HOME"'/symphony/api/certificates && \
-  cp -f /data/cert/harbor.crt '"$HOME"'/symphony/api/certificates/harbor-ca.crt; \
+  cp -f /data/cert/harbor.crt '"$HOME"'/symphony/api/certificates/harbor-ca.crt && \
+  chmod 644 '"$HOME"'/symphony/api/certificates/harbor-ca.crt; \
 fi'
 ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=0
@@ -143,39 +171,37 @@ EOF
   chmod +x prepare
   sudo ./prepare
 
+  echo "🔧 Removing port 80 binding from docker-compose.yml..."
 
- echo "🔧 Removing port 80 binding from docker-compose.yml..."
+  if [ -f docker-compose.yml ]; then
+    # Backup the generated docker-compose.yml
+    cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
 
-if [ -f docker-compose.yml ]; then
-  # Backup the generated docker-compose.yml
-  cp docker-compose.yml docker-compose.yml.backup.$(date +%s)
+    # Remove the port 80 binding from nginx/proxy service
+    # Match with any amount of leading whitespace
+    sed -i '/^\s*-\s*80:8080$/d' docker-compose.yml
+    sed -i '/^\s*-\s*.*:80:8080$/d' docker-compose.yml
 
-  # Remove the port 80 binding from nginx/proxy service
-  # Match with any amount of leading whitespace
-  sed -i '/^\s*-\s*80:8080$/d' docker-compose.yml
-  sed -i '/^\s*-\s*.*:80:8080$/d' docker-compose.yml
+    echo "✅ Port 80 binding removed from docker-compose.yml"
 
-  echo "✅ Port 80 binding removed from docker-compose.yml"
+    # Verify the change
+    echo "📋 Verifying proxy/nginx ports in docker-compose.yml:"
+    if grep -A 10 "proxy:" docker-compose.yml | grep -A 5 "ports:" | grep -v "^--$"; then
+      echo "✅ Remaining ports configuration shown above"
+    else
+      echo "ℹ️ No ports section found or empty"
+    fi
 
-  # Verify the change
-  echo "📋 Verifying proxy/nginx ports in docker-compose.yml:"
-  if grep -A 10 "proxy:" docker-compose.yml | grep -A 5 "ports:" | grep -v "^--$"; then
-    echo "✅ Remaining ports configuration shown above"
+    # Double-check port 80 is not present
+    if grep -q "80:8080" docker-compose.yml; then
+      echo "⚠️ WARNING: Port 80:8080 still found in docker-compose.yml!"
+      grep -n "80:8080" docker-compose.yml
+    else
+      echo "✅ Confirmed: Port 80:8080 successfully removed"
+    fi
   else
-    echo "ℹ️ No ports section found or empty"
+    echo "⚠️ docker-compose.yml not found after prepare"
   fi
-
-  # Double-check port 80 is not present
-  if grep -q "80:8080" docker-compose.yml; then
-    echo "⚠️ WARNING: Port 80:8080 still found in docker-compose.yml!"
-    grep -n "80:8080" docker-compose.yml
-  else
-    echo "✅ Confirmed: Port 80:8080 successfully removed"
-  fi
-else
-  echo "⚠️ docker-compose.yml not found after prepare"
-fi
-
 
   echo "🔍 Verifying docker-compose.yml has port ${EXPOSED_HARBOR_PORT}..."
   if grep -q "${EXPOSED_HARBOR_PORT}" docker-compose.yml; then
@@ -250,7 +276,6 @@ fi
   echo "📍 Access Harbor at: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 }
 
-
 trust_harbor_certificate() {
   echo "📜 Adding Harbor certificate to system trust store..."
 
@@ -293,7 +318,6 @@ trust_harbor_certificate() {
   fi
 
   echo "✅ Harbor certificate trusted by system and Docker"
-
 }
 
 stop_harbor_service() {
@@ -307,7 +331,6 @@ stop_harbor_service() {
 
   [ -d "$HOME/sandbox/scripts/harbor" ] && sudo rm -rf "$HOME/sandbox/scripts/harbor" && echo "✅ Removed Harbor compose directory"
 }
-
 
 configure_harbor_trust_for_k3s() {
   echo "🔐 Configuring Harbor CA trust for k3s node..."
@@ -350,22 +373,22 @@ sync_harbor_cert_for_symphony() {
 
   mkdir -p "$symphony_cert_dir"
 
-  if [ -f /data/cert/harbor.crt ]; then
-    cp -f /data/cert/harbor.crt \
-      "$symphony_cert_dir/harbor-ca.crt"
-
-    chmod 644 "$symphony_cert_dir/harbor-ca.crt"
-
-    echo "✅ Harbor certificate synced to Symphony"
-
-    # Reload Symphony if it is already running
-    if sudo systemctl is-active --quiet symphony-api.service &&
-       sudo systemctl is-active --quiet harbor.service; then
-        echo "🔄 Restarting Symphony API to reload Harbor CA..."
-        sudo systemctl restart symphony-api.service
-    fi
-
-  else
+  if ! copy_harbor_certificate "$symphony_cert_dir/harbor-ca.crt"; then
     echo "⚠️ Harbor certificate not found"
+    return 1
+  fi
+
+  chmod 644 "$symphony_cert_dir/harbor-ca.crt"
+
+  echo "✅ Harbor certificate synced to Symphony"
+
+  # Reload Symphony if it is already running
+  if sudo systemctl is-active --quiet symphony-api.service; then
+    if sudo systemctl is-active --quiet harbor.service; then
+      echo "🔄 Restarting Symphony API to reload Harbor CA..."
+      sudo systemctl restart symphony-api.service
+    fi
+  else
+    echo "ℹ️ Symphony API not running, skipping restart"
   fi
 }

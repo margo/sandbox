@@ -128,6 +128,11 @@ EOF
   sudo mkdir -p /data/cert
   sudo cp ./certs/harbor.crt /data/cert/
   sudo cp ./certs/harbor.key /data/cert/
+
+  sudo mkdir -p /usr/local/share/ca-certificates
+  sudo cp ./certs/harbor.crt /usr/local/share/ca-certificates/harbor.crt
+  sudo update-ca-certificates
+
   sudo chmod 644 /data/cert/harbor.crt
   sudo chmod 600 /data/cert/harbor.key
 

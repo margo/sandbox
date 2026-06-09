@@ -53,8 +53,9 @@ docker exec symphony-api-container sh -c "\
 if [ -f /certificates/harbor-ca.crt ]; then \
   mkdir -p /usr/local/share/ca-certificates; \
   cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt; \
-  update-ca-certificates 2>/dev/null || true; \
-fi"'
+  update-ca-certificates; \
+fi"; \
+docker restart symphony-api-container'
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure
@@ -160,11 +161,16 @@ start_symphony_api_container() {
     docker exec symphony-api-container sh -c '
       if [ -f /certificates/harbor-ca.crt ]; then
         mkdir -p /usr/local/share/ca-certificates
-        cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/
-        update-ca-certificates 2>/dev/null || true
+        cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
+        update-ca-certificates
         echo "✅ Harbor CA trusted in Symphony container"
       fi
-    ' || true
+    '
+
+    echo "🔄 Restarting Symphony container to reload CA trust..."
+    docker restart symphony-api-container
+
+    sleep 10
   fi
 
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then

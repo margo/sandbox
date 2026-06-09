@@ -161,12 +161,32 @@ setup_harbor() {
 
   cp harbor.yml harbor.yml.backup.$(date +%s) 2>/dev/null || true
 
-  sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
+# Set hostname
+sed -i "s|^hostname: .*|hostname: $EXPOSED_HARBOR_HOST|" harbor.yml
+
+# Disable HTTP ONLY if it exists
+if grep -q "^http:" harbor.yml; then
   sed -i 's|^http:|# http:|' harbor.yml
+  sed -i 's|^  port: 80|#   port: 80|' harbor.yml
+  sed -i 's|^  port: 8081|#   port: 8081|' harbor.yml
+fi
+
+# Enable HTTPS only if not already
+if grep -q "^#https:" harbor.yml; then
   sed -i 's|^#https:|https:|' harbor.yml
+fi
+
+if grep -q "^  #port: 443" harbor.yml; then
   sed -i "s|^  #port: 443|  port: ${EXPOSED_HARBOR_PORT}|" harbor.yml
-  sed -i 's|certificate:.*|  certificate: /data/cert/harbor.crt|' harbor.yml
-  sed -i 's|private_key:.*|  private_key: /data/cert/harbor.key|' harbor.yml
+fi
+
+if grep -q "^  #certificate:" harbor.yml; then
+  sed -i 's|^  #certificate: .*|  certificate: /data/cert/harbor.crt|' harbor.yml
+fi
+
+if grep -q "^  #private_key:" harbor.yml; then
+  sed -i 's|^  #private_key: .*|  private_key: /data/cert/harbor.key|' harbor.yml
+fi
 
   # Prepare
   chmod +x prepare

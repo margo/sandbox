@@ -57,6 +57,7 @@ Wants=network-online.target
 Type=simple
 RemainAfterExit=yes
 WorkingDirectory=${symphony_dir}
+Environment="SYMPHONY_IMAGE_REF=ghcr.io/margo/margo-symphony-api:latest"
 ExecStartPre=/bin/sleep 15
 ExecStartPre=-/usr/bin/docker stop symphony-api-container
 ExecStartPre=-/usr/bin/docker rm symphony-api-container

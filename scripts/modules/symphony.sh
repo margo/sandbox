@@ -3,7 +3,9 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-HARBOR_CERT_SRC="/data/cert/harbor.crt"
+# Certificate paths
+HARBOR_CERT_CI="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+HARBOR_CERT_PRODUCTION="/data/cert/harbor.crt"
 HARBOR_CERT_DEST="$HOME/symphony/api/certificates/harbor-ca.crt"
 
 build_maestro_cli() {
@@ -15,10 +17,34 @@ build_maestro_cli() {
   fi
 }
 
+# Helper function to locate and copy Harbor certificate
+copy_harbor_certificate() {
+  local dest="$1"
+  
+  # Check CI environment path first
+  if [ -f "$HARBOR_CERT_CI" ]; then
+    cp "$HARBOR_CERT_CI" "$dest"
+    echo "✅ Harbor CA copied from CI path"
+    return 0
+  fi
+  
+  # Check production path
+  if [ -f "$HARBOR_CERT_PRODUCTION" ]; then
+    cp "$HARBOR_CERT_PRODUCTION" "$dest"
+    echo "✅ Harbor CA copied from production path"
+    return 0
+  fi
+  
+  echo "⚠️  Harbor certificate not found in any location"
+  return 1
+}
+
 create_symphony_api_systemd_service() {
   echo "🔧 Creating systemd service for Symphony API auto-start..."
 
   local symphony_dir="$HOME/symphony/api"
+  local harbor_cert_ci="$HARBOR_CERT_CI"
+  local harbor_cert_prod="$HARBOR_CERT_PRODUCTION"
 
   sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
 [Unit]
@@ -35,9 +61,8 @@ ExecStartPre=/bin/sleep 15
 ExecStartPre=-/usr/bin/docker stop symphony-api-container
 ExecStartPre=-/usr/bin/docker rm symphony-api-container
 ExecStartPre=/bin/mkdir -p ${symphony_dir}/certificates
-# ExecStartPre=/bin/bash -c 'while [ ! -f /data/cert/harbor.crt ]; do sleep 2; done'
-ExecStartPre=/bin/bash -c 'for i in {1..60}; do [ -f /data/cert/harbor.crt ] && exit 0; sleep 2; done; exit 1'
-ExecStartPre=/bin/cp -f /data/cert/harbor.crt ${symphony_dir}/certificates/harbor-ca.crt
+# Try CI path first, then production path for Harbor certificate
+ExecStartPre=/bin/bash -c 'if [ -f "${harbor_cert_ci}" ]; then cp "${harbor_cert_ci}" ${symphony_dir}/certificates/harbor-ca.crt; elif [ -f "${harbor_cert_prod}" ]; then cp "${harbor_cert_prod}" ${symphony_dir}/certificates/harbor-ca.crt; else for i in {1..60}; do [ -f "${harbor_cert_prod}" ] && cp "${harbor_cert_prod}" ${symphony_dir}/certificates/harbor-ca.crt && exit 0; sleep 2; done; exit 1; fi'
 ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     --network host \
     -p 8082:8082 \
@@ -46,15 +71,17 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
-    ${SYMPHONY_IMAGE_REF}
-ExecStartPost=-/bin/bash -c '\
-sleep 5; \
+    \${SYMPHONY_IMAGE_REF}
+ExecStartPost=/bin/bash -c '\
+sleep 8; \
 docker exec symphony-api-container sh -c "\
 if [ -f /certificates/harbor-ca.crt ]; then \
   mkdir -p /usr/local/share/ca-certificates; \
   cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt; \
   update-ca-certificates; \
+  echo \"✅ Harbor CA trusted in Symphony container\"; \
 fi"; \
+sleep 2; \
 docker restart symphony-api-container'
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
@@ -104,19 +131,20 @@ remove_symphony_api_systemd_service() {
 }
 
 start_symphony_api_container() {
-  cd "$HOME/symphony/api"
+  cd "$HOME/symphony/api" || { echo "❌ Failed to change directory"; return 1; }
 
   echo "Stopping and removing existing symphony-api-container if present..."
   docker stop symphony-api-container 2>/dev/null || true
   docker rm symphony-api-container 2>/dev/null || true
   pkill -f "symphony-api" 2>/dev/null || true
 
-  # Copy Harbor CA if in CI environment
-    HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
-    if [ -f "$HARBOR_CERT" ]; then
-      cp "$HARBOR_CERT" "$HOME/symphony/api/certificates/harbor-ca.crt"
-      echo "✅ Harbor CA copied to Symphony certificates"
-    fi
+  # Ensure certificates directory exists
+  mkdir -p "$HOME/symphony/api/certificates"
+
+  # Copy Harbor CA certificate from appropriate location
+  if ! copy_harbor_certificate "$HARBOR_CERT_DEST"; then
+    echo "⚠️  Warning: Harbor certificate not available, container may have SSL issues"
+  fi
 
   # Only check/pull from GHCR if not using a local image
   if [[ "${SYMPHONY_IMAGE_REF}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
@@ -143,12 +171,15 @@ start_symphony_api_container() {
       -v $HOME/symphony/api:/configs \
       -e CONFIG=symphony-api-margo.json"
 
+  # Add NODE_EXTRA_CA_CERTS for CA certificate handling
+  DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
+    -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
+
   # Add CI-specific environment and host mappings
   if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
     DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
       --add-host harbor.machine:${RUNNER_IP} \
-      --add-host symphony.machine:${RUNNER_IP} \
-      -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
+      --add-host symphony.machine:${RUNNER_IP}"
   fi
 
   # Execute docker run
@@ -158,19 +189,27 @@ start_symphony_api_container() {
   sleep 5
 
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+    echo "📋 Installing Harbor CA in container..."
     docker exec symphony-api-container sh -c '
       if [ -f /certificates/harbor-ca.crt ]; then
         mkdir -p /usr/local/share/ca-certificates
         cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt
         update-ca-certificates
-        echo "✅ Harbor CA trusted in Symphony container"
+        echo "✅ Harbor CA installed in Symphony container"
+      else
+        echo "⚠️  Harbor CA certificate not found in /certificates"
       fi
-    '
+    ' || echo "⚠️  Warning: Failed to install CA certificate in container"
 
     echo "🔄 Restarting Symphony container to reload CA trust..."
+    sleep 2
     docker restart symphony-api-container
 
     sleep 10
+  else
+    echo "❌ Container failed to start"
+    docker logs symphony-api-container || true
+    return 1
   fi
 
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then

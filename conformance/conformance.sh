@@ -635,6 +635,7 @@ interactive_mode() {
 
         case "${choice,,}" in
 
+            # WFM Supplier
             1|wfm)
                 echo ""
                 info "You selected: WFM Supplier"
@@ -645,25 +646,28 @@ interactive_mode() {
 
                     case "${test_choice,,}" in
 
+                        # Contract tests
                         1|openapi|contract)
                             echo ""
                             read -p "Enter OpenAPI Spec Path: " spec_path
                             generate_wfm_tests "$spec_path"
                             ;;
 
+                        # Functional tests (GROUP FLOW ✅)
                         2|margo|functional|template)
                             echo ""
                             info "Functional Test Mode Selected"
 
-                            # ✅ enter group menu directly
+                            set_supplier_context "wfm-supplier"
                             group_management_menu
                             ;;
 
+                        # Back
                         b|back)
-                            # ✅ back to persona menu
                             break
                             ;;
 
+                        # Quit
                         q|quit)
                             info "Exiting..."
                             exit 0
@@ -676,6 +680,7 @@ interactive_mode() {
                 done
                 ;;
 
+            #  Device Supplier
             2|device)
                 echo ""
                 info "You selected: Device Supplier"
@@ -685,19 +690,27 @@ interactive_mode() {
                     read -p "Select option (1-2, B, or Q): " device_choice
 
                     case "${device_choice,,}" in
+
+                        # Existing file flow
                         1)
                             generate_device_tests "$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
                             ;;
 
+                        # Group-based custom flow 🔥
                         2)
-                            read -p "Enter custom JSON path: " custom_path
-                            generate_device_tests "$custom_path"
+                            echo ""
+                            info "Custom Functional Test Mode Selected"
+
+                            set_supplier_context "device-supplier"
+                            group_management_menu
                             ;;
 
+                        # Back
                         b)
                             break
                             ;;
 
+                        # Quit
                         q)
                             info "Exiting..."
                             exit 0
@@ -710,10 +723,12 @@ interactive_mode() {
                 done
                 ;;
 
+            # Help
             h|help)
                 show_help
                 ;;
 
+            # Quit
             q|quit)
                 info "Exiting..."
                 exit 0
@@ -726,6 +741,10 @@ interactive_mode() {
     done
 }
 
+set_supplier_context() {
+    SUPPLIER="$1"
+    GROUP_DIR="$DATA_GEN_DIR/$SUPPLIER/groups"
+}
 
 ################################################################################
 # Command Line Argument Parsing
@@ -820,12 +839,14 @@ Run 'bash conformance.sh help' for detailed instructions."
 create_test_group() {
     mkdir -p "$GROUP_DIR"
 
-    #Group name
+    # Group name
     if [[ -z "${GROUP_NAME:-}" ]]; then
         echo ""
         read -p "Enter group name: " GROUP_NAME
         [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
     fi
+
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
 
     # Version
     echo ""
@@ -837,73 +858,74 @@ create_test_group() {
     read -p "Enter a short description for group: " DESCRIPTION
     [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
 
-    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
-
-    #Append mode
+    # Append mode
     APPEND_MODE=false
     if [[ -d "$GROUP_PATH" ]]; then
-        echo ""
-        echo "Using existing group: $GROUP_NAME"
+        info "Using existing group: $GROUP_NAME"
         APPEND_MODE=true
     else
         mkdir -p "$GROUP_PATH"
     fi
 
-    #Folder path instead of single file
+    # Input folder
     echo ""
     read -p "Enter folder path containing JSON files: " INPUT_PATH
+    [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
 
-    if [[ ! -d "$INPUT_PATH" ]]; then
-        error "Provided path is not a folder!"
-    fi
-
-    log "Reading all JSON files from folder..."
+    log " Reading all JSON files from folder..."
 
     ALL_TESTS=()
 
-    #Loop all JSON files
-    for file in "$INPUT_PATH"/*.json; do
-        [[ -e "$file" ]] || continue
+    # SAFE LOOP (IMPORTANT FIX)
+    shopt -s nullglob
+    files=("$INPUT_PATH"/*.json)
 
-        log "Processing: $(basename "$file")"
-
-        #Copy file to group folder
-        cp "$file" "$GROUP_PATH/"
-
-        #Extract IDs
-        mapfile -t IDS < <(jq -r '.. | .id? // empty' "$file")
-
-        #fallback to names
-        if [[ ${#IDS[@]} -eq 0 ]]; then
-            mapfile -t IDS < <(
-                jq -r '.. | .name? // empty' "$file" \
-                | sed 's/ /_/g' \
-                | tr '[:upper:]' '[:lower:]'
-            )
-        fi
-
-        ALL_TESTS+=("${IDS[@]}")
-    done
-
-    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
-        error "No test cases found in folder!"
+    # check empty
+    if [[ ${#files[@]} -eq 0 ]]; then
+        error "No JSON files found in folder!"
     fi
 
-    log "Total extracted test cases: ${#ALL_TESTS[@]}"
-    log "Reading JSON files, extracting test case IDs, and adding them to the group.json"
+    for file in "${files[@]}"; do
+        filename=$(basename "$file")
+        log " Processing: $filename"
 
-    # Convert to JSON
+        # copy file
+        cp "$file" "$GROUP_PATH/"
+
+        # SAFE jq (NO CRASH)
+        IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+
+        if [[ -z "$IDS" ]]; then
+            IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
+                | sed 's/ /_/g' \
+                | tr '[:upper:]' '[:lower:]')
+        fi
+
+        # append safely
+        while IFS= read -r id; do
+            [[ -n "$id" ]] && ALL_TESTS+=("$id")
+        done <<< "$IDS"
+    done
+
+    # final validation
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        error "No test cases found in files"
+    fi
+
+    log " Total extracted test cases: ${#ALL_TESTS[@]}"
+
     TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
 
-    # Merge logic
-    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
+    PERSONA="$SUPPLIER"
 
+    # merge / create
+    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
         OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
 
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
-            --arg persona "WfmSupplier" \
+            --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
             --argjson old "$OLD_TESTS" \
             --argjson new "$TESTS_JSON" \
@@ -915,11 +937,13 @@ create_test_group() {
                 testCases: ($old + $new | unique)
             }' > "$GROUP_PATH/group.json"
 
+        success " Reading JSON files, extracting test case IDs, and adding them to the group.json"
+
     else
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
-            --arg persona "WfmSupplier" \
+            --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
             --argjson tests "$TESTS_JSON" \
             '{
@@ -929,22 +953,32 @@ create_test_group() {
                 description: $desc,
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
+
+        success " Created new group.json"
     fi
+
     info "Target Group Folder: $GROUP_PATH"
 }
 
 group_management_menu() {
+    # safety check
+    if [[ -z "${GROUP_DIR:-}" ]]; then
+        error "GROUP_DIR not set. Please select supplier first."
+    fi
+
     while true; do
         echo ""
-
-        echo "Enter a number to select an existing group from the list below, or press 0 to create a new group "
+        echo "Enter a number to select an existing group or press 0 to create a new group"
         echo ""
 
         echo "Available Groups"
         echo "--------------------------------------"
 
         mkdir -p "$GROUP_DIR"
-        mapfile -t groups < <(ls "$GROUP_DIR")
+
+        mapfile -t groups < <(
+            find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+        )
 
         if [ ${#groups[@]} -eq 0 ]; then
             echo "  No groups available"
@@ -958,25 +992,21 @@ group_management_menu() {
         echo "B → Back"
         echo "Q → Quit"
         echo ""
+
         read -p "Enter your choice: " choice
 
         # BACK
-        if [[ "${choice,,}" == "b" ]]; then
-            return
-        fi
+        [[ "${choice,,}" == "b" ]] && return
 
         # QUIT
-        if [[ "${choice,,}" == "q" ]]; then
-            info "Exiting..."
-            exit 0
-        fi
+        [[ "${choice,,}" == "q" ]] && { info "Exiting..."; exit 0; }
 
-        #  CREATE NEW (0)
+        # CREATE
         if [[ "$choice" == "0" ]]; then
             unset GROUP_NAME
             create_test_group
 
-        # EXISTING GROUP
+        # EXISTING
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
             index=$((choice-1))
 
@@ -990,11 +1020,10 @@ group_management_menu() {
             fi
 
         else
-            warn "Invalid input. Please enter a valid option."
+            warn "Invalid choice"
             continue
         fi
 
-        #  POST MENU (same as yours)
         echo ""
         echo "Options:"
         echo "  B → Back"
@@ -1010,6 +1039,7 @@ group_management_menu() {
         esac
     done
 }
+
 
 
 

@@ -1,8 +1,8 @@
 {
-  "name": "rishabh",
-  "version": "1.0.0",
-  "persona": "wfm-supplier",
-  "description": "1.0.0 version of conformance test",
+  "name": "silver",
+  "version": "1,0.0",
+  "persona": "device-supplier",
+  "description": "1.0.0.",
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
     "0510e725-a124-415f-a9b9-0d369e1d94e2",

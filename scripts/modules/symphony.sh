@@ -73,17 +73,20 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
     \${SYMPHONY_IMAGE_REF}
-ExecStartPost=/bin/bash -c '\
-sleep 8; \
-docker exec symphony-api-container sh -c "\
-if [ -f /certificates/harbor-ca.crt ]; then \
-  mkdir -p /usr/local/share/ca-certificates; \
-  cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt; \
-  update-ca-certificates; \
-  echo \"✅ Harbor CA trusted in Symphony container\"; \
-fi"; \
-sleep 2; \
-docker restart symphony-api-container'
+ExecStartPost=/bin/bash -c '
+for i in {1..30}; do
+    docker exec symphony-api-container test -f /certificates/harbor-ca.crt && break
+    sleep 2
+done
+
+docker exec symphony-api-container sh -c "
+mkdir -p /usr/local/share/ca-certificates &&
+cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt &&
+update-ca-certificates
+"
+
+docker restart symphony-api-container
+'
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure

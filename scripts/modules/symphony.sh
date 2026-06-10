@@ -39,12 +39,15 @@ copy_harbor_certificate() {
   return 1
 }
 
+
 create_symphony_api_systemd_service() {
   echo "🔧 Creating systemd service for Symphony API auto-start..."
 
   local symphony_dir="$HOME/symphony/api"
   local harbor_cert_ci="$HARBOR_CERT_CI"
   local harbor_cert_prod="$HARBOR_CERT_PRODUCTION"
+
+  create_harbor_ca_install_script
 
   sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
 [Unit]
@@ -73,20 +76,7 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
     \${SYMPHONY_IMAGE_REF}
-ExecStartPost=/bin/bash -c '
-for i in {1..30}; do
-    docker exec symphony-api-container test -f /certificates/harbor-ca.crt && break
-    sleep 2
-done
-
-docker exec symphony-api-container sh -c "
-mkdir -p /usr/local/share/ca-certificates &&
-cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt &&
-update-ca-certificates
-"
-
-docker restart symphony-api-container
-'
+ExecStartPost=${symphony_dir}/install-harbor-ca.sh
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure
@@ -225,4 +215,28 @@ start_symphony_api_container() {
       docker logs symphony-api-container || true
       return 1
   fi
+}
+
+
+create_harbor_ca_install_script() {
+  cat > "$HOME/symphony/api/install-harbor-ca.sh" <<'EOF'
+#!/bin/bash
+
+echo "Installing Harbor CA into Symphony container..."
+
+for i in $(seq 1 30); do
+    docker exec symphony-api-container test -f /certificates/harbor-ca.crt >/dev/null 2>&1 && break
+    sleep 2
+done
+
+docker exec symphony-api-container sh -c '
+mkdir -p /usr/local/share/ca-certificates &&
+cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt &&
+update-ca-certificates
+'
+
+echo "Harbor CA installation completed"
+EOF
+
+  chmod +x "$HOME/symphony/api/install-harbor-ca.sh"
 }

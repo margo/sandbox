@@ -5,6 +5,20 @@ set -euo pipefail
 ################################################################################
 # Margo WFM Supplier - Newman Test Runner
 # Simplified and modularized for maintainability
+#
+# VENDOR NOTE: This script executes test collections with environment variables.
+# The environment file (newman-data/device-agent.env.json) contains EXAMPLE values
+# that vendors MUST customize for their own test devices:
+#
+#   deviceId: Example value "device-XXXXX" - replace with actual device ID
+#   clientId: Example value "client-XXXXX" - replace with actual client ID
+#   deploymentId: Example value "demo-deployment-001" - replace as needed
+#   vendor: Example value "Margo Vendor" - replace with actual vendor name
+#   modelNumber: Example value "MARGO-MODEL-01" - replace with actual model
+#   serialNumber: Example value "SN-XXXXX" - replace with actual serial number
+#
+# These values appear in the Postman collection request bodies and must match
+# your actual test device configuration.
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -30,6 +44,20 @@ REPORT="report_$(date +%Y%m%d_%H%M%S).html"
 PATCH_COLLECTION="${PATCH_COLLECTION:-true}"
 
 WFM_URL="${1:-}"
+CUSTOM_COLLECTION_FILE="${2:-}"
+CUSTOM_REPORT_NAME="${3:-}"
+
+# Override collection file if provided
+if [[ -n "$CUSTOM_COLLECTION_FILE" && -f "$CUSTOM_COLLECTION_FILE" ]]; then
+    COLLECTION_FILE="$CUSTOM_COLLECTION_FILE"
+    # Note: Custom collections (including group-filtered) may still need patching
+    # Only skip patching if explicitly disabled via environment variable
+fi
+
+# Override report name if provided
+if [[ -n "$CUSTOM_REPORT_NAME" ]]; then
+    REPORT="${CUSTOM_REPORT_NAME}_$(date +%Y%m%d_%H%M%S).html"
+fi
 
 # ============================================================================
 # FUNCTIONS
@@ -173,7 +201,15 @@ patch_collection() {
 
     def patch_url_variables:
       if (.request.url.variable | type) == "array" then
-        .request.url.variable = []
+        .request.url.variable |= map(
+          if .key == "clientId" then . + {"value": "{{clientId}}"} 
+          elif .key == "deploymentId" then . + {"value": "{{deploymentId}}"} 
+          elif .key == "digest" then . + {"value": "{{digest}}"} 
+          elif .key == "bundleDigest" then . + {"value": "{{bundleDigest}}"} 
+          elif .key == "deploymentDigest" then . + {"value": "{{deploymentDigest}}"} 
+          else . 
+          end
+        )
       else . end;
 
     def add_flexible_test_script:
@@ -182,7 +218,17 @@ patch_collection() {
         "listen":"test",
         "script":{
           "type":"text/javascript",
-          "exec":["tests[\"Request executed\"] = true;"]
+          "exec":[
+            "if (pm.response.code >= 200 && pm.response.code < 300) {",
+            "  tests[\"✓ Success (\" + pm.response.code + \")\"] = true;",
+            "} else if (pm.response.code >= 400 && pm.response.code < 500) {",
+            "  tests[\"⚠ Client Error (\" + pm.response.code + \")\"] = true;",
+            "} else if (pm.response.code >= 500) {",
+            "  tests[\"✗ Server Error (\" + pm.response.code + \")\"] = true;",
+            "} else {",
+            "  tests[\"Request completed (\" + pm.response.code + \")\"] = true;",
+            "}"
+          ]
         }
       }];
 

@@ -5,6 +5,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFORMANCE_DIR="$SCRIPT_DIR"
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
+GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
 
 TEMP_FILES=()
 trap 'for file in "${TEMP_FILES[@]:-}"; do [[ -n "$file" ]] && rm -f "$file"; done' EXIT
@@ -354,8 +355,7 @@ interactive_wfm() {
                 return
                 ;;
             2|functional|margo|template)
-                value="$(prompt_required "Postman Collection JSON Path")"
-                generate_wfm_functional_tests "$value"
+                group_management_menu
                 return
                 ;;
             b|back) return ;;
@@ -431,6 +431,267 @@ handle_device_command() {
             die "Unknown device option: $arg"
             ;;
     esac
+}
+
+################################################################################
+# Test Group Management Functions
+################################################################################
+
+create_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    #Group name
+    if [[ -z "${GROUP_NAME:-}" ]]; then
+        echo ""
+        read -p "Enter group name: " GROUP_NAME
+        [[ -z "$GROUP_NAME" ]] && die "Group name cannot be empty"
+    fi
+
+    # Version
+    echo ""
+    read -p "Enter version of Margo Specification: " VERSION
+    [[ -z "$VERSION" ]] && VERSION="1.0.0"
+
+    # Description
+    echo ""
+    read -p "Enter a short description for group: " DESCRIPTION
+    [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
+
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
+
+    #Append mode
+    APPEND_MODE=false
+    if [[ -d "$GROUP_PATH" ]]; then
+        echo ""
+        echo "Using existing group: $GROUP_NAME"
+        APPEND_MODE=true
+    else
+        mkdir -p "$GROUP_PATH"
+    fi
+
+    #Folder path instead of single file
+    echo ""
+    read -p "Enter folder path containing JSON files: " INPUT_PATH
+
+    if [[ ! -d "$INPUT_PATH" ]]; then
+        die "Provided path is not a folder!"
+    fi
+
+    log "Reading all JSON files from folder..."
+
+    ALL_TESTS=()
+
+    #Loop all JSON files
+    for file in "$INPUT_PATH"/*.json; do
+        [[ -e "$file" ]] || continue
+
+        log "Processing: $(basename "$file")"
+
+        #Copy file to group folder
+        cp "$file" "$GROUP_PATH/"
+
+        #Extract IDs
+        mapfile -t IDS < <(jq -r '.. | .id? // empty' "$file")
+
+        #fallback to names
+        if [[ ${#IDS[@]} -eq 0 ]]; then
+            mapfile -t IDS < <(
+                jq -r '.. | .name? // empty' "$file" \
+                | sed 's/ /_/g' \
+                | tr '[:upper:]' '[:lower:]'
+            )
+        fi
+
+        ALL_TESTS+=("${IDS[@]}")
+    done
+
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        die "No test cases found in folder!"
+    fi
+
+    log "Total extracted test cases: ${#ALL_TESTS[@]}"
+    log "Reading JSON files, extracting test case IDs, and adding them to the group.json"
+
+    # Convert to JSON
+    TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
+
+    # Merge logic
+    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
+
+        OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
+
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "WfmSupplier" \
+            --arg desc "$DESCRIPTION" \
+            --argjson old "$OLD_TESTS" \
+            --argjson new "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: ($old + $new | unique)
+            }' > "$GROUP_PATH/group.json"
+
+    else
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "WfmSupplier" \
+            --arg desc "$DESCRIPTION" \
+            --argjson tests "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: $tests
+            }' > "$GROUP_PATH/group.json"
+    fi
+    info "Target Group Folder: $GROUP_PATH"
+}
+
+group_management_menu() {
+    while true; do
+        echo ""
+
+        echo "Enter a number to select an existing group from the list below, or press 0 to create a new group "
+        echo ""
+
+        echo "Available Groups"
+        echo "--------------------------------------"
+
+        mkdir -p "$GROUP_DIR"
+        mapfile -t groups < <(ls "$GROUP_DIR")
+
+        if [ ${#groups[@]} -eq 0 ]; then
+            echo "  No groups available"
+        else
+            for i in "${!groups[@]}"; do
+                echo "  $((i+1))) ${groups[i]}"
+            done
+        fi
+
+        echo ""
+        echo "B → Back"
+        echo "Q → Quit"
+        echo ""
+        read -p "Enter your choice: " choice
+
+        # BACK
+        if [[ "${choice,,}" == "b" ]]; then
+            return
+        fi
+
+        # QUIT
+        if [[ "${choice,,}" == "q" ]]; then
+            info "Exiting..."
+            exit 0
+        fi
+
+        #  CREATE NEW (0)
+        if [[ "$choice" == "0" ]]; then
+            unset GROUP_NAME
+            create_test_group
+
+        # EXISTING GROUP
+        elif [[ "$choice" =~ ^[0-9]+$ ]]; then
+            index=$((choice-1))
+
+            if [[ -n "${groups[index]}" ]]; then
+                GROUP_NAME="${groups[index]}"
+                info "Selected existing group: $GROUP_NAME"
+                create_test_group
+            else
+                warn "Invalid group number"
+                continue
+            fi
+
+        else
+            warn "Invalid input. Please enter a valid option."
+            continue
+        fi
+
+        #  POST MENU (same as yours)
+        echo ""
+        echo "Options:"
+        echo "  B → Back"
+        echo "  Q → Quit"
+        echo ""
+
+        read -p "Select option: " post_choice
+
+        case "${post_choice,,}" in
+            b) continue ;;
+            q) info "Exiting..."; exit 0 ;;
+            *) warn "Invalid option" ;;
+        esac
+    done
+}
+
+list_test_groups() {
+    mkdir -p "$GROUP_DIR"
+
+    if ls -d "$GROUP_DIR"/*/ > /dev/null 2>&1; then
+        for dir in "$GROUP_DIR"/*/; do
+            echo " - $(basename "$dir")"
+        done
+    else
+        echo "No groups found"
+    fi
+}
+
+delete_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    echo ""
+    echo "🗑️  Select group to delete:"
+    echo "--------------------------"
+
+    # FIXED: use find instead of ls
+    mapfile -t GROUPS < <(find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d)
+
+    if [[ ${#GROUPS[@]} -eq 0 ]]; then
+        warn "No groups found"
+        return
+    fi
+
+    # Show list
+    for i in "${!GROUPS[@]}"; do
+        echo "$((i+1)). $(basename "${GROUPS[$i]}")"
+    done
+
+    echo ""
+    read -p "Enter number to delete (or B to go back): " choice
+
+    if [[ "${choice,,}" == "b" ]]; then
+        return
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        die "Invalid input!"
+    fi
+
+    idx=$((choice-1))
+
+    if [[ $idx -lt 0 || $idx -ge ${#GROUPS[@]} ]]; then
+        die "Invalid selection!"
+    fi
+
+    GROUP_NAME=$(basename "${GROUPS[$idx]}")
+
+    read -p "Are you sure you want to delete '$GROUP_NAME'? (y/n): " confirm
+
+    if [[ "${confirm,,}" != "y" ]]; then
+        info "Delete cancelled"
+        return
+    fi
+
+    rm -rf "${GROUPS[$idx]}"
+
+    success " Group '$GROUP_NAME' deleted successfully"
 }
 
 main() {

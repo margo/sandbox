@@ -12,6 +12,14 @@
 #        to select the suitable persona and run a set of conformance test-cases
 #        to get a signed report of conformance"
 #
+# VENDOR QUICKSTART:
+#   1. Customize environment: wfm-supplier/newman-data/device-agent.env.json
+#      - Update deviceId, clientId with your actual device identifiers
+#      - Update vendor, modelNumber, serialNumber in JSON payloads
+#   2. Customize collection: Data-Generator/wfm-supplier/postman_collection.json
+#      - Or use group-based collections for curated test subsets
+#   3. Run tests: ./run-tests.sh and select persona, group, and WFM URL
+#
 ################################################################################
 
 set -euo pipefail
@@ -24,6 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFORMANCE_DIR="$SCRIPT_DIR"  # run-tests.sh is already IN the conformance directory
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
 RUNNER_DIR="$CONFORMANCE_DIR/Runner"  # Output directory for test results
+WFM_GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
 
 # Create output directories
 RUNNER_WFM="$RUNNER_DIR/wfm-supplier"
@@ -49,6 +58,165 @@ success() {
 error() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] ❌ $*" >&2
     exit 1
+}
+
+warn() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ⚠️  $*" >&2
+}
+
+################################################################################
+# WFM Group Selection Functions
+################################################################################
+
+select_wfm_group() {
+    local group_dir="$WFM_GROUP_DIR"
+    
+    if [[ ! -d "$group_dir" ]]; then
+        warn "No groups directory found at: $group_dir" >&2
+        return 1
+    fi
+    
+    # Print to stderr so it displays to user (not captured by $() command substitution)
+    {
+        echo ""
+        echo "📋 Available WFM Test Groups:"
+        echo "================================================"
+    } >&2
+    
+    # Collect available groups
+    local groups=()
+    local group_metadata=()
+    
+    for group_path in "$group_dir"/*; do
+        if [[ -d "$group_path" && -f "$group_path/group.json" ]]; then
+            local group_name=$(basename "$group_path")
+            local group_json="$group_path/group.json"
+            
+            # Extract group info from group.json
+            local version=$(jq -r '.version // "unknown"' "$group_json" 2>/dev/null || echo "unknown")
+            local description=$(jq -r '.description // "No description"' "$group_json" 2>/dev/null || echo "No description")
+            local test_count=$(jq '.testCases | length' "$group_json" 2>/dev/null || echo "0")
+            
+            groups+=("$group_path")
+            group_metadata+=("$group_name|$version|$description|$test_count")
+        fi
+    done
+    
+    if [[ ${#groups[@]} -eq 0 ]]; then
+        echo "❌ No test groups found. Please run conformance.sh to create groups." >&2
+        return 1
+    fi
+    
+    # Display groups to stderr
+    {
+        for i in "${!groups[@]}"; do
+            local metadata="${group_metadata[$i]}"
+            IFS='|' read -r name version desc count <<< "$metadata"
+            printf "  %d) %-15s (v%s) - %d tests\n" "$((i+1))" "$name" "$version" "$count"
+        done
+        echo ""
+    } >&2
+    
+    # Prompt for selection (read -p writes prompt to stderr by default)
+    read -p "Select group (1-${#groups[@]}): " group_choice < /dev/tty
+    
+    if ! [[ "$group_choice" =~ ^[0-9]+$ ]] || [[ $group_choice -lt 1 || $group_choice -gt ${#groups[@]} ]]; then
+        echo "❌ Invalid selection. Please enter a number between 1 and ${#groups[@]}" >&2
+        return 1
+    fi
+    
+    local selected_index=$((group_choice - 1))
+    local selected_group="${groups[$selected_index]}"
+    
+    # Return group path to stdout (this will be captured by $())
+    echo "$selected_group"
+}
+
+filter_postman_collection() {
+    local group_json="$1"
+    local postman_collection="$2"
+    local output_collection="$3"
+    
+    if [[ ! -f "$group_json" ]]; then
+        error "Group JSON file not found: $group_json"
+    fi
+    
+    if [[ ! -f "$postman_collection" ]]; then
+        error "Postman collection not found: $postman_collection"
+    fi
+    
+    log "📋 Filtering Postman collection for selected group..."
+    log "   Input collection: $(basename "$postman_collection")"
+    
+    # Extract test case IDs from group.json
+    local test_ids
+    test_ids=$(jq -r '.testCases[]' "$group_json" 2>/dev/null)
+    
+    if [[ -z "$test_ids" ]]; then
+        error "No test cases found in group.json"
+    fi
+    
+    local test_count=$(echo "$test_ids" | wc -l)
+    log "   Test cases to execute: $test_count"
+    
+    log "   Building filtered collection..."
+    
+    # Create a temporary jq script that filters items recursively
+    local temp_jq_file="/tmp/filter_collection_$$.jq"
+    
+    cat > "$temp_jq_file" << 'JQEOF'
+def matches_test_id:
+  (.id as $id | $test_ids | map(select(. == $id)) | length > 0) or
+  (.name as $name | $test_ids | map(select(. == $name)) | length > 0) or
+  ((.request.name // "") as $req_name | $test_ids | map(select(. == $req_name)) | length > 0);
+
+def filter_items:
+  if type == "array" then
+    map(
+      if .item then
+        .item |= map(
+          if .item then
+            . as $folder | (.item |= map(select(matches_test_id)))
+            | if (.item | length) > 0 then . else empty end
+          else
+            select(matches_test_id)
+          end
+        )
+        | if (.item | length) > 0 then . else empty end
+      else
+        select(matches_test_id)
+      end
+    )
+  else
+    .
+  end;
+
+.item |= filter_items
+JQEOF
+    
+    # Create comma-separated test IDs array for jq
+    local test_ids_json
+    test_ids_json=$(echo "$test_ids" | jq -Rs 'split("\n") | map(select(length > 0))')
+    
+    if jq --argjson test_ids "$test_ids_json" -f "$temp_jq_file" "$postman_collection" > "$output_collection" 2>&1; then
+        success "Postman collection filtered successfully"
+        log "   Output collection: $(basename "$output_collection")"
+        rm -f "$temp_jq_file"
+        return 0
+    else
+        log "⚠️  JQ filtering encountered an issue. Attempting to copy collection as-is..."
+        # Fallback: copy collection without filtering
+        if cp "$postman_collection" "$output_collection"; then
+            success "Postman collection copied (filtering skipped due to error)"
+            log "   Output collection: $(basename "$output_collection")"
+            rm -f "$temp_jq_file"
+            return 0
+        else
+            error "Failed to create filtered collection"
+            rm -f "$temp_jq_file"
+            return 1
+        fi
+    fi
 }
 
 ################################################################################
@@ -82,10 +250,10 @@ error() {
 # }
 
 ################################################################################
-# WFM Supplier Test Execution
+# WFM Supplier Test Execution (with Group Support)
 ################################################################################
 
-execute_wfm_tests() {
+execute_wfm_tests_with_url() {
     local wfm_url="${1:-}"
     
     # If WFM URL not provided, prompt user
@@ -111,6 +279,102 @@ execute_wfm_tests() {
         success "WFM Tests Completed"
     else
         error "WFM test execution failed"
+    fi
+}
+
+execute_wfm_tests() {
+    local wfm_url="${1:-}"
+    local group_path="${2:-}"
+    
+    # If group path is provided, run with group filtering
+    if [[ -n "$group_path" && -d "$group_path" ]]; then
+        execute_wfm_tests_with_group "$wfm_url" "$group_path"
+        return $?
+    fi
+    
+    # Otherwise run without group filtering (legacy behavior)
+    execute_wfm_tests_with_url "$wfm_url"
+}
+
+execute_wfm_tests_with_group() {
+    local wfm_url="${1:-}"
+    local group_path="${2:-}"
+    
+    if [[ ! -d "$group_path" ]]; then
+        error "Group path not found: $group_path"
+    fi
+    
+    local group_json="$group_path/group.json"
+    local group_name=$(basename "$group_path")
+    
+    if [[ ! -f "$group_json" ]]; then
+        error "group.json not found in: $group_path"
+    fi
+    
+    # If WFM URL not provided, prompt user
+    if [[ -z "$wfm_url" ]]; then
+        echo ""
+        read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+        wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+    fi
+    
+    log "🚀 Starting WFM Supplier Test Execution (Group Mode)"
+    log "   Group: $group_name"
+    log "   WFM Server: $wfm_url"
+    
+    # Get group metadata
+    local group_version=$(jq -r '.version // "unknown"' "$group_json")
+    local group_desc=$(jq -r '.description // ""' "$group_json")
+    local test_count=$(jq '.testCases | length' "$group_json")
+    
+    info "Group Details:"
+    info "  Name: $group_name"
+    info "  Version: $group_version"
+    info "  Description: $group_desc"
+    info "  Test cases: $test_count"
+    
+    # Use the group's pre-filtered Postman collection
+    local group_collection="$group_path/postman_collection.json"
+    
+    if [[ ! -f "$group_collection" ]]; then
+        error "Group Postman collection not found: $group_collection"
+    fi
+    
+    log "📋 Using group-specific Postman collection"
+    log "   Collection path: $(basename "$group_path")/postman_collection.json"
+    log "   Collection items: $(jq '.item | length' "$group_collection")"
+    
+    # Run Newman with the group's collection directly
+    log "▶️  Running test cases from group: $group_name"
+    echo ""
+    
+    # Call 2-run_newman.sh with group collection and group name
+    local wfm_supplier_dir="$CONFORMANCE_DIR/wfm-supplier"
+    
+    if [[ ! -d "$wfm_supplier_dir" ]]; then
+        error "WFM Supplier directory not found: $wfm_supplier_dir"
+    fi
+    
+    cd "$wfm_supplier_dir"
+    
+    # Run Newman with the group-specific collection
+    local report_prefix="wfm-test-report-${group_name}"
+    
+    log "📊 Generating report: $report_prefix"
+    
+    if bash 2-run_newman.sh "$wfm_url" "$group_collection" "$report_prefix"; then
+        success "WFM Tests Completed for group: $group_name"
+        
+        # Find and copy the generated report
+        local latest_report=$(ls -1rt "report_${report_prefix}"*.html 2>/dev/null | tail -1 || echo "")
+        if [[ -n "$latest_report" ]]; then
+            cp "$latest_report" "$RUNNER_WFM/"
+            success "Report: $RUNNER_WFM/$(basename "$latest_report")"
+        else
+            info "Check $(pwd) for report: $report_prefix*.html"
+        fi
+    else
+        error "WFM test execution failed for group: $group_name"
     fi
 }
 
@@ -391,8 +655,9 @@ PERSONAS:
   WFM Supplier:
     • Tests Workload Fleet Manager compliance
     • Runs API contract tests from Postman collection
+    • Supports test grouping for targeted testing
     • Uses Newman test executor
-    • Generates HTML report with test results
+    • Generates HTML report with test results (group-specific if group is selected)
 
   Device Supplier:
     • Tests device conformance with Margo API
@@ -405,17 +670,18 @@ WORKFLOW:
   1. Run conformance.sh (CLI #1) to prepare test cases
      bash conformance.sh
      → Select persona and test type
-     → Test cases prepared in Data-Generator/
+     → Select or create test groups
+     → Test cases prepared and grouped in Data-Generator/
 
   2. Run run-tests.sh (CLI #2) to execute tests
      bash run-tests.sh
      → Select persona
-     → WFM Supplier: Provide component information (optional)
+     → WFM Supplier: Select test group, provide component information
      → Device Supplier: Tests run automatically
-     → Reports generated in Runner/
+     → Reports generated in Runner/ (grouped by test group)
 
   3. Review conformance report
-     • WFM report: Runner/wfm-supplier/
+     • WFM report: Runner/wfm-supplier/ (organized by group)
      • Device report: Runner/device-supplier/
 
 REQUIREMENTS:
@@ -423,12 +689,46 @@ REQUIREMENTS:
   WFM Supplier:
     • npm (for Newman)
     • Install: npm install -g newman
-    • Test data: Data-Generator/wfm-supplier/postman_collection.json
+    • Test data: Data-Generator/wfm-supplier/postman_collection_functional.json
+    • Test groups: Data-Generator/wfm-supplier/groups/*/group.json
 
   Device Supplier:
     • Go 1.13+ (for test runner)
     • Test data: Data-Generator/device-supplier/test-scenarios.json
     • Mock server: device-supplier/run_tests.go
+
+TEST GROUPS (WFM Supplier):
+
+  Groups allow you to organize and run targeted test suites:
+  
+  • Create groups in CLI #1 (conformance.sh):
+    - Select WFM Supplier → Functional Tests
+    - Select/Create group with specific test cases
+    - Tests are extracted from JSON files and stored in group.json
+  
+  • Run specific group in CLI #2 (run-tests.sh):
+    - Select WFM Supplier
+    - Choose which group to execute
+    - Only tests in that group's group.json will run
+    - Report will include group name and metadata
+  
+  Group Structure:
+    groups/
+    ├── diamond/
+    │   ├── group.json (metadata + test case IDs)
+    │   ├── postman_collection_filtered.json (auto-generated)
+    │   └── ... (supporting files)
+    ├── silver/
+    └── rishabh/
+  
+  Example group.json:
+    {
+      "name": "diamond",
+      "version": "1.0.4",
+      "persona": "WfmSupplier",
+      "description": "Diamond tier conformance tests",
+      "testCases": ["id1", "id2", ...]
+    }
 
 EXAMPLE WORKFLOW:
 
@@ -541,12 +841,24 @@ interactive_mode() {
                 # Show certificate setup instructions
                 show_wfm_cert_info
                 
-                # Prompt for WFM URL
+                # Select test group
                 echo ""
-                read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
-                wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
-                
-                execute_wfm_tests "$wfm_url"
+                info "Selecting test group..."
+                local selected_group_path
+                if selected_group_path=$(select_wfm_group); then
+                    local group_name=$(basename "$selected_group_path")
+                    success "Selected group: $group_name"
+                    
+                    # Prompt for WFM URL
+                    echo ""
+                    read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+                    wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+                    
+                    # Execute tests with group
+                    execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+                else
+                    error "Failed to select group"
+                fi
                 ;;
             2|device)
                 echo ""

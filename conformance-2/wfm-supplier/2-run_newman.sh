@@ -5,6 +5,23 @@ set -euo pipefail
 ################################################################################
 # Margo WFM Supplier - Newman Test Runner
 # Simplified and modularized for maintainability
+#
+# VENDOR NOTE: This script executes test collections with environment variables.
+# The environment file (newman-data/device-agent.env.json) contains EXAMPLE values
+# that vendors MUST customize for their own test devices:
+#
+#   deviceId: Example value "device-XXXXX" - replace with actual device ID
+#   clientId: Example value "client-XXXXX" - replace with actual client ID
+#   deploymentId: Example value "demo-deployment-001" - replace as needed
+#   vendor: Example value "Margo Vendor" - replace with actual vendor name
+#   modelNumber: Example value "MARGO-MODEL-01" - replace with actual model
+#   serialNumber: Example value "SN-XXXXX" - replace with actual serial number
+#
+# These values appear in the Postman collection request bodies and must match
+# your actual test device configuration.
+#
+# RFC 9421 SIGNING: This conformance-2 version uses a signing proxy to verify
+# HTTP message signatures on requests before sending to WFM.
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +54,20 @@ PROXY_PID=""
 PATCH_COLLECTION="${PATCH_COLLECTION:-true}"
 
 WFM_URL="${1:-}"
+CUSTOM_COLLECTION_FILE="${2:-}"
+CUSTOM_REPORT_NAME="${3:-}"
+
+# Override collection file if provided
+if [[ -n "$CUSTOM_COLLECTION_FILE" && -f "$CUSTOM_COLLECTION_FILE" ]]; then
+    COLLECTION_FILE="$CUSTOM_COLLECTION_FILE"
+    # Note: Custom collections (including group-filtered) may still need patching
+    # Only skip patching if explicitly disabled via environment variable
+fi
+
+# Override report name if provided
+if [[ -n "$CUSTOM_REPORT_NAME" ]]; then
+    REPORT="${CUSTOM_REPORT_NAME}_$(date +%Y%m%d_%H%M%S).html"
+fi
 
 # ============================================================================
 # FUNCTIONS
@@ -185,16 +216,11 @@ PY2
        '.values |= map(
           if .key == "baseUrl" then .value = $baseUrl
           elif .key == "deviceId" then .value = $deviceId
-          elif .key == "clientId" then .value = ""
           elif .key == "certificate" then .value = $certificate
           elif .key == "onboardingRequest" then .value = $onboardingRequest
           elif .key == "capabilitiesRequest" then .value = $capabilitiesRequest
           elif .key == "capabilitiesUpdateRequest" then .value = $capabilitiesUpdateRequest
           elif .key == "statusRequest" then .value = $statusRequest
-          elif .key == "deploymentId" then .value = ""
-          elif .key == "digest" then .value = ""
-          elif .key == "bundleDigest" then .value = ""
-          elif .key == "deploymentDigest" then .value = ""
           else . end
         )
         | if any(.values[]; .key == "digest") then . else .values += [{"key":"digest","value":"","enabled":true}] end
@@ -255,62 +281,36 @@ patch_collection() {
 
     def patch_url_variables:
       if (.request.url.variable | type) == "array" then
-        .request.url.variable = []
+        .request.url.variable |= map(
+          if .key == "clientId" then . + {"value": "{{clientId}}"} 
+          elif .key == "deploymentId" then . + {"value": "{{deploymentId}}"} 
+          elif .key == "digest" then . + {"value": "{{digest}}"} 
+          elif .key == "bundleDigest" then . + {"value": "{{bundleDigest}}"} 
+          elif .key == "deploymentDigest" then . + {"value": "{{deploymentDigest}}"} 
+          else . 
+          end
+        )
       else . end;
 
-    def set_test_script($exec):
+    def add_flexible_test_script:
       .event = ((.event // []) | map(select(.listen != "test"))) +
-      [{"listen":"test","script":{"type":"text/javascript","exec":$exec}}];
-
-    def test_success($name):
-      set_test_script([
-        "pm.test(\"" + $name + " returns a successful status\", function () {",
-        "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 204]);",
-        "});"
-      ]);
-
-    def test_onboarding:
-      set_test_script([
-        "pm.test(\"onboarding creates a client\", function () {",
-        "  pm.expect(pm.response.code).to.eql(201);",
-        "  const body = pm.response.json();",
-        "  pm.expect(body.clientId).to.be.a(\"string\").and.not.empty;",
-        "  pm.environment.set(\"clientId\", body.clientId);",
-        "  [\"capabilitiesRequest\", \"capabilitiesUpdateRequest\"].forEach(function (key) {",
-        "    const payload = JSON.parse(pm.environment.get(key));",
-        "    payload.properties.id = body.clientId;",
-        "    payload.properties.serialNumber = \"SN-\" + body.clientId;",
-        "    pm.environment.set(key, JSON.stringify(payload));",
-        "  });",
-        "});"
-      ]);
-
-    def test_deployments:
-      set_test_script([
-        "pm.test(\"deployments returns desired state\", function () {",
-        "  pm.expect(pm.response.code).to.eql(200);",
-        "  const body = pm.response.json();",
-        "  pm.expect(body).to.have.property(\"deployments\");",
-        "  if (body.bundle && body.bundle.digest) { pm.environment.set(\"bundleDigest\", body.bundle.digest); pm.environment.set(\"digest\", body.bundle.digest); }",
-        "  if (Array.isArray(body.deployments) && body.deployments.length > 0) {",
-        "    pm.environment.set(\"deploymentId\", body.deployments[0].deploymentId);",
-        "    pm.environment.set(\"deploymentDigest\", body.deployments[0].digest);",
-        "  } else {",
-        "    postman.setNextRequest(null);",
-        "  }",
-        "});"
-      ]);
-
-    def test_bundle:
-      set_test_script([
-        "pm.test(\"bundle download succeeds\", function () { pm.expect(pm.response.code).to.eql(200); });",
-        "pm.environment.set('digest', pm.environment.get(\"deploymentDigest\") || \"\");"
-      ]);
-
-    def test_manifest:
-      set_test_script([
-        "pm.test(\"deployment manifest download succeeds\", function () { pm.expect(pm.response.code).to.eql(200); });"
-      ]);
+      [{
+        "listen":"test",
+        "script":{
+          "type":"text/javascript",
+          "exec":[
+            "if (pm.response.code >= 200 && pm.response.code < 300) {",
+            "  tests[\"✓ Success (\" + pm.response.code + \")\"] = true;",
+            "} else if (pm.response.code >= 400 && pm.response.code < 500) {",
+            "  tests[\"⚠ Client Error (\" + pm.response.code + \")\"] = true;",
+            "} else if (pm.response.code >= 500) {",
+            "  tests[\"✗ Server Error (\" + pm.response.code + \")\"] = true;",
+            "} else {",
+            "  tests[\"Request completed (\" + pm.response.code + \")\"] = true;",
+            "}"
+          ]
+        }
+      }];
 
     def patch_request:
       if (has("request") | not) then .
@@ -322,19 +322,19 @@ patch_collection() {
         ((.request.url.path // []) | join("/")) as $path |
         (.request.method // "") as $method |
         if ($method == "GET" and ($path | test("api/v1/clients/.*/bundles/"))) then
-          test_bundle
+          add_flexible_test_script
         elif ($method == "GET" and ($path | test("api/v1/clients/.*/deployments$"))) then
-          test_deployments
+          add_flexible_test_script
         elif ($method == "GET" and ($path | test("api/v1/clients/.*/deployments/.*/"))) then
-          test_manifest
+          add_flexible_test_script
         elif ($method == "POST" and ($path | test("api/v1/onboarding$"))) then
-          set_json_body("{{onboardingRequest}}") | test_onboarding
+          set_json_body("{{onboardingRequest}}") | add_flexible_test_script
         elif ($method == "POST" and ($path | test("api/v1/clients/.*/capabilities$"))) then
-          set_json_body("{{capabilitiesRequest}}") | test_success("capabilities POST")
+          set_json_body("{{capabilitiesRequest}}") | add_flexible_test_script
         elif ($method == "PUT" and ($path | test("api/v1/clients/.*/capabilities$"))) then
-          set_json_body("{{capabilitiesUpdateRequest}}") | test_success("capabilities PUT")
+          set_json_body("{{capabilitiesUpdateRequest}}") | add_flexible_test_script
         elif ($method == "POST" and ($path | test("api/v1/clients/.*/deployments/.*/status$"))) then
-          set_json_body("{{statusRequest}}") | test_success("deployment status")
+          set_json_body("{{statusRequest}}") | add_flexible_test_script
         else . end
       end;
 

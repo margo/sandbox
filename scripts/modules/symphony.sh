@@ -9,11 +9,12 @@ HARBOR_CERT_PRODUCTION="/data/cert/harbor.crt"
 HARBOR_CERT_DEST="$HOME/symphony/api/certificates/harbor-ca.crt"
 
 build_maestro_cli() {
-  CLI_DIR="$HOME/symphony/cli"
+  local CLI_DIR="$HOME/symphony/cli"
   if [ -d "$CLI_DIR" ]; then
     cd "$CLI_DIR"
-    go mod tidy
-    go build -o maestro
+    go mod tidy || return 1
+    go build -o maestro || return 1
+    echo "✅ Maestro CLI built successfully"
   fi
 }
 
@@ -58,7 +59,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-RemainAfterExit=yes
 WorkingDirectory=${symphony_dir}
 Environment="SYMPHONY_IMAGE_REF=ghcr.io/margo/margo-symphony-api:latest"
 ExecStartPre=/bin/sleep 15
@@ -72,11 +72,9 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -p 8082:8082 \
     -e LOG_LEVEL=Debug \
     -e CONFIG=symphony-api-margo.json \
-    -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}:/configs \
     \${SYMPHONY_IMAGE_REF}
-ExecStartPost=${symphony_dir}/install-harbor-ca.sh
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure
@@ -141,7 +139,7 @@ start_symphony_api_container() {
   fi
 
   # Only check/pull from GHCR if not using a local image
-  if [[ "${SYMPHONY_IMAGE_REF}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
+  if [[ "${SYMPHONY_IMAGE_REF:-}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
     echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
     if docker manifest inspect "${SYMPHONY_IMAGE_REF}" >/dev/null 2>&1; then
       echo "Pulling image: ${SYMPHONY_IMAGE_REF}"
@@ -165,9 +163,6 @@ start_symphony_api_container() {
       -v $HOME/symphony/api:/configs \
       -e CONFIG=symphony-api-margo.json"
 
-  # Add NODE_EXTRA_CA_CERTS for CA certificate handling
-  DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
-    -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
 
   # Add CI-specific environment and host mappings
   if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
@@ -206,7 +201,7 @@ start_symphony_api_container() {
     return 1
   fi
 
-  if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
+  if is_symphony_running; then
       echo "✅ Symphony API container started successfully"
       echo "📡 Container is running on port 8082 (host network)"
       create_symphony_api_systemd_service
@@ -215,6 +210,13 @@ start_symphony_api_container() {
       docker logs symphony-api-container || true
       return 1
   fi
+}
+
+is_symphony_running() {
+    docker ps \
+        --filter name=symphony-api-container \
+        --format '{{.Names}}' \
+        | grep -q '^symphony-api-container$'
 }
 
 

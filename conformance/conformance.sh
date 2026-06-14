@@ -241,9 +241,8 @@ show_device_test_type_menu() {
 
 show_device_supplier_options_menu() {
     echo ""
-    echo "Device Supplier Test Cases — Choose Source:"
-    echo "1. Use existing test-scenarios.json (from device-supplier/device-scenarios/)"
-    echo "2. Provide your own test scenarios (custom format/template)"
+    echo "Device Supplier Test Cases — Group-based Selection:"
+    echo "1. Select from available groups"
     echo ""
     echo "B) Back"
     echo "Q) Quit"
@@ -624,6 +623,282 @@ EOF
 }
 
 ################################################################################
+# Group Management Functions
+################################################################################
+
+set_supplier_context() {
+    SUPPLIER="$1"
+    GROUP_DIR="$DATA_GEN_DIR/$SUPPLIER/groups"
+}
+
+create_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    # Group name
+    if [[ -z "${GROUP_NAME:-}" ]]; then
+        echo ""
+        read -p "Enter group name: " GROUP_NAME
+        [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
+    fi
+
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
+
+    # Version
+    echo ""
+    read -p "Enter version of Margo Specification: " VERSION
+    [[ -z "$VERSION" ]] && VERSION="1.0.0"
+
+    # Description
+    echo ""
+    read -p "Enter a short description for group: " DESCRIPTION
+    [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
+
+    # Append mode
+    APPEND_MODE=false
+    if [[ -d "$GROUP_PATH" ]]; then
+        info "Using existing group: $GROUP_NAME"
+        APPEND_MODE=true
+    else
+        mkdir -p "$GROUP_PATH"
+    fi
+
+    # Input folder
+    echo ""
+    read -p "Enter folder path containing JSON files: " INPUT_PATH
+    [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
+
+    log " Reading all JSON files from folder..."
+
+    ALL_TESTS=()
+
+    # SAFE LOOP (IMPORTANT FIX)
+    shopt -s nullglob
+    files=("$INPUT_PATH"/*.json)
+
+    # check empty
+    if [[ ${#files[@]} -eq 0 ]]; then
+        error "No JSON files found in folder!"
+    fi
+
+    for file in "${files[@]}"; do
+        filename=$(basename "$file")
+        log " Processing: $filename"
+
+        # copy file
+        cp "$file" "$GROUP_PATH/"
+
+        # SAFE jq (NO CRASH)
+        IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+
+        if [[ -z "$IDS" ]]; then
+            IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
+                | sed 's/ /_/g' \
+                | tr '[:upper:]' '[:lower:]')
+        fi
+
+        # append safely
+        while IFS= read -r id; do
+            [[ -n "$id" ]] && ALL_TESTS+=("$id")
+        done <<< "$IDS"
+    done
+
+    # final validation
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        error "No test cases found in files"
+    fi
+
+    log " Total extracted test cases: ${#ALL_TESTS[@]}"
+
+    TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
+
+    PERSONA="$SUPPLIER"
+
+    # merge / create
+    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
+        OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
+
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "$PERSONA" \
+            --arg desc "$DESCRIPTION" \
+            --argjson old "$OLD_TESTS" \
+            --argjson new "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: ($old + $new | unique)
+            }' > "$GROUP_PATH/group.json"
+
+        success " Reading JSON files, extracting test case IDs, and adding them to the group.json"
+
+    else
+        jq -n \
+            --arg name "$GROUP_NAME" \
+            --arg version "$VERSION" \
+            --arg persona "$PERSONA" \
+            --arg desc "$DESCRIPTION" \
+            --argjson tests "$TESTS_JSON" \
+            '{
+                name: $name,
+                version: $version,
+                persona: $persona,
+                description: $desc,
+                testCases: $tests
+            }' > "$GROUP_PATH/group.json"
+
+        success " Created new group.json"
+    fi
+
+    info "Target Group Folder: $GROUP_PATH"
+}
+
+group_management_menu() {
+    # safety check
+    if [[ -z "${GROUP_DIR:-}" ]]; then
+        error "GROUP_DIR not set. Please select supplier first."
+    fi
+
+    while true; do
+        echo ""
+        echo "Enter a number to select an existing group or press 0 to create a new group"
+        echo ""
+
+        echo "Available Groups"
+        echo "--------------------------------------"
+
+        mkdir -p "$GROUP_DIR"
+
+        mapfile -t groups < <(
+            find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+        )
+
+        if [ ${#groups[@]} -eq 0 ]; then
+            echo "  No groups available"
+        else
+            for i in "${!groups[@]}"; do
+                echo "  $((i+1))) ${groups[i]}"
+            done
+        fi
+
+        echo ""
+        echo "B → Back"
+        echo "Q → Quit"
+        echo ""
+
+        read -p "Enter your choice: " choice
+
+        # BACK
+        [[ "${choice,,}" == "b" ]] && return
+
+        # QUIT
+        [[ "${choice,,}" == "q" ]] && { info "Exiting..."; exit 0; }
+
+        # CREATE
+        if [[ "$choice" == "0" ]]; then
+            unset GROUP_NAME
+            create_test_group
+
+        # EXISTING
+        elif [[ "$choice" =~ ^[0-9]+$ ]]; then
+            index=$((choice-1))
+
+            if [[ -n "${groups[index]}" ]]; then
+                GROUP_NAME="${groups[index]}"
+                info "Selected existing group: $GROUP_NAME"
+                create_test_group
+            else
+                warn "Invalid group number"
+                continue
+            fi
+
+        else
+            warn "Invalid choice"
+            continue
+        fi
+
+        echo ""
+        echo "Options:"
+        echo "  B → Back"
+        echo "  Q → Quit"
+        echo ""
+
+        read -p "Select option: " post_choice
+
+        case "${post_choice,,}" in
+            b) continue ;;
+            q) info "Exiting..."; exit 0 ;;
+            *) warn "Invalid option" ;;
+        esac
+    done
+}
+
+list_test_groups() {
+    mkdir -p "$GROUP_DIR"
+
+    if ls -d "$GROUP_DIR"/*/ > /dev/null 2>&1; then
+        for dir in "$GROUP_DIR"/*/; do
+            echo " - $(basename "$dir")"
+        done
+    else
+        echo "No groups found"
+    fi
+}
+
+delete_test_group() {
+    mkdir -p "$GROUP_DIR"
+
+    echo ""
+    echo "🗑️ Select group to delete:"
+    echo "--------------------------"
+
+    # FIXED: use find instead of ls
+    mapfile -t GROUPS < <(find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d)
+
+    if [[ ${#GROUPS[@]} -eq 0 ]]; then
+        warn "No groups found"
+        return
+    fi
+
+    # Show list
+    for i in "${!GROUPS[@]}"; do
+        echo "$((i+1)). $(basename "${GROUPS[$i]}")"
+    done
+
+    echo ""
+    read -p "Enter number to delete (or B to go back): " choice
+
+    if [[ "${choice,,}" == "b" ]]; then
+        return
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        error "Invalid input!"
+    fi
+
+    idx=$((choice-1))
+
+    if [[ $idx -lt 0 || $idx -ge ${#GROUPS[@]} ]]; then
+        error "Invalid selection!"
+    fi
+
+    GROUP_NAME=$(basename "${GROUPS[$idx]}")
+
+    read -p "Are you sure you want to delete '$GROUP_NAME'? (y/n): " confirm
+
+    if [[ "${confirm,,}" != "y" ]]; then
+        info "Delete cancelled"
+        return
+    fi
+
+    rm -rf "${GROUPS[$idx]}"
+
+    success " Group '$GROUP_NAME' deleted successfully"
+}
+
+################################################################################
 # Interactive Menu Loop
 ################################################################################
 
@@ -675,44 +950,9 @@ interactive_mode() {
                 echo ""
                 info "You selected: Device Supplier"
                 echo ""
-                # Show device supplier options menu
-                while true; do
-                    show_device_supplier_options_menu
-                    read -p "Select option (1-2, B, or Q): " device_choice
-                    case "${device_choice,,}" in
-                        1|existing)
-                            echo ""
-                            info "Using existing test-scenarios.json"
-                            generate_device_tests "$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
-                            break
-                            ;;
-                        2|custom|provide)
-                            echo ""
-                            info "Provide your custom test scenarios"
-                            info "Template example: $CONFORMANCE_DIR/device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json"
-                            echo ""
-                            read -p "Enter path to your custom test scenarios JSON: " custom_path
-                            echo ""
-                            if [[ -z "$custom_path" ]]; then
-                                error "Path cannot be empty"
-                                continue
-                            fi
-                            generate_device_tests "$custom_path"
-                            break
-                            ;;
-                        b|back)
-                            info "Going back to persona menu..."
-                            break
-                            ;;
-                        q|quit)
-                            info "Exiting..."
-                            exit 0
-                            ;;
-                        *)
-                            error "Invalid option. Please select 1, 2, B, or Q"
-                            ;;
-                    esac
-                done
+                # Go directly to group-based selection
+                set_supplier_context "device-supplier"
+                group_management_menu
                 ;;
 
             h|help)

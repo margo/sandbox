@@ -33,6 +33,7 @@ CONFORMANCE_DIR="$SCRIPT_DIR"  # run-tests.sh is already IN the conformance dire
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
 RUNNER_DIR="$CONFORMANCE_DIR/Runner"  # Output directory for test results
 WFM_GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
+DEVICE_GROUP_DIR="$DATA_GEN_DIR/device-supplier/groups"
 
 # Create output directories
 RUNNER_WFM="$RUNNER_DIR/wfm-supplier"
@@ -104,6 +105,74 @@ select_wfm_group() {
     
     if [[ ${#groups[@]} -eq 0 ]]; then
         echo "❌ No test groups found. Please run conformance.sh to create groups." >&2
+        return 1
+    fi
+    
+    # Display groups to stderr
+    {
+        for i in "${!groups[@]}"; do
+            local metadata="${group_metadata[$i]}"
+            IFS='|' read -r name version desc count <<< "$metadata"
+            printf "  %d) %-15s (v%s) - %d tests\n" "$((i+1))" "$name" "$version" "$count"
+        done
+        echo ""
+    } >&2
+    
+    # Prompt for selection (read -p writes prompt to stderr by default)
+    read -p "Select group (1-${#groups[@]}): " group_choice < /dev/tty
+    
+    if ! [[ "$group_choice" =~ ^[0-9]+$ ]] || [[ $group_choice -lt 1 || $group_choice -gt ${#groups[@]} ]]; then
+        echo "❌ Invalid selection. Please enter a number between 1 and ${#groups[@]}" >&2
+        return 1
+    fi
+    
+    local selected_index=$((group_choice - 1))
+    local selected_group="${groups[$selected_index]}"
+    
+    # Return group path to stdout (this will be captured by $())
+    echo "$selected_group"
+}
+
+################################################################################
+# Device Group Selection Function
+################################################################################
+
+select_device_group() {
+    local group_dir="$DEVICE_GROUP_DIR"
+    
+    if [[ ! -d "$group_dir" ]]; then
+        warn "No device groups directory found at: $group_dir" >&2
+        return 1
+    fi
+    
+    # Print to stderr so it displays to user (not captured by $() command substitution)
+    {
+        echo ""
+        echo "📋 Available Device Test Groups:"
+        echo "================================================"
+    } >&2
+    
+    # Collect available groups
+    local groups=()
+    local group_metadata=()
+    
+    for group_path in "$group_dir"/*; do
+        if [[ -d "$group_path" && -f "$group_path/group.json" ]]; then
+            local group_name=$(basename "$group_path")
+            local group_json="$group_path/group.json"
+            
+            # Extract group info from group.json
+            local version=$(jq -r '.version // "unknown"' "$group_json" 2>/dev/null || echo "unknown")
+            local description=$(jq -r '.description // "No description"' "$group_json" 2>/dev/null || echo "No description")
+            local test_count=$(jq '.testCases | length' "$group_json" 2>/dev/null || echo "0")
+            
+            groups+=("$group_path")
+            group_metadata+=("$group_name|$version|$description|$test_count")
+        fi
+    done
+    
+    if [[ ${#groups[@]} -eq 0 ]]; then
+        echo "❌ No device test groups found. Please run conformance.sh to create groups." >&2
         return 1
     fi
     
@@ -385,36 +454,33 @@ execute_wfm_tests_with_group() {
 show_device_test_scenarios_menu() {
     echo "" >&2
     echo "Which test scenarios would you like to run?" >&2
-    echo "1. Custom test scenarios (~/sandbox/conformance/device-supplier/device-scenarios/test-scenarios.json)" >&2
-    echo "2. User generated test scenarios (~/sandbox/conformance/Data-Generator/device-supplier/test-scenarios.json)" >&2
+    echo "1. Group-based test scenarios (select from available groups)" >&2
     echo "" >&2
     echo "Q) Quit" >&2
     echo "" >&2
 }
 
 select_device_test_scenarios() {
-    local custom_scenarios="$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
-    local generated_scenarios="$DATA_GEN_DIR/device-supplier/test-scenarios.json"
-    
     while true; do
         show_device_test_scenarios_menu
-        # Print prompt to stderr so it doesn't get captured in command substitution
-        echo -n "Select option (1-2 or Q): " >&2
+        # Print prompt to stderr so it does not get captured in command substitution
+        echo -n "Select option (1 or Q): " >&2
         read choice
         
         case "${choice,,}" in
-            1|custom)
-                if [[ ! -f "$custom_scenarios" ]]; then
-                    error "Custom test scenarios not found: $custom_scenarios"
+            1|group)
+                local device_group
+                device_group=$(select_device_group)
+                if [[ -z "$device_group" ]]; then
+                    error "No device group selected"
                 fi
-                echo "$custom_scenarios"
-                return 0
-                ;;
-            2|generated)
-                if [[ ! -f "$generated_scenarios" ]]; then
-                    error "Generated test scenarios not found: $generated_scenarios"
+                
+                local group_scenarios="$device_group/test-scenarios.json"
+                if [[ ! -f "$group_scenarios" ]]; then
+                    error "Test scenarios not found in group: $group_scenarios"
                 fi
-                echo "$generated_scenarios"
+                
+                echo "$group_scenarios"
                 return 0
                 ;;
             q|quit)
@@ -422,7 +488,7 @@ select_device_test_scenarios() {
                 exit 0
                 ;;
             *)
-                error "Invalid option. Please select 1, 2, or Q"
+                error "Invalid option. Please select 1 or Q"
                 ;;
         esac
     done

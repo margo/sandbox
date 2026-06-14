@@ -1,451 +1,647 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -Eeuo pipefail
+################################################################################
+# Conformance Test Case Generator CLI
+# Purpose: Create and prepare test cases for Margo Personas
+# Usage: bash conformance.sh
+################################################################################
 
+set -euo pipefail
+
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFORMANCE_DIR="$SCRIPT_DIR"
 DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
-GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
 
-TEMP_FILES=()
-trap 'for file in "${TEMP_FILES[@]:-}"; do [[ -n "$file" ]] && rm -f "$file"; done' EXIT
+################################################################################
+# Logging Functions
+################################################################################
 
-log() { printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*"; }
-info() { log "INFO: $*"; }
-success() { log "OK: $*"; }
-warn() { log "WARN: $*" >&2; }
-die() { log "ERROR: $*" >&2; exit 1; }
-
-usage() {
-    cat <<USAGE
-Margo Conformance Test Case Generator
-
-Usage:
-  bash conformance.sh
-  bash conformance.sh help
-
-  bash conformance.sh wfm [openapi|contract] <openapi-file-or-url>
-  bash conformance.sh wfm functional <postman-collection.json>
-  bash conformance.sh wfm <openapi-file-or-url>
-
-  bash conformance.sh device <test-scenarios.json>
-  bash conformance.sh device scenarios [test-scenarios.json]
-  bash conformance.sh device margo
-  bash conformance.sh device openapi <api-url>
-
-Examples:
-  bash conformance.sh wfm ./wfm-supplier/spec.yaml
-  bash conformance.sh wfm functional ./manual-test-cases/postman_collection_sample.json
-  bash conformance.sh device margo
-  bash conformance.sh device ./device-supplier/device-scenarios/test-scenarios.json
-  bash conformance.sh device openapi https://symphony.machine:8082/v1alpha2/margo
-
-Outputs:
-  WFM files:    $DATA_GEN_DIR/wfm-supplier/
-  Device files: $DATA_GEN_DIR/device-supplier/
-USAGE
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 📝 $*"
 }
 
-prompt_required() {
-    local label="$1"
-    local value=""
-    read -r -p "$label: " value
-    [[ -n "$value" ]] || die "$label cannot be empty"
-    printf '%s\n' "$value"
+success() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ✅ $*"
 }
 
-expand_path() {
-    local value="$1"
-    case "$value" in
-        "~") printf '%s\n' "$HOME" ;;
-        "~/"*) printf '%s\n' "$HOME/${value#~/}" ;;
-        *) printf '%s\n' "$value" ;;
-    esac
+error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ❌ $*" >&2
+    exit 1
 }
 
-is_url() {
-    [[ "$1" == http://* || "$1" == https://* ]]
+info() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ℹ️  $*"
 }
 
-need_command() {
-    local command="$1"
-    local install_hint="${2:-}"
-    if ! command -v "$command" >/dev/null 2>&1; then
-        if [[ -n "$install_hint" ]]; then
-            die "Missing required command '$command'. $install_hint"
-        fi
-        die "Missing required command '$command'"
-    fi
+warn() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ⚠️  $*"
 }
 
-ensure_file() {
-    local path="$1"
-    local label="$2"
-    [[ -f "$path" ]] || die "$label not found: $path"
-    [[ -s "$path" ]] || die "$label is empty: $path"
-}
+################################################################################
+# WFM Supplier Test Case Generation - with OpenAPI Spec Path
+################################################################################
 
-ensure_json() {
-    local path="$1"
-    local label="$2"
-    need_command jq "Install jq and try again."
-    jq empty "$path" >/dev/null 2>&1 || die "Invalid JSON in $label: $path"
-}
-
-download_to_temp() {
-    local url="$1"
-    local suffix="${2:-tmp}"
-    local temp_file
-    temp_file="$(mktemp "/tmp/margo-conformance.XXXXXX.$suffix")"
-    TEMP_FILES+=("$temp_file")
-
-    need_command curl "Install curl and try again."
-    curl -fsSL "$url" -o "$temp_file" || die "Could not download: $url"
-    ensure_file "$temp_file" "Downloaded file"
-    printf '%s\n' "$temp_file"
-}
-
-copy_files_from_dir() {
-    local source_dir="$1"
-    local target_dir="$2"
-    [[ -d "$source_dir" ]] || return 0
-
-    local copied=false
-    local entry
-    shopt -s nullglob dotglob
-    for entry in "$source_dir"/*; do
-        cp -R "$entry" "$target_dir/"
-        copied=true
-    done
-    shopt -u nullglob dotglob
-
-    if [[ "$copied" == true ]]; then
-        info "Copied supporting files from $source_dir"
-    fi
-}
-
-show_generated_files() {
-    local dir="$1"
-    [[ -d "$dir" ]] || return 0
-    info "Generated files:"
-    find "$dir" -maxdepth 1 -type f -printf '  - %f (%s bytes)\n' | sort
-}
-
-run_portman() {
-    local spec_file="$1"
-    local output_file="$2"
-
-    need_command portman "Install Portman, for example: npm install -g portman"
-    portman -l "$spec_file" -o "$output_file" >/dev/null || die "Portman generation failed"
-}
-
-resolve_openapi_spec() {
-    local spec_path="$1"
-    if is_url "$spec_path"; then
-        info "Downloading OpenAPI specification..." >&2
-        download_to_temp "$spec_path" "yaml"
-    else
-        spec_path="$(expand_path "$spec_path")"
-        ensure_file "$spec_path" "OpenAPI spec"
-        local spec_dir spec_name
-        spec_dir="$(cd "$(dirname "$spec_path")" && pwd -P)"
-        spec_name="$(basename "$spec_path")"
-        printf '%s\n' "$spec_dir/$spec_name"
-    fi
-}
-
-generate_wfm_openapi_tests() {
+generate_wfm_tests() {
     local openapi_spec_path="${1:-}"
-    [[ -n "$openapi_spec_path" ]] || openapi_spec_path="$(prompt_required "OpenAPI Spec Path")"
-
-    local output_dir="$DATA_GEN_DIR/wfm-supplier"
-    local work_dir="$CONFORMANCE_DIR/wfm-supplier"
-    local spec_file
-
-    [[ -d "$work_dir" ]] || die "WFM supplier directory not found: $work_dir"
-    mkdir -p "$output_dir"
-
-    spec_file="$(resolve_openapi_spec "$openapi_spec_path")"
-
-    info "Generating WFM OpenAPI contract tests..."
-    (
-        cd "$work_dir"
-        run_portman "$spec_file" "postman_collection.json"
-    )
-
-    cp "$work_dir/postman_collection.json" "$output_dir/"
-    copy_files_from_dir "$work_dir/newman-data" "$output_dir"
-
-    success "WFM OpenAPI tests prepared: $output_dir"
-    show_generated_files "$output_dir"
+    
+    if [[ -z "$openapi_spec_path" ]]; then
+        info "Provide the OpenAPI Specification path"
+        info "Can be: URL (https://...) or local file path"
+        info "Example: https://raw.githubusercontent.com/margo/specification/.../openapi.yaml"
+        info "Or: /path/to/local/openapi.yaml"
+        read -p "OpenAPI Spec Path: " openapi_spec_path
+    fi
+    
+    if [[ -z "$openapi_spec_path" ]]; then
+        error "OpenAPI Spec path cannot be empty"
+    fi
+    
+    log "🚀 Generating WFM Supplier test cases..."
+    log "OpenAPI Spec: $openapi_spec_path"
+    
+    # Create output directory
+    mkdir -p "$DATA_GEN_DIR/wfm-supplier"
+    
+    # Use Portman to generate Postman collection from OpenAPI
+    cd "$CONFORMANCE_DIR/wfm-supplier"
+    
+    if ! command -v portman &> /dev/null; then
+        warn "Portman not installed. Installing from npm..."
+        npm install -g portman
+    fi
+    
+    log "🔧 Running Portman to generate test cases..."
+    
+    # Determine if spec is a URL or local file
+    local spec_file=""
+    
+    if [[ "$openapi_spec_path" == https://* || "$openapi_spec_path" == http://* ]]; then
+        # Download from URL
+        log "📥 Downloading OpenAPI specification from URL..."
+        spec_file="/tmp/openapi_spec_$$.yaml"
+        if ! curl -sSL "$openapi_spec_path" -o "$spec_file" 2>/dev/null; then
+            error "Could not download OpenAPI spec from URL: $openapi_spec_path"
+        fi
+        log "✅ Downloaded OpenAPI spec"
+    else
+        # Local file path
+        if [[ ! -f "$openapi_spec_path" ]]; then
+            error "OpenAPI Spec file not found: $openapi_spec_path"
+        fi
+        spec_file="$openapi_spec_path"
+        log "✅ Using local OpenAPI spec: $spec_file"
+    fi
+    
+    # Validate spec file
+    if [[ ! -f "$spec_file" ]]; then
+        error "OpenAPI Spec file does not exist: $spec_file"
+    fi
+    
+    # Validate spec file is not empty
+    if [[ ! -s "$spec_file" ]]; then
+        error "OpenAPI Spec file is empty: $spec_file"
+    fi
+    
+    # Run Portman
+    log "📋 Generating Postman collection..."
+    if ! portman -l "$spec_file" -o postman_collection.json 2>/dev/null; then
+        error "Portman generation failed"
+    fi
+    
+    log "✅ Test cases generated successfully"
+    log "📋 Copying postman_collection.json to Data-Generator..."
+    
+    # Copy to Data-Generator
+    cp postman_collection.json "$DATA_GEN_DIR/wfm-supplier/"
+    
+    # Copy newman data if exists
+    if [[ -d "newman-data" ]]; then
+        log "📦 Copying newman data files..."
+        cp -r newman-data "$DATA_GEN_DIR/wfm-supplier/" 2>/dev/null || true
+    fi
+    
+    # Clean up temp file if it was downloaded
+    if [[ "$openapi_spec_path" == https://* || "$openapi_spec_path" == http://* ]]; then
+        rm -f "$spec_file"
+    fi
+    
+    success "WFM test cases generated and prepared"
+    success "Output: $DATA_GEN_DIR/wfm-supplier/"
+    
+    # Show summary
+    info "Generated files:"
+    ls -lh "$DATA_GEN_DIR/wfm-supplier/" | tail -n +2 | awk '{print "  - " $9 " (" $5 ")"}'
 }
 
-validate_postman_collection() {
-    local collection_path="$1"
-    ensure_file "$collection_path" "Postman collection"
-    ensure_json "$collection_path" "Postman collection"
-
-    jq -e '.info and .item and (.item | type == "array")' "$collection_path" >/dev/null \
-        || die "Invalid Postman collection. Expected .info and array .item fields."
-}
+################################################################################
+# WFM Supplier Functional Tests - Manual Test Cases (MARGO Template)
+################################################################################
 
 generate_wfm_functional_tests() {
-    local collection_path="${1:-}"
-    [[ -n "$collection_path" ]] || collection_path="$(prompt_required "Postman Collection JSON Path")"
-    collection_path="$(expand_path "$collection_path")"
-
-    local output_dir="$DATA_GEN_DIR/wfm-supplier"
-    mkdir -p "$output_dir"
-
-    validate_postman_collection "$collection_path"
-
-    cp "$collection_path" "$output_dir/postman_collection_functional.json"
-    touch "$output_dir/.functional-tests"
-
-    success "WFM functional tests prepared: $output_dir/postman_collection_functional.json"
-}
-
-default_device_scenarios_path() {
-    printf '%s\n' "$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
-}
-
-default_device_assertions_path() {
-    printf '%s\n' "$CONFORMANCE_DIR/device-supplier/manifests/assertions.json"
-}
-
-assertions_for_scenarios() {
-    local scenarios_path="$1"
-    if [[ "$scenarios_path" == *"/device-scenarios/"* ]]; then
-        printf '%s\n' "${scenarios_path%/*}/../manifests/assertions.json"
-    else
-        default_device_assertions_path
+    local postman_collection_path="${1:-}"
+    
+    if [[ -z "$postman_collection_path" ]]; then
+        info "Provide the path to Postman collection JSON file"
+        info "Path to manual/hand-crafted Postman collection"
+        info "Example: /path/to/postman_collection.json"
+        info "Or place files in: $CONFORMANCE_DIR/manual-test-cases/"
+        read -p "Postman Collection JSON Path: " postman_collection_path
     fi
-}
-
-validate_device_scenarios() {
-    local scenarios_path="$1"
-    local assertions_path="$2"
-
-    ensure_file "$scenarios_path" "Device test scenarios"
-    ensure_json "$scenarios_path" "device test scenarios"
-
-    jq -e 'type == "array" and length > 0' "$scenarios_path" >/dev/null \
-        || die "Device scenarios must be a non-empty JSON array."
-
-    jq -e 'all(.[]; has("id") and has("name") and has("steps"))' "$scenarios_path" >/dev/null \
-        || die "Each device scenario must include id, name, and steps."
-
-    if [[ -f "$assertions_path" ]]; then
-        ensure_json "$assertions_path" "device assertions"
-        jq -e 'has("endpoints")' "$assertions_path" >/dev/null \
-            || warn "Assertions file has no endpoints section: $assertions_path"
-    else
-        warn "Assertions file not found, continuing without it: $assertions_path"
+    
+    if [[ -z "$postman_collection_path" ]]; then
+        error "Postman collection path cannot be empty"
     fi
+    
+    # Expand tilde if used
+    postman_collection_path="${postman_collection_path/\~/$HOME}"
+    
+    log "🚀 Setting up WFM Supplier Functional Tests (MARGO Template)..."
+    log "Collection: $postman_collection_path"
+    
+    # Create output directory
+    mkdir -p "$DATA_GEN_DIR/wfm-supplier"
+    
+    # Validate file exists
+    if [[ ! -f "$postman_collection_path" ]]; then
+        error "Postman collection file not found: $postman_collection_path"
+    fi
+    
+    # Validate file is not empty
+    if [[ ! -s "$postman_collection_path" ]]; then
+        error "Postman collection file is empty: $postman_collection_path"
+    fi
+    
+    # Validate JSON format
+    log "📋 Validating JSON format..."
+    if ! jq empty "$postman_collection_path" 2>/dev/null; then
+        error "Invalid JSON format in: $postman_collection_path"
+    fi
+    
+    # Validate Postman collection structure (basic validation)
+    log "🔍 Validating Postman collection format..."
+    local has_info
+    has_info=$(jq '.info' "$postman_collection_path" 2>/dev/null)
+    
+    if [[ -z "$has_info" ]] || [[ "$has_info" == "null" ]]; then
+        error "Invalid Postman collection: missing 'info' field"
+    fi
+    
+    local has_items
+    has_items=$(jq '.item' "$postman_collection_path" 2>/dev/null)
+    
+    if [[ -z "$has_items" ]] || [[ "$has_items" == "null" ]]; then
+        error "Invalid Postman collection: missing 'item' field"
+    fi
+    
+    log "✅ Collection validation passed"
+    
+    # Get collection info
+    local collection_name
+    local item_count
+    collection_name=$(jq -r '.info.name' "$postman_collection_path")
+    item_count=$(jq '.item | length' "$postman_collection_path")
+    
+    log "📊 Collection Details:"
+    log "   Name: $collection_name"
+    log "   Test items: $item_count"
+    
+    # Copy collection to Data-Generator
+    log "📋 Copying Postman collection to Data-Generator..."
+    
+    cp "$postman_collection_path" "$DATA_GEN_DIR/wfm-supplier/postman_collection_functional.json"
+    
+    # Also create a marker file indicating this is functional tests
+    touch "$DATA_GEN_DIR/wfm-supplier/.functional-tests"
+    
+    success "WFM Functional Tests prepared successfully"
+    success "Output: $DATA_GEN_DIR/wfm-supplier/postman_collection_functional.json"
+    
+    info "Ready for test execution with Newman"
 }
 
-generate_device_scenario_tests() {
+################################################################################
+# Device Test Type Selection Menu
+################################################################################
+
+show_device_test_type_menu() {
+    echo ""
+    echo "What type of test-cases do you want to add?"
+    echo "1. OpenAPI spec based contract tests"
+    echo "2. Functional tests (in MARGO template)"
+    echo ""
+    echo "B) Back"
+    echo "Q) Quit"
+    echo ""
+}
+
+################################################################################
+# Device Supplier Options Menu
+################################################################################
+
+show_device_supplier_options_menu() {
+    echo ""
+    echo "Device Supplier Test Cases — Group-based Selection:"
+    echo "1. Select from available groups"
+    echo ""
+    echo "B) Back"
+    echo "Q) Quit"
+    echo ""
+}
+
+################################################################################
+# Device Supplier Test Case Validation
+################################################################################
+
+validate_device_test_scenarios() {
     local scenarios_path="${1:-}"
-    [[ -n "$scenarios_path" ]] || scenarios_path="$(default_device_scenarios_path)"
-    scenarios_path="$(expand_path "$scenarios_path")"
-
-    local output_dir="$DATA_GEN_DIR/device-supplier"
-    local assertions_path
-    assertions_path="$(assertions_for_scenarios "$scenarios_path")"
-
-    mkdir -p "$output_dir"
-    validate_device_scenarios "$scenarios_path" "$assertions_path"
-
-    cp "$scenarios_path" "$output_dir/test-scenarios.json"
-    [[ -f "$assertions_path" ]] && cp "$assertions_path" "$output_dir/assertions.json"
-    copy_files_from_dir "$CONFORMANCE_DIR/device-supplier/manifests" "$output_dir"
-    touch "$output_dir/.device-scenarios"
-
+    local assertions_path="${2:-}"
+    
+    # Validate test scenarios file
+    if [[ ! -f "$scenarios_path" ]]; then
+        error "Test scenarios file not found: $scenarios_path"
+    fi
+    
+    if [[ ! -s "$scenarios_path" ]]; then
+        error "Test scenarios file is empty: $scenarios_path"
+    fi
+    
+    # Validate JSON format
+    log "📋 Validating JSON format for test scenarios..."
+    if ! jq empty "$scenarios_path" 2>/dev/null; then
+        error "Invalid JSON format in test scenarios: $scenarios_path"
+    fi
+    
+    # Validate test scenarios structure
+    log "🔍 Validating test scenarios structure..."
     local scenario_count
-    scenario_count="$(jq 'length' "$scenarios_path")"
-    success "Device scenario tests prepared: $output_dir"
-    info "Scenario count: $scenario_count"
-    show_generated_files "$output_dir"
+    scenario_count=$(jq 'length' "$scenarios_path" 2>/dev/null)
+    
+    if [[ -z "$scenario_count" ]] || [[ "$scenario_count" == "0" ]]; then
+        error "Test scenarios file must contain at least one scenario"
+    fi
+    
+    # Check for required fields in each scenario
+    local has_required_fields
+    has_required_fields=$(jq '[.[] | has("id") and has("name") and has("steps")] | all' "$scenarios_path" 2>/dev/null)
+    
+    if [[ "$has_required_fields" != "true" ]]; then
+        error "Invalid test scenarios: each scenario must have 'id', 'name', and 'steps' fields"
+    fi
+    
+    # Check if assertions file exists
+    if [[ -f "$assertions_path" ]]; then
+        log "📋 Validating JSON format for assertions..."
+        if ! jq empty "$assertions_path" 2>/dev/null; then
+            error "Invalid JSON format in assertions file: $assertions_path"
+        fi
+        
+        log "🔍 Validating assertions structure..."
+        local has_endpoints
+        has_endpoints=$(jq 'has("endpoints")' "$assertions_path" 2>/dev/null)
+        
+        if [[ "$has_endpoints" != "true" ]]; then
+            warn "Assertions file does not have 'endpoints' section (non-critical)"
+        fi
+    else
+        warn "Assertions file not found at: $assertions_path (optional)"
+    fi
+    
+    log "✅ Validations passed"
+    
+    # Show scenarios summary
+    info "Test Scenarios Summary:"
+    jq -r '.[] | "  - \(.id): \(.name)"' "$scenarios_path" | head -10
+    
+    local total=$(jq 'length' "$scenarios_path")
+    if [[ $total -gt 10 ]]; then
+        info "  ... and $((total - 10)) more scenarios"
+    fi
 }
+
+################################################################################
+# Device Supplier Test Case Setup
+################################################################################
+
+generate_device_tests() {
+    local test_scenarios_path="${1:-}"
+    
+    if [[ -z "$test_scenarios_path" ]]; then
+        info "Provide the path to Device test scenarios JSON file"
+        info "Expected location: device-supplier/device-scenarios/test-scenarios.json"
+        info "Or use: $CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
+        read -p "Test Scenarios JSON Path: " test_scenarios_path
+    fi
+    
+    if [[ -z "$test_scenarios_path" ]]; then
+        error "Test scenarios path cannot be empty"
+    fi
+    
+    # Expand tilde if used
+    test_scenarios_path="${test_scenarios_path/\~/$HOME}"
+    
+    # Check for assertions file
+    local assertions_path="$CONFORMANCE_DIR/device-supplier/manifests/assertions.json"
+    
+    # If test scenarios path is provided, try to find assertions nearby
+    if [[ "$test_scenarios_path" == *"device-scenarios"* ]]; then
+        assertions_path="${test_scenarios_path%/*}/../manifests/assertions.json"
+    fi
+    
+    log "🚀 Setting up Device Supplier Test Cases..."
+    log "Test scenarios: $test_scenarios_path"
+    log "Assertions file: $assertions_path"
+    
+    # Create output directory
+    mkdir -p "$DATA_GEN_DIR/device-supplier"
+    
+    # Validate test scenarios and assertions
+    validate_device_test_scenarios "$test_scenarios_path" "$assertions_path"
+    
+    # Copy test scenarios to Data-Generator
+    log "📋 Copying test scenarios to Data-Generator..."
+    cp "$test_scenarios_path" "$DATA_GEN_DIR/device-supplier/test-scenarios.json"
+    
+    # Copy assertions file if it exists
+    if [[ -f "$assertions_path" ]]; then
+        log "📋 Copying assertions file..."
+        cp "$assertions_path" "$DATA_GEN_DIR/device-supplier/assertions.json"
+    fi
+    
+    # Copy supporting files from device-supplier if they exist
+    if [[ -d "$CONFORMANCE_DIR/device-supplier/manifests" ]]; then
+        log "📦 Copying supporting manifest files..."
+        cp -r "$CONFORMANCE_DIR/device-supplier/manifests"/* "$DATA_GEN_DIR/device-supplier/" 2>/dev/null || true
+    fi
+    
+    # Create marker file
+    touch "$DATA_GEN_DIR/device-supplier/.device-scenarios"
+    
+    success "Device Supplier Test Cases prepared successfully"
+    success "Output: $DATA_GEN_DIR/device-supplier/"
+    
+    info "Generated files:"
+    ls -lh "$DATA_GEN_DIR/device-supplier/" | grep -E "\.(json|yaml)$" | awk '{print "  - " $9 " (" $5 ")"}'
+}
+
+################################################################################
+# Device Supplier Test Case Generation - OpenAPI Contract Tests
+################################################################################
 
 generate_device_openapi_tests() {
+    log "🚀 Generating Device Supplier - OpenAPI Contract Tests..."
+    
     local api_url="${1:-}"
-    [[ -n "$api_url" ]] || api_url="$(prompt_required "Device Supplier API URL")"
-
-    local output_dir="$DATA_GEN_DIR/device-supplier"
-    local work_dir="$CONFORMANCE_DIR/device-supplier"
-    local spec_file
-
-    [[ -d "$work_dir" ]] || die "Device supplier directory not found: $work_dir"
-    mkdir -p "$output_dir"
-
-    api_url="${api_url%/}"
-    spec_file="$(download_to_temp "$api_url/openapi" "yaml")"
-
-    info "Generating Device OpenAPI contract tests..."
-    (
-        cd "$work_dir"
-        run_portman "$spec_file" "device_postman_collection.json"
-    )
-
-    cp "$work_dir/device_postman_collection.json" "$output_dir/"
-    copy_files_from_dir "$work_dir/newman-data" "$output_dir"
-
-    success "Device OpenAPI tests prepared: $output_dir/device_postman_collection.json"
-}
-
-show_main_menu() {
-    cat <<MENU
-
-Which Margo persona do you want to create test cases for?
-  1. WFM Supplier
-  2. Device Supplier
-  H. Help
-  Q. Quit
-MENU
-}
-
-show_wfm_menu() {
-    cat <<MENU
-
-WFM Supplier test type:
-  1. OpenAPI contract tests
-  2. Functional tests from Postman collection
-  B. Back
-  Q. Quit
-MENU
-}
-
-show_device_menu() {
-    cat <<MENU
-
-Device Supplier test type:
-  1. Existing MARGO test scenarios
-  2. Custom test scenarios JSON
-  3. OpenAPI contract tests from API URL
-  B. Back
-  Q. Quit
-MENU
-}
-
-interactive_mode() {
-    local choice
-    while true; do
-        show_main_menu
-        read -r -p "Select option: " choice
-        case "${choice,,}" in
-            1|wfm) interactive_wfm ;;
-            2|device) interactive_device ;;
-            h|help) usage ;;
-            q|quit|exit) exit 0 ;;
-            *) warn "Invalid option: $choice" ;;
-        esac
-    done
-}
-
-interactive_wfm() {
-    local choice value
-    while true; do
-        show_wfm_menu
-        read -r -p "Select option: " choice
-        case "${choice,,}" in
-            1|openapi|contract)
-                value="$(prompt_required "OpenAPI Spec Path or URL")"
-                generate_wfm_openapi_tests "$value"
-                return
-                ;;
-            2|functional|margo|template)
-                group_management_menu
-                return
-                ;;
-            b|back) return ;;
-            q|quit|exit) exit 0 ;;
-            *) warn "Invalid option: $choice" ;;
-        esac
-    done
-}
-
-interactive_device() {
-    local choice value
-    while true; do
-        show_device_menu
-        read -r -p "Select option: " choice
-        case "${choice,,}" in
-            1|existing|margo|functional|template|scenarios)
-                generate_device_scenario_tests "$(default_device_scenarios_path)"
-                return
-                ;;
-            2|custom)
-                value="$(prompt_required "Custom test scenarios JSON Path")"
-                generate_device_scenario_tests "$value"
-                return
-                ;;
-            3|openapi|contract)
-                value="$(prompt_required "Device Supplier API URL")"
-                generate_device_openapi_tests "$value"
-                return
-                ;;
-            b|back) return ;;
-            q|quit|exit) exit 0 ;;
-            *) warn "Invalid option: $choice" ;;
-        esac
-    done
-}
-
-handle_wfm_command() {
-    local arg="${1:-}"
-    case "${arg,,}" in
-        ""|openapi|contract)
-            generate_wfm_openapi_tests "${2:-}"
-            ;;
-        functional|margo|template)
-            generate_wfm_functional_tests "${2:-}"
-            ;;
-        *)
-            generate_wfm_openapi_tests "$arg"
-            ;;
-    esac
-}
-
-handle_device_command() {
-    local arg="${1:-}"
-    local expanded_arg
-    expanded_arg="$(expand_path "$arg")"
-
-    if [[ -n "$arg" && -f "$expanded_arg" ]]; then
-        generate_device_scenario_tests "$expanded_arg"
-        return
+    
+    if [[ -z "$api_url" ]]; then
+        info "Enter the Margo API URL for Device Supplier"
+        info "Example: https://symphony.machine:8082/v1alpha2/margo"
+        read -p "API URL: " api_url
     fi
-
-    case "${arg,,}" in
-        ""|scenarios|existing)
-            generate_device_scenario_tests "${2:-}"
-            ;;
-        margo|functional|template)
-            generate_device_scenario_tests "$(default_device_scenarios_path)"
-            ;;
-        openapi|contract)
-            generate_device_openapi_tests "${2:-}"
-            ;;
-        *)
-            die "Unknown device option: $arg"
-            ;;
-    esac
+    
+    if [[ -z "$api_url" ]]; then
+        error "API URL cannot be empty"
+    fi
+    
+    log "📥 Downloading OpenAPI specification..."
+    
+    # Create output directory
+    mkdir -p "$DATA_GEN_DIR/device-supplier"
+    
+    # Use Portman to generate Postman collection from OpenAPI
+    cd "$CONFORMANCE_DIR/device-supplier" 2>/dev/null || \
+        error "device-supplier directory not found"
+    
+    if ! command -v portman &> /dev/null; then
+        warn "Portman not installed. Installing from npm..."
+        npm install -g portman
+    fi
+    
+    log "🔧 Running Portman to generate OpenAPI contract tests..."
+    
+    # Create a temporary OpenAPI spec file
+    local spec_file="/tmp/device_openapi_spec_$$.yaml"
+    if curl -sSL "$api_url/openapi" -o "$spec_file" 2>/dev/null; then
+        log "✅ Downloaded OpenAPI spec"
+    else
+        error "Could not download OpenAPI spec from $api_url"
+    fi
+    
+    # Generate Postman collection for device endpoints
+    portman --spec "$spec_file" --output device_postman_collection.json 2>/dev/null || \
+        error "Portman generation failed"
+    
+    log "✅ Contract tests generated"
+    log "📋 Copying device_postman_collection.json to Data-Generator..."
+    
+    # Copy to Data-Generator
+    cp device_postman_collection.json "$DATA_GEN_DIR/device-supplier/"
+    
+    # Copy newman data if exists
+    if [[ -d "newman-data" ]]; then
+        log "📦 Copying newman data files..."
+        cp -r newman-data "$DATA_GEN_DIR/device-supplier/" 2>/dev/null || true
+    fi
+    
+    # Clean up temp file
+    rm -f "$spec_file"
+    
+    success "Device OpenAPI contract tests generated"
+    success "Output: $DATA_GEN_DIR/device-supplier/"
+    success "Test file: device_postman_collection.json"
+    
+    # Show summary
+    info "Generated files:"
+    ls -lh "$DATA_GEN_DIR/device-supplier/" | tail -n +2 | awk '{print "  - " $9 " (" $5 ")"}'
 }
 
 ################################################################################
-# Test Group Management Functions
+# Device Supplier Test Case Generation - MARGO Template Functional Tests
 ################################################################################
+
+generate_device_margo_template_tests() {
+    log "🚀 Generating Device Supplier - MARGO Template Functional Tests..."
+    
+    # Create output directory
+    mkdir -p "$DATA_GEN_DIR/device-supplier"
+    
+    log "📥 Preparing test scenarios from MARGO template..."
+    
+    # Copy test scenarios from device-supplier
+    local source_file="$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
+    
+    if [[ ! -f "$source_file" ]]; then
+        error "Test scenarios not found at $source_file"
+    fi
+    
+    log "📋 Copying test-scenarios.json (MARGO template)..."
+    cp "$source_file" "$DATA_GEN_DIR/device-supplier/"
+    
+    # Copy additional test data files if they exist
+    if [[ -d "$CONFORMANCE_DIR/device-supplier/device-scenarios" ]]; then
+        log "📦 Copying additional test data files..."
+        cp -r "$CONFORMANCE_DIR/device-supplier/device-scenarios"/* \
+            "$DATA_GEN_DIR/device-supplier/" 2>/dev/null || true
+    fi
+    
+    success "Device MARGO template functional tests generated"
+    success "Output: $DATA_GEN_DIR/device-supplier/"
+    success "Test file: test-scenarios.json"
+    
+    # Show summary
+    info "Generated files:"
+    ls -lh "$DATA_GEN_DIR/device-supplier/" | tail -n +2 | awk '{print "  - " $9 " (" $5 ")"}'
+    
+    # Count scenarios
+    if [[ -f "$DATA_GEN_DIR/device-supplier/test-scenarios.json" ]]; then
+        local test_count=$(jq '.[] | .id' "$DATA_GEN_DIR/device-supplier/test-scenarios.json" 2>/dev/null | wc -l)
+        info "Total test scenarios: $test_count"
+    fi
+    
+    info "Test Type: MARGO Template with RFC 9421 Signature Validation"
+}
+
+################################################################################
+# Persona Selection Menu
+################################################################################
+
+show_persona_menu() {
+    echo ""
+    echo "Which Margo Persona do you want to create test-cases for?"
+    echo "1. WFM Supplier"
+    echo "2. Device Supplier"
+    echo ""
+    echo "H) Help"
+    echo "Q) Quit"
+    echo ""
+}
+
+show_help() {
+    cat << 'EOF'
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║            Conformance Test Case Generator - Help                          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+DESCRIPTION:
+  This CLI generates test cases for Margo conformance testing.
+  It prepares test data for both WFM Supplier and Device Supplier personas.
+  
+  When you select WFM Supplier, you'll be asked what type of tests:
+    • OpenAPI spec based contract tests (asks for spec path: URL or local file)
+    • MARGO template functional tests (not yet implemented)
+  
+  When you select Device Supplier, you'll be asked for the API URL:
+    • Generates device conformance tests
+
+USAGE:
+  bash conformance.sh                    # Interactive menu
+  bash conformance.sh wfm [SPEC_PATH]    # Generate WFM tests (with optional OpenAPI spec path)
+  bash conformance.sh device openapi [API_URL]     # Device OpenAPI tests
+  bash conformance.sh device margo       # Device MARGO template tests
+
+PERSONA OPTIONS:
+  
+  WFM Supplier:
+    • Generates Postman collection from OpenAPI spec
+    • Tests API contracts via Newman
+    • Option 1: OpenAPI spec based (asks for spec path: URL or local file)
+    • Option 2: MARGO template (not yet implemented)
+  
+  Device Supplier:
+    • Option 1: Use existing test-scenarios.json from device-supplier/device-scenarios/
+    • Option 2: Provide your own custom test scenarios (template provided)
+    • Template file: device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json
+    • See device-supplier/Final-Summary.md for complete schema documentation
+    
+INTERACTIVE MENU:
+  1       - Select WFM Supplier
+  2       - Select Device Supplier (will ask test type)
+  H/help  - Show this help message
+  Q/quit  - Exit the program
+
+EXAMPLES:
+
+  1. Interactive mode (menu-driven):
+     bash conformance.sh
+
+  2. Generate WFM tests with OpenAPI spec URL:
+     bash conformance.sh wfm https://raw.githubusercontent.com/margo/specification/.../openapi.yaml
+
+  3. Generate WFM tests with local OpenAPI spec file:
+     bash conformance.sh wfm /path/to/local/openapi.yaml
+
+  4. Generate Device tests with existing test-scenarios.json:
+     bash conformance.sh device "/home/margo/nitin/sandbox/conformance/device-supplier/device-scenarios/test-scenarios.json"
+
+  5. Generate Device tests with custom test scenarios:
+     bash conformance.sh device "/path/to/your/custom_test_scenarios.json"
+
+  6. View custom test scenario template:
+     cat device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json
+
+WHAT GETS GENERATED:
+
+  WFM Supplier:
+    • postman_collection.json (92KB) - 8 API test cases
+    • newman-data/ - Test environment and certificates
+    • Location: Data-Generator/wfm-supplier/
+
+  Device Supplier (Option 1 - Existing):
+    • test-scenarios.json (34KB) - 7 pre-built conformance test scenarios
+    • assertions.json - Validation rules and assertions
+    • deployment-template.yaml - Supporting manifest files
+    • Location: Data-Generator/device-supplier/
+
+  Device Supplier (Option 2 - Custom):
+    • test-scenarios.json - Your custom test scenarios file
+    • assertions.json - Your custom assertions (if provided)
+    • Location: Data-Generator/device-supplier/
+    • Template: device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json
+
+NEXT STEPS:
+
+  After generating tests, use the execution CLI to run them:
+    bash run-tests.sh wfm
+    bash run-tests.sh device contract
+    bash run-tests.sh device functional
+    bash run-tests.sh device demo
+
+REQUIREMENTS:
+
+  WFM:
+    • npm (for Portman)
+    • curl (to download OpenAPI spec from URL)
+    • OpenAPI specification file (URL or local path)
+
+  Device:
+    • npm (for Portman) - if using OpenAPI contract tests
+    • jq (to parse test scenarios) - if using MARGO template
+    • Margo API endpoint or device-supplier/device-scenarios/test-scenarios.json
+
+EOF
+}
+
+################################################################################
+# Group Management Functions
+################################################################################
+
+set_supplier_context() {
+    SUPPLIER="$1"
+    GROUP_DIR="$DATA_GEN_DIR/$SUPPLIER/groups"
+}
 
 create_test_group() {
     mkdir -p "$GROUP_DIR"
 
-    #Group name
+    # Group name
     if [[ -z "${GROUP_NAME:-}" ]]; then
         echo ""
         read -p "Enter group name: " GROUP_NAME
-        [[ -z "$GROUP_NAME" ]] && die "Group name cannot be empty"
+        [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
     fi
+
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
 
     # Version
     echo ""
@@ -457,73 +653,74 @@ create_test_group() {
     read -p "Enter a short description for group: " DESCRIPTION
     [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
 
-    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
-
-    #Append mode
+    # Append mode
     APPEND_MODE=false
     if [[ -d "$GROUP_PATH" ]]; then
-        echo ""
-        echo "Using existing group: $GROUP_NAME"
+        info "Using existing group: $GROUP_NAME"
         APPEND_MODE=true
     else
         mkdir -p "$GROUP_PATH"
     fi
 
-    #Folder path instead of single file
+    # Input folder
     echo ""
     read -p "Enter folder path containing JSON files: " INPUT_PATH
+    [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
 
-    if [[ ! -d "$INPUT_PATH" ]]; then
-        die "Provided path is not a folder!"
-    fi
-
-    log "Reading all JSON files from folder..."
+    log " Reading all JSON files from folder..."
 
     ALL_TESTS=()
 
-    #Loop all JSON files
-    for file in "$INPUT_PATH"/*.json; do
-        [[ -e "$file" ]] || continue
+    # SAFE LOOP (IMPORTANT FIX)
+    shopt -s nullglob
+    files=("$INPUT_PATH"/*.json)
 
-        log "Processing: $(basename "$file")"
-
-        #Copy file to group folder
-        cp "$file" "$GROUP_PATH/"
-
-        #Extract IDs
-        mapfile -t IDS < <(jq -r '.. | .id? // empty' "$file")
-
-        #fallback to names
-        if [[ ${#IDS[@]} -eq 0 ]]; then
-            mapfile -t IDS < <(
-                jq -r '.. | .name? // empty' "$file" \
-                | sed 's/ /_/g' \
-                | tr '[:upper:]' '[:lower:]'
-            )
-        fi
-
-        ALL_TESTS+=("${IDS[@]}")
-    done
-
-    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
-        die "No test cases found in folder!"
+    # check empty
+    if [[ ${#files[@]} -eq 0 ]]; then
+        error "No JSON files found in folder!"
     fi
 
-    log "Total extracted test cases: ${#ALL_TESTS[@]}"
-    log "Reading JSON files, extracting test case IDs, and adding them to the group.json"
+    for file in "${files[@]}"; do
+        filename=$(basename "$file")
+        log " Processing: $filename"
 
-    # Convert to JSON
+        # copy file
+        cp "$file" "$GROUP_PATH/"
+
+        # SAFE jq (NO CRASH)
+        IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+
+        if [[ -z "$IDS" ]]; then
+            IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
+                | sed 's/ /_/g' \
+                | tr '[:upper:]' '[:lower:]')
+        fi
+
+        # append safely
+        while IFS= read -r id; do
+            [[ -n "$id" ]] && ALL_TESTS+=("$id")
+        done <<< "$IDS"
+    done
+
+    # final validation
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        error "No test cases found in files"
+    fi
+
+    log " Total extracted test cases: ${#ALL_TESTS[@]}"
+
     TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
 
-    # Merge logic
-    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
+    PERSONA="$SUPPLIER"
 
+    # merge / create
+    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
         OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
 
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
-            --arg persona "WfmSupplier" \
+            --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
             --argjson old "$OLD_TESTS" \
             --argjson new "$TESTS_JSON" \
@@ -535,11 +732,13 @@ create_test_group() {
                 testCases: ($old + $new | unique)
             }' > "$GROUP_PATH/group.json"
 
+        success " Reading JSON files, extracting test case IDs, and adding them to the group.json"
+
     else
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
-            --arg persona "WfmSupplier" \
+            --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
             --argjson tests "$TESTS_JSON" \
             '{
@@ -549,22 +748,32 @@ create_test_group() {
                 description: $desc,
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
+
+        success " Created new group.json"
     fi
+
     info "Target Group Folder: $GROUP_PATH"
 }
 
 group_management_menu() {
+    # safety check
+    if [[ -z "${GROUP_DIR:-}" ]]; then
+        error "GROUP_DIR not set. Please select supplier first."
+    fi
+
     while true; do
         echo ""
-
-        echo "Enter a number to select an existing group from the list below, or press 0 to create a new group "
+        echo "Enter a number to select an existing group or press 0 to create a new group"
         echo ""
 
         echo "Available Groups"
         echo "--------------------------------------"
 
         mkdir -p "$GROUP_DIR"
-        mapfile -t groups < <(ls "$GROUP_DIR")
+
+        mapfile -t groups < <(
+            find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+        )
 
         if [ ${#groups[@]} -eq 0 ]; then
             echo "  No groups available"
@@ -578,25 +787,21 @@ group_management_menu() {
         echo "B → Back"
         echo "Q → Quit"
         echo ""
+
         read -p "Enter your choice: " choice
 
         # BACK
-        if [[ "${choice,,}" == "b" ]]; then
-            return
-        fi
+        [[ "${choice,,}" == "b" ]] && return
 
         # QUIT
-        if [[ "${choice,,}" == "q" ]]; then
-            info "Exiting..."
-            exit 0
-        fi
+        [[ "${choice,,}" == "q" ]] && { info "Exiting..."; exit 0; }
 
-        #  CREATE NEW (0)
+        # CREATE
         if [[ "$choice" == "0" ]]; then
             unset GROUP_NAME
             create_test_group
 
-        # EXISTING GROUP
+        # EXISTING
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
             index=$((choice-1))
 
@@ -610,11 +815,10 @@ group_management_menu() {
             fi
 
         else
-            warn "Invalid input. Please enter a valid option."
+            warn "Invalid choice"
             continue
         fi
 
-        #  POST MENU (same as yours)
         echo ""
         echo "Options:"
         echo "  B → Back"
@@ -647,7 +851,7 @@ delete_test_group() {
     mkdir -p "$GROUP_DIR"
 
     echo ""
-    echo "🗑️  Select group to delete:"
+    echo "🗑️ Select group to delete:"
     echo "--------------------------"
 
     # FIXED: use find instead of ls
@@ -671,13 +875,13 @@ delete_test_group() {
     fi
 
     if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-        die "Invalid input!"
+        error "Invalid input!"
     fi
 
     idx=$((choice-1))
 
     if [[ $idx -lt 0 || $idx -ge ${#GROUPS[@]} ]]; then
-        die "Invalid selection!"
+        error "Invalid selection!"
     fi
 
     GROUP_NAME=$(basename "${GROUPS[$idx]}")
@@ -694,21 +898,173 @@ delete_test_group() {
     success " Group '$GROUP_NAME' deleted successfully"
 }
 
+################################################################################
+# Interactive Menu Loop
+################################################################################
+
+interactive_mode() {
+    while true; do
+        show_persona_menu
+        
+        read -p "Select option (1-2, H, or Q): " choice
+        
+        case "${choice,,}" in
+            1|wfm)
+                echo ""
+                info "You selected: WFM Supplier"
+                echo ""
+                # Show test type selection for WFM
+                while true; do
+                    show_device_test_type_menu
+                    read -p "Select test type (1-2, B, or Q): " test_choice
+                    case "${test_choice,,}" in
+                        1|openapi|contract)
+                            echo ""
+                            read -p "Enter OpenAPI Spec Path (URL or local file): " spec_path
+                            echo ""
+                            generate_wfm_tests "$spec_path"
+                            break
+                            ;;
+                        2|margo|functional|template)
+                            echo ""
+                            read -p "Enter Postman Collection JSON Path: " collection_path
+                            echo ""
+                            generate_wfm_functional_tests "$collection_path"
+                            break
+                            ;;
+                        b|back)
+                            info "Going back to persona menu..."
+                            break
+                            ;;
+                        q|quit)
+                            info "Exiting..."
+                            exit 0
+                            ;;
+                        *)
+                            error "Invalid option. Please select 1, 2, B, or Q"
+                            ;;
+                    esac
+                done
+                ;;
+            2|device)
+                echo ""
+                info "You selected: Device Supplier"
+                echo ""
+                # Go directly to group-based selection
+                set_supplier_context "device-supplier"
+                group_management_menu
+                ;;
+
+            h|help)
+                show_help
+                ;;
+            q|quit)
+                info "Exiting..."
+                exit 0
+                ;;
+            *)
+                error "Invalid option. Please select 1, 2, H, or Q"
+                ;;
+        esac
+        
+        echo ""
+        read -p "Press Enter to continue or Q to quit: " continue_choice
+        if [[ "${continue_choice,,}" == "q" ]]; then
+            info "Exiting..."
+            exit 0
+        fi
+        clear
+    done
+}
+
+################################################################################
+# Command Line Argument Parsing
+################################################################################
+
 main() {
+    # Show welcome message
+    cat << 'EOF'
+╔═══════════════════════════════════════════════════════════════════════════╗
+║           Margo Conformance Test Case Generator                           ║
+║       Create test cases for API and conformance testing                   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+EOF
+
+    # No arguments - show interactive menu
     if [[ $# -eq 0 ]]; then
         interactive_mode
-        return
+        exit 0
     fi
-
+    
+    # Parse command line arguments
     local command="${1,,}"
-    shift || true
-
+    
     case "$command" in
-        wfm) handle_wfm_command "${1:-}" "${2:-}" ;;
-        device) handle_device_command "${1:-}" "${2:-}" ;;
-        help|-h|--help) usage ;;
-        *) die "Unknown command: $command. Run 'bash conformance.sh help' for usage." ;;
+        wfm)
+            local wfm_type="${2,,}"
+            case "$wfm_type" in
+                openapi|contract)
+                    generate_wfm_tests "${3:-}"
+                    ;;
+                margo|functional|template)
+                    generate_wfm_functional_tests "${3:-}"
+                    ;;
+                "")
+                    # No subcommand - use as spec path for backward compatibility
+                    generate_wfm_tests "${2:-}"
+                    ;;
+                *)
+                    error "Unknown WFM test type: $wfm_type
+Usage: bash conformance.sh wfm [openapi|functional] [path]"
+                    ;;
+            esac
+            ;;
+        device)
+            local device_arg="${2:-}"
+            
+            # If second argument is a file path, use it directly
+            if [[ -f "$device_arg" ]]; then
+                generate_device_tests "$device_arg"
+                exit 0
+            fi
+            
+            local device_type="${device_arg,,}"
+            case "$device_type" in
+                openapi|contract)
+                    generate_device_openapi_tests "${3:-}"
+                    ;;
+                margo|functional|template|scenarios)
+                    generate_device_margo_template_tests
+                    ;;
+                "")
+                    # No device type specified - use generate_device_tests for interactive path prompt
+                    generate_device_tests ""
+                    ;;
+                *)
+                    # Try to expand and check if it's a file path
+                    local expanded_path="${device_arg/\~/$HOME}"
+                    if [[ -f "$expanded_path" ]]; then
+                        generate_device_tests "$expanded_path"
+                    else
+                        error "Unknown device option: $device_type
+Usage: bash conformance.sh device [/path/to/scenarios.json|openapi|margo]"
+                    fi
+                    ;;
+            esac
+            ;;
+        help|-h|--help)
+            show_help
+            ;;
+        *)
+            error "Unknown command: $command
+
+Usage: bash conformance.sh [wfm|device|help]
+
+Run 'bash conformance.sh help' for detailed instructions."
+            ;;
     esac
 }
 
+# Run main function
 main "$@"

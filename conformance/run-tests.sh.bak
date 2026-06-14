@@ -454,33 +454,36 @@ execute_wfm_tests_with_group() {
 show_device_test_scenarios_menu() {
     echo "" >&2
     echo "Which test scenarios would you like to run?" >&2
-    echo "1. Group-based test scenarios (select from available groups)" >&2
+    echo "1. Custom test scenarios (~/sandbox/conformance/device-supplier/device-scenarios/test-scenarios.json)" >&2
+    echo "2. User generated test scenarios (~/sandbox/conformance/Data-Generator/device-supplier/test-scenarios.json)" >&2
     echo "" >&2
     echo "Q) Quit" >&2
     echo "" >&2
 }
 
 select_device_test_scenarios() {
+    local custom_scenarios="$CONFORMANCE_DIR/device-supplier/device-scenarios/test-scenarios.json"
+    local generated_scenarios="$DATA_GEN_DIR/device-supplier/test-scenarios.json"
+    
     while true; do
         show_device_test_scenarios_menu
-        # Print prompt to stderr so it does not get captured in command substitution
-        echo -n "Select option (1 or Q): " >&2
+        # Print prompt to stderr so it doesn't get captured in command substitution
+        echo -n "Select option (1-2 or Q): " >&2
         read choice
         
         case "${choice,,}" in
-            1|group)
-                local device_group
-                device_group=$(select_device_group)
-                if [[ -z "$device_group" ]]; then
-                    error "No device group selected"
+            1|custom)
+                if [[ ! -f "$custom_scenarios" ]]; then
+                    error "Custom test scenarios not found: $custom_scenarios"
                 fi
-                
-                local group_scenarios="$device_group/test-scenarios.json"
-                if [[ ! -f "$group_scenarios" ]]; then
-                    error "Test scenarios not found in group: $group_scenarios"
+                echo "$custom_scenarios"
+                return 0
+                ;;
+            2|generated)
+                if [[ ! -f "$generated_scenarios" ]]; then
+                    error "Generated test scenarios not found: $generated_scenarios"
                 fi
-                
-                echo "$group_scenarios"
+                echo "$generated_scenarios"
                 return 0
                 ;;
             q|quit)
@@ -488,7 +491,7 @@ select_device_test_scenarios() {
                 exit 0
                 ;;
             *)
-                error "Invalid option. Please select 1 or Q"
+                error "Invalid option. Please select 1, 2, or Q"
                 ;;
         esac
     done

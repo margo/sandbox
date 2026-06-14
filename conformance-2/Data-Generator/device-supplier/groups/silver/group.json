@@ -1,8 +1,8 @@
 {
-  "name": "diamonddevice",
-  "version": "1.0.4",
+  "name": "silver",
+  "version": "1.1.1",
   "persona": "device-supplier",
-  "description": "new grpv1.0.4",
+  "description": "new v1.1.1",
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
     "0510e725-a124-415f-a9b9-0d369e1d94e2",

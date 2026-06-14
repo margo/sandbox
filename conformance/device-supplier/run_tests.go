@@ -159,10 +159,10 @@ func main() {
 			allResults = append(allResults, result)
 
 			if result.Status == "pass" {
-				fmt.Printf("    ✅ PASS (HTTP %d)\n", result.StatusCode)
+				fmt.Printf("    ✅ PASS - HTTP %d (Expected: %d)\n", result.StatusCode, step.ExpectedStatus)
 				passCount++
 			} else {
-				fmt.Printf("    ❌ FAIL: %s\n", result.Reason)
+				fmt.Printf("    ❌ FAIL - %s\n", result.Reason)
 				failCount++
 			}
 		}
@@ -327,7 +327,7 @@ func resolveCertificateValue(value string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to load certificate from %s: %w", cleanPath, err)
 		}
-		log.Printf("[cert] Loaded certificate from %s (%d bytes)", cleanPath, len(certData))
+		// log.Printf("[cert] Loaded certificate from %s (%d bytes)", cleanPath, len(certData))
 		return string(certData), nil
 	}
 
@@ -412,11 +412,11 @@ func loadDevicePrivateKey() (interface{}, error) {
 func signRequest(req *http.Request, bodyBytes []byte) error {
 	key, err := loadDevicePrivateKey()
 	if err != nil {
-		log.Printf("[sign] Could not load device key (%v); requests will fail signature check", err)
+		// log.Printf("[sign] Could not load device key (%v); requests will fail signature check", err)
 		return nil
 	}
 
-	log.Printf("[sign] Request: %s %s, body length: %d bytes", req.Method, req.URL.Path, len(bodyBytes))
+	// log.Printf("[sign] Request: %s %s, body length: %d bytes", req.Method, req.URL.Path, len(bodyBytes))
 
 	// Build Content-Digest header for requests with a body
 	comps := []component.Identifier{
@@ -425,11 +425,11 @@ func signRequest(req *http.Request, bodyBytes []byte) error {
 	}
 	if len(bodyBytes) > 0 {
 		digest := buildContentDigest(bodyBytes)
-		log.Printf("[sign] Content-Digest computed: %s (body first 100 chars: %.100s)", digest, string(bodyBytes))
+		// log.Printf("[sign] Content-Digest computed: %s (body first 100 chars: %.100s)", digest, string(bodyBytes))
 		req.Header.Set("Content-Digest", digest)
 		comps = append(comps, component.New("content-digest"))
 	} else {
-		log.Printf("[sign] No body - Content-Digest not set")
+		// log.Printf("[sign] No body - Content-Digest not set")
 	}
 
 	signer := htmsighttp.NewSigner(key, "device-key",

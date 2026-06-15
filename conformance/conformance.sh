@@ -617,145 +617,121 @@ set_supplier_context() {
 create_test_group() {
     mkdir -p "$GROUP_DIR"
 
-    # Group name
-    if [[ -z "${GROUP_NAME:-}" ]]; then
-        echo ""
-        read -p "Enter group name: " GROUP_NAME
-        [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
+    # Get testcase folder for this persona
+    local testcase_dir="$CONFORMANCE_DIR/testcase/$SUPPLIER"
+    
+    if [[ ! -d "$testcase_dir" ]]; then
+        error "Testcase folder not found: $testcase_dir"
     fi
 
-    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
-
-    # Version
+    # Scan for available groups in testcase folder
     echo ""
-    read -p "Enter version of Margo Specification: " VERSION
+    echo "📁 Available groups in testcase/$SUPPLIER:"
+    echo "-------------------------------------------"
+    
+    shopt -s nullglob
+    local testcase_groups=("$testcase_dir"/*)
+    
+    if [[ ${#testcase_groups[@]} -eq 0 ]]; then
+        error "No groups found in $testcase_dir. Please add group folders there."
+    fi
+    
+    # Show available groups
+    for i in "${!testcase_groups[@]}"; do
+        if [[ -d "${testcase_groups[$i]}" ]]; then
+            local group_name=$(basename "${testcase_groups[$i]}")
+            echo "$((i+1))) $group_name"
+        fi
+    done
+    
+    echo ""
+    read -p "Select group number to copy: " group_choice
+    
+    if ! [[ "$group_choice" =~ ^[0-9]+$ ]] || [[ $group_choice -lt 1 ]] || [[ $group_choice -gt ${#testcase_groups[@]} ]]; then
+        error "Invalid selection"
+    fi
+    
+    local selected_testcase="${testcase_groups[$((group_choice-1))]}"
+    GROUP_NAME=$(basename "$selected_testcase")
+    GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
+    
+    success "Selected group: $GROUP_NAME"
+    
+    # Copy group from testcase to Data-Generator
+    log "📋 Copying group from testcase to Data-Generator..."
+    if [[ -d "$GROUP_PATH" ]]; then
+        log "Group already exists in Data-Generator, updating..."
+        rm -rf "$GROUP_PATH"
+    fi
+    cp -r "$selected_testcase" "$GROUP_PATH"
+    success "Group copied to: $GROUP_PATH"
+    
+    # Extract group metadata
+    echo ""
+    read -p "Enter version of Margo Specification [1.0.0]: " VERSION
     [[ -z "$VERSION" ]] && VERSION="1.0.0"
-
-    # Description
+    
     echo ""
     read -p "Enter a short description for group: " DESCRIPTION
-    [[ -z "$DESCRIPTION" ]] && DESCRIPTION="User created group"
-
-    # Append mode
-    APPEND_MODE=false
-    GROUP_JSON_EXISTS=false
-    if [[ -d "$GROUP_PATH" ]]; then
-        info "Using existing group: $GROUP_NAME"
-        APPEND_MODE=true
-        if [[ -f "$GROUP_PATH/group.json" ]]; then
-            GROUP_JSON_EXISTS=true
-            success "Group metadata (group.json) already exists"
-        fi
-    else
-        mkdir -p "$GROUP_PATH"
-    fi
-
-    # If group already has metadata, skip file input
-    if [[ "$GROUP_JSON_EXISTS" == true ]]; then
-        info "Skipping test case import (group.json already configured)"
-        return
-    fi
-
-    # Input folder (optional for new groups)
-    echo ""
-    read -p "Enter folder path containing JSON files (or press Enter to skip): " INPUT_PATH
+    [[ -z "$DESCRIPTION" ]] && DESCRIPTION="Group $GROUP_NAME"
     
-    # If no path provided, create group with empty test cases
-    if [[ -z "$INPUT_PATH" ]]; then
-        warn "No folder provided - creating group with empty test cases"
-        ALL_TESTS=()
-    else
-        [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
-
-        log " Reading all JSON files from folder..."
-
-        ALL_TESTS=()
-
-        # SAFE LOOP (IMPORTANT FIX)
-        shopt -s nullglob
-        files=("$INPUT_PATH"/*.json)
-
-        # check empty
-        if [[ ${#files[@]} -eq 0 ]]; then
-            warn "No JSON files found in folder"
-            ALL_TESTS=()
-        else
-            for file in "${files[@]}"; do
-                filename=$(basename "$file")
-                log " Processing: $filename"
-
-                # copy file
-                cp "$file" "$GROUP_PATH/"
-
-                # SAFE jq (NO CRASH)
-                IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
-
-                if [[ -z "$IDS" ]]; then
-                    IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
-                        | sed 's/ /_/g' \
-                        | tr '[:upper:]' '[:lower:]')
+    # Extract test case IDs from all JSON files in the group folder
+    log "📋 Extracting test case IDs from group files..."
+    
+    ALL_TESTS=()
+    local json_files=("$GROUP_PATH"/*.json)
+    
+    for file in "${json_files[@]}"; do
+        if [[ -f "$file" ]]; then
+            local filename=$(basename "$file")
+            log "   Processing: $filename"
+            
+            # Extract IDs from test scenarios or postman collection
+            local IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null | grep -v '^$' || true)
+            
+            if [[ -z "$IDS" ]]; then
+                IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null | grep -v '^$' || true)
+            fi
+            
+            # Add IDs to array
+            while IFS= read -r id; do
+                if [[ -n "$id" ]]; then
+                    ALL_TESTS+=("$id")
                 fi
-
-                # append safely
-                while IFS= read -r id; do
-                    [[ -n "$id" ]] && ALL_TESTS+=("$id")
-                done <<< "$IDS"
-            done
+            done <<< "$IDS"
         fi
-    fi
-
-    log " Total extracted test cases: ${#ALL_TESTS[@]}"
-
-    # Create tests JSON (allow empty array if no files provided)
+    done
+    
+    log "✓ Total extracted test cases: ${#ALL_TESTS[@]}"
+    
+    # Create tests JSON array
+    local TESTS_JSON
     if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
         TESTS_JSON='[]'
-        log "⚠️  No test cases found - creating group with empty test cases"
+        warn "No test cases found in group files"
     else
         TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
     fi
-
-    PERSONA="$SUPPLIER"
-
-    # merge / create
-    if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
-        OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
-
-        jq -n \
-            --arg name "$GROUP_NAME" \
-            --arg version "$VERSION" \
-            --arg persona "$PERSONA" \
-            --arg desc "$DESCRIPTION" \
-            --argjson old "$OLD_TESTS" \
-            --argjson new "$TESTS_JSON" \
-            '{
-                name: $name,
-                version: $version,
-                persona: $persona,
-                description: $desc,
-                testCases: ($old + $new | unique)
-            }' > "$GROUP_PATH/group.json"
-
-        success " Reading JSON files, extracting test case IDs, and adding them to the group.json"
-
-    else
-        jq -n \
-            --arg name "$GROUP_NAME" \
-            --arg version "$VERSION" \
-            --arg persona "$PERSONA" \
-            --arg desc "$DESCRIPTION" \
-            --argjson tests "$TESTS_JSON" \
-            '{
-                name: $name,
-                version: $version,
-                persona: $persona,
-                description: $desc,
-                testCases: $tests
-            }' > "$GROUP_PATH/group.json"
-
-        success " Created new group.json"
-    fi
-
-    info "Target Group Folder: $GROUP_PATH"
+    
+    local PERSONA="$SUPPLIER"
+    
+    # Create group.json
+    jq -n \
+        --arg name "$GROUP_NAME" \
+        --arg version "$VERSION" \
+        --arg persona "$PERSONA" \
+        --arg desc "$DESCRIPTION" \
+        --argjson tests "$TESTS_JSON" \
+        '{
+            name: $name,
+            version: $version,
+            persona: $persona,
+            description: $desc,
+            testCases: $tests
+        }' > "$GROUP_PATH/group.json"
+    
+    success "Created group.json with $(echo "$TESTS_JSON" | jq 'length') test cases"
+    info "Group ready: $GROUP_PATH"
 }
 
 group_management_menu() {

@@ -767,7 +767,6 @@ group_management_menu() {
         fi
 
         echo ""
-        echo "D → Delete group"
         echo "B → Back"
         echo "Q → Quit"
         echo ""
@@ -779,12 +778,6 @@ group_management_menu() {
 
         # QUIT
         [[ "${choice,,}" == "q" ]] && { info "Exiting..."; exit 0; }
-
-        # DELETE
-        if [[ "${choice,,}" == "d" ]]; then
-            delete_test_group
-            continue
-        fi
 
         # CREATE
         if [[ "$choice" == "0" ]]; then
@@ -835,57 +828,6 @@ list_test_groups() {
     else
         echo "No groups found"
     fi
-}
-
-delete_test_group() {
-    mkdir -p "$GROUP_DIR"
-
-    echo ""
-    echo "🗑️ Select group to delete:"
-    echo "--------------------------"
-
-    # FIXED: use find instead of ls
-    mapfile -t GROUPS < <(find "$GROUP_DIR" -mindepth 1 -maxdepth 1 -type d)
-
-    if [[ ${#GROUPS[@]} -eq 0 ]]; then
-        warn "No groups found"
-        return
-    fi
-
-    # Show list
-    for i in "${!GROUPS[@]}"; do
-        echo "$((i+1)). $(basename "${GROUPS[$i]}")"
-    done
-
-    echo ""
-    read -p "Enter number to delete (or B to go back): " choice
-
-    if [[ "${choice,,}" == "b" ]]; then
-        return
-    fi
-
-    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-        error "Invalid input!"
-    fi
-
-    idx=$((choice-1))
-
-    if [[ $idx -lt 0 || $idx -ge ${#GROUPS[@]} ]]; then
-        error "Invalid selection!"
-    fi
-
-    GROUP_NAME=$(basename "${GROUPS[$idx]}")
-
-    read -p "Are you sure you want to delete '$GROUP_NAME'? (y/n): " confirm
-
-    if [[ "${confirm,,}" != "y" ]]; then
-        info "Delete cancelled"
-        return
-    fi
-
-    rm -rf "${GROUPS[$idx]}"
-
-    success " Group '$GROUP_NAME' deleted successfully"
 }
 
 ################################################################################

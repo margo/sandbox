@@ -638,61 +638,81 @@ create_test_group() {
 
     # Append mode
     APPEND_MODE=false
+    GROUP_JSON_EXISTS=false
     if [[ -d "$GROUP_PATH" ]]; then
         info "Using existing group: $GROUP_NAME"
         APPEND_MODE=true
+        if [[ -f "$GROUP_PATH/group.json" ]]; then
+            GROUP_JSON_EXISTS=true
+            success "Group metadata (group.json) already exists"
+        fi
     else
         mkdir -p "$GROUP_PATH"
     fi
 
-    # Input folder
-    echo ""
-    read -p "Enter folder path containing JSON files: " INPUT_PATH
-    [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
-
-    log " Reading all JSON files from folder..."
-
-    ALL_TESTS=()
-
-    # SAFE LOOP (IMPORTANT FIX)
-    shopt -s nullglob
-    files=("$INPUT_PATH"/*.json)
-
-    # check empty
-    if [[ ${#files[@]} -eq 0 ]]; then
-        error "No JSON files found in folder!"
+    # If group already has metadata, skip file input
+    if [[ "$GROUP_JSON_EXISTS" == true ]]; then
+        info "Skipping test case import (group.json already configured)"
+        return
     fi
 
-    for file in "${files[@]}"; do
-        filename=$(basename "$file")
-        log " Processing: $filename"
+    # Input folder (optional for new groups)
+    echo ""
+    read -p "Enter folder path containing JSON files (or press Enter to skip): " INPUT_PATH
+    
+    # If no path provided, create group with empty test cases
+    if [[ -z "$INPUT_PATH" ]]; then
+        warn "No folder provided - creating group with empty test cases"
+        ALL_TESTS=()
+    else
+        [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
 
-        # copy file
-        cp "$file" "$GROUP_PATH/"
+        log " Reading all JSON files from folder..."
 
-        # SAFE jq (NO CRASH)
-        IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+        ALL_TESTS=()
 
-        if [[ -z "$IDS" ]]; then
-            IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
-                | sed 's/ /_/g' \
-                | tr '[:upper:]' '[:lower:]')
+        # SAFE LOOP (IMPORTANT FIX)
+        shopt -s nullglob
+        files=("$INPUT_PATH"/*.json)
+
+        # check empty
+        if [[ ${#files[@]} -eq 0 ]]; then
+            warn "No JSON files found in folder"
+            ALL_TESTS=()
+        else
+            for file in "${files[@]}"; do
+                filename=$(basename "$file")
+                log " Processing: $filename"
+
+                # copy file
+                cp "$file" "$GROUP_PATH/"
+
+                # SAFE jq (NO CRASH)
+                IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+
+                if [[ -z "$IDS" ]]; then
+                    IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
+                        | sed 's/ /_/g' \
+                        | tr '[:upper:]' '[:lower:]')
+                fi
+
+                # append safely
+                while IFS= read -r id; do
+                    [[ -n "$id" ]] && ALL_TESTS+=("$id")
+                done <<< "$IDS"
+            done
         fi
-
-        # append safely
-        while IFS= read -r id; do
-            [[ -n "$id" ]] && ALL_TESTS+=("$id")
-        done <<< "$IDS"
-    done
-
-    # final validation
-    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
-        error "No test cases found in files"
     fi
 
     log " Total extracted test cases: ${#ALL_TESTS[@]}"
 
-    TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
+    # Create tests JSON (allow empty array if no files provided)
+    if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
+        TESTS_JSON='[]'
+        log "⚠️  No test cases found - creating group with empty test cases"
+    else
+        TESTS_JSON=$(printf '%s\n' "${ALL_TESTS[@]}" | jq -R . | jq -s 'unique')
+    fi
 
     PERSONA="$SUPPLIER"
 

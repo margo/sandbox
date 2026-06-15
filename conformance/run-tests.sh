@@ -201,123 +201,6 @@ select_device_group() {
     echo "$selected_group"
 }
 
-filter_postman_collection() {
-    local group_json="$1"
-    local postman_collection="$2"
-    local output_collection="$3"
-    
-    if [[ ! -f "$group_json" ]]; then
-        error "Group JSON file not found: $group_json"
-    fi
-    
-    if [[ ! -f "$postman_collection" ]]; then
-        error "Postman collection not found: $postman_collection"
-    fi
-    
-    log "📋 Filtering Postman collection for selected group..."
-    log "   Input collection: $(basename "$postman_collection")"
-    
-    # Extract test case IDs from group.json
-    local test_ids
-    test_ids=$(jq -r '.testCases[]' "$group_json" 2>/dev/null)
-    
-    if [[ -z "$test_ids" ]]; then
-        error "No test cases found in group.json"
-    fi
-    
-    local test_count=$(echo "$test_ids" | wc -l)
-    log "   Test cases to execute: $test_count"
-    
-    log "   Building filtered collection..."
-    
-    # Create a temporary jq script that filters items recursively
-    local temp_jq_file="/tmp/filter_collection_$$.jq"
-    
-    cat > "$temp_jq_file" << 'JQEOF'
-def matches_test_id:
-  (.id as $id | $test_ids | map(select(. == $id)) | length > 0) or
-  (.name as $name | $test_ids | map(select(. == $name)) | length > 0) or
-  ((.request.name // "") as $req_name | $test_ids | map(select(. == $req_name)) | length > 0);
-
-def filter_items:
-  if type == "array" then
-    map(
-      if .item then
-        .item |= map(
-          if .item then
-            . as $folder | (.item |= map(select(matches_test_id)))
-            | if (.item | length) > 0 then . else empty end
-          else
-            select(matches_test_id)
-          end
-        )
-        | if (.item | length) > 0 then . else empty end
-      else
-        select(matches_test_id)
-      end
-    )
-  else
-    .
-  end;
-
-.item |= filter_items
-JQEOF
-    
-    # Create comma-separated test IDs array for jq
-    local test_ids_json
-    test_ids_json=$(echo "$test_ids" | jq -Rs 'split("\n") | map(select(length > 0))')
-    
-    if jq --argjson test_ids "$test_ids_json" -f "$temp_jq_file" "$postman_collection" > "$output_collection" 2>&1; then
-        success "Postman collection filtered successfully"
-        log "   Output collection: $(basename "$output_collection")"
-        rm -f "$temp_jq_file"
-        return 0
-    else
-        log "⚠️  JQ filtering encountered an issue. Attempting to copy collection as-is..."
-        # Fallback: copy collection without filtering
-        if cp "$postman_collection" "$output_collection"; then
-            success "Postman collection copied (filtering skipped due to error)"
-            log "   Output collection: $(basename "$output_collection")"
-            rm -f "$temp_jq_file"
-            return 0
-        else
-            error "Failed to create filtered collection"
-            rm -f "$temp_jq_file"
-            return 1
-        fi
-    fi
-}
-
-################################################################################
-# Component Configuration Functions
-################################################################################
-
-# NOTE: Component info collection commented out for now
-# Device Supplier: Mock server handles all configuration
-# WFM Supplier: Can be added later if needed for external component testing
-#
-# get_component_info() {
-#     echo ""
-#     info "Component Information"
-#     info "===================="
-#     
-#     read -p "Component Name: " component_name
-#     read -p "Manufacturer/Organization: " manufacturer
-#     read -p "Component Version: " component_version
-#     read -p "Margo Spec Version (e.g., v1.0.0): " spec_version
-#     read -p "Component IP/Hostname: " component_ip
-#     read -p "Component Port: " component_port
-#     read -p "Certificate Path (optional, press Enter to skip): " cert_path
-#     
-#     log "Component Information Collected:"
-#     info "  Component: $component_name"
-#     info "  Manufacturer: $manufacturer"
-#     info "  Version: $component_version"
-#     info "  Spec Version: $spec_version"
-#     info "  Endpoint: $component_ip:$component_port"
-#     info "  Certificate: ${cert_path:-none}"
-# }
-
 ################################################################################
 # WFM Supplier Test Execution (with Group Support)
 ################################################################################
@@ -335,16 +218,7 @@ execute_wfm_tests_with_url() {
     log "🚀 Starting WFM Supplier Test Execution"
     log "   WFM Server: $wfm_url"
     
-    # Call 2-run_newman.sh with WFM URL
-    local wfm_supplier_dir="$CONFORMANCE_DIR/wfm-supplier"
-    
-    if [[ ! -d "$wfm_supplier_dir" ]]; then
-        error "WFM Supplier directory not found: $wfm_supplier_dir"
-    fi
-    
-    cd "$wfm_supplier_dir"
-    
-    if bash 2-run_newman.sh "$wfm_url"; then
+    if run_wfm_newman "$wfm_url"; then
         success "WFM Tests Completed"
     else
         error "WFM test execution failed"
@@ -363,6 +237,97 @@ execute_wfm_tests() {
     
     # Otherwise run without group filtering (legacy behavior)
     execute_wfm_tests_with_url "$wfm_url"
+}
+
+resolve_group_path() {
+    local group_dir="$1"
+    local group_ref="$2"
+
+    if [[ -d "$group_ref" ]]; then
+        echo "$group_ref"
+        return 0
+    fi
+
+    if [[ -d "$group_dir/$group_ref" ]]; then
+        echo "$group_dir/$group_ref"
+        return 0
+    fi
+
+    return 1
+}
+
+run_wfm_newman() {
+    local wfm_url="${1:-}"
+    local collection_file="${2:-$CONFORMANCE_DIR/wfm-supplier/postman_collection.json}"
+    local report_prefix="${3:-wfm-test-report}"
+    local wfm_supplier_dir="$CONFORMANCE_DIR/wfm-supplier"
+    local data_dir="$wfm_supplier_dir/newman-data"
+    local env_file="$data_dir/device-agent.env.json"
+    local iteration_file="$data_dir/device-agent.iteration.json"
+    local cert_dir="$data_dir/certs"
+    local local_ca_cert_file="$wfm_supplier_dir/certs/ca-cert.pem"
+    local runtime_ca_cert_file="$cert_dir/ca-cert.pem"
+    local runtime_collection="$wfm_supplier_dir/.collection.runtime.json"
+    local report_file="${report_prefix}_$(date +%Y%m%d_%H%M%S).html"
+
+    if [[ -z "$wfm_url" ]]; then
+        if [[ -f "$env_file" ]]; then
+            wfm_url=$(jq -r '.values[] | select(.key=="baseUrl") | .value' "$env_file" 2>/dev/null || echo "")
+        fi
+    fi
+
+    [[ -z "$wfm_url" ]] && error "WFM URL not provided"
+    [[ -d "$wfm_supplier_dir" ]] || error "WFM Supplier directory not found: $wfm_supplier_dir"
+    [[ -f "$collection_file" ]] || error "Postman collection not found: $collection_file"
+    [[ -f "$env_file" ]] || error "Newman environment not found: $env_file"
+
+    command -v jq >/dev/null 2>&1 || error "jq not found. Install jq before running WFM tests."
+    command -v newman >/dev/null 2>&1 || error "Newman not found. Install with: npm install -g newman newman-reporter-htmlextra"
+
+    mkdir -p "$cert_dir"
+    if [[ -f "$local_ca_cert_file" ]]; then
+        cp "$local_ca_cert_file" "$runtime_ca_cert_file"
+    elif [[ ! -f "$runtime_ca_cert_file" ]]; then
+        error "Missing WFM CA certificate. Copy it to: $local_ca_cert_file"
+    fi
+
+    wfm_url="${wfm_url//v1aplha2/v1alpha2}"
+    jq --arg baseUrl "$wfm_url" \
+        '.values |= map(if .key == "baseUrl" then .value = $baseUrl else . end)' \
+        "$env_file" > "$env_file.tmp"
+    mv "$env_file.tmp" "$env_file"
+    echo '[]' > "$iteration_file"
+
+    cp "$collection_file" "$runtime_collection"
+    
+    # Use external jq filter file to avoid shell quoting issues
+    local jq_filter_file="$wfm_supplier_dir/patch_postman_collection.jq"
+    if [[ ! -f "$jq_filter_file" ]]; then
+        error "JQ filter file not found: $jq_filter_file"
+    fi
+    
+    jq -f "$jq_filter_file" "$runtime_collection" > "$runtime_collection.tmp"
+    mv "$runtime_collection.tmp" "$runtime_collection"
+
+    log "▶️  Running Newman against: $wfm_url"
+    set +e
+    (cd "$wfm_supplier_dir" && newman run "$runtime_collection" \
+        --environment "$env_file" \
+        --ssl-extra-ca-certs "$runtime_ca_cert_file" \
+        --insecure \
+        -r cli,htmlextra \
+        --reporter-htmlextra-export "$report_file")
+    local result=$?
+    set -e
+
+    rm -f "$runtime_collection" "$runtime_collection.tmp"
+
+    if [[ -f "$wfm_supplier_dir/$report_file" ]]; then
+        cp "$wfm_supplier_dir/$report_file" "$RUNNER_WFM/"
+        success "Report: $RUNNER_WFM/$report_file"
+    fi
+
+    return $result
 }
 
 execute_wfm_tests_with_group() {
@@ -417,31 +382,11 @@ execute_wfm_tests_with_group() {
     log "▶️  Running test cases from group: $group_name"
     echo ""
     
-    # Call 2-run_newman.sh with group collection and group name
-    local wfm_supplier_dir="$CONFORMANCE_DIR/wfm-supplier"
-    
-    if [[ ! -d "$wfm_supplier_dir" ]]; then
-        error "WFM Supplier directory not found: $wfm_supplier_dir"
-    fi
-    
-    cd "$wfm_supplier_dir"
-    
-    # Run Newman with the group-specific collection
     local report_prefix="wfm-test-report-${group_name}"
-    
     log "📊 Generating report: $report_prefix"
     
-    if bash 2-run_newman.sh "$wfm_url" "$group_collection" "$report_prefix"; then
+    if run_wfm_newman "$wfm_url" "$group_collection" "$report_prefix"; then
         success "WFM Tests Completed for group: $group_name"
-        
-        # Find and copy the generated report
-        local latest_report=$(ls -1rt "report_${report_prefix}"*.html 2>/dev/null | tail -1 || echo "")
-        if [[ -n "$latest_report" ]]; then
-            cp "$latest_report" "$RUNNER_WFM/"
-            success "Report: $RUNNER_WFM/$(basename "$latest_report")"
-        else
-            info "Check $(pwd) for report: $report_prefix*.html"
-        fi
     else
         error "WFM test execution failed for group: $group_name"
     fi
@@ -629,56 +574,6 @@ execute_device_tests() {
 }
 
 ################################################################################
-# Test Suite Selection
-################################################################################
-
-show_test_suite_menu() {
-    echo ""
-    echo "Which test suite would you like to run?"
-    echo "1. Contract Tests (OpenAPI specifications)"
-    echo "2. Functional Tests (Full conformance scenarios)"
-    echo "3. Both"
-    echo ""
-    echo "B) Back"
-    echo "Q) Quit"
-    echo ""
-}
-
-select_test_suites() {
-    local persona="$1"
-    
-    while true; do
-        show_test_suite_menu
-        read -p "Select test suite (1-3, B, or Q): " suite_choice
-        
-        case "${suite_choice,,}" in
-            1|contract)
-                echo "Contract"
-                break
-                ;;
-            2|functional)
-                echo "Functional"
-                break
-                ;;
-            3|both)
-                echo "Both"
-                break
-                ;;
-            b|back)
-                return 1
-                ;;
-            q|quit)
-                info "Exiting..."
-                exit 0
-                ;;
-            *)
-                error "Invalid option. Please select 1, 2, 3, B, or Q"
-                ;;
-        esac
-    done
-}
-
-################################################################################
 # Persona Selection Menu
 ################################################################################
 
@@ -711,10 +606,10 @@ DESCRIPTION:
   - Generates signed conformance reports
 
 USAGE:
-  bash run-tests.sh                              # Interactive menu
-  bash run-tests.sh wfm                          # Run WFM tests
-  bash run-tests.sh device                       # Run Device tests
-  bash run-tests.sh help                         # Show this help
+  ./run-tests.sh                         # Interactive menu
+  ./run-tests.sh wfm [GROUP] [WFM_URL]    # Run WFM tests
+  ./run-tests.sh device [GROUP|SCENARIOS] # Run Device tests
+  ./run-tests.sh help                    # Show this help
 
 PERSONAS:
 
@@ -734,16 +629,16 @@ PERSONAS:
 WORKFLOW:
 
   1. Run conformance.sh (CLI #1) to prepare test cases
-     bash conformance.sh
+     ./conformance.sh
      → Select persona and test type
      → Select or create test groups
      → Test cases prepared and grouped in Data-Generator/
 
   2. Run run-tests.sh (CLI #2) to execute tests
-     bash run-tests.sh
+     ./run-tests.sh
      → Select persona
-     → WFM Supplier: Select test group, provide component information
-     → Device Supplier: Tests run automatically
+     → WFM Supplier: Select test group and provide WFM URL
+     → Device Supplier: Select group-based scenarios
      → Reports generated in Runner/ (grouped by test group)
 
   3. Review conformance report
@@ -782,7 +677,7 @@ TEST GROUPS (WFM Supplier):
     groups/
     ├── diamond/
     │   ├── group.json (metadata + test case IDs)
-    │   ├── postman_collection_filtered.json (auto-generated)
+    │   ├── postman_collection.json (group collection)
     │   └── ... (supporting files)
     ├── silver/
     └── rishabh/
@@ -791,7 +686,7 @@ TEST GROUPS (WFM Supplier):
     {
       "name": "diamond",
       "version": "1.0.4",
-      "persona": "WfmSupplier",
+      "persona": "wfm-supplier",
       "description": "Diamond tier conformance tests",
       "testCases": ["id1", "id2", ...]
     }
@@ -800,7 +695,7 @@ EXAMPLE WORKFLOW:
 
   # Step 1: Generate tests with CLI #1
   cd conformance
-  bash conformance.sh
+  ./conformance.sh
   → Select: 1 (WFM Supplier)
   → Select: 1 (OpenAPI spec)
   → Enter: /path/to/openapi.yaml
@@ -808,24 +703,14 @@ EXAMPLE WORKFLOW:
 
   # Step 2: Run tests with CLI #2
   cd conformance
-  bash run-tests.sh
+  ./run-tests.sh
   → Select: 1 (WFM Supplier)
-  → Provide component details (optional)
+  → Enter WFM URL
   → Tests execute
   → Report in Runner/wfm-supplier/
 
   # Step 3: Review results
   open Runner/wfm-supplier/wfm-test-report-*.html
-
-COMPONENT INFORMATION REQUESTED:
-
-  • Component Name: Your component's name
-  • Manufacturer: Organization/Company
-  • Component Version: Version number
-  • Margo Spec Version: Which Margo spec version it follows
-  • Component IP/Hostname: Where component is running
-  • Component Port: Port number
-  • Certificate Path: (Optional) TLS certificate if needed
 
 REPORT CONTENTS:
 
@@ -889,6 +774,33 @@ EOF
     read -p "Press Enter once you have copied the certificate, or Ctrl+C to cancel: " continue_input
 }
 
+run_wfm_flow() {
+    show_wfm_cert_info
+
+    echo ""
+    info "Selecting test group..."
+    local selected_group_path
+    if selected_group_path=$(select_wfm_group); then
+        local group_name
+        group_name=$(basename "$selected_group_path")
+        success "Selected group: $group_name"
+
+        echo ""
+        read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+        wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+
+        execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+    else
+        error "Failed to select group"
+    fi
+}
+
+run_device_flow() {
+    local device_test_scenarios
+    device_test_scenarios=$(select_device_test_scenarios)
+    execute_device_tests "$device_test_scenarios"
+}
+
 ################################################################################
 # Interactive Mode
 ################################################################################
@@ -903,37 +815,12 @@ interactive_mode() {
             1|wfm)
                 echo ""
                 info "You selected: WFM Supplier"
-                
-                # Show certificate setup instructions
-                show_wfm_cert_info
-                
-                # Select test group
-                echo ""
-                info "Selecting test group..."
-                local selected_group_path
-                if selected_group_path=$(select_wfm_group); then
-                    local group_name=$(basename "$selected_group_path")
-                    success "Selected group: $group_name"
-                    
-                    # Prompt for WFM URL
-                    echo ""
-                    read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
-                    wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
-                    
-                    # Execute tests with group
-                    execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
-                else
-                    error "Failed to select group"
-                fi
+                run_wfm_flow
                 ;;
             2|device)
                 echo ""
                 info "You selected: Device Supplier"
-                
-                # Select device test scenarios
-                local device_test_scenarios=$(select_device_test_scenarios)
-                
-                execute_device_tests "$device_test_scenarios"
+                run_device_flow
                 ;;
             h|help)
                 show_help
@@ -981,12 +868,26 @@ EOF
     
     case "$command" in
         wfm)
-            log "Executing WFM Supplier tests..."
-            execute_wfm_tests
+            if [[ -n "${2:-}" ]]; then
+                local group_path
+                group_path=$(resolve_group_path "$WFM_GROUP_DIR" "$2") || \
+                    error "WFM group not found: $2"
+                execute_wfm_tests_with_group "${3:-}" "$group_path"
+            else
+                run_wfm_flow
+            fi
             ;;
         device)
-            log "Executing Device Supplier tests..."
-            execute_device_tests
+            if [[ -f "${2:-}" ]]; then
+                execute_device_tests "$2"
+            elif [[ -n "${2:-}" ]]; then
+                local group_path
+                group_path=$(resolve_group_path "$DEVICE_GROUP_DIR" "$2") || \
+                    error "Device group or scenarios file not found: $2"
+                execute_device_tests "$group_path/test-scenarios.json"
+            else
+                run_device_flow
+            fi
             ;;
         help|-h|--help)
             show_help
@@ -994,9 +895,9 @@ EOF
         *)
             error "Unknown command: $command
 
-Usage: bash run-tests.sh [wfm|device|help]
+Usage: ./run-tests.sh [wfm|device|help]
 
-Run 'bash run-tests.sh help' for detailed instructions."
+Run './run-tests.sh help' for detailed instructions."
             ;;
     esac
 }

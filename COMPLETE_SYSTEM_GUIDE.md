@@ -201,7 +201,7 @@ Data-Generator/wfm-supplier/
 | `execute_wfm_tests()` | Run Newman with collection | line ~252 |
 | `prepare_environment()` | Set up env variables | line ~286 |
 | `patch_url_variables()` | Replace {{variable}} in URLs | line ~298 |
-| `filter_postman_collection()` | Extract group tests | run-tests.sh:207 |
+| `run_wfm_newman()` | Prepare collection/env and run Newman | run-tests.sh |
 
 #### Example Output
 
@@ -533,7 +533,7 @@ run-tests.sh
         ├─ WFM Path:
         │  ├─ select_wfm_group()
         │  ├─ read_environment_variables()
-        │  ├─ filter_postman_collection()
+        │  ├─ run_wfm_newman()
         │  └─ execute_wfm_tests()
         │      │
         │      └─ Newman (HTTP test runner)
@@ -626,29 +626,10 @@ conformance-persona-test/
 │           ├── test-results.json
 │           └── test-results.html
 │
-├── conformance-2/                        # Phase 1 & 2 with RFC 9421 signing proxy
-│   ├── conformance.sh                    # Same as conformance/
-│   ├── run-tests.sh                      # Same as conformance/
-│   ├── Data-Generator/                   # Same structure as conformance/
-│   ├── device-supplier/                  # Same structure as conformance/
-│   ├── wfm-supplier/
-│   │   ├── signing_proxy.go              # ◄─ RFC 9421 signing proxy (active here)
-│   │   └── signing_proxy (binary)        # Compiled proxy
-│   └── Runner/                           # Test results
-│
 ├── COMPLETE_SYSTEM_GUIDE.md              # ◄─ THIS FILE (Full documentation)
 ├── GROUP_TESTING_QUICK_REFERENCE.md      # Quick start for groups
 └── README.md                             # General overview
 ```
-
-### Key Differences: conformance vs conformance-2
-
-| Aspect | conformance | conformance-2 |
-|--------|-------------|---------------|
-| **TLS** | Standard HTTPS (self-signed) | Standard HTTPS (self-signed) |
-| **Signing** | Direct endpoint on port 8082 | RFC 9421 signing proxy on port 18082 |
-| **Use Case** | Basic testing | RFC 9421 signed requests |
-| **Data** | Identical in both | Identical in both |
 
 ---
 
@@ -710,7 +691,6 @@ cd conformance
 cd conformance
 ./run-tests.sh
 # Select: 1 (WFM Supplier)
-# Select: Test type (1 for OpenAPI, 2 for Functional)
 # Enter: WFM endpoint URL (e.g., https://my-wfm.example.com:8082)
 # Select: Group number
 # Tests run with Newman
@@ -775,7 +755,6 @@ cd /home/margo/conformance-persona-test/conformance
 # Step 3: Run tests
 ./run-tests.sh
 # Input: 1 (WFM Supplier)
-# Input: Test type
 # Input: https://my-wfm.example.com:8082 (your WFM endpoint)
 # Input: Group number
 # Result: HTML report in Runner/wfm-supplier/test-results.html
@@ -814,19 +793,14 @@ cd /home/margo/conformance-persona-test/conformance
 # Result: Tests from custom group execute
 ```
 
-### Workflow 3: RFC 9421 Signed Requests (conformance-2)
+### Workflow 3: RFC 9421 Signed Requests
+
+RFC 9421 support now lives in the single `conformance/` workflow. Run the same two entrypoints:
 
 ```bash
-# Use conformance-2 for RFC 9421 support
-cd /home/margo/conformance-persona-test/conformance-2
-
-# All steps same as conformance/
+cd /home/margo/conformance-persona-test/conformance
 ./conformance.sh
 ./run-tests.sh
-
-# Key difference: Requests routed through signing proxy
-# Port: 18082 (instead of 8082)
-# Automatically signs with RFC 9421 headers
 ```
 
 ---
@@ -914,7 +888,6 @@ kill -9 <PID>
 **Solution**:
 ```bash
 chmod +x /home/margo/conformance-persona-test/conformance/*.sh
-chmod +x /home/margo/conformance-persona-test/conformance-2/*.sh
 chmod +x /home/margo/conformance-persona-test/conformance/device-supplier/bin/*
 ```
 

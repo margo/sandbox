@@ -3,7 +3,7 @@
 ################################################################################
 # Conformance Test Case Generator CLI
 # Purpose: Create and prepare test cases for Margo Personas
-# Usage: bash conformance.sh
+# Usage: ./conformance.sh
 ################################################################################
 
 set -euo pipefail
@@ -224,25 +224,11 @@ generate_wfm_functional_tests() {
 # Device Test Type Selection Menu
 ################################################################################
 
-show_device_test_type_menu() {
+show_test_type_menu() {
     echo ""
     echo "What type of test-cases do you want to add?"
     echo "1. OpenAPI spec based contract tests"
     echo "2. Functional tests (in MARGO template)"
-    echo ""
-    echo "B) Back"
-    echo "Q) Quit"
-    echo ""
-}
-
-################################################################################
-# Device Supplier Options Menu
-################################################################################
-
-show_device_supplier_options_menu() {
-    echo ""
-    echo "Device Supplier Test Cases — Group-based Selection:"
-    echo "1. Select from available groups"
     echo ""
     echo "B) Back"
     echo "Q) Quit"
@@ -507,9 +493,9 @@ generate_device_margo_template_tests() {
 
 show_persona_menu() {
     echo ""
-    echo "Which Margo Persona do you want to create test-cases for?"
-    echo "1. WFM Supplier"
-    echo "2. Device Supplier"
+    echo "Which Margo Persona do you want to manage?"
+    echo "1. WFM Supplier (Group-based test management)"
+    echo "2. Device Supplier (Group-based test management)"
     echo ""
     echo "H) Help"
     echo "Q) Quit"
@@ -527,18 +513,16 @@ DESCRIPTION:
   This CLI generates test cases for Margo conformance testing.
   It prepares test data for both WFM Supplier and Device Supplier personas.
   
-  When you select WFM Supplier, you'll be asked what type of tests:
-    • OpenAPI spec based contract tests (asks for spec path: URL or local file)
-    • MARGO template functional tests (not yet implemented)
+  When you select WFM Supplier, you can prepare either OpenAPI-based tests or a functional Postman collection.
   
-  When you select Device Supplier, you'll be asked for the API URL:
-    • Generates device conformance tests
+  When you select Device Supplier, you manage group-based device scenarios.
 
 USAGE:
-  bash conformance.sh                    # Interactive menu
-  bash conformance.sh wfm [SPEC_PATH]    # Generate WFM tests (with optional OpenAPI spec path)
-  bash conformance.sh device openapi [API_URL]     # Device OpenAPI tests
-  bash conformance.sh device margo       # Device MARGO template tests
+  ./conformance.sh                         # Interactive menu
+  ./conformance.sh wfm openapi [SPEC_PATH] # Generate WFM OpenAPI tests
+  ./conformance.sh wfm functional [PATH]   # Prepare WFM Postman collection
+  ./conformance.sh device                  # Create/select Device groups
+  ./conformance.sh device [SCENARIOS]      # Prepare Device scenarios
 
 PERSONA OPTIONS:
   
@@ -549,33 +533,33 @@ PERSONA OPTIONS:
     • Option 2: MARGO template (not yet implemented)
   
   Device Supplier:
-    • Option 1: Use existing test-scenarios.json from device-supplier/device-scenarios/
-    • Option 2: Provide your own custom test scenarios (template provided)
+    • Interactive mode opens group management
+    • Command mode can prepare a scenario file or template data
     • Template file: device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json
     • See device-supplier/Final-Summary.md for complete schema documentation
     
 INTERACTIVE MENU:
   1       - Select WFM Supplier
-  2       - Select Device Supplier (will ask test type)
+  2       - Select Device Supplier group management
   H/help  - Show this help message
   Q/quit  - Exit the program
 
 EXAMPLES:
 
   1. Interactive mode (menu-driven):
-     bash conformance.sh
+     ./conformance.sh
 
   2. Generate WFM tests with OpenAPI spec URL:
-     bash conformance.sh wfm https://raw.githubusercontent.com/margo/specification/.../openapi.yaml
+     ./conformance.sh wfm https://raw.githubusercontent.com/margo/specification/.../openapi.yaml
 
   3. Generate WFM tests with local OpenAPI spec file:
-     bash conformance.sh wfm /path/to/local/openapi.yaml
+     ./conformance.sh wfm /path/to/local/openapi.yaml
 
   4. Generate Device tests with existing test-scenarios.json:
-     bash conformance.sh device "/home/margo/nitin/sandbox/conformance/device-supplier/device-scenarios/test-scenarios.json"
+     ./conformance.sh device "/home/margo/nitin/sandbox/conformance/device-supplier/device-scenarios/test-scenarios.json"
 
   5. Generate Device tests with custom test scenarios:
-     bash conformance.sh device "/path/to/your/custom_test_scenarios.json"
+     ./conformance.sh device "/path/to/your/custom_test_scenarios.json"
 
   6. View custom test scenario template:
      cat device-supplier/device-scenarios/TEMPLATE_custom_test_scenario.json
@@ -602,10 +586,9 @@ WHAT GETS GENERATED:
 NEXT STEPS:
 
   After generating tests, use the execution CLI to run them:
-    bash run-tests.sh wfm
-    bash run-tests.sh device contract
-    bash run-tests.sh device functional
-    bash run-tests.sh device demo
+    ./run-tests.sh
+    ./run-tests.sh wfm <group-name> <wfm-url>
+    ./run-tests.sh device <group-name>
 
 REQUIREMENTS:
 
@@ -784,6 +767,7 @@ group_management_menu() {
         fi
 
         echo ""
+        echo "D → Delete group"
         echo "B → Back"
         echo "Q → Quit"
         echo ""
@@ -795,6 +779,12 @@ group_management_menu() {
 
         # QUIT
         [[ "${choice,,}" == "q" ]] && { info "Exiting..."; exit 0; }
+
+        # DELETE
+        if [[ "${choice,,}" == "d" ]]; then
+            delete_test_group
+            continue
+        fi
 
         # CREATE
         if [[ "$choice" == "0" ]]; then
@@ -913,9 +903,25 @@ interactive_mode() {
                 echo ""
                 info "You selected: WFM Supplier"
                 echo ""
-                # Show test type selection for WFM
+                # Go to group-based selection for WFM
+                set_supplier_context "wfm-supplier"
+                group_management_menu
+                ;;
+            1-group|wfm-group)
+                echo ""
+                info "You selected: WFM Supplier - Manage Groups"
+                echo ""
+                # Go to group-based selection for WFM
+                set_supplier_context "wfm-supplier"
+                group_management_menu
+                ;;
+            1-test|wfm-test)
+                echo ""
+                info "You selected: WFM Supplier - Quick Test Generation"
+                echo ""
+                # Show test type selection for WFM (legacy mode)
                 while true; do
-                    show_device_test_type_menu
+                    show_test_type_menu
                     read -p "Select test type (1-2, B, or Q): " test_choice
                     case "${test_choice,,}" in
                         1|openapi|contract)
@@ -1016,7 +1022,7 @@ EOF
                     ;;
                 *)
                     error "Unknown WFM test type: $wfm_type
-Usage: bash conformance.sh wfm [openapi|functional] [path]"
+Usage: ./conformance.sh wfm [openapi|functional] [path]"
                     ;;
             esac
             ;;
@@ -1048,7 +1054,7 @@ Usage: bash conformance.sh wfm [openapi|functional] [path]"
                         generate_device_tests "$expanded_path"
                     else
                         error "Unknown device option: $device_type
-Usage: bash conformance.sh device [/path/to/scenarios.json|openapi|margo]"
+Usage: ./conformance.sh device [/path/to/scenarios.json|openapi|margo]"
                     fi
                     ;;
             esac
@@ -1059,9 +1065,9 @@ Usage: bash conformance.sh device [/path/to/scenarios.json|openapi|margo]"
         *)
             error "Unknown command: $command
 
-Usage: bash conformance.sh [wfm|device|help]
+Usage: ./conformance.sh [wfm|device|help]
 
-Run 'bash conformance.sh help' for detailed instructions."
+Run './conformance.sh help' for detailed instructions."
             ;;
     esac
 }

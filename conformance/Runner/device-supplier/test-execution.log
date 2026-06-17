@@ -12,195 +12,113 @@
 ▶ Running Scenario: Device Onboarding (scenario-onboarding)
   Description: Certificate retrieval plus successful and rejected onboarding flows.
   → Step: Get Root CA Certificate
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/onboarding/certificate, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Onboard Trusted Device
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Reject Blocklisted Certificate
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 112 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:Hw6NiIsLTZXMb6RYXXRkz+WrPrY9bFByd7Re+SMhZgw=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"rnd-key-7f3a91b2c4d8e6","kind":"Onboard)
-    ✅ PASS (HTTP 403)
+    ✅ PASS - HTTP 403 (Expected: 403)
 
 ▶ Running Scenario: Capabilities Reporting (scenario-capabilities)
   Description: POST and PUT capability manifests that match the spec-aligned schema.
   → Step: Onboard Device (Setup)
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Report Capabilities with POST
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/16d9c7b5-12ea-4f5e-ba3c-30fd449c2984/capabilities, body length: 370 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:IajHkF1lm2QQJxzWQvwV26ua00eNnXj1zRPShf5UE/A=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Report Capabilities with PUT
-2026/06/11 14:40:16 [sign] Request: PUT /v1alpha2/margo/api/v1/clients/16d9c7b5-12ea-4f5e-ba3c-30fd449c2984/capabilities, body length: 386 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:RYEZNUmj8pPitBznPqDbSyVVJpN4VKM56n0WcR5bwQI=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
 
 ▶ Running Scenario: Deployment Retrieval And Status (scenario-deployments)
   Description: Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.
   → Step: Onboard Device (Setup)
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Get Current Deployments
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/deployments, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Get Deployments With Matching ETag
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/deployments, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 304)
+    ✅ PASS - HTTP 304 (Expected: 304)
   → Step: Download Deployment Bundle
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/bundles/sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Download Bundle With Matching ETag
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/bundles/sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 304)
+    ✅ PASS - HTTP 304 (Expected: 304)
   → Step: Download Individual Deployment Manifest
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Download Individual Deployment Manifest With Matching ETag
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 304)
+    ✅ PASS - HTTP 304 (Expected: 304)
   → Step: Report Deployment Status
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/90bd6f82-ec98-40df-9ea8-590d345f7f44/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status, body length: 227 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:qjEqL7h8vQLAp99iLhPOf9EBoj9aguqhnd5yfbRfjas=: (body first 100 chars: {"apiVersion":"deployment.margo.org/v1alpha1","components":[{"name":"app-component-1","state":"insta)
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
 
 ▶ Running Scenario: Onboarding Error Handling (scenario-onboarding-errors)
   Description: Spec-shaped 400 and 401 onboarding responses.
   → Step: Reject Onboarding With Invalid Api Version
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1427 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:Z5iZE61B8uKKHvcuDtJe7ikmfk9fyfb9e/enBLKW09U=: (body first 100 chars: {"apiVersion":"v1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCApmgAwIBAgIUbBfLB53Qprht2ClgW)
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Onboarding With Missing Certificate
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 73 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:YYdun2lX6J135q3KaSoXHhEkFM0Wdp2hw2nthion9bk=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","kind":"OnboardingRequest"})
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Onboarding With Empty Certificate
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 90 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:u5PYDQosiaHmEB6iM2/97NkW1jiH6w/hGyJvlRjManY=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"","kind":"OnboardingRequest"})
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Onboarding With Missing Kind
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1427 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:wJeZnhVSYnwNZ9jC8XeN5vWEVukybcXxcqDqzVNfM0g=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Onboarding With Wrong Kind Value
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1446 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:lfYL2QD7EA/at1EmO1fijM1ehd7GtAKVQyEN1QJOICU=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Onboard Without Signature Succeeds
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
 
 ▶ Running Scenario: Capabilities Error Handling (scenario-capabilities-errors)
   Description: Negative tests for digest, schema, role, interface, and client validation.
   → Step: Onboard Device (Setup)
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Reject Capabilities With Missing Properties
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7aaf6c62-f6bf-4e08-a77e-c40f303d771a/capabilities, body length: 78 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:EfXGMuCAEhYa3TJZs9K7HAF+3TdM73+7U4sAiF55Avk=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest"})
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Capabilities With Invalid Role
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7aaf6c62-f6bf-4e08-a77e-c40f303d771a/capabilities, body length: 348 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:96aQ+vTQPDQWN9Hz3g7+5EDHopnI+OJGTLFB81twqM8=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Capabilities With Invalid Interface Type
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7aaf6c62-f6bf-4e08-a77e-c40f303d771a/capabilities, body length: 351 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:8/bOc80i/M8OSuxKdID1VwQaW0XDS2zQfRGsOWDRV2A=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Capabilities With Invalid Cpu Architecture
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7aaf6c62-f6bf-4e08-a77e-c40f303d771a/capabilities, body length: 353 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:BUXiPFX9XcXVDVA/IkpINiFVj1MGUeYbPIz98SrivhM=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Capabilities With Missing Content-Digest
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7aaf6c62-f6bf-4e08-a77e-c40f303d771a/capabilities, body length: 353 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:/dRU9eHMh342t/gRqpZRDVoQMQL51/PY6FHfeL22mCA=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Capabilities Without Signature
-    ✅ PASS (HTTP 401)
+    ✅ PASS - HTTP 401 (Expected: 401)
   → Step: Reject Capabilities For Unknown Client
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/not-a-real-client/capabilities, body length: 353 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:G6mb6xIVAiE/uE093hjPbFESozUkZcJqeVHw+tpV/7c=: (body first 100 chars: {"apiVersion":"device.margo.org/v1alpha1","kind":"DeviceCapabilitiesManifest","properties":{"id":"de)
-    ✅ PASS (HTTP 404)
+    ✅ PASS - HTTP 404 (Expected: 404)
 
 ▶ Running Scenario: Status And Retrieval Errors (scenario-status-and-retrieval-errors)
   Description: Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.
   → Step: Onboard Device (Setup)
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Get Current Deployments (Setup)
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 200)
+    ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Reject Deployments Request With Unsupported Accept Header
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 406)
+    ✅ PASS - HTTP 406 (Expected: 406)
   → Step: Reject Bundle Download With Wrong Digest
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/bundles/not-the-right-digest, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 404)
+    ✅ PASS - HTTP 404 (Expected: 404)
   → Step: Reject Deployment Manifest Download With Wrong Digest
-2026/06/11 14:40:16 [sign] Request: GET /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/not-the-right-digest, body length: 0 bytes
-2026/06/11 14:40:16 [sign] No body - Content-Digest not set
-    ✅ PASS (HTTP 404)
+    ✅ PASS - HTTP 404 (Expected: 404)
   → Step: Reject Status With Invalid State
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status, body length: 222 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:mIfGHc2mXQ9c9NmWSB5WBWB9QrPYkdLqGNxYYnVcPBo=: (body first 100 chars: {"apiVersion":"deployment.margo.org/v1alpha1","components":[{"name":"app-component-1","state":"insta)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Status With Missing Component Name
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status, body length: 202 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:UBDcKVg+baWm1arKiOwzq3hSbKpwObO6ImgnpnF2s9M=: (body first 100 chars: {"apiVersion":"deployment.margo.org/v1alpha1","components":[{"state":"installed"}],"deploymentId":"a)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Status With Path Deployment Mismatch
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status, body length: 209 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:43P/Uf1+QDohoRkPmbgQPqxHRd9CCrIQCFZT0YEPhfQ=: (body first 100 chars: {"apiVersion":"deployment.margo.org/v1alpha1","components":[{"name":"app-component-1","state":"insta)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
   → Step: Reject Status With Missing Content-Digest
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/2d41e017-23a9-4480-b462-38a6e88249a4/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status, body length: 227 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:qjEqL7h8vQLAp99iLhPOf9EBoj9aguqhnd5yfbRfjas=: (body first 100 chars: {"apiVersion":"deployment.margo.org/v1alpha1","components":[{"name":"app-component-1","state":"insta)
-    ✅ PASS (HTTP 400)
+    ✅ PASS - HTTP 400 (Expected: 400)
   → Step: Reject Status Without Signature
-    ✅ PASS (HTTP 401)
+    ✅ PASS - HTTP 401 (Expected: 401)
   → Step: Reject Unsigned GET Deployments
-    ✅ PASS (HTTP 401)
+    ✅ PASS - HTTP 401 (Expected: 401)
   → Step: Reject Unsigned GET Bundle
-    ✅ PASS (HTTP 401)
+    ✅ PASS - HTTP 401 (Expected: 401)
   → Step: Reject Unsigned GET Deployment Manifest
-    ✅ PASS (HTTP 401)
+    ✅ PASS - HTTP 401 (Expected: 401)
 
 ▶ Running Scenario: Live Assertion Demo — Dynamic Error Code (scenario-live-assertion-demo)
   Description: DEMO SCENARIO: Proves server reloads assertions.json on every restart. Step 7.1 sends an invalid capabilities request (missing apiVersion) which triggers a validation error. The expected HTTP status code comes directly from error_responses.unprocessable.status_code in assertions.json. Change that one value, restart, re-run — the code changes without touching any Go code.
   → Step: Onboard Device (Demo Setup)
-2026/06/11 14:40:16 [cert] Loaded certificate from certs/device-cert.pem (1342 bytes)
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/onboarding, body length: 1454 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:FhTAGxPqO0qdRO2Eh4HbkDcOOdx14I4oVYz02qTxw30=: (body first 100 chars: {"apiVersion":"onboarding.margo.org/v1alpha1","certificate":"-----BEGIN CERTIFICATE-----\nMIIDsTCCAp)
-    ✅ PASS (HTTP 201)
+    ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Invalid Capabilities (missing apiVersion) — expects 422 from assertion
-2026/06/11 14:40:16 [sign] Request: POST /v1alpha2/margo/api/v1/clients/7298d9de-a7ec-49ca-8d3f-1020d7cc2dd0/capabilities, body length: 319 bytes
-2026/06/11 14:40:16 [sign] Content-Digest computed: sha-256=:uS0uUd3lSvuc3XMnYr0UcJx7AlsohtheolX7pC9NpKQ=: (body first 100 chars: {"kind":"DeviceCapabilitiesManifest","properties":{"id":"demo-device-001","modelNumber":"DEMO-X1","r)
-    ✅ PASS (HTTP 422)
+    ✅ PASS - HTTP 422 (Expected: 422)
+  → Step: Invalid Memory Format
+    ❌ FAIL - Expected HTTP 422, got 201
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  Test Results: 43 PASSED, 0 FAILED (Total: 43)
+║  Test Results: 43 PASSED, 1 FAILED (Total: 44)
 ╚══════════════════════════════════════════════════════════════════════════════╝
-📊 Test report saved: reports/conformance-report-2026-06-11T14-40-16-000+05:30.html
+📊 Test report saved: reports/conformance-report-2026-06-17T06-26-36-000Z.html

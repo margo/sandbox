@@ -228,7 +228,7 @@ show_test_type_menu() {
     echo ""
     echo "What type of test-cases do you want to add?"
     echo "1. OpenAPI spec based contract tests"
-    echo "2. Functional tests (in MARGO template)"
+    echo "2. Functional tests (Group-based test management)"
     echo ""
     echo "B) Back"
     echo "Q) Quit"
@@ -494,7 +494,7 @@ generate_device_margo_template_tests() {
 show_persona_menu() {
     echo ""
     echo "Which Margo Persona do you want to manage?"
-    echo "1. WFM Supplier (Group-based test management)"
+    echo "1. WFM Supplier "
     echo "2. Device Supplier (Group-based test management)"
     echo ""
     echo "H) Help"
@@ -841,59 +841,45 @@ interactive_mode() {
         read -p "Select option (1-2, H, or Q): " choice
         
         case "${choice,,}" in
-            1|wfm)
+        1|wfm)
+    echo ""
+    info "You selected: WFM Supplier"
+
+    while true; do
+        show_test_type_menu
+        read -p "Select test type (1-2, B, or Q): " test_choice
+
+        case "${test_choice,,}" in
+
+            1|openapi|contract)
                 echo ""
-                info "You selected: WFM Supplier"
+                read -p "Enter OpenAPI Spec Path: " spec_path
+                generate_wfm_tests "$spec_path"
+                ;;
+
+            2|margo|functional|template)
                 echo ""
-                # Go to group-based selection for WFM
+                info "Functional Test Mode Selected"
+
                 set_supplier_context "wfm-supplier"
                 group_management_menu
                 ;;
-            1-group|wfm-group)
-                echo ""
-                info "You selected: WFM Supplier - Manage Groups"
-                echo ""
-                # Go to group-based selection for WFM
-                set_supplier_context "wfm-supplier"
-                group_management_menu
+
+            b|back)
+                break
                 ;;
-            1-test|wfm-test)
-                echo ""
-                info "You selected: WFM Supplier - Quick Test Generation"
-                echo ""
-                # Show test type selection for WFM (legacy mode)
-                while true; do
-                    show_test_type_menu
-                    read -p "Select test type (1-2, B, or Q): " test_choice
-                    case "${test_choice,,}" in
-                        1|openapi|contract)
-                            echo ""
-                            read -p "Enter OpenAPI Spec Path (URL or local file): " spec_path
-                            echo ""
-                            generate_wfm_tests "$spec_path"
-                            break
-                            ;;
-                        2|margo|functional|template)
-                            echo ""
-                            read -p "Enter Postman Collection JSON Path: " collection_path
-                            echo ""
-                            generate_wfm_functional_tests "$collection_path"
-                            break
-                            ;;
-                        b|back)
-                            info "Going back to persona menu..."
-                            break
-                            ;;
-                        q|quit)
-                            info "Exiting..."
-                            exit 0
-                            ;;
-                        *)
-                            error "Invalid option. Please select 1, 2, B, or Q"
-                            ;;
-                    esac
-                done
+
+            q|quit)
+                info "Exiting..."
+                exit 0
                 ;;
+
+            *)
+                warn "Invalid option"
+                ;;
+        esac
+    done
+    ;;
             2|device)
                 echo ""
                 info "You selected: Device Supplier"

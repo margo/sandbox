@@ -884,6 +884,16 @@ interactive_mode() {
                 echo ""
                 info "You selected: Device Supplier"
                 echo ""
+
+                TEMPLATE_PATH="$CONFORMANCE_DIR/device-supplier/device-scenarios/../docs/Template.md"
+                TEMPLATE_PATH="$(realpath "$TEMPLATE_PATH" 2>/dev/null || echo "$TEMPLATE_PATH")"
+
+                echo "⚠️  WARNING:"
+                echo "================================================"
+                echo "Please ensure TCs are built on the Margo template before proceeding with Device Supplier tests."
+                echo ""
+                echo "Template reference: $TEMPLATE_PATH"
+
                 # Go directly to group-based selection
                 set_supplier_context "device-supplier"
                 group_management_menu

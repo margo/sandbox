@@ -208,6 +208,7 @@ select_device_group() {
 execute_wfm_tests_with_url() {
     local wfm_url="${1:-}"
     
+    
     # If WFM URL not provided, prompt user
     if [[ -z "$wfm_url" ]]; then
         echo ""
@@ -785,11 +786,36 @@ run_wfm_flow() {
         group_name=$(basename "$selected_group_path")
         success "Selected group: $group_name"
 
-        echo ""
-        read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
-        wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+        # echo ""
+        # read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+        # wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
 
-        execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+        # execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+        echo ""
+echo "⚠️  WARNING:"
+echo "================================================"
+echo "Please check your WFM services are running before starting the tests."
+echo ""
+echo "1) proceed"
+echo "2) back"
+echo "================================================"
+
+read -p "Select option (1-2): " confirm_choice
+
+if [[ "$confirm_choice" == "2" ]]; then
+    info "Going back..."
+    return 0
+fi
+
+if [[ "$confirm_choice" != "1" ]]; then
+    error "Invalid selection. Please choose 1 or 2"
+fi
+
+echo ""
+read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+
+execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
     else
         error "Failed to select group"
     fi

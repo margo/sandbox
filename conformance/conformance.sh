@@ -890,7 +890,7 @@ interactive_mode() {
 
                 echo "⚠️  WARNING:"
                 echo "================================================"
-                echo "Please ensure TCs are built on the Margo template before proceeding with Device Supplier tests."
+                echo "Please ensure that all test cases are developed using the Margo template."
                 echo ""
                 echo "Template reference: $TEMPLATE_PATH"
 

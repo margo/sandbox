@@ -1,8 +1,8 @@
 {
   "name": "gold",
-  "version": "v1.0.0",
+  "version": "1.0.0",
   "persona": "device-supplier",
-  "description": "v1.0.0 group",
+  "description": "1.0.0",
   "testCases": [
     "demo-device-001",
     "device-001",

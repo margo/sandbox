@@ -1,8 +1,8 @@
 {
-  "name": "gold",
-  "version": "1.0.0",
+  "name": "micro-wfm",
+  "version": "v1.0.0",
   "persona": "wfm-supplier",
-  "description": "1.0.0",
+  "description": "v1.0.0",
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
     "0510e725-a124-415f-a9b9-0d369e1d94e2",
@@ -47,7 +47,6 @@
     "f206fb46-f592-45ea-a6f1-6569371ee515",
     "f54748a1-72c1-4fb9-a64f-7e4b2b36ba54",
     "f9e10c20-8474-47ec-81c0-fc7c0823891d",
-    "fc6a5159-3b3f-4140-8092-25992e18f959",
-    "6babf73f-f617-4f25-a1b6-414b665ed6b5"
+    "fc6a5159-3b3f-4140-8092-25992e18f959"
   ]
 }

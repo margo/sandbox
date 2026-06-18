@@ -257,6 +257,245 @@ resolve_group_path() {
     return 1
 }
 
+
+get_group_json_files() {
+    local group_path="$1"
+
+    find "$group_path" -maxdepth 1 -type f -name '*.json' \
+        ! -name 'group.json' \
+        ! -name '.*.json' \
+        -print | sort
+}
+
+json_file_is_valid() {
+    local json_file="$1"
+
+    jq empty "$json_file" >/dev/null 2>&1
+}
+
+
+json_file_is_postman_collection() {
+    local json_file="$1"
+
+    # Accept any Postman-like collection: must have item[] and either:
+    #   - standard info object (Postman v2.1, portman generated, etc.)
+    #   - portman-style _ object with postman_id
+    jq -e '
+        (.item? | type == "array") and
+        (
+            (.info? | type == "object") or
+            (._? | type == "object" and has("postman_id"))
+        )
+    ' "$json_file" >/dev/null 2>&1
+}
+
+postman_item_count() {
+    local collection_file="$1"
+
+    jq '[.. | objects | select(has("request"))] | length' "$collection_file" 2>/dev/null || echo "0"
+}
+
+filter_postman_collection_by_group() {
+    local collection_file="$1"
+    local group_json="$2"
+    local output_file="$3"
+
+    jq --slurpfile group "$group_json" '
+        ($group[0].testCases // []) as $ids
+        | def normalized_name:
+            (.name? // "" | gsub(" "; "_") | ascii_downcase);
+        def matches_group_id:
+            ((.id? as $id | $ids | index($id)) != null)
+            or ((.name? as $name | $ids | index($name)) != null)
+            or ((normalized_name as $name | $ids | index($name)) != null);
+        def prune_items:
+            if type == "object" and (.item? | type == "array") then
+                .item = [
+                    .item[]
+                    | prune_items
+                    | select(matches_group_id or ((.item? // []) | length > 0))
+                ]
+            else
+                .
+            end;
+        prune_items
+    ' "$collection_file" > "$output_file"
+}
+
+discover_wfm_group_collections() {
+    local group_path="$1"
+    local group_json="$2"
+    local collections=()
+
+    # Support external collection files referenced in group.json under "collectionFiles".
+    # Paths may be absolute or relative to CONFORMANCE_DIR.
+    # This lets users reference their Postman collection from any location (including
+    # paths with spaces) without copying the file into the group directory.
+    while IFS= read -r ext_file; do
+        [[ -z "$ext_file" ]] && continue
+        local abs_file
+        if [[ "$ext_file" = /* ]]; then
+            abs_file="$ext_file"
+        else
+            abs_file="$CONFORMANCE_DIR/$ext_file"
+        fi
+        if [[ ! -f "$abs_file" ]]; then
+            warn "External collection file not found: $abs_file"
+            continue
+        fi
+        if ! json_file_is_valid "$abs_file"; then
+            warn "Skipping invalid external JSON file: $ext_file"
+            continue
+        fi
+        if json_file_is_postman_collection "$abs_file"; then
+            collections+=("$abs_file")
+        else
+            warn "External file is not a recognised Postman collection: $ext_file"
+        fi
+    done < <(jq -r '.collectionFiles[]? // empty' "$group_json" 2>/dev/null)
+
+    # Also discover files placed directly inside the group directory
+    while IFS= read -r json_file; do
+        if ! json_file_is_valid "$json_file"; then
+            warn "Skipping invalid JSON file: $(basename "$json_file")"
+            continue
+        fi
+        if json_file_is_postman_collection "$json_file"; then
+            collections+=("$json_file")
+        fi
+    done < <(get_group_json_files "$group_path")
+
+    if [[ ${#collections[@]} -gt 0 ]]; then
+        printf '%s\n' "${collections[@]}"
+    fi
+}
+
+discover_group_scenario_files() {
+    local group_path="$1"
+    local scenario_files=()
+
+    while IFS= read -r json_file; do
+        if ! json_file_is_valid "$json_file"; then
+            warn "Skipping invalid JSON file: $(basename "$json_file")"
+            continue
+        fi
+
+        if jq -e 'type == "array" and any(.[]?; type == "object" and (.steps? | type == "array"))' "$json_file" >/dev/null 2>&1; then
+            scenario_files+=("$json_file")
+        fi
+    done < <(get_group_json_files "$group_path")
+
+    if [[ ${#scenario_files[@]} -gt 0 ]]; then
+        printf '%s\n' "${scenario_files[@]}"
+    fi
+}
+
+build_device_group_scenarios() {
+    local group_path="$1"
+    local output_file="$2"
+    local group_json="$group_path/group.json"
+    local scenario_files=()
+
+    mapfile -t scenario_files < <(discover_group_scenario_files "$group_path")
+
+    if [[ ${#scenario_files[@]} -eq 0 ]]; then
+        error "No scenario JSON files found in group: $group_path"
+    fi
+
+    jq -s --slurpfile group "$group_json" '
+        ($group[0].testCases // []) as $ids
+        | [ .[] | select(type == "array") | .[] | select(type == "object") ] as $all
+        | (
+            if ($ids | length) == 0 then
+                # No filter: run every scenario with all its steps
+                $all | map(.steps = (.steps // []))
+            else
+                [
+                    $all[]
+                    | select(
+                        ((.id? as $id | $ids | index($id)) != null)
+                        or (((.steps? // []) | map(.id? // empty)) as $stepIds
+                            | any($stepIds[]?; . as $stepId | $ids | index($stepId)))
+                    )
+                    | .steps = [
+                        .steps[]?
+                        | select(.id? as $id | $ids | index($id) != null)
+                      ]
+                    | select((.steps | length) > 0)
+                ]
+            end
+          ) as $filtered
+        # If the ID-based filter matched nothing (testCases IDs are UUIDs from a
+        # Postman collection, scenario IDs are string slugs), fall back to running
+        # all scenarios with all their steps — preserves behaviour for groups like
+        # diamond that carry both Postman and scenario files.
+        | if ($filtered | length) > 0 then $filtered
+          else $all | map(.steps = (.steps // []))
+          end
+        | unique_by(.id // .name // tostring)
+    ' "${scenario_files[@]}" > "$output_file"
+
+    local scenario_count
+    scenario_count=$(jq 'length' "$output_file")
+
+    if [[ "$scenario_count" -eq 0 ]]; then
+        error "No scenarios in group files matched test IDs from: $group_json"
+    fi
+
+    info "Matched $scenario_count scenario(s) from ${#scenario_files[@]} group file(s)" >&2
+}
+
+create_temp_scenarios_file() {
+    mktemp /tmp/margo-device-scenarios.XXXXXX.json
+}
+
+run_wfm_scenario_group() {
+    local wfm_url="$1"
+    local group_path="$2"
+    local group_name="$3"
+    local scenario_file
+    local report_file
+    local scenario_runner="$CONFORMANCE_DIR/wfm-supplier/run_wfm_scenarios.js"
+    local cert_dir="$CONFORMANCE_DIR/wfm-supplier/newman-data/certs"
+
+    command -v node >/dev/null 2>&1 || error "Node.js not found. Install Node.js before running WFM scenario tests."
+    [[ -f "$scenario_runner" ]] || error "WFM scenario runner not found: $scenario_runner"
+    
+    # Generate fresh device certificate for each run to avoid 409 Conflict
+    log "Generating fresh device certificate for test run..."
+    local temp_device_id="device-$(date +%s)"
+    mkdir -p "$cert_dir"
+    openssl ecparam -name prime256v1 -genkey -noout -out "$cert_dir/device.key" >/dev/null 2>&1
+    openssl req -new -x509 -days 365 \
+        -key "$cert_dir/device.key" \
+        -out "$cert_dir/device-cert.pem" \
+        -subj "/C=IN/ST=GGN/L=Sector48/O=Margo/OU=Conformance/CN=$temp_device_id" >/dev/null 2>&1
+
+    [[ -f "$cert_dir/device.key" ]] || error "Device private key not found: $cert_dir/device.key"
+    [[ -f "$cert_dir/device-cert.pem" ]] || error "Device certificate not found: $cert_dir/device-cert.pem"
+
+    scenario_file=$(create_temp_scenarios_file)
+    build_device_group_scenarios "$group_path" "$scenario_file"
+
+    report_file="$RUNNER_WFM/wfm-scenario-report-${group_name}_$(date +%Y%m%d_%H%M%S).html"
+
+    log "▶️  Running WFM scenarios from group: $group_name"
+    log "📊 Report: $report_file"
+
+    set +e
+    node "$scenario_runner" "$wfm_url" "$scenario_file" "$report_file" "$cert_dir"
+    local result=$?
+    set -e
+
+    rm -f "$scenario_file"
+
+    if [[ $result -eq 0 ]]; then
+        success "WFM scenario tests completed for group: $group_name"
+    else
+        error "WFM scenario tests failed for group: $group_name"
+    fi
+}
+
 run_wfm_newman() {
     local wfm_url="${1:-}"
     local collection_file="${2:-$CONFORMANCE_DIR/wfm-supplier/postman_collection.json}"
@@ -367,30 +606,120 @@ execute_wfm_tests_with_group() {
     info "  Version: $group_version"
     info "  Description: $group_desc"
     info "  Test cases: $test_count"
-    
-    # Use the group's pre-filtered Postman collection
-    local group_collection="$group_path/postman_collection.json"
-    
-    if [[ ! -f "$group_collection" ]]; then
-        error "Group Postman collection not found: $group_collection"
+
+    # --- Scenario-format groups (primary path) -----------------------------------
+    # Groups that store test data as a plain JSON array of scenario objects with
+    # steps run through run_wfm_scenario_group.  These are identified by content,
+    # not by filename.
+    local group_scenario_files=()
+    mapfile -t group_scenario_files < <(discover_group_scenario_files "$group_path")
+    if [[ ${#group_scenario_files[@]} -gt 0 ]]; then
+        log "📋 Found ${#group_scenario_files[@]} scenario file(s)"
+        run_wfm_scenario_group "$wfm_url" "$group_path" "$group_name"
+        return 0
     fi
-    
-    log "📋 Using group-specific Postman collection"
-    log "   Collection path: $(basename "$group_path")/postman_collection.json"
-    log "   Collection items: $(jq '.item | length' "$group_collection")"
-    
-    # Run Newman with the group's collection directly
+
+    # --- Postman-collection groups (fallback path) ---------------------------
+    # Discover every Postman collection in the group dir (plus any referenced via
+    # collectionFiles in group.json) purely by content — file names are irrelevant.
+    local group_collections=()
+    mapfile -t group_collections < <(discover_wfm_group_collections "$group_path" "$group_json")
+
+    if [[ ${#group_collections[@]} -eq 0 ]]; then
+        error "No test data found for group: $group_name (place any *.json Postman collection in the group directory or list it under \"collectionFiles\" in group.json)"
+    fi
+
+    log "📋 Found ${#group_collections[@]} Postman collection file(s)"
+
+    # Auto-sync: extract all UUIDs from every collection file and append any new
+    # ones to group.json testCases so the user never has to maintain IDs manually.
+    local merged_ids
+    merged_ids=$(
+        # Existing IDs from group.json (preserve order)
+        jq -r '.testCases[]?' "$group_json" 2>/dev/null
+        # UUIDs found in each collection file (in file order, deduped per-file)
+        for cfile in "${group_collections[@]}"; do
+            jq -r '.. | strings
+                | select(test("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
+            ' "$cfile" 2>/dev/null
+        done
+    )
+    # Build deduplicated list preserving first-seen order
+    local unique_ids
+    unique_ids=$(echo "$merged_ids" | awk '!seen[$0]++')
+
+    if [[ -n "$unique_ids" ]]; then
+        local id_json
+        id_json=$(echo "$unique_ids" | jq -R . | jq -s .)
+        local current_count new_count
+        current_count=$(jq '.testCases | length' "$group_json")
+        jq --argjson ids "$id_json" '.testCases = $ids' "$group_json" > "$group_json.tmp" \
+            && mv "$group_json.tmp" "$group_json"
+        new_count=$(jq '.testCases | length' "$group_json")
+        [[ "$new_count" -gt "$current_count" ]] && \
+            info "Synced $new_count test IDs to group.json (was $current_count)"
+    fi
+
+    local scenario_runner="$CONFORMANCE_DIR/wfm-supplier/run_wfm_scenarios.js"
+    command -v node >/dev/null 2>&1 || error "Node.js not found. Install Node.js before running WFM tests."
+    [[ -f "$scenario_runner" ]] || error "WFM scenario runner not found: $scenario_runner"
+
+    local cert_dir="$CONFORMANCE_DIR/wfm-supplier/newman-data/certs"
+    local temp_device_id="device-$(date +%s)"
+    mkdir -p "$cert_dir"
+    openssl ecparam -name prime256v1 -genkey -noout -out "$cert_dir/device.key" >/dev/null 2>&1
+    openssl req -new -x509 -days 365 \
+        -key "$cert_dir/device.key" \
+        -out "$cert_dir/device-cert.pem" \
+        -subj "/C=IN/ST=GGN/L=Sector48/O=Margo/OU=Conformance/CN=$temp_device_id" >/dev/null 2>&1
+
     log "▶️  Running test cases from group: $group_name"
     echo ""
-    
-    local report_prefix="wfm-test-report-${group_name}"
-    log "📊 Generating report: $report_prefix"
-    
-    if run_wfm_newman "$wfm_url" "$group_collection" "$report_prefix"; then
-        success "WFM Tests Completed for group: $group_name"
-    else
-        error "WFM test execution failed for group: $group_name"
+
+    local collection_index=0
+    local executed_collections=0
+    for group_collection in "${group_collections[@]}"; do
+        collection_index=$((collection_index + 1))
+
+        local filtered_collection="$group_path/.collection.${group_name}.${collection_index}.filtered.json"
+        filter_postman_collection_by_group "$group_collection" "$group_json" "$filtered_collection"
+
+        local matched_items
+        matched_items=$(postman_item_count "$filtered_collection")
+        if [[ "$matched_items" -eq 0 ]]; then
+            warn "Skipping $(basename "$group_collection"): no runnable Postman items matched group.json"
+            rm -f "$filtered_collection"
+            continue
+        fi
+
+        log "   Collection: $(basename "$group_collection")"
+        log "   Matched items: $matched_items"
+
+        local report_suffix="${group_name}"
+        [[ ${#group_collections[@]} -gt 1 ]] && report_suffix="${group_name}-${collection_index}"
+        local report_file="$RUNNER_WFM/wfm-scenario-report-${report_suffix}_$(date +%Y%m%d_%H%M%S).html"
+        log "📊 Report: $(basename "$report_file")"
+
+        set +e
+        node "$scenario_runner" "$wfm_url" "$filtered_collection" "$report_file" "$cert_dir"
+        local result=$?
+        set -e
+
+        rm -f "$filtered_collection"
+
+        if [[ $result -eq 0 ]]; then
+            executed_collections=$((executed_collections + 1))
+            success "WFM collection completed: $(basename "$group_collection")"
+        else
+            error "WFM test execution failed for group: $group_name"
+        fi
+    done
+
+    if [[ "$executed_collections" -eq 0 ]]; then
+        error "No runnable Postman items in $group_name matched test IDs from group.json"
     fi
+
+    success "WFM Tests Completed for group: $group_name"
 }
 
 ################################################################################
@@ -421,11 +750,10 @@ select_device_test_scenarios() {
                     error "No device group selected"
                 fi
                 
-                local group_scenarios="$device_group/test-scenarios.json"
-                if [[ ! -f "$group_scenarios" ]]; then
-                    error "Test scenarios not found in group: $group_scenarios"
-                fi
-                
+                local group_scenarios
+                group_scenarios=$(create_temp_scenarios_file)
+                build_device_group_scenarios "$device_group" "$group_scenarios"
+
                 echo "$group_scenarios"
                 return 0
                 ;;
@@ -792,11 +1120,11 @@ run_wfm_flow() {
 
         # execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
         echo ""
-echo "⚠️  WARNING:"
+echo "  WARNING:"
 echo "================================================"
 echo "Please check your WFM services are running before starting the tests."
 echo ""
-echo "1) proceed"
+echo "1) proceed to run tests"
 echo "2) back"
 echo "================================================"
 
@@ -825,6 +1153,7 @@ run_device_flow() {
     local device_test_scenarios
     device_test_scenarios=$(select_device_test_scenarios)
     execute_device_tests "$device_test_scenarios"
+    rm -f "$device_test_scenarios"
 }
 
 ################################################################################
@@ -910,7 +1239,11 @@ EOF
                 local group_path
                 group_path=$(resolve_group_path "$DEVICE_GROUP_DIR" "$2") || \
                     error "Device group or scenarios file not found: $2"
-                execute_device_tests "$group_path/test-scenarios.json"
+                local group_scenarios
+                group_scenarios=$(create_temp_scenarios_file)
+                build_device_group_scenarios "$group_path" "$group_scenarios"
+                execute_device_tests "$group_scenarios"
+                rm -f "$group_scenarios"
             else
                 run_device_flow
             fi

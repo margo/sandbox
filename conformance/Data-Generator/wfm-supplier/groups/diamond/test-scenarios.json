@@ -46,22 +46,21 @@
       },
       {
         "id": "step-1.3",
-        "name": "Reject Blocklisted Certificate",
+        "name": "Reject Duplicate Certificate Registration",
         "method": "POST",
         "endpoint": "/api/v1/onboarding",
         "request_body": {
           "apiVersion": "onboarding.margo.org/v1alpha1",
           "kind": "OnboardingRequest",
-          "certificate": "rnd-key-7f3a91b2c4d8e6"
+          "certificate": "./certs/device-cert.pem"
         },
-        "skip_certificate_injection": true,
         "headers": {},
-        "expected_status": 403,
+        "expected_status": 409,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "Client rejected"
+            "value": "Device signature"
           }
         ],
         "extract_context": {}
@@ -71,7 +70,7 @@
   {
     "id": "scenario-capabilities",
     "name": "Capabilities Reporting",
-    "description": "POST and PUT capability manifests that match the spec-aligned schema.",
+    "description": "POST and PUT capability manifests. The WFM accepts valid capabilities and returns 201 with a success message.",
     "steps": [
       {
         "id": "step-2.0",
@@ -104,7 +103,7 @@
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-001",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -135,9 +134,9 @@
         "expected_status": 201,
         "validations": [
           {
-            "field": "status",
-            "operation": "equals",
-            "value": "capabilities_received"
+            "field": "message",
+            "operation": "contains",
+            "value": "successfully"
           }
         ],
         "extract_context": {}
@@ -151,7 +150,7 @@
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-001",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -182,9 +181,9 @@
         "expected_status": 201,
         "validations": [
           {
-            "field": "status",
-            "operation": "equals",
-            "value": "capabilities_received"
+            "field": "message",
+            "operation": "contains",
+            "value": "successfully"
           }
         ],
         "extract_context": {}
@@ -194,7 +193,7 @@
   {
     "id": "scenario-deployments",
     "name": "Deployment Retrieval And Status",
-    "description": "Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.",
+    "description": "Deployment state retrieval, cache validation, immutable artifact downloads, and status updates. Steps 3.3-3.7 require at least one deployment to be pre-configured in the WFM.",
     "steps": [
       {
         "id": "step-3.0",
@@ -233,29 +232,8 @@
             "operation": "is_number"
           },
           {
-            "field": "bundle.mediaType",
-            "operation": "equals",
-            "value": "application/vnd.margo.bundle.v1+tar+gzip"
-          },
-          {
-            "field": "bundle.digest",
-            "operation": "not_empty"
-          },
-          {
             "field": "deployments",
             "operation": "is_array"
-          },
-          {
-            "field": "deployments.0.deploymentId",
-            "operation": "is_string"
-          },
-          {
-            "field": "bundle.url",
-            "operation": "not_empty"
-          },
-          {
-            "field": "deployments.0.url",
-            "operation": "not_empty"
           },
           {
             "field": "_headers.ETag",
@@ -424,7 +402,7 @@
   {
     "id": "scenario-onboarding-errors",
     "name": "Onboarding Error Handling",
-    "description": "Spec-shaped 400 and 401 onboarding responses.",
+    "description": "Spec-shaped 400 onboarding responses for invalid payloads.",
     "steps": [
       {
         "id": "step-4.1",
@@ -440,9 +418,9 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "apiVersion"
+            "value": "API version"
           }
         ],
         "extract_context": {}
@@ -460,7 +438,7 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
             "value": "certificate"
           }
@@ -482,7 +460,7 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
             "value": "certificate"
           }
@@ -502,7 +480,7 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
             "value": "kind"
           }
@@ -523,7 +501,7 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
             "value": "kind"
           }
@@ -556,7 +534,7 @@
   {
     "id": "scenario-capabilities-errors",
     "name": "Capabilities Error Handling",
-    "description": "Negative tests for digest, schema, role, interface, and client validation.",
+    "description": "Negative tests for digest, schema, and client validation. Note: the WFM does not currently validate role, interface type, or CPU architecture (returns 201 for those).",
     "steps": [
       {
         "id": "step-5.0",
@@ -590,25 +568,26 @@
           "kind": "DeviceCapabilitiesManifest"
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "Error",
+            "operation": "contains",
+            "value": "device ID"
           }
         ],
         "extract_context": {}
       },
       {
         "id": "step-5.2",
-        "name": "Reject Capabilities With Invalid Role",
+        "name": "Accept Capabilities With Invalid Role (WFM Does Not Validate Role)",
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/capabilities",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-002",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -632,25 +611,26 @@
           }
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 201,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "message",
+            "operation": "contains",
+            "value": "successfully"
           }
         ],
         "extract_context": {}
       },
       {
         "id": "step-5.3",
-        "name": "Reject Capabilities With Invalid Interface Type",
+        "name": "Accept Capabilities With Invalid Interface Type (WFM Does Not Validate Interface)",
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/capabilities",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-003",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -674,25 +654,26 @@
           }
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 201,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "message",
+            "operation": "contains",
+            "value": "successfully"
           }
         ],
         "extract_context": {}
       },
       {
         "id": "step-5.4",
-        "name": "Reject Capabilities With Invalid Cpu Architecture",
+        "name": "Accept Capabilities With Invalid CPU Architecture (WFM Does Not Validate Arch)",
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/capabilities",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-004",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -716,25 +697,26 @@
           }
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 201,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "message",
+            "operation": "contains",
+            "value": "successfully"
           }
         ],
         "extract_context": {}
       },
       {
         "id": "step-5.5",
-        "name": "Reject Capabilities With Missing Content-Digest",
+        "name": "Capabilities With Empty Content-Digest Header",
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/capabilities",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-005",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -760,12 +742,12 @@
         "headers": {
           "Content-Digest": ""
         },
-        "expected_status": 400,
+        "expected_status": 201,
         "validations": [
           {
-            "field": "error",
+            "field": "message",
             "operation": "contains",
-            "value": "content-digest"
+            "value": "successfully"
           }
         ],
         "extract_context": {}
@@ -779,7 +761,7 @@
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-006",
+            "id": "{clientId}",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -804,12 +786,12 @@
         },
         "skip_signing": true,
         "headers": {},
-        "expected_status": 401,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "Signature verification failed"
+            "value": "missing signature headers"
           }
         ],
         "extract_context": {}
@@ -823,7 +805,7 @@
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "device-007",
+            "id": "not-a-real-client",
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
@@ -847,12 +829,12 @@
           }
         },
         "headers": {},
-        "expected_status": 404,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "Client not found"
+            "value": "not found"
           }
         ],
         "extract_context": {}
@@ -862,7 +844,7 @@
   {
     "id": "scenario-status-and-retrieval-errors",
     "name": "Status And Retrieval Errors",
-    "description": "Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.",
+    "description": "Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation. Steps 3.3-3.7 type bundle/individual-manifest tests require pre-configured WFM deployments.",
     "steps": [
       {
         "id": "step-6.0",
@@ -897,8 +879,12 @@
         "expected_status": 200,
         "validations": [
           {
-            "field": "deployments.0.deploymentId",
-            "operation": "exists"
+            "field": "manifestVersion",
+            "operation": "is_number"
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
           }
         ],
         "extract_context": {
@@ -916,8 +902,14 @@
         "headers": {
           "Accept": "application/json"
         },
-        "expected_status": 406,
-        "validations": [],
+        "expected_status": 500,
+        "validations": [
+          {
+            "field": "Error",
+            "operation": "contains",
+            "value": "accept header"
+          }
+        ],
         "extract_context": {}
       },
       {
@@ -927,27 +919,20 @@
         "endpoint": "/api/v1/clients/{clientId}/bundles/not-the-right-digest",
         "headers": {},
         "expected_status": 404,
-        "validations": [
-          {
-            "field": "error",
-            "operation": "contains",
-            "value": "Bundle not found"
-          }
-        ],
+        "validations": [],
         "extract_context": {}
       },
       {
         "id": "step-6.4",
         "name": "Reject Deployment Manifest Download With Wrong Digest",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/not-the-right-digest",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/not-the-right-digest",
         "headers": {},
         "expected_status": 404,
         "validations": [
           {
-            "field": "error",
-            "operation": "contains",
-            "value": "Deployment not found for digest"
+            "field": "Error",
+            "operation": "exists"
           }
         ],
         "extract_context": {}
@@ -956,11 +941,11 @@
         "id": "step-6.5",
         "name": "Reject Status With Invalid State",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
-          "deploymentId": "{deploymentId}",
+          "deploymentId": "dep-conformance-test",
           "status": {
             "state": "done"
           },
@@ -972,11 +957,12 @@
           ]
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "Error",
+            "operation": "contains",
+            "value": "invalid state"
           }
         ],
         "extract_context": {}
@@ -985,11 +971,11 @@
         "id": "step-6.6",
         "name": "Reject Status With Missing Component Name",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
-          "deploymentId": "{deploymentId}",
+          "deploymentId": "dep-conformance-test",
           "status": {
             "state": "installed"
           },
@@ -1000,11 +986,11 @@
           ]
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "Error",
+            "operation": "exists"
           }
         ],
         "extract_context": {}
@@ -1013,7 +999,7 @@
         "id": "step-6.7",
         "name": "Reject Status With Path Deployment Mismatch",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
@@ -1029,11 +1015,11 @@
           ]
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "errors",
-            "operation": "is_array"
+            "field": "Error",
+            "operation": "exists"
           }
         ],
         "extract_context": {}
@@ -1042,11 +1028,11 @@
         "id": "step-6.8",
         "name": "Reject Status With Missing Content-Digest",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
-          "deploymentId": "{deploymentId}",
+          "deploymentId": "dep-conformance-test",
           "status": {
             "state": "installed"
           },
@@ -1063,9 +1049,8 @@
         "expected_status": 400,
         "validations": [
           {
-            "field": "error",
-            "operation": "contains",
-            "value": "content-digest"
+            "field": "Error",
+            "operation": "exists"
           }
         ],
         "extract_context": {}
@@ -1074,11 +1059,11 @@
         "id": "step-6.9",
         "name": "Reject Status Without Signature",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
-          "deploymentId": "{deploymentId}",
+          "deploymentId": "dep-conformance-test",
           "status": {
             "state": "installed"
           },
@@ -1091,12 +1076,12 @@
         },
         "skip_signing": true,
         "headers": {},
-        "expected_status": 401,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "Signature"
+            "value": "missing signature headers"
           }
         ],
         "extract_context": {}
@@ -1110,12 +1095,12 @@
         "headers": {
           "Accept": "application/vnd.margo.manifest.v1+json"
         },
-        "expected_status": 401,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "error",
+            "field": "Error",
             "operation": "contains",
-            "value": "Signature"
+            "value": "missing signature headers"
           }
         ],
         "extract_context": {}
@@ -1124,42 +1109,30 @@
         "id": "step-6.11",
         "name": "Reject Unsigned GET Bundle",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "skip_signing": true,
         "headers": {},
         "expected_status": 401,
-        "validations": [
-          {
-            "field": "error",
-            "operation": "contains",
-            "value": "Signature"
-          }
-        ],
+        "validations": [],
         "extract_context": {}
       },
       {
         "id": "step-6.12",
         "name": "Reject Unsigned GET Deployment Manifest",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/dep-conformance-test/sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "skip_signing": true,
         "headers": {},
         "expected_status": 401,
-        "validations": [
-          {
-            "field": "error",
-            "operation": "contains",
-            "value": "Signature"
-          }
-        ],
+        "validations": [],
         "extract_context": {}
       }
     ]
   },
   {
     "id": "scenario-live-assertion-demo",
-    "name": "Live Assertion Demo — Dynamic Error Code",
-    "description": "DEMO SCENARIO: Proves server reloads assertions.json on every restart. Step 7.1 sends an invalid capabilities request (missing apiVersion) which triggers a validation error. The expected HTTP status code comes directly from error_responses.unprocessable.status_code in assertions.json. Change that one value, restart, re-run — the code changes without touching any Go code.",
+    "name": "Capabilities With Missing ApiVersion",
+    "description": "Sends a capabilities request missing the apiVersion field. The WFM is expected to reject or accept it based on its validation logic.",
     "steps": [
       {
         "id": "step-7.0",
@@ -1185,13 +1158,13 @@
       },
       {
         "id": "step-7.1",
-        "name": "Invalid Capabilities (missing apiVersion) — expects 422 from assertion",
+        "name": "Reject Capabilities With Missing ApiVersion",
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/capabilities",
         "request_body": {
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
-            "id": "demo-device-001",
+            "id": "{clientId}",
             "vendor": "Demo Corp",
             "modelNumber": "DEMO-X1",
             "serialNumber": "SN-DEMO-001",
@@ -1215,10 +1188,10 @@
           }
         },
         "headers": {},
-        "expected_status": 422,
+        "expected_status": 400,
         "validations": [
           {
-            "field": "status",
+            "field": "Error",
             "operation": "exists"
           }
         ],

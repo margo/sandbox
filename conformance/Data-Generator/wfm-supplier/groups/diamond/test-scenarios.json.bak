@@ -32,7 +32,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -55,7 +56,8 @@
           "certificate": "rnd-key-7f3a91b2c4d8e6"
         },
         "skip_certificate_injection": true,
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 403,
         "validations": [
           {
@@ -83,7 +85,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -131,7 +134,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -178,7 +182,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -206,7 +211,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -287,7 +293,8 @@
         "name": "Download Deployment Bundle",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 200,
         "validations": [
           {
@@ -307,11 +314,7 @@
         ],
         "extract_context": {
           "bundleEtag": "_headers.ETag"
-        },
-        "accepted_statuses": [
-          200,
-          404
-        ]
+        }
       },
       {
         "id": "step-3.4",
@@ -323,19 +326,15 @@
         },
         "expected_status": 304,
         "validations": [],
-        "extract_context": {},
-        "accepted_statuses": [
-          200,
-          304,
-          404
-        ]
+        "extract_context": {}
       },
       {
         "id": "step-3.5",
         "name": "Download Individual Deployment Manifest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 200,
         "validations": [
           {
@@ -361,11 +360,7 @@
         ],
         "extract_context": {
           "deploymentEtag": "_headers.ETag"
-        },
-        "accepted_statuses": [
-          200,
-          404
-        ]
+        }
       },
       {
         "id": "step-3.6",
@@ -377,12 +372,7 @@
         },
         "expected_status": 304,
         "validations": [],
-        "extract_context": {},
-        "accepted_statuses": [
-          200,
-          304,
-          404
-        ]
+        "extract_context": {}
       },
       {
         "id": "step-3.7",
@@ -403,7 +393,8 @@
             }
           ]
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 200,
         "validations": [
           {
@@ -412,12 +403,7 @@
             "value": "received"
           }
         ],
-        "extract_context": {},
-        "accepted_statuses": [
-          200,
-          400,
-          404
-        ]
+        "extract_context": {}
       }
     ]
   },
@@ -436,7 +422,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 400,
         "validations": [
           {
@@ -456,7 +443,8 @@
           "apiVersion": "onboarding.margo.org/v1alpha1",
           "kind": "OnboardingRequest"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 400,
         "validations": [
           {
@@ -478,7 +466,8 @@
           "certificate": ""
         },
         "skip_certificate_injection": true,
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 400,
         "validations": [
           {
@@ -541,7 +530,8 @@
           "certificate": "./certs/device-cert.pem"
         },
         "skip_signing": true,
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -568,7 +558,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -589,7 +580,8 @@
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -631,7 +623,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -673,7 +666,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -715,7 +709,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -803,7 +798,8 @@
           }
         },
         "skip_signing": true,
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 401,
         "validations": [
           {
@@ -846,7 +842,8 @@
             }
           }
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 404,
         "validations": [
           {
@@ -874,7 +871,8 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 201,
         "validations": [
           {
@@ -925,7 +923,8 @@
         "name": "Reject Bundle Download With Wrong Digest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/bundles/not-the-right-digest",
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 404,
         "validations": [
           {
@@ -941,7 +940,8 @@
         "name": "Reject Deployment Manifest Download With Wrong Digest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/not-the-right-digest",
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 404,
         "validations": [
           {
@@ -971,7 +971,8 @@
             }
           ]
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -999,7 +1000,8 @@
             }
           ]
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -1028,7 +1030,8 @@
             }
           ]
         },
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 422,
         "validations": [
           {
@@ -1090,7 +1093,8 @@
           ]
         },
         "skip_signing": true,
-        "headers": {},
+        "headers": {
+        },
         "expected_status": 401,
         "validations": [
           {
@@ -1195,21 +1199,12 @@
             "vendor": "Demo Corp",
             "modelNumber": "DEMO-X1",
             "serialNumber": "SN-DEMO-001",
-            "roles": [
-              "Standalone Device"
-            ],
+            "roles": ["Standalone Device"],
             "resources": {
-              "cpu": {
-                "cores": 4,
-                "architecture": "amd64"
-              },
+              "cpu": { "cores": 4, "architecture": "amd64" },
               "memory": "8Gi",
               "storage": "128Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
+              "interfaces": [{ "type": "ethernet" }],
               "peripherals": []
             }
           }
@@ -1226,4 +1221,5 @@
       }
     ]
   }
+
 ]

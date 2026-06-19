@@ -135,7 +135,7 @@ O=Margo
 CN=${EXPOSED_HARBOR_HOST}
 
 [v3_req]
-basicConstraints = CA:FALSE
+basicConstraints = CA:TRUE
 keyUsage = keyEncipherment, digitalSignature
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names

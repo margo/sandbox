@@ -284,7 +284,9 @@ func (dm *DeploymentManager) deployOrUpdate(
 				}{
 					Code:    strPtr("DEPLOYMENT_ERROR"),
 					Message: &errMsg,
-					Source: nil, // NOTE: this is added by Gateway SUP, and hence not set here
+					// NOTE: This field is introduced by Gateway SUP
+					// hence not set here
+					Source: nil,
 				},
 			})
 		}
@@ -623,7 +625,9 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 				}{
 					Code:    strPtr("REMOVAL_ERROR"),
 					Message: strPtr(removeErr.Error()),
-					Source: nil, // NOTE: this field is introduced by Gateway SUP, and hence not set here
+					// NOTE: This field is introduced by Gateway SUP
+					// hence not set here
+					Source: nil,
 				},
 			})
 		} else {

@@ -1,360 +1,341 @@
-# Device Supplier Custom Test Scenarios - Template Guide
+# Device Supplier — How to Draft Your Own Test Cases
 
-## Overview
-
-The Device Supplier persona now supports **two options** when generating test cases:
-
-1. **Option 1: Use Existing** - Uses the pre-built `test-scenarios.json` (7 conformance scenarios)
-2. **Option 2: Provide Custom** - Bring your own test scenarios file
-
-This guide explains how to create your own custom test scenarios.
+Use this guide alongside `TEMPLATE_custom_test_scenario.json` to write and run your own conformance tests.
 
 ---
 
-## Quick Start
-
-### Step 1: Copy the Template
+## Step 1: Copy the Template
 
 ```bash
-cp TEMPLATE_custom_test_scenario.json my_test_scenarios.json
+cp device-scenarios/TEMPLATE_custom_test_scenario.json device-scenarios/my-device-scenarios.json
 ```
 
-### Step 2: Edit Your Custom Scenarios
-
-Open `my_test_scenarios.json` and modify:
-- Scenario names and IDs
-- API endpoints and methods
-- Request bodies and headers
-- Expected status codes
-- Validation rules
-
-### Step 3: Use with conformance.sh
-
-```bash
-# Interactive mode
-bash conformance.sh
-# Select: 2 (Device Supplier)
-# Select: 2 (Provide your own test scenarios)
-# Enter: my_test_scenarios.json
-
-# Or direct command
-bash conformance.sh device "/path/to/my_test_scenarios.json"
-```
+Open `my-device-scenarios.json` and replace the placeholder values with your device's real details.
 
 ---
 
-## Template Structure
+## Step 2: Understand the File Structure
 
-The template file contains:
+Your file must be a **JSON array** of scenario objects. Each scenario is an independent test flow with one or more ordered steps:
 
 ```json
 [
   {
     "id": "scenario-unique-id",
-    "name": "Human Readable Scenario Name",
+    "name": "Human Readable Name",
     "description": "What this scenario validates",
-    "steps": [
-      {
-        "id": "step-1.1",
-        "name": "Step Description",
-        "method": "GET|POST|PUT",
-        "endpoint": "/api/v1/path",
-        "request_body": { ... },  // Optional for GET
-        "headers": { ... },        // Optional
-        "expected_status": 200,
-        "validations": [ ... ],    // Optional
-        "extract_context": { ... }, // Optional
-        "skip_signing": false,     // Optional
-        "skip_certificate_injection": false  // Optional
-      }
-    ]
+    "steps": [ ... ]
   }
 ]
 ```
 
----
-
-## Field Reference
-
-### Scenario Fields
-
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `id` | Yes | string | Unique identifier (e.g., `scenario-user-flow`) |
-| `name` | Yes | string | Display name shown in reports |
-| `description` | Yes | string | One-line explanation of what scenario tests |
-| `steps` | Yes | array | Ordered list of API calls to make |
-
-### Step Fields
-
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `id` | Yes | string | Unique step ID (e.g., `step-1.1` for scenario 1, step 1) |
-| `name` | Yes | string | Display name for the step |
-| `method` | Yes | string | HTTP method: `GET`, `POST`, or `PUT` |
-| `endpoint` | Yes | string | URL path (relative to API base) |
-| `request_body` | No | object | JSON body for POST/PUT requests |
-| `headers` | No | object | Custom HTTP headers |
-| `expected_status` | Yes | number | Expected HTTP response code |
-| `validations` | No | array | Field checks on the response |
-| `extract_context` | No | object | Save response values for later steps |
-| `skip_signing` | No | boolean | Omit RFC 9421 signature (default: false) |
-| `skip_certificate_injection` | No | boolean | Don't load cert from file (default: false) |
-
----
-
-## Validations
-
-Check response fields with validation rules:
-
-```json
-"validations": [
-  {
-    "field": "fieldName",
-    "operation": "equals|contains|not_empty|exists|is_string|is_number|is_array",
-    "value": "optional-value-for-equals-and-contains"
-  }
-]
-```
-
-### Validation Operations
-
-| Operation | Value Required? | Passes When |
-|-----------|----------------|-------------|
-| `equals` | Yes | Field exactly matches value |
-| `contains` | Yes | Field contains value as substring |
-| `not_empty` | No | Field is present and not empty |
-| `exists` | No | Field is present (any value) |
-| `is_string` | No | Field is a JSON string |
-| `is_number` | No | Field is a JSON number |
-| `is_array` | No | Field is a JSON array |
-
-### Field Path Examples
-
-```json
-"field": "clientId"           // Top-level field
-"field": "data.userId"         // Nested field
-"field": "items.0.id"          // First array element's id
-"field": "_headers.ETag"       // HTTP response header
-```
-
----
-
-## Context Extraction
-
-Pass data from one step to the next:
-
-```json
-// Step 1: Save clientId
-"extract_context": {
-  "clientId": "clientId",
-  "manifestEtag": "_headers.ETag"
-}
-
-// Step 2: Use {placeholder}
-"endpoint": "/api/v1/clients/{clientId}/deployments",
-"headers": {
-  "If-None-Match": "{manifestEtag}"
-}
-```
-
----
-
-## Complete Example
-
-```json
-[
-  {
-    "id": "scenario-full-workflow",
-    "name": "Complete Device Workflow",
-    "description": "Full device onboarding and deployment flow",
-    "steps": [
-      {
-        "id": "step-1.1",
-        "name": "Onboard Device",
-        "method": "POST",
-        "endpoint": "/api/v1/onboarding",
-        "request_body": {
-          "apiVersion": "onboarding.margo.org/v1alpha1",
-          "kind": "OnboardingRequest",
-          "certificate": "./certs/device-cert.pem"
-        },
-        "headers": {
-          "Accept": "application/vnd.margo.manifest.v1+json"
-        },
-        "expected_status": 201,
-        "validations": [
-          { "field": "clientId", "operation": "is_string" },
-          { "field": "status", "operation": "exists" }
-        ],
-        "extract_context": {
-          "clientId": "clientId",
-          "token": "token"
-        }
-      },
-      {
-        "id": "step-1.2",
-        "name": "Get Capabilities",
-        "method": "GET",
-        "endpoint": "/api/v1/capabilities",
-        "expected_status": 200,
-        "validations": [
-          { "field": "capabilities", "operation": "is_array" }
-        ]
-      },
-      {
-        "id": "step-1.3",
-        "name": "Request Deployment",
-        "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments",
-        "request_body": {
-          "workloads": ["wf-scheduler", "wf-executor"]
-        },
-        "expected_status": 200,
-        "validations": [
-          { "field": "deploymentId", "operation": "is_string" }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "scenario-error-handling",
-    "name": "Error Handling",
-    "description": "Test error responses",
-    "steps": [
-      {
-        "id": "step-2.1",
-        "name": "Invalid Request",
-        "method": "POST",
-        "endpoint": "/api/v1/onboarding",
-        "request_body": {
-          "invalid": "payload"
-        },
-        "expected_status": 400,
-        "validations": [
-          { "field": "error", "operation": "exists" }
-        ]
-      }
-    ]
-  }
-]
-```
-
----
-
-## Tips & Best Practices
-
-### Naming Conventions
-
-- **Scenario IDs**: Use hyphens: `scenario-user-onboarding`
-- **Step IDs**: Use format `step-X.Y` where X is scenario number, Y is step number
-- **Variable names**: Use camelCase: `clientId`, `deploymentToken`
-
-### Request Bodies
-
-```json
-// Option 1: Inline JSON object
-"request_body": {
-  "name": "John",
-  "age": 30
-}
-
-// Option 2: With file reference
-"request_body": {
-  "certificate": "./certs/device-cert.pem"
-}
-```
-
-### Headers with Variables
-
-```json
-"headers": {
-  "Authorization": "Bearer {token}",
-  "X-Client-Id": "{clientId}",
-  "If-Match": "{etag}"
-}
-```
-
-### Negative Tests
+Each step is one HTTP call to the mock WFM server:
 
 ```json
 {
-  "id": "step-error",
-  "name": "Expected Failure",
+  "id": "step-1.1",
+  "name": "Step Description",
   "method": "POST",
-  "endpoint": "/api/v1/invalid",
-  "expected_status": 404,  // Expect failure
-  "validations": [
-    { "field": "error", "operation": "contains", "value": "Not Found" }
-  ]
+  "endpoint": "/api/v1/onboarding",
+  "request_body": { ... },
+  "headers": {},
+  "expected_status": 201,
+  "validations": [ ... ],
+  "extract_context": { ... },
+  "skip_signing": false,
+  "skip_certificate_injection": false
 }
 ```
 
 ---
 
-## Validation Example
+## Step 3: Know the Real Margo Endpoints
 
-```bash
-# Check your JSON syntax
-jq empty my_test_scenarios.json
+Every step's `endpoint` must be one of the 8 real Margo API endpoints:
 
-# View structure
-jq '.[].name' my_test_scenarios.json
+| # | Method | Endpoint | Purpose |
+|---|--------|----------|---------|
+| 1 | GET | `/api/v1/onboarding/certificate` | Fetch root CA cert |
+| 2 | POST | `/api/v1/onboarding` | Register device, receive `clientId` |
+| 3 | POST | `/api/v1/clients/{clientId}/capabilities` | Report device capabilities |
+| 4 | PUT | `/api/v1/clients/{clientId}/capabilities` | Update device capabilities |
+| 5 | GET | `/api/v1/clients/{clientId}/deployments` | Get deployment manifest |
+| 6 | GET | `/api/v1/clients/{clientId}/bundles/{digest}` | Download deployment bundle |
+| 7 | GET | `/api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}` | Get individual deployment |
+| 8 | POST | `/api/v1/clients/{clientId}/deployments/{deploymentId}/status` | Report deployment status |
 
-# Count scenarios
-jq 'length' my_test_scenarios.json
+> `{clientId}`, `{digest}`, `{deploymentId}` are placeholders — the runner substitutes values saved from earlier steps using `extract_context`.
 
-# See all step names
-jq '.[] | {scenario: .id, steps: [.steps[].name]}' my_test_scenarios.json
+---
+
+## Step 4: Know What Values Are Valid
+
+Use these values in your `request_body` to pass validation:
+
+**`properties.roles`** — must be a non-empty array, each item must be one of:
+- `"Standalone Cluster"`
+- `"Cluster Leader"`
+- `"Standalone Device"`
+
+**`properties.resources.cpu.architecture`** — one of:
+- `"amd64"`, `"x86_64"`, `"arm64"`, `"arm"`
+
+**`properties.resources.interfaces[*].type`** — one of:
+- `"ethernet"`, `"wifi"`, `"cellular"`, `"bluetooth"`, `"usb"`, `"canbus"`, `"rs232"`
+
+**`apiVersion` values** (must match exactly):
+- Onboarding: `"onboarding.margo.org/v1alpha1"`
+- Capabilities: `"device.margo.org/v1alpha1"`
+- Status: `"orchestration.margo.org/v1alpha1"`
+
+**`kind` values** (must match exactly):
+- Onboarding: `"OnboardingRequest"`
+- Capabilities: `"DeviceCapabilitiesManifest"`
+- Status: `"AppDeploymentStatus"`
+
+---
+
+## Step 5: Understand All Step Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique step ID. Recommended format: `step-X.Y` |
+| `name` | Yes | Display name shown in test reports |
+| `method` | Yes | `"GET"`, `"POST"`, or `"PUT"` |
+| `endpoint` | Yes | URL path from the table above. Supports `{placeholder}` |
+| `request_body` | No | JSON object to send. Omit for GET |
+| `headers` | No | Extra headers. Values support `{placeholder}` |
+| `expected_status` | Yes | The HTTP status you expect. Any other code = FAIL |
+| `validations` | No | Checks to run on the response body or headers |
+| `extract_context` | No | Save response values as variables for later steps |
+| `skip_signing` | No | `true` = send without RFC 9421 signature. Use to test 401 rejection |
+| `skip_certificate_injection` | No | `true` = send `certificate` field as-is without reading from file |
+
+---
+
+## Step 6: Write Validations
+
+Validations check the response body (or headers) after the HTTP call:
+
+```json
+"validations": [
+  { "field": "clientId",      "operation": "exists" },
+  { "field": "clientId",      "operation": "is_string" },
+  { "field": "status",        "operation": "equals",   "value": "ok" },
+  { "field": "error",         "operation": "contains", "value": "certificate" },
+  { "field": "errors",        "operation": "is_array" },
+  { "field": "_headers.ETag", "operation": "not_empty" }
+]
+```
+
+**All operations:**
+
+| Operation | Needs `value`? | Passes when |
+|-----------|---------------|-------------|
+| `exists` | No | Field is present (any value) |
+| `not_empty` | No | Field is present and not `""`, `null`, or `[]` |
+| `equals` | Yes | Field value matches `value` exactly |
+| `contains` | Yes | Field string contains `value` as a substring |
+| `is_string` | No | Field value is a JSON string |
+| `is_number` | No | Field value is a JSON number |
+| `is_array` | No | Field value is a JSON array |
+| `is_object` | No | Field value is a JSON object |
+
+**Field path syntax:**
+
+| Path | Accesses |
+|------|---------|
+| `"clientId"` | Top-level response field |
+| `"status.state"` | Nested field |
+| `"deployments.0.deploymentId"` | First array element |
+| `"_headers.ETag"` | HTTP response header |
+
+---
+
+## Step 7: Pass Data Between Steps
+
+Use `extract_context` to save response values, then inject them as `{placeholders}` in later steps.
+
+**Save a value (in step N):**
+```json
+"extract_context": {
+  "clientId":    "clientId",
+  "bundleDigest": "bundleRef.digest",
+  "manifestEtag": "_headers.ETag"
+}
+```
+
+**Use a saved value (in step N+1):**
+```json
+"endpoint": "/api/v1/clients/{clientId}/deployments",
+"headers":  { "If-None-Match": "{manifestEtag}" }
+```
+
+Placeholders work in: `endpoint`, `headers` values, and string values inside `request_body`.
+
+> Variables only live within the same scenario — they do not carry over between scenarios.
+
+---
+
+## Step 8: Common Test Patterns
+
+### Positive test (expect success)
+```json
+{
+  "id": "step-1.1",
+  "name": "Report Capabilities",
+  "method": "POST",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "request_body": {
+    "apiVersion": "device.margo.org/v1alpha1",
+    "kind": "DeviceCapabilitiesManifest",
+    "properties": {
+      "id": "my-device",
+      "vendor": "Acme",
+      "modelNumber": "ACM-001",
+      "serialNumber": "SN-12345",
+      "roles": ["Standalone Device"],
+      "resources": {
+        "cpu": { "cores": 4, "architecture": "amd64" },
+        "memory": "8Gi",
+        "storage": "128Gi",
+        "interfaces": [{ "type": "ethernet" }],
+        "peripherals": []
+      }
+    }
+  },
+  "headers": {},
+  "expected_status": 201,
+  "validations": [],
+  "extract_context": {},
+  "skip_signing": false
+}
+```
+
+### Negative test — invalid field value (expect 422)
+```json
+{
+  "id": "step-2.1",
+  "name": "Reject Invalid Role",
+  "method": "POST",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "request_body": {
+    "apiVersion": "device.margo.org/v1alpha1",
+    "kind": "DeviceCapabilitiesManifest",
+    "properties": {
+      "id": "my-device",
+      "vendor": "Acme",
+      "modelNumber": "ACM-001",
+      "serialNumber": "SN-12345",
+      "roles": ["InvalidRoleName"],
+      "resources": {
+        "cpu": { "cores": 4, "architecture": "amd64" },
+        "memory": "8Gi",
+        "storage": "128Gi",
+        "interfaces": [{ "type": "ethernet" }],
+        "peripherals": []
+      }
+    }
+  },
+  "headers": {},
+  "expected_status": 422,
+  "validations": [{ "field": "errors", "operation": "is_array" }],
+  "extract_context": {},
+  "skip_signing": false
+}
+```
+
+### Negative test — missing signature (expect 401)
+```json
+{
+  "id": "step-3.1",
+  "name": "Reject Unsigned Request",
+  "method": "POST",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "request_body": { ... },
+  "headers": {},
+  "expected_status": 401,
+  "validations": [{ "field": "error", "operation": "exists" }],
+  "extract_context": {},
+  "skip_signing": true
+}
+```
+
+### ETag caching test (expect 304)
+```json
+{
+  "id": "step-4.1",
+  "name": "Cached Deployment Request",
+  "method": "GET",
+  "endpoint": "/api/v1/clients/{clientId}/deployments",
+  "headers": {
+    "Accept": "application/vnd.margo.manifest.v1+json",
+    "If-None-Match": "{manifestEtag}"
+  },
+  "expected_status": 304,
+  "validations": [],
+  "extract_context": {},
+  "skip_signing": false
+}
 ```
 
 ---
 
-## Common Errors
+## Step 9: Validate Your JSON
 
-### Error: "Invalid JSON"
-**Solution:** Validate with jq:
+Before running, check the file is valid JSON:
+
 ```bash
-jq empty my_test_scenarios.json
+jq empty my-device-scenarios.json && echo "valid"
 ```
 
-### Error: "Field not found in response"
-**Solution:** Check response first by looking at test output, then adjust field path
-
-### Error: "Expected status 200, got 500"
-**Solution:** Check `expected_status` matches what server returns. For error tests, set the status you expect (e.g., 400, 404)
-
----
-
-## File Location
-
-Place custom test scenarios in any directory, then use full path when running:
-
+List all scenario and step names:
 ```bash
-# Examples
-bash conformance.sh device ~/my_tests/custom_scenarios.json
-bash conformance.sh device ./test-data/scenarios.json
-bash conformance.sh device /tmp/new_scenarios.json
-```
-
-Or copy to device-supplier directory for easy reference:
-```bash
-cp my_test_scenarios.json device-supplier/device-scenarios/
-bash conformance.sh device device-supplier/device-scenarios/my_test_scenarios.json
+jq '.[] | {scenario: .id, steps: [.steps[].id]}' my-device-scenarios.json
 ```
 
 ---
 
-## Next Steps
+## Step 10: Register and Run
 
-1. **Create your scenarios** - Copy template and customize
-2. **Validate JSON** - Run `jq empty` on your file
-3. **Generate test cases** - Use conformance.sh option 2
-4. **View template example** - See [TEMPLATE_custom_test_scenario.json](TEMPLATE_custom_test_scenario.json)
-5. **Full schema docs** - See [Final-Summary.md](../Final-Summary.md) for complete reference
+```bash
+cd /path/to/conformance/
+
+# Register with Data-Generator
+bash conformance.sh
+# → Select: Device Supplier
+# → Select: Create new group
+# → Point to your file when prompted
+
+# Start mock WFM server
+cd device-supplier/
+make run-server
+
+# Run your tests
+make run-tests
+
+# Open report
+open reports/conformance-report-*.html
+```
 
 ---
 
-**Last Updated:** May 26, 2026  
-**Version:** 1.0  
-**Status:** ✅ Ready for use
+## What Causes Each Error Code
+
+| Code | Trigger |
+|------|---------|
+| 400 | Missing required field, wrong `apiVersion`, wrong `kind`, missing `Content-Digest` header |
+| 401 | Missing RFC 9421 signature (`skip_signing: true`) |
+| 403 | Certificate in the rejected-certificates blocklist |
+| 404 | `clientId` not registered, wrong bundle digest |
+| 406 | Wrong `Accept` header on GET deployments |
+| 422 | Invalid field value (`roles`, `architecture`, `interface.type`), empty required array, field type mismatch |
+
+---
+
+## Reference
+
+- **Template to copy:** `device-scenarios/TEMPLATE_custom_test_scenario.json`
+- **Full working examples:** `device-scenarios/test-scenarios.json`
+- **Complete field and API reference:** `Final-Summary.md`
+- **Validation rules (what causes 422):** `manifests/assertions.json`

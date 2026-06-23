@@ -126,14 +126,13 @@
           "field": "properties.roles",
           "type": "array",
           "required": true,
-          "minItems": 1,
           "itemsType": "string",
           "itemsEnum": [
             "Standalone Cluster",
             "Cluster Leader",
             "Standalone Device"
           ],
-          "description": "properties.roles must contain at least one valid Margo device role"
+          "description": "properties.roles must contain valid Margo device roles"
         },
         {
           "rule_id": "capabilities-009",

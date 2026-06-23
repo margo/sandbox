@@ -1,4 +1,4 @@
-.PHONY: help build-server build-tests build clean test demo run-tests run-server kill-server
+.PHONY: help build-server build-tests build clean test demo run-tests run-custom-tests run-server kill-server
 
 help:
 	@echo "Device Supplier Conformance Suite - Make Commands"
@@ -6,14 +6,15 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  build-server     Build mock WFM server"
-	@echo "  build-tests      Build test runner"
-	@echo "  build            Build both server and test runner"
-	@echo "  run-server       Start mock WFM server (background)"
-	@echo "  run-tests        Run conformance tests"
-	@echo "  demo             Full demo: start server, run tests, show report"
-	@echo "  kill-server      Stop the running server"
-	@echo "  clean            Remove all build artifacts"
+	@echo "  build-server          Build mock WFM server"
+	@echo "  build-tests           Build test runner"
+	@echo "  build                 Build both server and test runner"
+	@echo "  run-server            Start mock WFM server (background)"
+	@echo "  run-tests             Run default conformance tests (device-scenarios/test-scenarios.json)"
+	@echo "  run-custom-tests      Run vendor scenarios: make run-custom-tests FILE=device-scenarios/my-file.json"
+	@echo "  demo                  Full demo: start server, run tests, show report"
+	@echo "  kill-server           Stop the running server"
+	@echo "  clean                 Remove all build artifacts"
 	@echo ""
 
 # Build targets
@@ -51,6 +52,11 @@ run-server: build-server
 run-tests: build-tests
 	@echo "🧪 Running conformance tests..."
 	@./bin/run_tests
+
+FILE ?= device-scenarios/test-scenarios.json
+run-custom-tests: build-tests
+	@echo "🧪 Running vendor scenarios from: $(FILE)"
+	@./bin/run_tests -file $(FILE)
 
 demo: build
 	@echo ""

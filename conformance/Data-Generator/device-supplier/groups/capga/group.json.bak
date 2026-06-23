@@ -1,8 +1,8 @@
 {
   "name": "capga",
-  "version": "1.7.6",
+  "version": "1.0.0 capga conformnace",
   "persona": "device-supplier",
-  "description": "new grp v1.7.6",
+  "description": "version descp v1.0.0",
   "testCases": [
     "demo-device-001",
     "device-001",

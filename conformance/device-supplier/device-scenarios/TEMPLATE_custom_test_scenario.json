@@ -1,12 +1,24 @@
 [
   {
-    "id": "scenario-custom-example",
-    "name": "Custom Test Scenario Example",
-    "description": "This is a template showing how to create your own test scenarios",
+    "id": "scenario-your-onboarding",
+    "name": "Device Onboarding",
+    "description": "Fetch the root CA certificate and register your device with the WFM to receive a clientId.",
     "steps": [
       {
         "id": "step-1.1",
-        "name": "First API Call - Device Onboarding",
+        "name": "Get Root CA Certificate",
+        "method": "GET",
+        "endpoint": "/api/v1/onboarding/certificate",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "certificate", "operation": "exists" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-1.2",
+        "name": "Onboard Device",
         "method": "POST",
         "endpoint": "/api/v1/onboarding",
         "request_body": {
@@ -14,80 +26,293 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-          "Accept": "application/vnd.margo.manifest.v1+json"
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
-          {
-            "field": "clientId",
-            "operation": "is_string"
-          },
-          {
-            "field": "status",
-            "operation": "exists"
-          }
+          { "field": "clientId", "operation": "exists" },
+          { "field": "clientId", "operation": "is_string" }
         ],
         "extract_context": {
-          "clientId": "clientId",
-          "manifestEtag": "_headers.ETag"
+          "clientId": "clientId"
         },
         "skip_signing": false,
         "skip_certificate_injection": false
-      },
-      {
-        "id": "step-1.2",
-        "name": "Second API Call - Get Capabilities",
-        "method": "GET",
-        "endpoint": "/api/v1/capabilities",
-        "headers": {
-          "Accept": "application/vnd.margo.capabilities.v1+json"
-        },
-        "expected_status": 200,
-        "validations": [
-          {
-            "field": "capabilities",
-            "operation": "is_array"
-          }
-        ],
-        "skip_signing": false
-      },
-      {
-        "id": "step-1.3",
-        "name": "Third API Call - Negative Test (Expected Error)",
-        "method": "POST",
-        "endpoint": "/api/v1/deployments",
-        "request_body": {
-          "invalid": "payload"
-        },
-        "expected_status": 400,
-        "validations": [
-          {
-            "field": "error",
-            "operation": "contains",
-            "value": "Invalid"
-          }
-        ]
       }
     ]
   },
   {
-    "id": "scenario-custom-second",
-    "name": "Your Second Custom Scenario",
-    "description": "Template for creating a second independent test flow",
+    "id": "scenario-your-capabilities",
+    "name": "Capability Reporting",
+    "description": "POST and PUT capability manifests describing the device hardware and roles.",
     "steps": [
       {
+        "id": "step-2.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {
+          "clientId": "clientId"
+        },
+        "skip_signing": false
+      },
+      {
         "id": "step-2.1",
-        "name": "First step of scenario 2",
+        "name": "Report Capabilities with POST",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "your-device-id",
+            "vendor": "Your Vendor Name",
+            "modelNumber": "MODEL-001",
+            "serialNumber": "SN-00001",
+            "roles": ["Standalone Device"],
+            "resources": {
+              "cpu": {
+                "cores": 4,
+                "architecture": "amd64"
+              },
+              "memory": "8Gi",
+              "storage": "128Gi",
+              "interfaces": [
+                { "type": "ethernet" }
+              ],
+              "peripherals": []
+            }
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {},
+        "skip_signing": false
+      },
+      {
+        "id": "step-2.2",
+        "name": "Update Capabilities with PUT",
+        "method": "PUT",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "your-device-id",
+            "vendor": "Your Vendor Name",
+            "modelNumber": "MODEL-001",
+            "serialNumber": "SN-00001",
+            "roles": ["Standalone Device"],
+            "resources": {
+              "cpu": {
+                "cores": 8,
+                "architecture": "amd64"
+              },
+              "memory": "16Gi",
+              "storage": "256Gi",
+              "interfaces": [
+                { "type": "ethernet" }
+              ],
+              "peripherals": []
+            }
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {},
+        "skip_signing": false
+      }
+    ]
+  },
+  {
+    "id": "scenario-your-deployments",
+    "name": "Deployment Retrieval and Status",
+    "description": "Retrieve the deployment manifest, download the bundle, and report deployment status back to WFM.",
+    "steps": [
+      {
+        "id": "step-3.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {
+          "clientId": "clientId"
+        },
+        "skip_signing": false
+      },
+      {
+        "id": "step-3.1",
+        "name": "Get Deployment Manifest",
         "method": "GET",
-        "endpoint": "/api/v1/status",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
         "expected_status": 200,
         "validations": [
-          {
-            "field": "state",
-            "operation": "is_string"
+          { "field": "bundleRef", "operation": "exists" },
+          { "field": "bundleRef.digest", "operation": "exists" }
+        ],
+        "extract_context": {
+          "bundleDigest": "bundleRef.digest",
+          "manifestEtag": "_headers.ETag"
+        },
+        "skip_signing": false
+      },
+      {
+        "id": "step-3.2",
+        "name": "Get Deployments — Cached (ETag match returns 304)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json",
+          "If-None-Match": "{manifestEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {},
+        "skip_signing": false
+      },
+      {
+        "id": "step-3.3",
+        "name": "Download Deployment Bundle",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {
+          "bundleEtag": "_headers.ETag"
+        },
+        "skip_signing": false
+      },
+      {
+        "id": "step-3.4",
+        "name": "Report Deployment Status",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/your-deployment-id/status",
+        "request_body": {
+          "apiVersion": "orchestration.margo.org/v1alpha1",
+          "kind": "AppDeploymentStatus",
+          "status": {
+            "deploymentId": "your-deployment-id",
+            "components": [
+              {
+                "name": "your-component-name",
+                "phase": "Running",
+                "message": "Component deployed successfully"
+              }
+            ]
           }
-        ]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {},
+        "skip_signing": false
+      }
+    ]
+  },
+  {
+    "id": "scenario-your-negative-tests",
+    "name": "Negative / Error Validation",
+    "description": "Tests that verify the WFM correctly rejects invalid requests. Use skip_signing to test unsigned-request rejection.",
+    "steps": [
+      {
+        "id": "step-4.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {
+          "clientId": "clientId"
+        },
+        "skip_signing": false
+      },
+      {
+        "id": "step-4.1",
+        "name": "Reject Invalid Role in Capabilities",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "your-device-id",
+            "vendor": "Your Vendor Name",
+            "modelNumber": "MODEL-001",
+            "serialNumber": "SN-00001",
+            "roles": ["InvalidRole"],
+            "resources": {
+              "cpu": { "cores": 4, "architecture": "amd64" },
+              "memory": "8Gi",
+              "storage": "128Gi",
+              "interfaces": [{ "type": "ethernet" }],
+              "peripherals": []
+            }
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          { "field": "errors", "operation": "is_array" }
+        ],
+        "extract_context": {},
+        "skip_signing": false
+      },
+      {
+        "id": "step-4.2",
+        "name": "Reject Unsigned Capabilities Request",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "your-device-id",
+            "vendor": "Your Vendor Name",
+            "modelNumber": "MODEL-001",
+            "serialNumber": "SN-00001",
+            "roles": ["Standalone Device"],
+            "resources": {
+              "cpu": { "cores": 4, "architecture": "amd64" },
+              "memory": "8Gi",
+              "storage": "128Gi",
+              "interfaces": [{ "type": "ethernet" }],
+              "peripherals": []
+            }
+          }
+        },
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          { "field": "error", "operation": "exists" }
+        ],
+        "extract_context": {},
+        "skip_signing": true
       }
     ]
   }

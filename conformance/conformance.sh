@@ -495,7 +495,7 @@ show_persona_menu() {
     echo ""
     echo "Which Margo Persona do you want to manage?"
     echo "1. WFM Supplier "
-    echo "2. Device Supplier (Group-based test management)"
+    echo "2. Device Supplier"
     echo ""
     echo "H) Help"
     echo "Q) Quit"
@@ -888,7 +888,7 @@ interactive_mode() {
                 TEMPLATE_PATH="$CONFORMANCE_DIR/device-supplier/device-scenarios/../docs/template.md"
                 TEMPLATE_PATH="$(realpath "$TEMPLATE_PATH" 2>/dev/null || echo "$TEMPLATE_PATH")"
 
-                echo "⚠️  WARNING:"
+                echo "!! WARNING !!"
                 echo "================================================"
                 echo "Please ensure that all test cases are developed using the Margo template."
                 echo ""

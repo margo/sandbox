@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Supplier Conformance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Device Supplier Conformance Test Report</h1>
+        <p>Margo Management Interface API 1.0.0</p>
+        <p>Generated: 2026-06-23T10:10:25Z</p>
+    </div>
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Tests: 42 | <span class="pass">&#x2705; Passed: 42</span> | <span class="fail">&#x274C; Failed: 0</span></p>
+        <p>Success Rate: 100.0%</p>
+    </div>
+    <table>
+        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With Multiple Interfaces</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With GPU and Display Peripherals</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With arm Architecture</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With Standalone Cluster Role</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With Cluster Leader Role</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Accept Device With All USB and RS232 Interfaces</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Update Capabilities With PUT (Hardware Upgrade)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing properties.id</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing properties.vendor</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing properties.modelNumber</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing properties.serialNumber</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Empty roles Array</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Wrong kind Value</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Wrong apiVersion</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject PUT Capabilities With Invalid Role</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject PUT Capabilities With Invalid CPU Architecture</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject PUT Capabilities Without Signature</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject PUT Capabilities For Unknown Client</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject PUT Capabilities With Missing Content-Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments (Extract deploymentId)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — pending</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — installing</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — installed (all components)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — failed with error details</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — removing</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status — removed</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments (Extract deploymentId)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Wrong apiVersion</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Wrong kind</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing deploymentId in Body</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing status Object</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing status.state</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing components Array</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Invalid Component State</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>GET Deployments For Unknown Client Returns 404</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>POST Capabilities For Unknown Client Returns 404</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>PUT Capabilities For Unknown Client Returns 404</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+    </table>
+</body>
+</html>

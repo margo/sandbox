@@ -4,18 +4,18 @@ High-level entry point for running the suite and finding detailed documentation.
 
 ## Current Status
 
-- 43/43 tests passing
 - RFC 9421 request signing and verification enabled
-- Data-driven test and validation model
+- Data-driven test and validation model (assertions.json controls all rules)
+- Custom test-scenario JSON format for vendor-provided test cases
 
 ## What Goes Where
 
 - Use this README for quick setup and daily commands.
-- Use [Final-Summary.md](Final-Summary.md) for full architecture, schemas, and authoring guides.
+- Use [Final-Summary.md](Final-Summary.md) for the complete vendor guide: test scenario format, Data-Generator CLI, Runner CLI, real device-agent setup, API reference, and troubleshooting.
 
 ## Quick Start
 
-From this directory (`margo/personas/device_supplier`):
+From this directory (`conformance/device-supplier`):
 
 1. Build binaries:
 
@@ -56,17 +56,17 @@ Expected summary: `Test Results: 43 PASSED, 0 FAILED`.
 
 ## Detailed Documentation
 
-Deep documentation lives in [Final-Summary.md](Final-Summary.md).
+Full vendor guide: [Final-Summary.md](Final-Summary.md)
 
-- Full architecture: [Final-Summary.md](Final-Summary.md#architecture-overview)
-- API endpoint behavior: [Final-Summary.md](Final-Summary.md#all-8-api-endpoints)
-- Test scenario schema: [Final-Summary.md](Final-Summary.md#test-scenario-schema)
-- Assertion schema: [Final-Summary.md](Final-Summary.md#assertion-schema)
-- How to write new test scenarios: [Final-Summary.md](Final-Summary.md#step-by-step-guide-writing-a-new-test)
-- How to write new assertions: [Final-Summary.md](Final-Summary.md#how-to-write-a-new-assertion-step-by-step)
-- Certificate handling: [Final-Summary.md](Final-Summary.md#certificate-handling)
+- Architecture and two testing modes: [Final-Summary.md](Final-Summary.md#architecture)
+- Custom test-scenario format: [Final-Summary.md](Final-Summary.md#part-1--create-your-test-scenarios)
+- Data-Generator CLI usage: [Final-Summary.md](Final-Summary.md#part-2--register-scenarios-with-data-generator)
+- Runner CLI usage: [Final-Summary.md](Final-Summary.md#part-3--run-conformance-tests)
+- Real device-agent setup: [Final-Summary.md](Final-Summary.md#part-4--test-with-your-real-device-agent)
+- API endpoint reference: [Final-Summary.md](Final-Summary.md#api-reference--all-8-endpoints)
+- Validation rules (assertions.json): [Final-Summary.md](Final-Summary.md#validation-rules-reference-assertionsjson)
 - Environment variables: [Final-Summary.md](Final-Summary.md#environment-variables)
-- Troubleshooting: [Final-Summary.md](Final-Summary.md#faq--troubleshooting)
+- Troubleshooting: [Final-Summary.md](Final-Summary.md#troubleshooting)
 
 Additional certificate docs:
 

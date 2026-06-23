@@ -1,8 +1,8 @@
 {
   "name": "wfm-user-scenario",
-  "version": "1.0.0",
+  "version": "1.3.7",
   "persona": "wfm-supplier",
-  "description": "1.0.0",
+  "description": "new grp for v1.3.7",
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
     "045403b4-89ac-4c08-9146-7a92040c3476",
@@ -92,6 +92,7 @@
     "f54748a1-72c1-4fb9-a64f-7e4b2b36ba54",
     "f5bc7d9f-965f-4c6b-a4cb-398b3c1aff78",
     "f9e10c20-8474-47ec-81c0-fc7c0823891d",
-    "fc6a5159-3b3f-4140-8092-25992e18f959"
+    "fc6a5159-3b3f-4140-8092-25992e18f959",
+    "6babf73f-f617-4f25-a1b6-414b665ed6b5"
   ]
 }

@@ -1222,21 +1222,21 @@
 
       {
   "id": "step-custom-1",
-  "name": "Reject Empty Roles Array",
+  "name": "Invalid Memory Format",
   "method": "POST",
   "endpoint": "/api/v1/clients/{clientId}/capabilities",
   "request_body": {
     "apiVersion": "device.margo.org/v1alpha1",
     "kind": "DeviceCapabilitiesManifest",
     "properties": {
-      "id": "device-empty-roles",
+      "id": "device-invalid-mem",
       "vendor": "Acme Corp",
       "modelNumber": "ACM-XYZ",
       "serialNumber": "SN-99999",
-      "roles": [],
+      "roles": ["Standalone Device"],
       "resources": {
         "cpu": { "cores": 4, "architecture": "amd64" },
-        "memory": "16Gi",
+        "memory": "sixteen_gb",
         "storage": "256Gi",
         "interfaces": [{ "type": "ethernet" }],
         "peripherals": []
@@ -1249,9 +1249,7 @@
       "field": "errors",
       "operation": "is_array"
     }
-  ],
-  "headers": {},
-  "extract_context": {}
+  ]
 }
     ]
   }

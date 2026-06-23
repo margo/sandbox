@@ -1,12 +1,170 @@
 {
-  "70cf7216-baf9-45dc-a2fb-a4a92895276e:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "13496db6-b813-4e4d-af61-04c19bb06bf0:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "70cf7216-baf9-45dc-a2fb-a4a92895276e",
+    "client_id": "13496db6-b813-4e4d-af61-04c19bb06bf0",
     "status_history": []
   },
-  "777475f1-abe6-4d6c-93db-1de32ef62b78:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "19d14b97-aa97-4197-b5a8-e91c12042932:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "777475f1-abe6-4d6c-93db-1de32ef62b78",
+    "client_id": "19d14b97-aa97-4197-b5a8-e91c12042932",
+    "status_history": []
+  },
+  "1ff9a9c6-7cbc-4459-b25f-57a9d03cd03a:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "1ff9a9c6-7cbc-4459-b25f-57a9d03cd03a",
+    "status_history": [
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "pending"
+          },
+          {
+            "name": "app-backend",
+            "state": "pending"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "pending"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "installing"
+          },
+          {
+            "name": "app-backend",
+            "state": "installing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "installed"
+          },
+          {
+            "name": "app-backend",
+            "state": "installed"
+          },
+          {
+            "name": "app-database",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "error": {
+              "code": "IMAGE_PULL_ERROR",
+              "message": "Error response from daemon: pull access denied",
+              "source": "docker"
+            },
+            "name": "app-frontend",
+            "state": "failed"
+          },
+          {
+            "name": "app-backend",
+            "state": "pending"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "error": {
+            "code": "PULL_FAILED",
+            "message": "Failed to pull image: registry unreachable",
+            "source": "runtime"
+          },
+          "state": "failed"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "removing"
+          },
+          {
+            "name": "app-backend",
+            "state": "removing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "removing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "removed"
+          },
+          {
+            "name": "app-backend",
+            "state": "removed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "removed"
+        }
+      }
+    ]
+  },
+  "341c042c-8262-4a93-8a35-06e143868785:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "341c042c-8262-4a93-8a35-06e143868785",
+    "status_history": []
+  },
+  "49b69820-4ee2-42e0-82f6-ff2e9cab8901:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "49b69820-4ee2-42e0-82f6-ff2e9cab8901",
+    "status_history": []
+  },
+  "4cb48958-54ec-4b3c-a881-79c81f3c1a8f:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "4cb48958-54ec-4b3c-a881-79c81f3c1a8f",
+    "status_history": []
+  },
+  "5c71a2a7-bafd-4d23-aa11-50307e0f3fed:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "5c71a2a7-bafd-4d23-aa11-50307e0f3fed",
+    "status_history": []
+  },
+  "6a90b588-34b9-42bb-a728-22eb33858c22:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "6a90b588-34b9-42bb-a728-22eb33858c22",
+    "status_history": []
+  },
+  "6c8c6d46-4955-40b8-8ba2-2d07820bc869:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "6c8c6d46-4955-40b8-8ba2-2d07820bc869",
     "status_history": [
       {
         "apiVersion": "deployment.margo.org/v1alpha1",
@@ -24,29 +182,167 @@
       }
     ]
   },
-  "7ef83f3e-9790-4293-9032-bcc8375955f3:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "7213a980-02c3-435e-9bcb-8ddd3c20f188:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "7ef83f3e-9790-4293-9032-bcc8375955f3",
+    "client_id": "7213a980-02c3-435e-9bcb-8ddd3c20f188",
     "status_history": []
   },
-  "9f309101-e421-42ee-8c2f-a3489204ad97:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "742bb789-0690-4ceb-930c-76d3dd39f1f3:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "9f309101-e421-42ee-8c2f-a3489204ad97",
+    "client_id": "742bb789-0690-4ceb-930c-76d3dd39f1f3",
     "status_history": []
   },
-  "c85dd5c1-7a39-43f0-a869-8546f50b62c5:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "8ef1c739-b5a0-4a59-aea4-c9eac5aaf41a:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "c85dd5c1-7a39-43f0-a869-8546f50b62c5",
+    "client_id": "8ef1c739-b5a0-4a59-aea4-c9eac5aaf41a",
+    "status_history": [
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "pending"
+          },
+          {
+            "name": "app-backend",
+            "state": "pending"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "pending"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "installing"
+          },
+          {
+            "name": "app-backend",
+            "state": "installing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "installed"
+          },
+          {
+            "name": "app-backend",
+            "state": "installed"
+          },
+          {
+            "name": "app-database",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "error": {
+              "code": "IMAGE_PULL_ERROR",
+              "message": "Error response from daemon: pull access denied",
+              "source": "docker"
+            },
+            "name": "app-frontend",
+            "state": "failed"
+          },
+          {
+            "name": "app-backend",
+            "state": "pending"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "error": {
+            "code": "PULL_FAILED",
+            "message": "Failed to pull image: registry unreachable",
+            "source": "runtime"
+          },
+          "state": "failed"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "removing"
+          },
+          {
+            "name": "app-backend",
+            "state": "removing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "removing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-frontend",
+            "state": "removed"
+          },
+          {
+            "name": "app-backend",
+            "state": "removed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "removed"
+        }
+      }
+    ]
+  },
+  "a41ecb28-0392-4c3c-a6d5-9028d4c2c621:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "a41ecb28-0392-4c3c-a6d5-9028d4c2c621",
     "status_history": []
   },
-  "ce8db37a-e78c-4864-933b-d88387c9772a:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "a445da37-669c-4461-b56e-b7a4c75cb947:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "ce8db37a-e78c-4864-933b-d88387c9772a",
+    "client_id": "a445da37-669c-4461-b56e-b7a4c75cb947",
     "status_history": []
   },
-  "f2cf3cee-a735-4238-a6cf-6b29719a38da:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "adf8c4f6-e4ae-4a46-ac23-4a78ae141352:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "f2cf3cee-a735-4238-a6cf-6b29719a38da",
+    "client_id": "adf8c4f6-e4ae-4a46-ac23-4a78ae141352",
+    "status_history": []
+  },
+  "c4ffc60d-927b-4acd-aafc-40554b71fe79:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "c4ffc60d-927b-4acd-aafc-40554b71fe79",
+    "status_history": []
+  },
+  "cd7f3264-46f0-45e9-a6a2-6a9ad1ef86c1:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "cd7f3264-46f0-45e9-a6a2-6a9ad1ef86c1",
     "status_history": []
   }
 }

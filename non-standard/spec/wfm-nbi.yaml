@@ -223,7 +223,7 @@ paths:
                         key: arch
                         value: x86
                     deploymentProfile:
-                      type: helm.v3
+                      type: helm
                       components:
                         - name: digitron-orchestrator
                           properties:
@@ -666,7 +666,7 @@ components:
             yaml: "type"
           description: Type of deployment profile
           enum:
-          - helm.v3
+          - helm
           - compose
           type: string
       required:
@@ -1336,7 +1336,7 @@ components:
       properties:
         type:
           type: string
-          enum: ["helm.v3", "compose"]
+          enum: ["helm", "compose"]
           description: Type of deployment profile
         components:
           type: array

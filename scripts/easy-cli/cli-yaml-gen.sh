@@ -46,26 +46,26 @@ generate_instance_yaml_from_oci() {
     if [[ "$package_name" =~ compose ]]; then
       deployment_type="compose"
     elif [[ "$package_name" =~ helm ]]; then
-      deployment_type="helm.v3"
+      deployment_type="helm"
     fi
   fi
 
   local profile_type=""
   case "$deployment_type" in
-    helm|helm.v3) profile_type="helm.v3" ;;
+    helm) profile_type="helm" ;;
     compose|docker-compose) profile_type="compose" ;;
     *)
       if [[ "$package_name" =~ compose ]]; then
         profile_type="compose"
       else
-        profile_type="helm.v3"
+        profile_type="helm"
       fi
       ;;
   esac
 
   local repository=$(get_oci_repository_path "$package_name" "$temp_dir/margo.yaml")
 
-  if [ "$profile_type" = "helm.v3" ]; then
+  if [ "$profile_type" = "helm" ]; then
     generate_helm_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml"
   elif [ "$profile_type" = "compose" ]; then
     generate_compose_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml"
@@ -105,7 +105,7 @@ spec:
   deviceRef:
     id: ${device_id}
   deploymentProfile:
-    type: helm.v3
+    type: helm
     components:
 EOF
 

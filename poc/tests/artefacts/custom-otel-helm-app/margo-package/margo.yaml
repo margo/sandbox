@@ -18,14 +18,14 @@ metadata:
       - name: OpenTelemetry Lab
         site: https://opentelemetry.io
 deploymentProfiles:
-  - type: helm.v3
+  - type: helm
     id: otel-demo
     description: Deploys the go-otel-service using Helm v3. Requires network connectivity to the OTEL collector and basic compute resources.
     components:
       - name: otel-app
         properties:
-          repository: {{HELM_REPOSITORY}}  # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
-          revision: {{HELM_REVISION}}  # e.g., 0.1.0
+          repository: { { HELM_REPOSITORY } } # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
+          revision: { { HELM_REVISION } } # e.g., 0.1.0
           wait: true
           timeout: 5m
     requiredResources:
@@ -45,8 +45,8 @@ parameters:
   otlpEndpoint:
     value: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318"
     targets:
-    - pointer: env.OTEL_EXPORTER_OTLP_ENDPOINT
-      components: ["otel-demo"]
+      - pointer: env.OTEL_EXPORTER_OTLP_ENDPOINT
+        components: ["otel-demo"]
 
 configuration:
   sections:

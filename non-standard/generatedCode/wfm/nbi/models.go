@@ -20,7 +20,7 @@ const (
 // Defines values for AppDeploymentProfileType.
 const (
 	AppDeploymentProfileTypeCompose AppDeploymentProfileType = "compose"
-	AppDeploymentProfileTypeHelmV3  AppDeploymentProfileType = "helm.v3"
+	AppDeploymentProfileTypeHelm    AppDeploymentProfileType = "helm"
 )
 
 // Defines values for ApplicationDeploymentOperation.
@@ -95,7 +95,7 @@ const (
 // Defines values for DeploymentExecutionProfileType.
 const (
 	DeploymentExecutionProfileTypeCompose DeploymentExecutionProfileType = "compose"
-	DeploymentExecutionProfileTypeHelmV3  DeploymentExecutionProfileType = "helm.v3"
+	DeploymentExecutionProfileTypeHelm    DeploymentExecutionProfileType = "helm"
 )
 
 // Defines values for DeviceOnboardStatus.

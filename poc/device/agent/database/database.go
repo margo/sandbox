@@ -487,6 +487,6 @@ func (db *Database) SetDeviceCanDeployCompose(deployable bool) {
 }
 
 func (db *Database) CanDeployAppProfile(profileType string) bool {
-	return (strings.ToLower(profileType) == "helm.v3" && db.deviceSettings.CanDeployHelm) ||
+	return (strings.ToLower(profileType) == "helm" && db.deviceSettings.CanDeployHelm) ||
 		(strings.ToLower(profileType) == "compose" && db.deviceSettings.CanDeployCompose)
 }

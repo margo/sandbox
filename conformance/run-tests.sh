@@ -327,63 +327,130 @@ discover_wfm_group_collections() {
     local group_json="$2"
     local collections=()
 
-    # Support external collection files referenced in group.json under "collectionFiles".
-    # Paths may be absolute or relative to CONFORMANCE_DIR.
-    # This lets users reference their Postman collection from any location (including
-    # paths with spaces) without copying the file into the group directory.
-    while IFS= read -r ext_file; do
-        [[ -z "$ext_file" ]] && continue
-        local abs_file
-        if [[ "$ext_file" = /* ]]; then
-            abs_file="$ext_file"
-        else
-            abs_file="$CONFORMANCE_DIR/$ext_file"
-        fi
-        if [[ ! -f "$abs_file" ]]; then
-            warn "External collection file not found: $abs_file"
-            continue
-        fi
-        if ! json_file_is_valid "$abs_file"; then
-            warn "Skipping invalid external JSON file: $ext_file"
-            continue
-        fi
-        if json_file_is_postman_collection "$abs_file"; then
-            collections+=("$abs_file")
-        else
-            warn "External file is not a recognised Postman collection: $ext_file"
-        fi
-    done < <(jq -r '.collectionFiles[]? // empty' "$group_json" 2>/dev/null)
+    #  log to stderr only
+    echo "[DEBUG] Reading group.json: $group_json" >&2
 
-    # Also discover files placed directly inside the group directory
-    while IFS= read -r json_file; do
-        if ! json_file_is_valid "$json_file"; then
-            warn "Skipping invalid JSON file: $(basename "$json_file")"
+    # read FolderPath
+    local folder_name
+    folder_name=$(jq -r '.FolderPath // empty' "$group_json" 2>/dev/null)
+
+    if [[ -z "$folder_name" ]]; then
+        echo "[WARN] FolderPath not defined in group.json" >&2
+        return
+    fi
+
+    echo "[DEBUG] FolderPath = $folder_name" >&2
+
+    # build testcases path
+    local testcases_path="$CONFORMANCE_DIR/testcases/$folder_name"
+    echo "[DEBUG] Looking inside: $testcases_path" >&2
+
+    if [[ ! -d "$testcases_path" ]]; then
+        echo "[WARN] Testcases folder not found: $testcases_path" >&2
+        return
+    fi
+
+    # ✅ FIX: safe globbing
+    shopt -s nullglob
+    local files=("$testcases_path"/*.json)
+    shopt -u nullglob
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "[WARN] No JSON files found in: $testcases_path" >&2
+        return
+    fi
+
+    echo "[DEBUG] Found ${#files[@]} JSON files" >&2
+
+    for json_file in "${files[@]}"; do
+        echo "[DEBUG] Checking: $(basename "$json_file")" >&2
+
+        if ! jq empty "$json_file" >/dev/null 2>&1; then
+            echo "[WARN] Invalid JSON: $(basename "$json_file")" >&2
             continue
         fi
-        if json_file_is_postman_collection "$json_file"; then
+
+        echo "[DEBUG] Valid JSON" >&2
+
+        if jq -e '
+            (.item? | type == "array") and
+            (
+                (.info? | type == "object") or
+                (._? | type == "object" and has("postman_id"))
+            )
+        ' "$json_file" >/dev/null 2>&1; then
+
+            echo "[DEBUG] ✅ Selected as Postman collection" >&2
             collections+=("$json_file")
+        else
+            echo "[DEBUG] ❌ Not a Postman collection" >&2
         fi
-    done < <(get_group_json_files "$group_path")
+    done
 
+    echo "[DEBUG] Total selected collections: ${#collections[@]}" >&2
+
+    # ✅ ONLY return file paths (stdout clean)
     if [[ ${#collections[@]} -gt 0 ]]; then
         printf '%s\n' "${collections[@]}"
     fi
 }
-
 discover_group_scenario_files() {
     local group_path="$1"
     local scenario_files=()
 
-    while IFS= read -r json_file; do
+    local group_json="$group_path/group.json"
+
+    echo "[DEBUG] Reading group.json: $group_json" >&2
+
+    local folder_name
+    folder_name=$(jq -r '.FolderPath // empty' "$group_json" 2>/dev/null)
+
+    if [[ -z "$folder_name" ]]; then
+        warn "FolderPath not defined in group.json"
+        return
+    fi
+
+    local testcases_path="$CONFORMANCE_DIR/testcases/$folder_name"
+
+    echo "[DEBUG] FolderPath = $folder_name" >&2
+    echo "[DEBUG] Looking for scenario files in: $testcases_path" >&2
+
+    if [[ ! -d "$testcases_path" ]]; then
+        warn "Testcases folder not found: $testcases_path"
+        return
+    fi
+
+    shopt -s nullglob
+    local files=("$testcases_path"/*.json)
+    shopt -u nullglob
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        warn "No JSON files found in: $testcases_path"
+        return
+    fi
+
+    echo "[DEBUG] Found ${#files[@]} JSON file(s)" >&2
+
+    for json_file in "${files[@]}"; do
+        echo "[DEBUG] Checking: $(basename "$json_file")" >&2
+
         if ! json_file_is_valid "$json_file"; then
             warn "Skipping invalid JSON file: $(basename "$json_file")"
             continue
         fi
 
-        if jq -e 'type == "array" and any(.[]?; type == "object" and (.steps? | type == "array"))' "$json_file" >/dev/null 2>&1; then
+        if jq -e '
+            type == "array" and
+            any(.[]?; type == "object" and (.steps? | type == "array"))
+        ' "$json_file" >/dev/null 2>&1; then
+            echo "[DEBUG] ✅ Scenario file selected: $(basename "$json_file")" >&2
             scenario_files+=("$json_file")
+        else
+            echo "[DEBUG]  Not a scenario file: $(basename "$json_file")" >&2
         fi
-    done < <(get_group_json_files "$group_path")
+    done
+
+    echo "[DEBUG] Total scenario files selected: ${#scenario_files[@]}" >&2
 
     if [[ ${#scenario_files[@]} -gt 0 ]]; then
         printf '%s\n' "${scenario_files[@]}"
@@ -1104,49 +1171,74 @@ EOF
 }
 
 run_wfm_flow() {
-    show_wfm_cert_info
 
-    echo ""
-    info "Selecting test group..."
-    local selected_group_path
-    if selected_group_path=$(select_wfm_group); then
-        local group_name
-        group_name=$(basename "$selected_group_path")
-        success "Selected group: $group_name"
-
-        # echo ""
-        # read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
-        # wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
-
-        # execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+    while true; do
         echo ""
-echo "  WARNING:"
-echo "================================================"
-echo "Please check your WFM services are running before starting the tests."
-echo ""
-echo "1) proceed to run tests"
-echo "2) back"
-echo "================================================"
+        echo "What type of test-cases do you want to run?"
+        echo "1. OpenAPI spec based contract tests"
+        echo "2. Functional tests (Group-based test management)"
+        echo ""
+        echo "B) Back"
+        echo "Q) Quit"
+        echo ""
 
-read -p "Select option (1-2): " confirm_choice
+        read -p "Select option (1-2, B, or Q): " test_choice
 
-if [[ "$confirm_choice" == "2" ]]; then
-    info "Going back..."
-    return 0
-fi
+        case "${test_choice,,}" in
 
-if [[ "$confirm_choice" != "1" ]]; then
-    error "Invalid selection. Please choose 1 or 2"
-fi
+            1)
+                show_wfm_cert_info
 
-echo ""
-read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
-wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+                echo ""
+                read -p "Enter Postman Collection Path: " collection_path
 
-execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
-    else
-        error "Failed to select group"
-    fi
+                if [[ ! -f "$collection_path" ]]; then
+                    error "Collection file not found: $collection_path"
+                fi
+
+                echo ""
+                read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+                wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+
+                run_wfm_newman "$wfm_url" "$collection_path"
+                ;;
+
+            2)
+                show_wfm_cert_info
+
+                echo ""
+                info "Selecting test group..."
+
+                local selected_group_path
+                if selected_group_path=$(select_wfm_group); then
+                    local group_name
+                    group_name=$(basename "$selected_group_path")
+                    success "Selected group: $group_name"
+
+                    echo ""
+                    read -p "Enter WFM Server Base URL [https://localhost:3001/v1alpha2/margo]: " wfm_url
+                    wfm_url="${wfm_url:-https://localhost:3001/v1alpha2/margo}"
+
+                    execute_wfm_tests_with_group "$wfm_url" "$selected_group_path"
+                else
+                    error "Failed to select group"
+                fi
+                ;;
+
+            b)
+                return
+                ;;
+
+            q)
+                info "Exiting..."
+                exit 0
+                ;;
+
+            *)
+                warn "Invalid option"
+                ;;
+        esac
+    done
 }
 
 run_device_flow() {

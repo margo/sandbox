@@ -1,8 +1,9 @@
 {
   "name": "diamond",
-  "version": "v1.0.9",
+  "version": "1.00",
   "persona": "wfm-supplier",
-  "description": "grou of v1.0.0",
+  "description": "1.00",
+  "FolderPath": "wfm-suplier",
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
     "0510e725-a124-415f-a9b9-0d369e1d94e2",

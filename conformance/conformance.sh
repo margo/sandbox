@@ -654,11 +654,9 @@ create_test_group() {
 
     ALL_TESTS=()
 
-    # SAFE LOOP (IMPORTANT FIX)
     shopt -s nullglob
     files=("$INPUT_PATH"/*.json)
 
-    # check empty
     if [[ ${#files[@]} -eq 0 ]]; then
         error "No JSON files found in folder!"
     fi
@@ -667,10 +665,6 @@ create_test_group() {
         filename=$(basename "$file")
         log " Processing: $filename"
 
-        # copy file
-        cp "$file" "$GROUP_PATH/"
-
-        # SAFE jq (NO CRASH)
         IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
 
         if [[ -z "$IDS" ]]; then
@@ -679,13 +673,11 @@ create_test_group() {
                 | tr '[:upper:]' '[:lower:]')
         fi
 
-        # append safely
         while IFS= read -r id; do
             [[ -n "$id" ]] && ALL_TESTS+=("$id")
         done <<< "$IDS"
     done
 
-    # final validation
     if [[ ${#ALL_TESTS[@]} -eq 0 ]]; then
         error "No test cases found in files"
     fi
@@ -696,15 +688,15 @@ create_test_group() {
 
     PERSONA="$SUPPLIER"
 
-    # merge / create
     if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
-        OLD_TESTS=$(jq '.testCases' "$GROUP_PATH/group.json")
+        OLD_TESTS=$(jq '.testCases // []' "$GROUP_PATH/group.json")
 
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
             --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
+            --arg folder "$(basename "$INPUT_PATH")" \
             --argjson old "$OLD_TESTS" \
             --argjson new "$TESTS_JSON" \
             '{
@@ -712,6 +704,7 @@ create_test_group() {
                 version: $version,
                 persona: $persona,
                 description: $desc,
+                FolderPath: $folder,
                 testCases: ($old + $new | unique)
             }' > "$GROUP_PATH/group.json"
 
@@ -723,12 +716,14 @@ create_test_group() {
             --arg version "$VERSION" \
             --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
+            --arg folder "$(basename "$INPUT_PATH")" \
             --argjson tests "$TESTS_JSON" \
             '{
                 name: $name,
                 version: $version,
                 persona: $persona,
                 description: $desc,
+                FolderPath: $folder,
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
 

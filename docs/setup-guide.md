@@ -147,14 +147,11 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 
 ### On Each Device VM:
-1. **Navigate to the scripts folder**
-   ```bash
-   cd $HOME/workspace/sandbox/scripts
-   ```
-2. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
+
+1. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
 
    You need to copy a security file from the WFM VM to each Device VM.
-   > Note: create the certs directory 
+   > Note: create the certs directory before copying the security files 
    > Use: `mkdir -p $HOME/certs`
 
    #### Step 1: Preparation on WFM VM
@@ -194,6 +191,11 @@ On each VM, you need to configure environment variables (settings that tell the 
    | 1 | Open `ca-cert.pem` on WFM VM and copy contents | Open `ca-cert.pem` on WFM VM and copy contents |
    | 2 | Create file `ca-cert.pem` in `$HOME/certs/` | Create file `ca-cert.pem` in `$HOME/certs/` |
    | 3 | Paste contents and save | Paste contents and save |
+
+2. **Navigate to the scripts folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts
+   ```
 
 3. **Install Basic Tools**
 

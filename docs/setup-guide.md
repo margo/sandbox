@@ -15,6 +15,7 @@
    - Virtual Machine Manager (4.1.0 tested)
 - Internet connection
 - All VMs must be able to talk to each other (same network with static IP addresses)
+- VM names must be lowercase.
 
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
@@ -160,6 +161,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    - Type `1` and press Enter
    - Choose: `Option 1: Install-prerequisites`
+   > Note: For k3s devices, create the certs directory before running prerequisites so you can sync the harbor.crt. Use: `mkdir -p $HOME/certs`
 
    This may take 10-15 minutes.
 
@@ -266,28 +268,26 @@ You need to copy a security file from the WFM VM to each Device VM.
 
    2.1. Fetch the coredns config first:
    ```bash
-   kubectl -n kube-system get configmap coredns -o yaml > config.yaml
+   sudo kubectl -n kube-system edit configmap coredns
    ```
 
-   2.2. Then add only the highlighted lines in the `hosts` section with your ip addresses in them:
-   ```bash
+   2.2. Then add only the highlighted lines in the `NodeHosts` section with your IP addresses in them and save:
+   ```yaml
    apiVersion: v1
    data:
-   Corefile: |
-      .:53 {
+     Corefile: |
+       .:53 {
          errors
          health
          ready
          kubernetes cluster.local in-addr.arpa ip6.arpa {
-            pods insecure
-            fallthrough in-addr.arpa ip6.arpa
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
          }
          hosts /etc/coredns/NodeHosts {
-            52.224.241.180 harbor.machine # <----- Newly added line. This tells kubernetes env on how to resolve harbor.machine
-            52.224.241.180 symphony.machine # <----- Newly added line. This tells kubernetes env on how to resolve symphony.machine
-            ttl 60
-            reload 15s
-            fallthrough
+           ttl 60
+           reload 15s
+           fallthrough
          }
          prometheus :9153
          forward . /etc/resolv.conf
@@ -296,17 +296,17 @@ You need to copy a security file from the WFM VM to each Device VM.
          reload
          loadbalance
          import /etc/coredns/custom/*.override
-      }
+       }
+       import /etc/coredns/custom/*.server
+     NodeHosts: |
+       20.11.000.000 harbor.machine # Newly added line to resolve harbor.machine
+       20.11.000.000 symphony.machine # Newly added line to resolve symphony.machine
+       10.0.0.11 margo-wfm-v10
    ```
 
    2.3. Then apply the changes:
    ```bash
-   kubectl apply -f config.yaml
-   ```
-
-   2.4. Finally restart the coredns pods:
-   ```bash
-   kubectl -n kube-system rollout restart deployment coredns
+   sudo kubectl -n kube-system rollout restart deployment coredns
    ```
 
 3. **Start the device's Workload Fleet Management Client**

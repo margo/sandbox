@@ -15,6 +15,7 @@
    - Virtual Machine Manager (4.1.0 tested)
 - Internet connection
 - All VMs must be able to talk to each other (same network with static IP addresses)
+- VM hostnames must be lowercase.
 
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
@@ -146,12 +147,57 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 
 ### On Each Device VM:
-1. **Navigate to the scripts folder**
+
+1. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
+
+   You need to copy a security file from the WFM VM to each Device VM.
+   > Note: create the certs directory before copying the security files 
+   > Use: `mkdir -p $HOME/certs`
+
+   #### Step 1: Preparation on WFM VM
+
+   | Step | Action | Command | Expected Result |
+   |------|--------|---------|-----------------|
+   | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) |
+   | 2 | Locate WFM certificate | `cd $HOME/symphony/api/certificates`<br>`ls -la ca-cert.pem` | File: `ca-cert.pem` |
+   | 3 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
+
+
+   **Note:** Write down the IP address from Step 1 for use in the copy commands below.
+
+
+   #### Step 2: Copy Methods
+
+   **Option A - Using SCP**
+   🔴 **(Recommended - Run from Device VMs)**
+
+
+
+   | Target VM | Run From | SCP Command | Example |
+   |-----------|----------|-------------|---------|
+   | **Docker Device** | Docker Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
+   | **K3s Device** | K3s Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
+
+   **Note:** Run with **sudo** if fails.
+
+   **Replace:**
+   - `username` with your WFM VM username
+   - `WFM-VM-IP` with the IP address from Step 1
+
+   **Option B - Manual Copy**
+
+   | Step | Docker Device VM | K3s Device VM |
+   |------|------------------|---------------|
+   | 1 | Open `ca-cert.pem` on WFM VM and copy contents | Open `ca-cert.pem` on WFM VM and copy contents |
+   | 2 | Create file `ca-cert.pem` in `$HOME/certs/` | Create file `ca-cert.pem` in `$HOME/certs/` |
+   | 3 | Paste contents and save | Paste contents and save |
+
+2. **Navigate to the scripts folder**
    ```bash
    cd $HOME/workspace/sandbox/scripts
    ```
 
-2. **Install Basic Tools**
+3. **Install Basic Tools**
 
    Based on the device type, select **k3s** or **docker** while sourcing the environment variables. For example:
    ```bash
@@ -176,51 +222,6 @@ On each VM, you need to configure environment variables (settings that tell the 
 ---
 
 ## Step 4: Deploy (Connect Everything)
-
-### Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)
-
-You need to copy a security file from the WFM VM to each Device VM.
-
-#### Step 1: Preparation on WFM VM
-
-| Step | Action | Command | Expected Result |
-|------|--------|---------|-----------------|
-| 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) |
-| 2 | Locate WFM certificate | `cd $HOME/symphony/api/certificates`<br>`ls -la ca-cert.pem` | File: `ca-cert.pem` |
-| 3 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
-
-
-**Note:** Write down the IP address from Step 1 for use in the copy commands below.
-
-
-#### Step 2: Copy Methods
-
-**Option A - Using SCP**
-🔴 **(Recommended - Run from Device VMs)**
-
-
-
-| Target VM | Run From | SCP Command | Example |
-|-----------|----------|-------------|---------|
-| **Docker Device** | Docker Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
-| **K3s Device** | K3s Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
-
-**Note:** Run with **sudo** if fails.
-
-**Replace:**
-- `username` with your WFM VM username
-- `WFM-VM-IP` with the IP address from Step 1
-
-**Option B - Manual Copy**
-
-| Step | Docker Device VM | K3s Device VM |
-|------|------------------|---------------|
-| 1 | Open `ca-cert.pem` on WFM VM and copy contents | Open `ca-cert.pem` on WFM VM and copy contents |
-| 2 | Create file `ca-cert.pem` in `$HOME/certs/` | Create file `ca-cert.pem` in `$HOME/certs/` |
-| 3 | Paste contents and save | Paste contents and save |
-
-
-**Note:** The `$HOME/certs` directory was automatically created when you generated the security certificates in Step 3.
 
 ### Start Device Services
 > Note: Docker image for Workload Fleet Management client has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM client.
@@ -266,28 +267,26 @@ You need to copy a security file from the WFM VM to each Device VM.
 
    2.1. Fetch the coredns config first:
    ```bash
-   kubectl -n kube-system get configmap coredns -o yaml > config.yaml
+   sudo kubectl -n kube-system edit configmap coredns
    ```
 
-   2.2. Then add only the highlighted lines in the `hosts` section with your ip addresses in them:
-   ```bash
+   2.2. Then add only the highlighted lines in the `NodeHosts` section with your IP addresses in them and save:
+   ```yaml
    apiVersion: v1
    data:
-   Corefile: |
-      .:53 {
+     Corefile: |
+       .:53 {
          errors
          health
          ready
          kubernetes cluster.local in-addr.arpa ip6.arpa {
-            pods insecure
-            fallthrough in-addr.arpa ip6.arpa
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
          }
          hosts /etc/coredns/NodeHosts {
-            52.224.241.180 harbor.machine # <----- Newly added line. This tells kubernetes env on how to resolve harbor.machine
-            52.224.241.180 symphony.machine # <----- Newly added line. This tells kubernetes env on how to resolve symphony.machine
-            ttl 60
-            reload 15s
-            fallthrough
+           ttl 60
+           reload 15s
+           fallthrough
          }
          prometheus :9153
          forward . /etc/resolv.conf
@@ -296,17 +295,17 @@ You need to copy a security file from the WFM VM to each Device VM.
          reload
          loadbalance
          import /etc/coredns/custom/*.override
-      }
+       }
+       import /etc/coredns/custom/*.server
+     NodeHosts: |
+       20.11.000.000 harbor.machine # Newly added line to resolve harbor.machine
+       20.11.000.000 symphony.machine # Newly added line to resolve symphony.machine
+       10.0.0.11 margo-wfm-v10
    ```
 
    2.3. Then apply the changes:
    ```bash
-   kubectl apply -f config.yaml
-   ```
-
-   2.4. Finally restart the coredns pods:
-   ```bash
-   kubectl -n kube-system rollout restart deployment coredns
+   sudo kubectl -n kube-system rollout restart deployment coredns
    ```
 
 3. **Start the device's Workload Fleet Management Client**

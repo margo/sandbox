@@ -151,7 +151,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```bash
    cd $HOME/workspace/sandbox/scripts
    ```
-2. ### Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)
+2. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
 
    You need to copy a security file from the WFM VM to each Device VM.
    > Note: create the certs directory 

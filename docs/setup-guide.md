@@ -15,7 +15,7 @@
    - Virtual Machine Manager (4.1.0 tested)
 - Internet connection
 - All VMs must be able to talk to each other (same network with static IP addresses)
-- VM names must be lowercase.
+- VM hostnames must be lowercase.
 
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---

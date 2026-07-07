@@ -308,11 +308,11 @@ jobs:
 
             # Update the Corefile section
             awk -v ip="$RUNNER_IP" '
-            /hosts \/etc\/coredns\/NodeHosts/ {
+            /NodeHosts: \|/ {
               print
               getline
-              print "        " ip " harbor.machine"
-              print "        " ip " symphony.machine"
+              print "    " ip " harbor.machine"
+              print "    " ip " symphony.machine"
               print
               next
             }

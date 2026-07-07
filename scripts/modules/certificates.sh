@@ -42,7 +42,7 @@ CN=$CN
 emailAddress=$EMAIL
 
 [v3_req]
-basicConstraints = CA:FALSE
+basicConstraints = CA:TRUE
 keyUsage = keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names

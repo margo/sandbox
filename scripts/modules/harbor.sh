@@ -101,7 +101,7 @@ O=Margo
 CN=${EXPOSED_HARBOR_HOST}
 
 [v3_req]
-basicConstraints = CA:FALSE
+basicConstraints = CA:TRUE
 keyUsage = keyEncipherment, digitalSignature
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
@@ -274,10 +274,12 @@ stop_harbor_service() {
 }
 
 
+
 configure_harbor_trust_for_k3s() {
   echo "🔐 Configuring Harbor CA trust for k3s node..."
-
-  HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+  HOME_HARBOR_CERT="$HOME/certs/harbor.crt" #Directory where Harbor certificates are expected as pre-requisites
+  HARBOR_SANDBOX_DIR="$HOME/sandbox/scripts/harbor/certs" #Directory where Harbor sandbox certificates need to be copied. 
+  HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt" #Location of Harbor certificate where it needs to be placed. 
   HOST="${EXPOSED_HARBOR_HOST}"
   PORT="${EXPOSED_HARBOR_PORT}"
   CERT_DIR="/var/lib/rancher/k3s/agent/etc/containerd/certs.d/${HOST}:${PORT}"
@@ -286,6 +288,15 @@ configure_harbor_trust_for_k3s() {
     echo "✅ Harbor trust already present — skipping k3s restart"
     return 0
   fi
+  # Check if harbor certificates are present or not, in HOME_CERT_DIR 
+  if [ ! -f "$HOME_HARBOR_CERT" ]; then
+      echo "Harbor Certificates (from WFM) not found at $HOME/certs, cannot proceed."
+      return 1
+  fi
+
+  # If present, then copy them to $HARBOR_CERT location.
+  mkdir -p "$HARBOR_SANDBOX_DIR"
+  sudo cp "$HOME_HARBOR_CERT" "$HARBOR_CERT" 
 
   sudo mkdir -p "$CERT_DIR"
   sudo cp "$HARBOR_CERT" "$CERT_DIR/ca.crt"
@@ -307,4 +318,3 @@ EOF
 
   echo "✅ Harbor trust configured for k3s"
 }
-

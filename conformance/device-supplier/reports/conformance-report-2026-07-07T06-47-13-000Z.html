@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Supplier Conformance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Device Supplier Conformance Test Report</h1>
+        <p>Margo Management Interface API 1.0.0</p>
+        <p>Generated: 2026-07-07T06:47:13Z</p>
+    </div>
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Tests: 43 | <span class="pass">&#x2705; Passed: 43</span> | <span class="fail">&#x274C; Failed: 0</span></p>
+        <p>Success Rate: 100.0%</p>
+    </div>
+    <table>
+        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities with POST</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities with PUT</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing Properties</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Role</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Interface Type</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Cpu Architecture</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing Content-Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities Without Signature</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities For Unknown Client</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Deployment Bundle</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Bundle With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Individual Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Individual Deployment Manifest With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Deployment Status</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Demo Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Invalid Capabilities (missing apiVersion) — expects 422 from assertion</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Root CA Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Trusted Device</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Blocklisted Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>403</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Invalid Api Version</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Missing Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Empty Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Missing Kind</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Wrong Kind Value</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Without Signature Succeeds</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Deployments Request With Unsupported Accept Header</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>406</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Bundle Download With Wrong Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Deployment Manifest Download With Wrong Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Invalid State</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing Component Name</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Path Deployment Mismatch</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing Content-Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status Without Signature</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Deployments</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Bundle</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+    </table>
+</body>
+</html>

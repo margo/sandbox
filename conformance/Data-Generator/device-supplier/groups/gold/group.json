@@ -1,8 +1,12 @@
 {
   "name": "gold",
-  "version": "1.0.0",
+  "version": "v1.0.0",
   "persona": "device-supplier",
-  "description": "1.0.0",
+  "description": "v1.0.0",
+  "FolderPath": [
+    "/home/margo/rishab/sandbox/conformance/testcases/user1Device",
+    "/home/margo/rishab/sandbox/conformance/testcases/user2Device"
+  ],
   "testCases": [
     "demo-device-001",
     "device-001",

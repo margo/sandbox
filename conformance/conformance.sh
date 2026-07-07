@@ -690,21 +690,23 @@ create_test_group() {
 
     if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
         OLD_TESTS=$(jq '.testCases // []' "$GROUP_PATH/group.json")
+        OLD_PATHS=$(jq '.FolderPath // []' "$GROUP_PATH/group.json")
 
         jq -n \
             --arg name "$GROUP_NAME" \
             --arg version "$VERSION" \
             --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
-            --arg folder "$(basename "$INPUT_PATH")" \
+            --arg folder "$INPUT_PATH" \
             --argjson old "$OLD_TESTS" \
             --argjson new "$TESTS_JSON" \
+            --argjson oldPaths "$OLD_PATHS" \
             '{
                 name: $name,
                 version: $version,
                 persona: $persona,
                 description: $desc,
-                FolderPath: $folder,
+                FolderPath: ($oldPaths + [$folder] | unique),
                 testCases: ($old + $new | unique)
             }' > "$GROUP_PATH/group.json"
 
@@ -716,14 +718,14 @@ create_test_group() {
             --arg version "$VERSION" \
             --arg persona "$PERSONA" \
             --arg desc "$DESCRIPTION" \
-            --arg folder "$(basename "$INPUT_PATH")" \
+            --arg folder "$INPUT_PATH" \
             --argjson tests "$TESTS_JSON" \
             '{
                 name: $name,
                 version: $version,
                 persona: $persona,
                 description: $desc,
-                FolderPath: $folder,
+                FolderPath: [$folder],
                 testCases: $tests
             }' > "$GROUP_PATH/group.json"
 

@@ -327,69 +327,66 @@ discover_wfm_group_collections() {
     local group_json="$2"
     local collections=()
 
-    #  log to stderr only
     echo "[DEBUG] Reading group.json: $group_json" >&2
 
-    # read FolderPath
-    local folder_name
-    folder_name=$(jq -r '.FolderPath // empty' "$group_json" 2>/dev/null)
+    local testcase_paths=()
+    mapfile -t testcase_paths < <(
+        jq -r '.FolderPath[]? // empty' "$group_json" 2>/dev/null
+    )
 
-    if [[ -z "$folder_name" ]]; then
+    if [[ ${#testcase_paths[@]} -eq 0 ]]; then
         echo "[WARN] FolderPath not defined in group.json" >&2
         return
     fi
 
-    echo "[DEBUG] FolderPath = $folder_name" >&2
+    for testcases_path in "${testcase_paths[@]}"; do
 
-    # build testcases path
-    local testcases_path="$CONFORMANCE_DIR/testcases/$folder_name"
-    echo "[DEBUG] Looking inside: $testcases_path" >&2
+        echo "[DEBUG] Looking inside: $testcases_path" >&2
 
-    if [[ ! -d "$testcases_path" ]]; then
-        echo "[WARN] Testcases folder not found: $testcases_path" >&2
-        return
-    fi
-
-    # ✅ FIX: safe globbing
-    shopt -s nullglob
-    local files=("$testcases_path"/*.json)
-    shopt -u nullglob
-
-    if [[ ${#files[@]} -eq 0 ]]; then
-        echo "[WARN] No JSON files found in: $testcases_path" >&2
-        return
-    fi
-
-    echo "[DEBUG] Found ${#files[@]} JSON files" >&2
-
-    for json_file in "${files[@]}"; do
-        echo "[DEBUG] Checking: $(basename "$json_file")" >&2
-
-        if ! jq empty "$json_file" >/dev/null 2>&1; then
-            echo "[WARN] Invalid JSON: $(basename "$json_file")" >&2
+        if [[ ! -d "$testcases_path" ]]; then
+            echo "[WARN] Testcases folder not found: $testcases_path" >&2
             continue
         fi
 
-        echo "[DEBUG] Valid JSON" >&2
+        shopt -s nullglob
+        local files=("$testcases_path"/*.json)
+        shopt -u nullglob
 
-        if jq -e '
-            (.item? | type == "array") and
-            (
-                (.info? | type == "object") or
-                (._? | type == "object" and has("postman_id"))
-            )
-        ' "$json_file" >/dev/null 2>&1; then
-
-            echo "[DEBUG] ✅ Selected as Postman collection" >&2
-            collections+=("$json_file")
-        else
-            echo "[DEBUG] ❌ Not a Postman collection" >&2
+        if [[ ${#files[@]} -eq 0 ]]; then
+            echo "[WARN] No JSON files found in: $testcases_path" >&2
+            continue
         fi
+
+        echo "[DEBUG] Found ${#files[@]} JSON files" >&2
+
+        for json_file in "${files[@]}"; do
+            echo "[DEBUG] Checking: $(basename "$json_file")" >&2
+
+            if ! jq empty "$json_file" >/dev/null 2>&1; then
+                echo "[WARN] Invalid JSON: $(basename "$json_file")" >&2
+                continue
+            fi
+
+            echo "[DEBUG] Valid JSON" >&2
+
+            if jq -e '
+                (.item? | type == "array") and
+                (
+                    (.info? | type == "object") or
+                    (._? | type == "object" and has("postman_id"))
+                )
+            ' "$json_file" >/dev/null 2>&1; then
+
+                echo "[DEBUG] ✅ Selected as Postman collection" >&2
+                collections+=("$json_file")
+            else
+                echo "[DEBUG] ❌ Not a Postman collection" >&2
+            fi
+        done
     done
 
     echo "[DEBUG] Total selected collections: ${#collections[@]}" >&2
 
-    # ✅ ONLY return file paths (stdout clean)
     if [[ ${#collections[@]} -gt 0 ]]; then
         printf '%s\n' "${collections[@]}"
     fi
@@ -402,52 +399,54 @@ discover_group_scenario_files() {
 
     echo "[DEBUG] Reading group.json: $group_json" >&2
 
-    local folder_name
-    folder_name=$(jq -r '.FolderPath // empty' "$group_json" 2>/dev/null)
+    local testcase_paths=()
+    mapfile -t testcase_paths < <(
+        jq -r '.FolderPath[]? // empty' "$group_json" 2>/dev/null
+    )
 
-    if [[ -z "$folder_name" ]]; then
+    if [[ ${#testcase_paths[@]} -eq 0 ]]; then
         warn "FolderPath not defined in group.json"
         return
     fi
 
-    local testcases_path="$CONFORMANCE_DIR/testcases/$folder_name"
+    for testcases_path in "${testcase_paths[@]}"; do
 
-    echo "[DEBUG] FolderPath = $folder_name" >&2
-    echo "[DEBUG] Looking for scenario files in: $testcases_path" >&2
+        echo "[DEBUG] Looking for scenario files in: $testcases_path" >&2
 
-    if [[ ! -d "$testcases_path" ]]; then
-        warn "Testcases folder not found: $testcases_path"
-        return
-    fi
-
-    shopt -s nullglob
-    local files=("$testcases_path"/*.json)
-    shopt -u nullglob
-
-    if [[ ${#files[@]} -eq 0 ]]; then
-        warn "No JSON files found in: $testcases_path"
-        return
-    fi
-
-    echo "[DEBUG] Found ${#files[@]} JSON file(s)" >&2
-
-    for json_file in "${files[@]}"; do
-        echo "[DEBUG] Checking: $(basename "$json_file")" >&2
-
-        if ! json_file_is_valid "$json_file"; then
-            warn "Skipping invalid JSON file: $(basename "$json_file")"
+        if [[ ! -d "$testcases_path" ]]; then
+            warn "Testcases folder not found: $testcases_path"
             continue
         fi
 
-        if jq -e '
-            type == "array" and
-            any(.[]?; type == "object" and (.steps? | type == "array"))
-        ' "$json_file" >/dev/null 2>&1; then
-            echo "[DEBUG] ✅ Scenario file selected: $(basename "$json_file")" >&2
-            scenario_files+=("$json_file")
-        else
-            echo "[DEBUG]  Not a scenario file: $(basename "$json_file")" >&2
+        shopt -s nullglob
+        local files=("$testcases_path"/*.json)
+        shopt -u nullglob
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            warn "No JSON files found in: $testcases_path"
+            continue
         fi
+
+        echo "[DEBUG] Found ${#files[@]} JSON file(s)" >&2
+
+        for json_file in "${files[@]}"; do
+            echo "[DEBUG] Checking: $(basename "$json_file")" >&2
+
+            if ! json_file_is_valid "$json_file"; then
+                warn "Skipping invalid JSON file: $(basename "$json_file")"
+                continue
+            fi
+
+            if jq -e '
+                type == "array" and
+                any(.[]?; type == "object" and (.steps? | type == "array"))
+            ' "$json_file" >/dev/null 2>&1; then
+                echo "[DEBUG] ✅ Scenario file selected: $(basename "$json_file")" >&2
+                scenario_files+=("$json_file")
+            else
+                echo "[DEBUG] ❌ Not a scenario file: $(basename "$json_file")" >&2
+            fi
+        done
     done
 
     echo "[DEBUG] Total scenario files selected: ${#scenario_files[@]}" >&2

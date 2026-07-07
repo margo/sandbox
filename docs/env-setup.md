@@ -5,6 +5,7 @@
 Before running any script, make sure to update the environment variable files according to your system setup.
 The environment files are located here **(wfm.env and device-agent.env)**: cd $HOME/workspace/sandbox/scripts
 
+> Note: All hostnames must be specified in lowercase only.
 
 **For wfm.sh and wfm-cli.sh script**
 

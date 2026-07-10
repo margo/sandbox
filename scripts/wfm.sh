@@ -290,9 +290,28 @@ cleanup_basic_utilities() {
   echo "⚠️ Basic utilities (curl) left installed as they may be system dependencies"
 
   echo "✅ Environment cleanup completed"
+
+  cleanup_docker_resources
+
   echo ""
   echo "🔄 Please restart your shell or run 'source ~/.bashrc' to apply PATH changes"
 }
+
+cleanup_docker_resources() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "Docker is not installed. Skipping cleanup."
+        return 0
+    fi
+
+    echo "Removing exited containers..."
+    docker container prune -f >/dev/null 2>&1
+
+    echo "Removing unused volumes..."
+    docker volume prune -f >/dev/null 2>&1
+
+    echo "Docker cleanup completed."
+}
+ 
 
 
 start_symphony() {

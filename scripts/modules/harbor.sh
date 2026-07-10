@@ -284,10 +284,9 @@ configure_harbor_trust_for_k3s() {
   PORT="${EXPOSED_HARBOR_PORT}"
   CERT_DIR="/var/lib/rancher/k3s/agent/etc/containerd/certs.d/${HOST}:${PORT}"
 
-  if [ -f "$CERT_DIR/ca.crt" ] && [ -f "$CERT_DIR/hosts.toml" ]; then
-    echo "✅ Harbor trust already present — skipping k3s restart"
-    return 0
-  fi
+  sudo rm -f "$CERT_DIR/ca.crt"
+  sudo rm -f "$CERT_DIR/hosts.toml"
+
   # Check if harbor certificates are present or not, in HOME_CERT_DIR 
   if [ ! -f "$HOME_HARBOR_CERT" ]; then
       echo "Harbor Certificates (from WFM) not found at $HOME/certs, cannot proceed."

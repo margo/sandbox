@@ -81,6 +81,16 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 		return
 	}
 
+	ds, err := hm.database.GetDeviceSettings()
+	if err != nil {
+		hm.log.Warnw(
+			"Failed to get device settings, cannot proceed",
+			"err",
+			err.Error())
+
+		return
+	}
+
 	// Get the app deployment manifest directly
 	appDeployment := record.CurrentState.AppDeploymentManifest
 
@@ -117,11 +127,9 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 					Message *string `json:"message,omitempty"`
 					Source  *string `json:"source,omitempty"`
 				}{
-					Code:    strPtr("HELM_STATUS_ERROR"),
+					Code:    GetAddress("HELM_STATUS_ERROR"),
 					Message: &errMsg,
-					// NOTE: This field is introduced by Gateway SUP
-					// hence not set here
-					Source: nil,
+					Source:  &ds.DeviceClientId,
 				},
 			}
 			hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)

@@ -205,6 +205,16 @@ func (dm *DeploymentManager) deployOrUpdate(
 	// Use the AppDeploymentManifest directly instead of converting
 	appDeployment := desiredState.AppDeploymentManifest
 
+	ds, err := dm.database.GetDeviceSettings()
+	if err != nil {
+		dm.log.Warnw(
+			"Failed to get device settings, cannot proceed",
+			"err",
+			err.Error())
+
+		return
+	}
+
 	// Get component
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
 		// Set current state even on failure
@@ -228,7 +238,6 @@ func (dm *DeploymentManager) deployOrUpdate(
 	dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
 
 	profileType := appDeployment.Spec.DeploymentProfile.Type
-	var err error
 
 	switch profileType {
 	case sbi.Helm:
@@ -282,11 +291,9 @@ func (dm *DeploymentManager) deployOrUpdate(
 					Message *string `json:"message,omitempty"`
 					Source  *string `json:"source,omitempty"`
 				}{
-					Code:    strPtr("DEPLOYMENT_ERROR"),
+					Code:    GetAddress("DEPLOYMENT_ERROR"),
 					Message: &errMsg,
-					// NOTE: This field is introduced by Gateway SUP
-					// hence not set here
-					Source: nil,
+					Source:  &ds.DeviceClientId,
 				},
 			})
 		}
@@ -535,6 +542,16 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		return
 	}
 
+	ds, err := dm.database.GetDeviceSettings()
+	if err != nil {
+		dm.log.Warnw(
+			"Failed to get device settings, cannot proceed",
+			"err",
+			err.Error())
+
+		return
+	}
+
 	if record.CurrentState == nil {
 		dm.log.Infow(
 			"No current state found, proceeding with complete removal",
@@ -623,11 +640,9 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 					Message *string `json:"message,omitempty"`
 					Source  *string `json:"source,omitempty"`
 				}{
-					Code:    strPtr("REMOVAL_ERROR"),
-					Message: strPtr(removeErr.Error()),
-					// NOTE: This field is introduced by Gateway SUP
-					// hence not set here
-					Source: nil,
+					Code:    GetAddress("REMOVAL_ERROR"),
+					Message: GetAddress(removeErr.Error()),
+					Source:  &ds.DeviceClientId,
 				},
 			})
 		} else {
@@ -769,8 +784,8 @@ func (dm *DeploymentManager) extractComponentNames(
 	return names
 }
 
-func strPtr(s string) *string {
-	return &s
+func GetAddress[T any](a T) *T {
+	return &a
 }
 
 // Helper function to convert parameters to environment variables

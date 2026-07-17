@@ -479,7 +479,7 @@ components:
           enum: [DeviceCapabilitiesManifest]
         properties:
           type: object
-          required: [id, vendor, modelNumber, serialNumber, roles]
+          required: [id, vendor, modelNumber, serialNumber, cpu, memory, storage, otelCollector, supportedRuntimes, supportedDeploymentTypes ] 
           properties:
             id:
               $ref: '#/components/schemas/DeviceId'
@@ -489,36 +489,59 @@ components:
               type: string
             serialNumber:
               type: string
-            roles:
+            cpu:
               type: array
+              minItems: 1
+              description: List of CPU entries available on the device.
+              items:
+                type: object
+                required: [cores, architecture]
+                properties:
+                  cores:
+                    type: integer
+                    description: Number of CPU cores.
+                  architecture:
+                    type: string
+                    enum: [amd64, arm64, arm]
+                    description: CPU architecture.
+            memory:
+              type: string
+              description: Total memory available on the device (e.g. "59 Gi").
+            storage:
+              type: string
+              description: Total storage available on the device (e.g. "1862 Gi").
+            peripherals:
+              type: array
+              description: Peripherals present on the device.
+              items:
+                $ref: '#/components/schemas/DevicePeripheral'
+            interfaces:
+              type: array
+              description: Communication interfaces present on the device.
+              items:
+                $ref: '#/components/schemas/DeviceCommunicationInterface'
+            otelCollector:
+              type: boolean
+              description: Reports whether an OTEL collector is present on the device.
+            supportedRuntimes:
+              type: array
+              minItems: 1
+              description: >
+                Standard Margo OCI runtimes available on the device.
+                A device MUST report at least one entry.
               items:
                 type: string
-                enum: [Standalone Cluster, Cluster Leader, Standalone Device, Gateway]
-            resources:
-              type: object
-              required: [cpu, memory, storage, peripherals, interfaces]
-              properties:
-                cpu:
-                  type: object
-                  required: [cores]
-                  properties:
-                    cores:
-                      type: number
-                    architecture:
-                      type: string
-                      enum: [amd64, arm64, arm]
-                memory:
-                  type: string
-                storage:
-                  type: string
-                peripherals:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/DevicePeripheral'
-                interfaces:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/DeviceCommunicationInterface'
+                enum: [oci]
+            supportedDeploymentTypes:
+              type: array
+              minItems: 1
+              description: >
+                Manifest/deployment formats the device can receive and process locally.
+                A device MUST report at least one entry.
+              items:
+                type: string
+                enum: [helm, compose]
+
     DeviceId:
       # format: "{id}[/{id}[/{id}...]]"
       # Top-level id is required and must include only unreserved characters as specified in RFC3986.

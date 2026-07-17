@@ -2,20 +2,39 @@
     "apiVersion": "device.margo.org/v1alpha1",
     "kind": "DeviceCapabilitiesManifest",
     "properties": {
-        "id": "device-id-from-manufacturer",
-        "vendor": "Northstar Industrial Applications",
+        "id": "northstarida.xtapro.k8s.edge",
+        "vendor": "Northstar Industrial Devices",
         "modelNumber": "332ANZE1-N1",
         "serialNumber": "PF45343-AA",
-        "roles": ["Standalone Cluster"],
-        "resources": {
-            "cpu": {
-                "architecture": "amd64",
-                "cores": 24
+        "cpu": [
+            {
+                "cores": 24,
+                "architecture": "amd64"
+            }
+        ],
+        "memory": "59 Gi",
+        "storage": "1862 Gi",
+        "peripherals": [
+            {
+                "type": "gpu",
+                "manufacturer": "NVIDIA"
+            }
+        ],
+        "interfaces": [
+            {
+                "type": "ethernet"
             },
-            "memory": "64 Gi",
-            "storage": "2000 Gi",
-            "peripherals": [],
-            "interfaces": []
-        }
+            {
+                "type": "wifi"
+            }
+        ],
+        "otelCollector": true,
+        "supportedRuntimes": [
+            "oci"
+        ],
+        "supportedDeploymentTypes": [
+            "helm",
+            "compose"
+        ]
     }
 }

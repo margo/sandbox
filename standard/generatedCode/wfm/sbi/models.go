@@ -43,19 +43,22 @@ const (
 	DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest DeviceCapabilitiesManifestKind = "DeviceCapabilitiesManifest"
 )
 
-// Defines values for DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture.
+// Defines values for DeviceCapabilitiesManifestPropertiesCpuArchitecture.
 const (
-	Amd64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "amd64"
-	Arm   DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm"
-	Arm64 DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture = "arm64"
+	Amd64 DeviceCapabilitiesManifestPropertiesCpuArchitecture = "amd64"
+	Arm   DeviceCapabilitiesManifestPropertiesCpuArchitecture = "arm"
+	Arm64 DeviceCapabilitiesManifestPropertiesCpuArchitecture = "arm64"
 )
 
-// Defines values for DeviceCapabilitiesManifestPropertiesRoles.
+// Defines values for DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes.
 const (
-	ClusterLeader     DeviceCapabilitiesManifestPropertiesRoles = "Cluster Leader"
-	Gateway           DeviceCapabilitiesManifestPropertiesRoles = "Gateway"
-	StandaloneCluster DeviceCapabilitiesManifestPropertiesRoles = "Standalone Cluster"
-	StandaloneDevice  DeviceCapabilitiesManifestPropertiesRoles = "Standalone Device"
+	DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes = "compose"
+	DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesHelm    DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes = "helm"
+)
+
+// Defines values for DeviceCapabilitiesManifestPropertiesSupportedRuntimes.
+const (
+	Oci DeviceCapabilitiesManifestPropertiesSupportedRuntimes = "oci"
 )
 
 // Defines values for DeviceCommunicationInterfaceType.
@@ -161,32 +164,53 @@ type DeviceCapabilitiesManifest struct {
 	ApiVersion string                         `json:"apiVersion"`
 	Kind       DeviceCapabilitiesManifestKind `json:"kind"`
 	Properties struct {
-		Id          DeviceId `json:"id"`
-		ModelNumber string   `json:"modelNumber"`
-		Resources   *struct {
-			Cpu struct {
-				Architecture *DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                       `json:"cores"`
-			} `json:"cpu"`
-			Interfaces  []DeviceCommunicationInterface `json:"interfaces"`
-			Memory      string                         `json:"memory"`
-			Peripherals []DevicePeripheral             `json:"peripherals"`
-			Storage     string                         `json:"storage"`
-		} `json:"resources,omitempty"`
-		Roles        []DeviceCapabilitiesManifestPropertiesRoles `json:"roles"`
-		SerialNumber string                                      `json:"serialNumber"`
-		Vendor       string                                      `json:"vendor"`
+		// Cpu List of CPU entries available on the device.
+		Cpu []struct {
+			// Architecture CPU architecture.
+			Architecture DeviceCapabilitiesManifestPropertiesCpuArchitecture `json:"architecture"`
+
+			// Cores Number of CPU cores.
+			Cores int `json:"cores"`
+		} `json:"cpu"`
+		Id DeviceId `json:"id"`
+
+		// Interfaces Communication interfaces present on the device.
+		Interfaces *[]DeviceCommunicationInterface `json:"interfaces,omitempty"`
+
+		// Memory Total memory available on the device (e.g. "59 Gi").
+		Memory      string `json:"memory"`
+		ModelNumber string `json:"modelNumber"`
+
+		// OtelCollector Reports whether an OTEL collector is present on the device.
+		OtelCollector bool `json:"otelCollector"`
+
+		// Peripherals Peripherals present on the device.
+		Peripherals  *[]DevicePeripheral `json:"peripherals,omitempty"`
+		SerialNumber string              `json:"serialNumber"`
+
+		// Storage Total storage available on the device (e.g. "1862 Gi").
+		Storage string `json:"storage"`
+
+		// SupportedDeploymentTypes Manifest/deployment formats the device can receive and process locally. A device MUST report at least one entry.
+		SupportedDeploymentTypes []DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
+
+		// SupportedRuntimes Standard Margo OCI runtimes available on the device. A device MUST report at least one entry.
+		SupportedRuntimes []DeviceCapabilitiesManifestPropertiesSupportedRuntimes `json:"supportedRuntimes"`
+		Vendor            string                                                  `json:"vendor"`
 	} `json:"properties"`
 }
 
 // DeviceCapabilitiesManifestKind defines model for DeviceCapabilitiesManifest.Kind.
 type DeviceCapabilitiesManifestKind string
 
-// DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture defines model for DeviceCapabilitiesManifest.Properties.Resources.Cpu.Architecture.
-type DeviceCapabilitiesManifestPropertiesResourcesCpuArchitecture string
+// DeviceCapabilitiesManifestPropertiesCpuArchitecture CPU architecture.
+type DeviceCapabilitiesManifestPropertiesCpuArchitecture string
 
-// DeviceCapabilitiesManifestPropertiesRoles defines model for DeviceCapabilitiesManifest.Properties.Roles.
-type DeviceCapabilitiesManifestPropertiesRoles string
+// DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes defines model for DeviceCapabilitiesManifest.Properties.SupportedDeploymentTypes.
+type DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes string
+
+// DeviceCapabilitiesManifestPropertiesSupportedRuntimes defines model for DeviceCapabilitiesManifest.Properties.SupportedRuntimes.
+type DeviceCapabilitiesManifestPropertiesSupportedRuntimes string
 
 // DeviceCommunicationInterface defines model for DeviceCommunicationInterface.
 type DeviceCommunicationInterface struct {

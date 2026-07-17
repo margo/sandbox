@@ -68,8 +68,8 @@ type DeviceSettingsRecord struct {
 	// OAuthTokenEndpointUrl The URL for the OAuth 2.0 token endpoint.
 	OAuthTokenEndpointUrl string `json:"tokenEndpointUrl"`
 	// the applications that the device can deploy
-	CanDeployHelm    bool
-	CanDeployCompose bool
+	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
+	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`
 
 	// Added these new fields for sync state management
 	LastSyncedETag            string `json:"lastSyncedETag"`
@@ -478,15 +478,11 @@ func (db *Database) IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error) {
 	return db.deviceSettings, db.deviceSettings.State == types.DeviceOnboardStateOnboarded, nil
 }
 
-func (db *Database) SetDeviceCanDeployHelm(deployable bool) {
-	db.deviceSettings.CanDeployHelm = deployable
-}
-
-func (db *Database) SetDeviceCanDeployCompose(deployable bool) {
-	db.deviceSettings.CanDeployCompose = deployable
-}
-
 func (db *Database) CanDeployAppProfile(profileType string) bool {
-	return (strings.ToLower(profileType) == "helm" && db.deviceSettings.CanDeployHelm) ||
-		(strings.ToLower(profileType) == "compose" && db.deviceSettings.CanDeployCompose)
+	for _, dt := range db.deviceSettings.SupportedDeploymentTypes {
+		if string(dt) == strings.ToLower(profileType) {
+			return true
+		}
+	}
+	return false
 }

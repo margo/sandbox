@@ -203,11 +203,11 @@ jobs:
           if [ -z "${REGISTRY_PASS}" ]; then
             HARBOR_CONFIG="$HOME/sandbox/scripts/harbor/harbor.yml"
             if [ -f "$HARBOR_CONFIG" ]; then
-              REGISTRY_PASS=$(awk -F': *' '/^harbor_admin_password:/ {gsub(/^"|"$/, "", $2); print $2; exit}' "$HARBOR_CONFIG")
+              REGISTRY_PASS=$(python3 -c 'import pathlib,sys,yaml; p=pathlib.Path(sys.argv[1]); data=yaml.safe_load(p.read_text()) if p.exists() else {}; v=(data or {}).get("harbor_admin_password",""); print("" if v is None else v)' "$HARBOR_CONFIG")
             fi
           fi
           if [ -z "${REGISTRY_PASS}" ]; then
-            echo "❌ REGISTRY_PASS is empty. Set HARBOR_PASSWORD secret or ensure Harbor config has harbor_admin_password."
+            echo "❌ REGISTRY_PASS is empty. Set HARBOR_PASSWORD secret or ensure $HARBOR_CONFIG contains harbor_admin_password."
             exit 1
           fi
 
@@ -701,4 +701,3 @@ jobs:
           echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
           echo "$DEPLOYMENT_OUTPUT"
-

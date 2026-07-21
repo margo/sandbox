@@ -145,7 +145,7 @@ start_device_agent_docker_service() {
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
 
-  set_capabilities_roles "Standalone Device"
+  set_capabilities_roles "Compose"
 
   if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
     echo "Creating TLS secrets..."
@@ -249,7 +249,7 @@ build_start_device_agent_k3s_service() {
       return 1
     fi
 
-    set_capabilities_roles "Standalone Cluster"
+    set_capabilities_roles "Helm"
     update_agent_sbi_url
 
     echo "Copying configuration files..."

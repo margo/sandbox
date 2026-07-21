@@ -152,3 +152,48 @@ get_device_id_by_role() {
     return 1
   fi
 }
+
+# Get device ID by supportedDeploymentTypes
+get_device_id_by_deployment_type() {
+  local deployment_type="$1"
+
+  if [ -z "$deployment_type" ]; then
+    echo "❌ Error: Deployment type parameter is required"
+    return 1
+  fi
+
+  if ! check_maestro_cli; then
+    echo "❌ Maestro CLI not available"
+    return 1
+  fi
+
+  local devices=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices -o json 2>/dev/null)
+
+  if [ $? -ne 0 ] || [ -z "$devices" ]; then
+    echo "❌ Failed to get device list"
+    return 1
+  fi
+
+  if command -v jq >/dev/null 2>&1; then
+
+    # 1. Correct path: .spec.capabilities.properties.supportedDeploymentTypes[]
+    # 2. Iterate through all Data[] items, not just Data[0]
+    local device_id=$(echo "$devices" | jq -r --arg deployment_type "$deployment_type" '
+      .Data[] |
+      .items[] |
+      select(.spec.capabilities.properties.supportedDeploymentTypes[]? == $deployment_type) |
+      .id
+    ' | head -1)
+
+    if [ -z "$device_id" ] || [ "$device_id" = "null" ]; then
+      echo "❌ No device found with deployment type: $deployment_type"
+      return 1
+    fi
+
+    echo "$device_id"
+    return 0
+  else
+    echo "❌ jq is required but not installed"
+    return 1
+  fi
+}

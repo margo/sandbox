@@ -199,8 +199,17 @@ jobs:
           export DOCKER_CONFIG=$(mktemp -d)
           echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
 
-          # Fall back to the default Harbor password when secret is unavailable
-          REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
+          # Derive Harbor admin password from Harbor config when secret is unavailable
+          if [ -z "${REGISTRY_PASS}" ]; then
+            HARBOR_CONFIG="$HOME/sandbox/scripts/harbor/harbor.yml"
+            if [ -f "$HARBOR_CONFIG" ]; then
+              REGISTRY_PASS=$(awk -F': *' '/^harbor_admin_password:/ {gsub(/^"|"$/, "", $2); print $2; exit}' "$HARBOR_CONFIG")
+            fi
+          fi
+          if [ -z "${REGISTRY_PASS}" ]; then
+            echo "❌ REGISTRY_PASS is empty. Set HARBOR_PASSWORD secret or ensure Harbor config has harbor_admin_password."
+            exit 1
+          fi
 
           # Trust Harbor CA certificate first
           HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
@@ -692,5 +701,4 @@ jobs:
           echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
           echo "$DEPLOYMENT_OUTPUT"
-
 

@@ -199,6 +199,9 @@ jobs:
           export DOCKER_CONFIG=$(mktemp -d)
           echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
 
+          # Fall back to the default Harbor password when secret is unavailable
+          REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
+
           # Trust Harbor CA certificate first
           HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
           if [ -f "$HARBOR_CERT" ]; then
@@ -689,6 +692,5 @@ jobs:
           echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
           echo "$DEPLOYMENT_OUTPUT"
-
 
 

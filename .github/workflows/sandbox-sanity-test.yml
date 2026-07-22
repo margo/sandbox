@@ -441,7 +441,7 @@ jobs:
           (
             echo "📋 Deploying to K3s..."
             PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "Helm" | tail -n1)
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" | tail -n1)
 
             if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
               echo "❌ K3s: Invalid IDs"
@@ -474,7 +474,8 @@ jobs:
           (
             echo "📋 Deploying to Docker..."
             PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "Compose" | tail -n1)
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" | tail -n1)
+            echo ".getDocker_Device_ID: $DEVICE_ID"
 
             if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
               echo "❌ Docker: Invalid IDs"

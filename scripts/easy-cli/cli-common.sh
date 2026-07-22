@@ -174,6 +174,8 @@ get_device_id_by_deployment_type() {
     return 1
   fi
 
+  echo "raw data from wfm__:$devices" | jq 
+
   if command -v jq >/dev/null 2>&1; then
 
     # 1. Correct path: .spec.capabilities.properties.supportedDeploymentTypes[]

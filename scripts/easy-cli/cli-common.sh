@@ -174,7 +174,9 @@ get_device_id_by_deployment_type() {
     return 1
   fi
 
-  echo "raw data from wfm__:$devices" | jq 
+  
+  echo "raw data__"
+  echo "$devices" 
 
   if command -v jq >/dev/null 2>&1; then
 

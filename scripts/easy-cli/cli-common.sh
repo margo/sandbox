@@ -174,9 +174,6 @@ get_device_id_by_deployment_type() {
     return 1
   fi
 
-  
-  echo "raw data__"
-  echo "$devices" 
 
   if command -v jq >/dev/null 2>&1; then
 
@@ -190,8 +187,7 @@ get_device_id_by_deployment_type() {
     ' | head -1)
 
     if [ -z "$device_id" ] || [ "$device_id" = "null" ]; then
-      echo "raw data: $devices" 
-      echo "❌ No device found with deployment type(s): $deployment_type, $devices"
+      echo "❌ No device found with deployment type(s): $deployment_type"
       return 1
     fi
 

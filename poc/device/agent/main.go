@@ -51,6 +51,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Debugw("printing database location from config", "dbDir", cfg.Database.DataDir)
 
 	// Create database
 	db := database.NewDatabase(cfg.Database.DataDir)

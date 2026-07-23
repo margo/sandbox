@@ -190,6 +190,7 @@ get_device_id_by_deployment_type() {
     ' | head -1)
 
     if [ -z "$device_id" ] || [ "$device_id" = "null" ]; then
+      echo "raw data: $devices" 
       echo "❌ No device found with deployment type: $deployment_type"
       return 1
     fi

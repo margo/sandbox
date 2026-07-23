@@ -22,7 +22,7 @@ services:
       - ./config/device-ecdsa.key:/config/device-ecdsa.key
       - ./config/device-ecdsa.crt:/config/device-ecdsa.crt
       - ./config/ca-cert.pem:/config/ca-cert.pem
-      - ./data:/data
+      - ./data:/var/lib/margo/device-agent/data #should be changed to whatever is set as dataDir in config.yaml for device agent
     restart: unless-stopped
     entrypoint: ["./device-agent"]
     command: ["-config", "config/config.yaml"]

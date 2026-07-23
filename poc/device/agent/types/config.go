@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -172,7 +173,7 @@ func validateConfig(config *Config) error {
 	}
 
 	if config.Database.DataDir == "" {
-		return fmt.Errorf("database.dataDir is required in configuration, it should be a valid directory on disk")
+		return errors.New("database.dataDir is required in configuration")
 	}
 
 	// logging.level must be present

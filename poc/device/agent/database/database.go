@@ -177,7 +177,7 @@ func (db *Database) SetLastSyncedBundleDigest(digest string) error {
 
 func NewDatabase(dataDir string) *Database {
 
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
 		panic(fmt.Sprintf("failed to create database directory, err %s", err.Error()))

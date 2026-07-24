@@ -33,17 +33,15 @@ set_capabilities_roles() {
 }
 
 set_capabilities_deployment_type() {
-  local values
-
-  values=$(printf '"%s", ' "$@")
-  values="[${values%, }]"
   local file="./config/capabilities.json"
 
   if [[ -f "$file" ]]; then
-        sed -i "/\"supportedDeploymentTypes\":[[:space:]]*\[/,/\]/c\\
-        \"supportedDeploymentTypes\": ${values}
-" "$file"
-    echo "capabilities.json deployment type set to [$values]"
+        jq '.properties.supportedDeploymentTypes = $ARGS.positional' \
+       "$file" \
+       --args "$@" > "${file}.tmp" &&
+    mv "${file}.tmp" "$file"
+    echo "capabilities.json deployment type set to"
+    jq -c '.properties.supportedDeploymentTypes' "$file"
   else
     echo "capabilities.json not found at $file, skipping deployment type update"
   fi

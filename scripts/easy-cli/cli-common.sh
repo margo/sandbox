@@ -174,7 +174,10 @@ get_device_id_by_deployment_type() {
     return 1
   fi
 
+  echo "DEBUG: Raw devices JSON output below:" >&2
+  echo "$devices" >&2
 
+  
   if command -v jq >/dev/null 2>&1; then
     # 1. Correct path: .spec.capabilities.properties.supportedDeploymentTypes[]
     # 2. Iterate through all Data[] items, not just Data[0]

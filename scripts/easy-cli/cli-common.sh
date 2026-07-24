@@ -176,7 +176,8 @@ get_device_id_by_deployment_type() {
 
 
   if command -v jq >/dev/null 2>&1; then
-
+    echo "printing all devices here"
+    echo "$devices"
     # 1. Correct path: .spec.capabilities.properties.supportedDeploymentTypes[]
     # 2. Iterate through all Data[] items, not just Data[0]
     local device_id=$(echo "$devices" | jq -r --arg deployment_type "$deployment_type" '

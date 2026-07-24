@@ -43,7 +43,7 @@ set_capabilities_deployment_type() {
         sed -i "/\"supportedDeploymentTypes\":[[:space:]]*\[/,/\]/c\\
         \"supportedDeploymentTypes\": ${values}
 " "$file"
-    echo "capabilities.json deployment type set to [$deployment_type]"
+    echo "capabilities.json deployment type set to [$values]"
   else
     echo "capabilities.json not found at $file, skipping deployment type update"
   fi

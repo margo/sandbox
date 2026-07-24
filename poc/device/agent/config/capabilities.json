@@ -33,7 +33,8 @@
             "oci"
         ],
         "supportedDeploymentTypes": [
-            "helm"
+            "helm",
+            "compose"
         ]
     }
 }

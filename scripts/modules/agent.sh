@@ -33,11 +33,16 @@ set_capabilities_roles() {
 }
 
 set_capabilities_deployment_type() {
-  local deployment_type="$1"
-  local file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
+  local values
+
+  values=$(printf '"%s", ' "$@")
+  values="[${values%, }]"
+  local file="../poc/device/agent/config/capabilities.json"
 
   if [[ -f "$file" ]]; then
-    sed -i -E "s|\"supportedDeploymentTypes\"[[:space:]]*:[[:space:]]*\"[^\"]*\"|\"supportedDeploymentTypes\": \"$deployment_type\"|g" "$file"
+        sed -i "/\"supportedDeploymentTypes\":[[:space:]]*\[/,/\]/c\\
+        \"supportedDeploymentTypes\": ${values}
+" "$file"
     echo "capabilities.json deployment type set to [$deployment_type]"
   else
     echo "capabilities.json not found at $file, skipping deployment type update"
@@ -157,7 +162,7 @@ start_device_agent_docker_service() {
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
 
-  set_capabilities_deployment_type "compose"
+  set_capabilities_deployment_type compose
 
   if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
     echo "Creating TLS secrets..."
@@ -261,7 +266,7 @@ build_start_device_agent_k3s_service() {
       return 1
     fi
 
-    set_capabilities_deployment_type "helm"
+    set_capabilities_deployment_type helm
     update_agent_sbi_url
 
     echo "Copying configuration files..."

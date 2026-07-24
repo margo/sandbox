@@ -154,7 +154,6 @@ install_basic_utilities() {
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     INSTALL_HELM_V3_15_1=true
     HELM_VERSION="3.15.1"
-    HELM_TAR="helm-v${HELM_VERSION}-linux-amd64.tar.gz"
     HELM_BIN_DIR="/usr/local/bin"
     install_helm
     echo "✅ Helm installed for k3s device"

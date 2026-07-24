@@ -25,3 +25,19 @@ package_installed() {
 get_ubuntu_codename() {
     lsb_release -cs 2>/dev/null || echo "noble"
 }
+
+resolve_target_arch() {
+    local host_arch="$(uname -m)"
+    case "${host_arch}" in
+        x86_64|amd64)
+            echo "amd64"
+            ;;
+        aarch64|arm64)
+            echo "arm64"
+            ;;
+        *)
+            echo "Unsupported architecture" >&2
+            return 1
+            ;;
+    esac
+}

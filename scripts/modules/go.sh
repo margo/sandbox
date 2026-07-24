@@ -7,6 +7,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 install_go() {
   cd $HOME
   echo "🔄 Installing Go..."
+  local CPU_ARCH
+  CPU_ARCH="$(resolve_target_arch)" || return 1
+
   if [[ "$PATH" != *"/usr/local/go/bin"* ]] ; then
     export PATH=$PATH:/usr/local/go/bin
   fi
@@ -16,7 +19,7 @@ install_go() {
     echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
     sudo rm -rf /usr/local/go /usr/bin/go
-    wget "https://go.dev/dl/go1.25.10.linux-amd64.tar.gz" -O go.tar.gz
+    wget "https://go.dev/dl/go1.25.10.linux-${CPU_ARCH}.tar.gz" -O go.tar.gz
     sudo tar -C /usr/local -xzf go.tar.gz
     rm go.tar.gz
     which go

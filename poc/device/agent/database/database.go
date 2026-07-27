@@ -301,6 +301,7 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 
 	record, exists := db.deployments[deploymentId]
 	if !exists {
+		// initialise a record object
 		record = &DeploymentRecord{
 			AppID:               deploymentId,
 			DeploymentID:        deploymentId,
@@ -308,8 +309,7 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 			Phase:               "pending",
 			LastUpdated:         time.Now(),
 		}
-		db.deployments[deploymentId] = record
-		db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
+		// db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
 	}
 
 	// Only update if actually different
@@ -324,6 +324,8 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 	if state.URL != nil {
 		record.URL = *state.URL
 	}
+	// record should be updated in db after assigning all fields in record
+	db.deployments[deploymentId] = record
 
 	db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
 

@@ -297,6 +297,8 @@ func (db *Database) notify(
 
 func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentState) error {
 	db.mu.Lock()
+
+	defer db.TriggerDataPersist()
 	defer db.mu.Unlock()
 
 	record, exists := db.deployments[deploymentId]
@@ -309,12 +311,8 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 			Phase:               "pending",
 			LastUpdated:         time.Now(),
 		}
-		// db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
 	}
 
-	// Only update if actually different
-	// if record.DesiredState == nil || record.DesiredState.AppDeploymentYAMLHash !=
-	// state.AppDeploymentYAMLHash {
 	record.DesiredState = &state
 	record.LastUpdated = time.Now()
 	// Store the digest and URL from the state
@@ -328,8 +326,6 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 	db.deployments[deploymentId] = record
 
 	db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
-
-	db.TriggerDataPersist()
 
 	return nil
 }

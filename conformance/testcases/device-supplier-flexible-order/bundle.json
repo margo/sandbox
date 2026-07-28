@@ -1,0 +1,100 @@
+[
+  {
+    "id": "flex-bundle",
+    "name": "Flexible Order — Bundle Download",
+    "description": "Self-contained: the first step is a local GET-deployments setup (scenario-scoped, not shared) to obtain bundleDigest, so this scenario never depends on flex-desired-state having run first. Only {clientId} is required from the shared onboarding context.",
+    "steps": [
+      {
+        "id": "flex-bundle-setup-get-deployments",
+        "name": "Get Current Deployments (local setup)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "bundle.digest",
+            "operation": "not_empty"
+          }
+        ],
+        "extract_context": {
+          "bundleDigest": "bundle.digest"
+        }
+      },
+      {
+        "id": "flex-bundle-download",
+        "name": "Download Deployment Bundle",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/vnd.margo.bundle.v1+tar+gzip"
+          },
+          {
+            "field": "_headers.Cache-Control",
+            "operation": "contains",
+            "value": "immutable"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "bundleEtag": "_headers.ETag"
+        }
+      },
+      {
+        "id": "flex-bundle-etag-match",
+        "name": "Download Bundle With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "headers": {
+          "If-None-Match": "{bundleEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-bundle-reject-wrong-digest",
+        "name": "Reject Bundle Download With Wrong Digest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/not-the-right-digest",
+        "headers": {},
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Bundle not found"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-bundle-reject-unsigned",
+        "name": "Reject Unsigned GET Bundle",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

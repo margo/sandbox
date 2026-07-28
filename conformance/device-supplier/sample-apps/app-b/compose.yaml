@@ -1,0 +1,8 @@
+# Sample App B — simple redis cache, used to exercise multi-app desired-state
+# reconciliation testing for the device-supplier persona.
+services:
+  cache:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+    restart: unless-stopped

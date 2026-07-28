@@ -1,0 +1,8 @@
+# Sample App A — simple nginx web server, used to exercise multi-app
+# desired-state reconciliation testing for the device-supplier persona.
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    restart: unless-stopped

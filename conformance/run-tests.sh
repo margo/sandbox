@@ -66,6 +66,143 @@ warn() {
 }
 
 ################################################################################
+# Prerequisite Check / Install
+################################################################################
+
+# Maps a tool name to the package name for the detected package manager.
+# Echoes "" if the tool/manager combo isn't recognized.
+_prereq_pkg_name() {
+    local mgr="$1" tool="$2"
+    case "$mgr:$tool" in
+        apt-get:go) echo "golang-go" ;;
+        dnf:go|yum:go) echo "golang" ;;
+        apk:go) echo "go" ;;
+        brew:go) echo "go" ;;
+        apt-get:jq|dnf:jq|yum:jq|apk:jq|brew:jq) echo "jq" ;;
+        apt-get:openssl|dnf:openssl|yum:openssl|apk:openssl|brew:openssl) echo "openssl" ;;
+        apt-get:node|dnf:node|yum:node|apk:node) echo "nodejs npm" ;;
+        brew:node) echo "node" ;;
+        *) echo "" ;;
+    esac
+}
+
+# check_prerequisites detects the tools required by either persona:
+#   go, jq, openssl, node/npm (WFM's scenario runner + Newman), newman itself.
+# Reports what's missing and offers to install it via the detected system
+# package manager (+ npm for newman). Safe to run multiple times — only
+# touches packages that are actually missing, and never runs unprompted.
+check_prerequisites() {
+    echo ""
+    info "Checking prerequisites for WFM Supplier + Device Supplier personas..."
+    echo ""
+
+    local pkg_manager=""
+    if command -v apt-get >/dev/null 2>&1; then
+        pkg_manager="apt-get"
+    elif command -v dnf >/dev/null 2>&1; then
+        pkg_manager="dnf"
+    elif command -v yum >/dev/null 2>&1; then
+        pkg_manager="yum"
+    elif command -v apk >/dev/null 2>&1; then
+        pkg_manager="apk"
+    elif command -v brew >/dev/null 2>&1; then
+        pkg_manager="brew"
+    fi
+
+    local -a missing_tools=()
+    local -a missing_pkgs=()
+    local tool pkg
+    for tool in go jq openssl node; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            missing_tools+=("$tool")
+            if [[ -n "$pkg_manager" ]]; then
+                pkg=$(_prereq_pkg_name "$pkg_manager" "$tool")
+                # Intentionally unquoted: some entries (e.g. "nodejs npm") are
+                # two package names and must split into separate array items.
+                [[ -n "$pkg" ]] && missing_pkgs+=($pkg)
+            fi
+        fi
+    done
+
+    local newman_missing=false
+    if ! command -v newman >/dev/null 2>&1; then
+        newman_missing=true
+        missing_tools+=("newman")
+    fi
+
+    if [[ ${#missing_tools[@]} -eq 0 ]]; then
+        success "All prerequisites are already installed (go, jq, openssl, node, newman)."
+        return 0
+    fi
+
+    warn "Missing prerequisites: ${missing_tools[*]}"
+
+    echo ""
+    read -p "Install missing prerequisites now? [y/N]: " confirm < /dev/tty
+    if [[ ! "${confirm,,}" =~ ^y ]]; then
+        warn "Skipped. Re-run this option any time, or install manually:"
+        echo "    go       → https://golang.org/doc/install"
+        echo "    jq       → install via your package manager (apt/dnf/yum/apk/brew install jq)"
+        echo "    openssl  → install via your package manager (apt/dnf/yum/apk/brew install openssl)"
+        echo "    node/npm → https://nodejs.org (or your package manager's nodejs/npm packages)"
+        echo "    newman   → npm install -g newman newman-reporter-htmlextra"
+        return 1
+    fi
+
+    local sudo_cmd=""
+    [[ "$(id -u)" -ne 0 ]] && sudo_cmd="sudo"
+
+    if [[ ${#missing_pkgs[@]} -gt 0 ]]; then
+        if [[ -z "$pkg_manager" ]]; then
+            warn "No supported package manager found (apt-get/dnf/yum/apk/brew) — install go/jq/openssl/node manually (see links above)."
+        else
+            info "Installing via $pkg_manager: ${missing_pkgs[*]}"
+            case "$pkg_manager" in
+                apt-get)
+                    $sudo_cmd apt-get update && $sudo_cmd apt-get install -y "${missing_pkgs[@]}" || warn "apt-get install failed — see errors above."
+                    ;;
+                dnf)
+                    $sudo_cmd dnf install -y "${missing_pkgs[@]}" || warn "dnf install failed — see errors above."
+                    ;;
+                yum)
+                    $sudo_cmd yum install -y "${missing_pkgs[@]}" || warn "yum install failed — see errors above."
+                    ;;
+                apk)
+                    $sudo_cmd apk add "${missing_pkgs[@]}" || warn "apk add failed — see errors above."
+                    ;;
+                brew)
+                    brew install "${missing_pkgs[@]}" || warn "brew install failed — see errors above."
+                    ;;
+            esac
+        fi
+    fi
+
+    if $newman_missing; then
+        if command -v npm >/dev/null 2>&1; then
+            info "Installing newman + newman-reporter-htmlextra via npm..."
+            npm install -g newman newman-reporter-htmlextra || warn "npm install -g failed — try: sudo npm install -g newman newman-reporter-htmlextra"
+        else
+            warn "npm still not available — cannot install newman yet. Install Node.js first, then run: npm install -g newman newman-reporter-htmlextra"
+        fi
+    fi
+
+    echo ""
+    info "Re-checking..."
+    local -a still_missing=()
+    for tool in go jq openssl node newman; do
+        command -v "$tool" >/dev/null 2>&1 || still_missing+=("$tool")
+    done
+
+    if [[ ${#still_missing[@]} -eq 0 ]]; then
+        success "All prerequisites installed successfully."
+        return 0
+    else
+        warn "Still missing: ${still_missing[*]}. You may need to open a new shell (PATH changes) or install these manually."
+        return 1
+    fi
+}
+
+################################################################################
 # WFM Group Selection Functions
 ################################################################################
 
@@ -978,6 +1115,7 @@ show_persona_menu() {
     echo "1. WFM Supplier"
     echo "2. Device Supplier"
     echo ""
+    echo "P) Check/Install Prerequisites (go, jq, openssl, node, newman)"
     echo "H) Help"
     echo "Q) Quit"
     echo ""
@@ -1240,11 +1378,289 @@ run_wfm_flow() {
     done
 }
 
+device_generate_certs() {
+    local device_dir="$CONFORMANCE_DIR/device-supplier"
+    local cert_dir="$device_dir/certs"
+
+    log "🔐 Generating TLS certificates for Mock WFM Server..."
+
+    if [[ ! -f "$device_dir/generate-certs.sh" ]]; then
+        error "generate-certs.sh not found in: $device_dir"
+    fi
+
+    # Detect host IP (same logic as generate-certs.sh default)
+    local host_ip
+    host_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+    local server_host="${host_ip:-localhost}"
+
+    cd "$device_dir"
+    bash generate-certs.sh "$cert_dir" "$server_host" || error "Certificate generation failed"
+
+    echo ""
+    success "Certificates generated successfully!"
+    echo ""
+    echo "  Certificate directory          : $cert_dir"
+    echo "  CA cert (give to device-agent) : $cert_dir/ca-cert.pem"
+    echo "  Device certificate             : $cert_dir/device-cert.pem"
+    echo ""
+    echo "  ➜  Copy ca-cert.pem to your device-agent machine so it can trust the mock WFM."
+    echo ""
+}
+
+device_start_server() {
+    local device_dir="$CONFORMANCE_DIR/device-supplier"
+    local cert_dir="$device_dir/certs"
+
+    # Check certs exist
+    if [[ ! -f "$cert_dir/ca-cert.pem" ]]; then
+        warn "Certificates not found at $cert_dir. Please run 'Generate Certificates' first (option 1)."
+        return 1
+    fi
+
+    cd "$device_dir"
+
+    # Check Go is installed
+    if ! command -v go &> /dev/null; then
+        error "Go not found. Install from https://golang.org/doc/install"
+    fi
+
+    # Build mock server if needed
+    if [[ ! -f "bin/server" ]]; then
+        log "📦 Building mock WFM server..."
+        go build -o bin/server ./cmd/device-supplier || error "Failed to build mock server"
+    fi
+
+    # Stop any stale server on port 3001
+    if [[ -f /tmp/wfm-server.pid ]]; then
+        local old_pid
+        old_pid=$(cat /tmp/wfm-server.pid)
+        if kill -0 "$old_pid" 2>/dev/null; then
+            log "⛔ Stopping previous server instance (PID: $old_pid)..."
+            kill -15 "$old_pid" 2>/dev/null
+            sleep 1
+        fi
+        rm -f /tmp/wfm-server.pid
+    fi
+
+    if command -v lsof &> /dev/null; then
+        local pid_on_port
+        pid_on_port=$(lsof -ti :3001 2>/dev/null || true)
+        if [[ -n "$pid_on_port" ]]; then
+            log "⛔ Stopping process on port 3001 (PID: $pid_on_port)..."
+            kill -15 "$pid_on_port" 2>/dev/null
+            sleep 1
+        fi
+    fi
+
+    # Start server in background (must run from device_dir so it finds ./data, ./manifests, ./certs)
+    log "🚀 Starting Mock WFM Server..."
+    (cd "$device_dir" && exec ./bin/server) > /tmp/wfm-server.log 2>&1 &
+    local server_pid=$!
+    echo $server_pid > /tmp/wfm-server.pid
+    sleep 2
+
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+        error "Failed to start mock server. Check /tmp/wfm-server.log"
+    fi
+
+    # Detect host IP for URL display
+    local host_ip
+    host_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+    local server_host="${host_ip:-localhost}"
+    local mock_url="https://${server_host}:3001/v1alpha2/margo"
+
+    echo ""
+    success "Mock WFM Server is running (PID: $server_pid)"
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║  Mock WFM Server is ready. Share these details with your device-agent:      ║"
+    echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+    printf "║  WFM URL  : %-63s║\n" "$mock_url"
+    printf "║  CA Cert  : %-63s║\n" "$cert_dir/ca-cert.pem"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "  ➜  Start your device-agent pointing at the WFM URL above."
+    echo "  ➜  The device-agent must trust the CA certificate listed above."
+    echo "  ➜  Onboarding must be the first API call; subsequent calls can be in any order."
+    echo "  ➜  Once your device-agent is running, return here and select 'Run Tests' (option 3)."
+    echo ""
+}
+
+device_run_tests() {
+    local device_dir="$CONFORMANCE_DIR/device-supplier"
+
+    # Check server is running
+    if [[ ! -f /tmp/wfm-server.pid ]] || ! kill -0 "$(cat /tmp/wfm-server.pid)" 2>/dev/null; then
+        warn "Mock WFM Server is not running. Please start it first (option 2)."
+        return 1
+    fi
+
+    cd "$device_dir"
+
+    # Check Go is installed
+    if ! command -v go &> /dev/null; then
+        error "Go not found. Install from https://golang.org/doc/install"
+    fi
+
+    # Build test runner if needed
+    if [[ ! -f "bin/run_tests" ]]; then
+        log "📦 Building device test runner..."
+        go build -o bin/run_tests run_tests.go || error "Failed to build test runner"
+    fi
+
+    # Group selection
+    echo ""
+    info "Select the test group to validate..."
+    local device_group
+    if ! device_group=$(select_device_group); then
+        warn "No group selected."
+        return 1
+    fi
+
+    local group_name
+    group_name=$(basename "$device_group")
+
+    local group_scenarios
+    group_scenarios=$(create_temp_scenarios_file)
+    build_device_group_scenarios "$device_group" "$group_scenarios"
+
+    # Stage scenarios for test runner
+    log "📋 Staging test scenarios for group: $group_name..."
+    mkdir -p ./device-scenarios
+    cp "$group_scenarios" ./device-scenarios/test-scenarios.json
+    rm -f "$group_scenarios"
+
+    # Groups may opt into flexible-order mode (fixed_first onboarding, then the
+    # rest of the scenarios in a random relative order) via a "flexibleOrder"
+    # key in their group.json. Absent/false for every existing group, so this
+    # is a no-op for them.
+    local extra_flags=()
+    if [[ "$(jq -r '.flexibleOrder // false' "$device_group/group.json" 2>/dev/null)" == "true" ]]; then
+        extra_flags+=("-flexible-order")
+        info "🔀 Flexible-order mode enabled for group '$group_name'."
+    fi
+
+    # Prompt user for the WFM URL — default to the detected host IP so it
+    # matches the URL shown in step 2 (Start Mock WFM Server)
+    local host_ip
+    host_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+    local default_url="https://${host_ip:-localhost}:3001/v1alpha2/margo"
+    echo ""
+    echo "  ➜  This simulates your device-agent connecting to the Mock WFM Server."
+    read -p "Enter Mock WFM Server URL [$default_url]: " wfm_url < /dev/tty
+    wfm_url="${wfm_url:-$default_url}"
+
+    log "▶️  Running Device Conformance Tests against: $wfm_url"
+    echo ""
+
+    local test_result=0
+    if ./bin/run_tests -url "$wfm_url" "${extra_flags[@]}" 2>&1 | tee "$RUNNER_DEVICE/test-execution.log"; then
+        test_result=0
+    else
+        test_result=1
+    fi
+
+    # Copy report to Runner output directory
+    local latest_report
+    latest_report=$(find reports -name "conformance-report-*.html" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
+
+    if [[ -n "$latest_report" && -f "$latest_report" ]]; then
+        cp "$latest_report" "$RUNNER_DEVICE/"
+        success "Report: $RUNNER_DEVICE/$(basename "$latest_report")"
+    else
+        info "Reports location: $device_dir/reports/"
+    fi
+
+    echo ""
+    if [[ $test_result -ne 0 ]]; then
+        warn "Some tests failed. Check: $RUNNER_DEVICE/test-execution.log"
+    else
+        success "All device conformance tests passed!"
+    fi
+}
+
+device_stop_server() {
+    local stopped=0
+
+    if [[ -f /tmp/wfm-server.pid ]]; then
+        local pid
+        pid=$(cat /tmp/wfm-server.pid)
+        if kill -0 "$pid" 2>/dev/null; then
+            log "⛔ Stopping Mock WFM Server (PID: $pid)..."
+            kill -15 "$pid" 2>/dev/null
+            sleep 1
+            if ! kill -0 "$pid" 2>/dev/null; then
+                success "Mock WFM Server stopped."
+                stopped=1
+            else
+                warn "Server did not stop cleanly. Try: kill -9 $pid"
+            fi
+        else
+            info "PID $pid is no longer active."
+        fi
+        rm -f /tmp/wfm-server.pid
+    fi
+
+    # Also clear anything still on port 3001
+    if command -v lsof &> /dev/null; then
+        local pid_on_port
+        pid_on_port=$(lsof -ti :3001 2>/dev/null || true)
+        if [[ -n "$pid_on_port" ]]; then
+            log "⛔ Stopping remaining process on port 3001 (PID: $pid_on_port)..."
+            kill -15 "$pid_on_port" 2>/dev/null
+            sleep 1
+            stopped=1
+        fi
+    fi
+
+    if [[ $stopped -eq 0 ]]; then
+        info "No Mock WFM Server was running."
+    fi
+}
+
 run_device_flow() {
-    local device_test_scenarios
-    device_test_scenarios=$(select_device_test_scenarios)
-    execute_device_tests "$device_test_scenarios"
-    rm -f "$device_test_scenarios"
+    while true; do
+        # Show live server status in the menu header
+        local server_status="⛔ Stopped"
+        if [[ -f /tmp/wfm-server.pid ]] && kill -0 "$(cat /tmp/wfm-server.pid)" 2>/dev/null; then
+            local _running_pid
+            _running_pid=$(cat /tmp/wfm-server.pid)
+            server_status="✅ Running (PID: $_running_pid)"
+        fi
+
+        echo ""
+        echo "┌─────────────────────────────────────────────────────────────────────────┐"
+        echo "│              Device Supplier - Conformance Testing                       │"
+        echo "│  Mock WFM Server: $server_status"
+        echo "├─────────────────────────────────────────────────────────────────────────┤"
+        echo "│  Run steps in order:                                                     │"
+        echo "│    1. Generate Certificates  (run once per setup)                        │"
+        echo "│    2. Start Mock WFM Server  (prints URL for device-agent)               │"
+        echo "│    3. Run Tests              (select group, validate conformance)         │"
+        echo "│    4. Stop Mock WFM Server                                               │"
+        echo "│                                                                          │"
+        echo "│  B) Back to main menu                                                    │"
+        echo "└─────────────────────────────────────────────────────────────────────────┘"
+        echo ""
+
+        read -p "Select option (1-4 or B): " device_choice < /dev/tty
+
+        case "${device_choice,,}" in
+            1) device_generate_certs || true ;;
+            2) device_start_server || true ;;
+            3) device_run_tests || true ;;
+            4) device_stop_server || true ;;
+            b|back)
+                return 0
+                ;;
+            *)
+                warn "Invalid option. Please select 1-4 or B."
+                ;;
+        esac
+
+        echo ""
+        read -p "Press Enter to continue..." _ < /dev/tty
+    done
 }
 
 ################################################################################
@@ -1255,8 +1671,8 @@ interactive_mode() {
     while true; do
         show_persona_menu
         
-        read -p "Select option (1-2, H, or Q): " choice
-        
+        read -p "Select option (1-2, P, H, or Q): " choice
+
         case "${choice,,}" in
             1|wfm)
                 echo ""
@@ -1268,6 +1684,9 @@ interactive_mode() {
                 info "You selected: Device Supplier"
                 run_device_flow
                 ;;
+            p|prereq|prerequisites)
+                check_prerequisites || true
+                ;;
             h|help)
                 show_help
                 ;;
@@ -1276,7 +1695,7 @@ interactive_mode() {
                 exit 0
                 ;;
             *)
-                error "Invalid option. Please select 1, 2, H, or Q"
+                error "Invalid option. Please select 1, 2, P, H, or Q"
                 ;;
         esac
         

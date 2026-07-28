@@ -1,0 +1,181 @@
+[
+  {
+    "id": "flex-onboarding",
+    "name": "Flexible Order — Onboarding (fixed first)",
+    "description": "The only fixed_first scenario in this group. Runs before every other flexible-order scenario and produces the clientId shared by all of them. The canonical successful onboarding step must stay LAST in this file so its clientId is the one that survives to be shared.",
+    "fixed_first": true,
+    "steps": [
+      {
+        "id": "flex-onboarding-reject-invalid-apiversion",
+        "name": "Reject Onboarding With Invalid Api Version",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "v1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "apiVersion"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-reject-missing-certificate",
+        "name": "Reject Onboarding With Missing Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "certificate"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-reject-empty-certificate",
+        "name": "Reject Onboarding With Empty Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": ""
+        },
+        "skip_certificate_injection": true,
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "certificate"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-reject-missing-kind",
+        "name": "Reject Onboarding With Missing Kind",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "kind"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-reject-wrong-kind",
+        "name": "Reject Onboarding With Wrong Kind Value",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "WrongKind",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "kind"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-reject-blocklisted-certificate",
+        "name": "Reject Blocklisted Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "rnd-key-7f3a91b2c4d8e6"
+        },
+        "skip_certificate_injection": true,
+        "headers": {},
+        "expected_status": 403,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Client rejected"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-onboarding-unsigned-still-succeeds",
+        "name": "Onboard Without Signature Succeeds (alt clientId, not shared)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "altClientId": "clientId"
+        }
+      },
+      {
+        "id": "flex-onboarding-canonical",
+        "name": "Onboard Trusted Device (canonical, shared clientId — must stay last)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId"
+        }
+      }
+    ]
+  }
+]

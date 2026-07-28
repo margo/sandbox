@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,9 +27,14 @@ import (
 )
 
 const (
-	WFMServer = "https://localhost:3001/v1alpha2/margo"
-	certDir   = "./certs"
+	certDir = "./certs"
 )
+
+// WFMServer is the mock WFM server base URL; defaults below, overridable via -url.
+var WFMServer = "https://localhost:3001/v1alpha2/margo"
+
+// verbose gates printing the full JSON response body for every step; set from -verbose in main().
+var verbose bool
 
 // tlsSkipClient returns an HTTP client that skips TLS verification.
 // Required because the mock-server uses a self-signed certificate.
@@ -45,6 +52,7 @@ type TestScenario struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
+	FixedFirst  bool       `json:"fixed_first,omitempty"`
 	Steps       []TestStep `json:"steps"`
 }
 
@@ -92,10 +100,17 @@ type TestContext struct {
 
 func main() {
 	// CLI flags for filtering
+	urlFlag := flag.String("url", WFMServer, "Mock WFM Server base URL (e.g. https://192.168.1.10:3001/v1alpha2/margo)")
 	scenarioFilter := flag.String("scenario", "", "Run only the scenario with this ID (e.g. scenario-onboarding)")
 	stepFilter := flag.String("step", "", "Run only the step with this ID within the matched scenario (e.g. step-1.2)")
 	scenariosFile := flag.String("file", "device-scenarios/test-scenarios.json", "Path to test scenarios JSON file")
+	flexibleOrder := flag.Bool("flexible-order", false, "Run the one scenario marked \"fixed_first\" first, then run all remaining scenarios in a random relative order (proves the mock server doesn't require a fixed call sequence). Opt-in; default behavior is unchanged.")
+	seedFlag := flag.Int64("seed", 0, "Random seed for -flexible-order shuffling (0 = derive from current time; the seed actually used is always printed for reproducibility)")
+	clientIDFlag := flag.String("client-id", "", "Pre-existing clientId to seed {clientId} with instead of onboarding fresh. Lets you run scenario files one at a time by hand: run onboarding.json first, copy the clientId it prints, then pass it here for subsequent files.")
+	verboseFlag := flag.Bool("verbose", false, "Print the full JSON response body (plus response headers) for every step. Useful when running one scenario file at a time by hand to inspect exactly what the server returned.")
 	flag.Parse()
+	WFMServer = *urlFlag
+	verbose = *verboseFlag
 
 	if err := ensureCertificates(); err != nil {
 		log.Fatalf("Error preparing certificates: %v", err)
@@ -123,7 +138,7 @@ func main() {
 
 	// Wait for server to be ready
 	if !waitForServer(5 * time.Second) {
-		log.Fatal("❌ WFM Server not responding on http://localhost:3001")
+		log.Fatalf("❌ WFM Server not responding at %s", WFMServer)
 	}
 	fmt.Println("✅ WFM Server is ready")
 	fmt.Println()
@@ -133,42 +148,25 @@ func main() {
 	passCount := 0
 	failCount := 0
 
-	for _, scenario := range scenarios {
-		// Apply scenario filter
-		if *scenarioFilter != "" && scenario.ID != *scenarioFilter {
-			continue
-		}
-
-		fmt.Printf("▶ Running Scenario: %s (%s)\n", scenario.Name, scenario.ID)
-		fmt.Printf("  Description: %s\n", scenario.Description)
-
-		ctx := &TestContext{
-			Data: make(map[string]interface{}),
-		}
-
-		for _, step := range scenario.Steps {
-			// Apply step filter
-			if *stepFilter != "" && step.ID != *stepFilter {
+	if *flexibleOrder {
+		allResults, passCount, failCount = runFlexibleOrder(scenarios, *scenarioFilter, *stepFilter, *seedFlag)
+	} else {
+		for _, scenario := range scenarios {
+			// Apply scenario filter
+			if *scenarioFilter != "" && scenario.ID != *scenarioFilter {
 				continue
 			}
 
-			fmt.Printf("  → Step: %s\n", step.Name)
-
-			result := executeStep(step, ctx)
-			result.ScenarioID = scenario.ID
-			result.ScenarioName = scenario.Name
-			allResults = append(allResults, result)
-
-			if result.Status == "pass" {
-				fmt.Printf("    ✅ PASS - HTTP %d (Expected: %d)\n", result.StatusCode, step.ExpectedStatus)
-				passCount++
-			} else {
-				fmt.Printf("    ❌ FAIL - %s\n", result.Reason)
-				failCount++
+			ctx := &TestContext{
+				ClientID: *clientIDFlag,
+				Data:     make(map[string]interface{}),
 			}
-		}
 
-		fmt.Println()
+			results, p, f := runScenarioSteps(scenario, ctx, *stepFilter)
+			allResults = append(allResults, results...)
+			passCount += p
+			failCount += f
+		}
 	}
 
 	// Print summary
@@ -182,6 +180,115 @@ func main() {
 	if failCount > 0 {
 		os.Exit(1)
 	}
+}
+
+// runScenarioSteps runs every step of a single scenario against ctx, printing
+// progress and accumulating pass/fail counts. Shared by the default sequential
+// runner and runFlexibleOrder so both paths execute steps identically.
+func runScenarioSteps(scenario TestScenario, ctx *TestContext, stepFilter string) ([]TestResult, int, int) {
+	fmt.Printf("▶ Running Scenario: %s (%s)\n", scenario.Name, scenario.ID)
+	fmt.Printf("  Description: %s\n", scenario.Description)
+
+	var results []TestResult
+	pass, fail := 0, 0
+
+	for _, step := range scenario.Steps {
+		// Apply step filter
+		if stepFilter != "" && step.ID != stepFilter {
+			continue
+		}
+
+		fmt.Printf("  → Step: %s\n", step.Name)
+
+		result := executeStep(step, ctx)
+		result.ScenarioID = scenario.ID
+		result.ScenarioName = scenario.Name
+		results = append(results, result)
+
+		if verbose {
+			if respJSON, err := json.MarshalIndent(result.Response, "    ", "  "); err == nil {
+				fmt.Printf("    ↳ HTTP %d response:\n    %s\n", result.StatusCode, respJSON)
+			}
+		}
+
+		if result.Status == "pass" {
+			fmt.Printf("    ✅ PASS - HTTP %d (Expected: %d)\n", result.StatusCode, step.ExpectedStatus)
+			pass++
+		} else {
+			fmt.Printf("    ❌ FAIL - %s\n", result.Reason)
+			fail++
+		}
+	}
+
+	fmt.Println()
+	return results, pass, fail
+}
+
+// runFlexibleOrder runs the one scenario marked "fixed_first" (if any) first,
+// capturing its clientId into a context shared by every other scenario, then
+// runs the remaining scenarios in a random relative order. Only ClientID is
+// shared globally — each scenario still gets its own empty Data map, so any
+// scenario-local extractions (deploymentId, digest, etc.) stay scenario-local
+// and self-contained regardless of run order.
+func runFlexibleOrder(scenarios []TestScenario, scenarioFilter, stepFilter string, seed int64) ([]TestResult, int, int) {
+	var filtered []TestScenario
+	for _, s := range scenarios {
+		if scenarioFilter != "" && s.ID != scenarioFilter {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+
+	var first []TestScenario
+	var rest []TestScenario
+	for _, s := range filtered {
+		if s.FixedFirst {
+			first = append(first, s)
+		} else {
+			rest = append(rest, s)
+		}
+	}
+	if len(first) > 1 {
+		log.Fatalf("❌ -flexible-order requires at most one scenario marked \"fixed_first\": true, found %d", len(first))
+	}
+
+	var allResults []TestResult
+	passCount, failCount := 0, 0
+	var sharedClientID string
+
+	if len(first) == 1 {
+		fmt.Println("🔒 Fixed-first phase (runs before any shuffled scenario):")
+		ctx := &TestContext{Data: make(map[string]interface{})}
+		results, p, f := runScenarioSteps(first[0], ctx, stepFilter)
+		allResults = append(allResults, results...)
+		passCount += p
+		failCount += f
+		sharedClientID = ctx.ClientID
+	} else {
+		fmt.Println("⚠ No scenario marked fixed_first found in the filtered set — {clientId} will be empty in shuffled scenarios.")
+	}
+
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+	rng := rand.New(rand.NewSource(seed))
+	rng.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
+
+	order := make([]string, len(rest))
+	for i, s := range rest {
+		order[i] = s.ID
+	}
+	fmt.Printf("🔀 Randomized order (seed=%d): %v\n\n", seed, order)
+
+	for _, scenario := range rest {
+		ctx := &TestContext{ClientID: sharedClientID, Data: make(map[string]interface{})}
+		results, p, f := runScenarioSteps(scenario, ctx, stepFilter)
+		allResults = append(allResults, results...)
+		passCount += p
+		failCount += f
+	}
+
+	return allResults, passCount, failCount
 }
 
 // ===== TEST EXECUTION =====
@@ -304,6 +411,7 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 			value := extractJSONPath(respData, jsonPath)
 			if value != nil {
 				ctx.Data[varName] = value
+				fmt.Printf("    📎 Captured %s = %v\n", varName, value)
 				if varName == "clientId" {
 					ctx.ClientID = value.(string)
 				}
@@ -460,8 +568,13 @@ func loadScenarios(filePath string) ([]TestScenario, error) {
 
 func waitForServer(timeout time.Duration) bool {
 	client := tlsSkipClient()
-	// Health endpoint is at the root, not under /v1alpha2/margo
+	// Health endpoint is at the root, not under /v1alpha2/margo — derive
+	// scheme+host from WFMServer (set via -url) rather than hardcoding
+	// localhost, so this actually checks the server under test.
 	healthURL := "https://localhost:3001/health"
+	if parsed, err := url.Parse(WFMServer); err == nil && parsed.Host != "" {
+		healthURL = parsed.Scheme + "://" + parsed.Host + "/health"
+	}
 	deadline := time.Now().Add(timeout)
 	for {
 		resp, err := client.Get(healthURL)

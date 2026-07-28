@@ -1,0 +1,238 @@
+[
+  {
+    "id": "flex-status",
+    "name": "Flexible Order — Deployment Status Reporting",
+    "description": "Self-contained: the first step is a local GET-deployments setup (scenario-scoped, not shared) to obtain deploymentId, so this scenario never depends on flex-desired-state having run first. Only {clientId} is required from the shared onboarding context.",
+    "steps": [
+      {
+        "id": "flex-status-setup",
+        "name": "Get Current Deployments (local setup)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "deploymentId": "deployments.0.deploymentId"
+        }
+      },
+      {
+        "id": "flex-status-post-installed",
+        "name": "Report Deployment Status",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-post-with-deviceid",
+        "name": "Report Deployment Status With Optional deviceId (now type-checked)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "deviceId": "flex-device-001",
+          "status": {
+            "state": "installing"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installing"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-reject-invalid-state",
+        "name": "Reject Status With Invalid State",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "done"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-reject-missing-component-name",
+        "name": "Reject Status With Missing Component Name",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-reject-deploymentid-mismatch",
+        "name": "Reject Status With Path Deployment Mismatch",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "another-deployment",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-reject-missing-content-digest",
+        "name": "Reject Status With Missing Content-Digest",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Digest": ""
+        },
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "content-digest"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-status-reject-unsigned",
+        "name": "Reject Status Without Signature",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

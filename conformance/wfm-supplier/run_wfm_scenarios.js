@@ -595,9 +595,25 @@ function validate(responseSource, validation) {
       return String(actual ?? '').includes(String(expected))
         ? ''
         : `${validation.field} does not contain ${JSON.stringify(expected)}`;
+    case 'array_length_gte':
+      return Array.isArray(actual) && actual.length >= Number(expected)
+        ? ''
+        : `${validation.field} expected length >= ${expected}, got ${Array.isArray(actual) ? actual.length : typeof actual}`;
+    case 'array_length_equals':
+      return Array.isArray(actual) && actual.length === Number(expected)
+        ? ''
+        : `${validation.field} expected length === ${expected}, got ${Array.isArray(actual) ? actual.length : typeof actual}`;
+    case 'one_of':
+      return Array.isArray(expected) && expected.includes(actual)
+        ? ''
+        : `${validation.field} expected one of ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
     default:
       return `unsupported validation operation: ${validation.operation}`;
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseBody(body) {
@@ -781,6 +797,45 @@ function printFinalSummary(allResults, scenarioResultsList, reportPath) {
 // Step execution
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Sends a single HTTP request for a step (signing, Content-Digest, etc.) and
+// returns the parsed response. Factored out of runStep so the polling loop
+// below can re-issue the exact same request (with a fresh signature each
+// time) on an interval.
+async function performHTTPStep(step) {
+  const method   = (step.method || 'GET').toUpperCase();
+  const endpoint = substitute(step.endpoint || '');
+  const url      = `${baseUrl}${endpoint}`;
+  const headers  = { ...(substitute(step.headers || {})) };
+  const body =
+    step.request_body === undefined
+      ? undefined
+      : injectCertificate(substitute(step.request_body), step);
+  const bodyText = body === undefined ? '' : JSON.stringify(body);
+
+  if (bodyText) headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+
+  // Always prepare Content-Digest for body requests so the WFM doesn't reject due to
+  // missing digest before it has a chance to check for the signature.
+  prepareContentDigest(headers, bodyText);
+
+  if (!step.skip_signing) signRequest(method, url, headers, bodyText);
+
+  const response = await request(method, url, headers, bodyText);
+  const parsed = parseBody(response.body);
+  const responseSource = { ...parsed, _headers: response.headers, _body: response.body };
+  return { method, endpoint, bodyText, response, responseSource };
+}
+
+// Runs a list of validations against a response, returning an array of failure messages.
+function runValidations(responseSource, validations) {
+  const failures = [];
+  for (const validation of validations || []) {
+    const failure = validate(responseSource, validation);
+    if (failure) failures.push(failure);
+  }
+  return failures;
+}
+
 async function runStep(scenario, step) {
   // fresh_cert: temporarily replace the global signing identity with a brand-new,
   // never-onboarded certificate so the WFM sees an unregistered signer.
@@ -807,27 +862,48 @@ async function runStep(scenario, step) {
   }
 
   try {
-    const method   = (step.method || 'GET').toUpperCase();
-    const endpoint = substitute(step.endpoint || '');
-    const url      = `${baseUrl}${endpoint}`;
-    const headers  = { ...(substitute(step.headers || {})) };
-    const body =
-      step.request_body === undefined
-        ? undefined
-        : injectCertificate(substitute(step.request_body), step);
-    const bodyText = body === undefined ? '' : JSON.stringify(body);
+    let method, endpoint, bodyText, response, responseSource;
+    let pollTimedOut = false;
+    let pollAttempts = 0;
 
-    if (bodyText) headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    // step.poll = { interval_seconds, timeout_seconds, until: [validations] }
+    // Re-issues this step's request on an interval until every validation in
+    // `until` passes (e.g. "wait until the desired-state manifest lists >= 2
+    // deployments", or "wait until it's back down to exactly 1") or the
+    // timeout elapses — mirrors a real device-agent's state-seeking loop, and
+    // lets a scenario wait on an operator making a change via the WFM's own
+    // console mid-test (e.g. assigning or removing an app).
+    if (step.poll) {
+      const intervalSeconds = step.poll.interval_seconds ?? 5;
+      const timeoutSeconds  = step.poll.timeout_seconds ?? 120;
+      const deadline        = Date.now() + timeoutSeconds * 1000;
+      const untilValidations = step.poll.until || [];
 
-    // Always prepare Content-Digest for body requests so the WFM doesn't reject due to
-    // missing digest before it has a chance to check for the signature.
-    prepareContentDigest(headers, bodyText);
+      for (;;) {
+        pollAttempts++;
+        ({ method, endpoint, bodyText, response, responseSource } = await performHTTPStep(step));
 
-    if (!step.skip_signing) signRequest(method, url, headers, bodyText);
+        const primaryMatchNow = response.status === step.expected_status;
+        const pollFailures = primaryMatchNow
+          ? runValidations(responseSource, untilValidations)
+          : [`expected HTTP ${step.expected_status}, got ${response.status}`];
 
-    const response = await request(method, url, headers, bodyText);
-    const parsed = parseBody(response.body);
-    const responseSource = { ...parsed, _headers: response.headers, _body: response.body };
+        if (pollFailures.length === 0) break;
+
+        if (Date.now() >= deadline) {
+          pollTimedOut = true;
+          break;
+        }
+
+        console.log(
+          `    ⏳ [poll attempt ${pollAttempts}] not ready yet (${pollFailures.join('; ')}) — retrying in ${intervalSeconds}s...`
+        );
+        await sleep(intervalSeconds * 1000);
+      }
+    } else {
+      ({ method, endpoint, bodyText, response, responseSource } = await performHTTPStep(step));
+    }
+
     const assertionFailures = [];
 
     // A step passes if the actual status matches expected OR any of the accepted alternatives.
@@ -844,10 +920,13 @@ async function runStep(scenario, step) {
     // the response body belongs to a different content type — validating it against the
     // success schema would produce false negatives, so we skip it.
     if (primaryMatch) {
-      for (const validation of step.validations || []) {
-        const failure = validate(responseSource, validation);
-        if (failure) assertionFailures.push(failure);
-      }
+      assertionFailures.push(...runValidations(responseSource, step.validations));
+    }
+
+    if (pollTimedOut) {
+      assertionFailures.push(
+        `timed out after ${step.poll.timeout_seconds ?? 120}s waiting for poll.until condition (${pollAttempts} attempt(s))`
+      );
     }
 
     let newContext = {};

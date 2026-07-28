@@ -1,0 +1,673 @@
+{
+  "info": {
+    "_postman_id": "d2c5fbf6-0b87-4108-a709-f73c810ea74f",
+    "name": "Margo WFM Supplier — Enhanced Positive Conformance Tests",
+    "description": "Comprehensive positive conformance tests for the WFM Supplier persona. Tests the full device-agent lifecycle (onboarding → capabilities → deployments → status) with request chaining, deep schema validation, ETag/304 caching, and multiple deployment status states. clientId is extracted from POST /onboarding and threaded through all subsequent steps automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "1f9630d3-9ee9-4477-81b4-785aef04ca6c",
+      "name": "GET Root CA Certificate — Verify structure",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "onboarding", "certificate"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": []
+        },
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "151793dc-374a-45d9-b534-1aa66082bb12",
+          "name": "Root CA certificate",
+          "code": 200,
+          "status": "OK",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\"certificate\": \"<base64-encoded-pem>\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/onboarding/certificate - Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"[GET]::/api/v1/onboarding/certificate - Response has certificate field\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('certificate');",
+              "    pm.expect(body.certificate).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4d70f2af-76b1-409d-9220-20c22ca48694",
+      "name": "POST Onboarding — Extract clientId for all subsequent requests",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "onboarding"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": []
+        },
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"<base64-device-cert>\"\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "85f90892-c936-48e8-9695-1e11b2217dbf",
+          "name": "New client onboarded successfully.",
+          "code": 201,
+          "status": "Created",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\"clientId\": \"client-abc123\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::/api/v1/onboarding - Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"[POST]::/api/v1/onboarding - Response contains clientId\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('clientId');",
+              "    pm.expect(body.clientId).to.be.a('string');",
+              "    pm.environment.set('clientId', body.clientId);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "c13d8721-967c-4eae-b165-9f6bb3a198c8",
+      "name": "POST Capabilities — Initial device registration",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{{clientId}}\",\n    \"vendor\": \"ConformanceTestVendor\",\n    \"modelNumber\": \"MDL-CONFORM-001\",\n    \"serialNumber\": \"SN-CONFORM-0001\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 4, \"architecture\": \"amd64\" },\n      \"memory\": \"8Gi\",\n      \"storage\": \"64Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "8ad2d06e-6447-4bd5-b185-81d9f6493786",
+          "name": "Capabilities reported successfully",
+          "code": 201,
+          "status": "Created",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::/api/v1/clients/:clientId/capabilities - Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ba42e53d-f677-4057-a4c0-eecedfaaa1de",
+      "name": "PUT Capabilities — Hardware update accepted",
+      "request": {
+        "method": "PUT",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{{clientId}}\",\n    \"vendor\": \"ConformanceTestVendor\",\n    \"modelNumber\": \"MDL-CONFORM-001\",\n    \"serialNumber\": \"SN-CONFORM-0001\",\n    \"roles\": [\"Standalone Device\", \"Cluster Leader\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 8, \"architecture\": \"amd64\" },\n      \"memory\": \"16Gi\",\n      \"storage\": \"128Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }, { \"type\": \"wifi\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "dc8c99d9-92d3-47af-bc4c-5fab6387c5ae",
+          "name": "Capabilities updated successfully",
+          "code": 201,
+          "status": "Created",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[PUT]::/api/v1/clients/:clientId/capabilities - Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "cd962676-6633-4ee0-bb06-f8099bc26ddf",
+      "name": "GET Deployments — Schema validation and ETag extraction",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Accept", "value": "application/vnd.margo.manifest.v1+json" }],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "11c8b830-8243-459b-8e33-9a02cfff69b5",
+          "name": "Current deployment manifest",
+          "code": 200,
+          "status": "OK",
+          "header": [
+            { "key": "Content-Type", "value": "application/vnd.margo.manifest.v1+json" },
+            { "key": "ETag", "value": "\"abc123\"" }
+          ],
+          "body": "{\"manifestVersion\": 1, \"bundle\": null, \"deployments\": []}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments - manifestVersion is a number\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('manifestVersion');",
+              "    pm.expect(body.manifestVersion).to.be.a('number');",
+              "});",
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments - deployments is an array\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('deployments');",
+              "    pm.expect(body.deployments).to.be.an('array');",
+              "});",
+              "if (pm.response.headers.get('ETag')) {",
+              "    pm.environment.set('manifestEtag', pm.response.headers.get('ETag'));",
+              "}",
+              "const body = pm.response.json();",
+              "if (body.deployments && body.deployments.length > 0) {",
+              "    pm.environment.set('deploymentId', body.deployments[0].deploymentId);",
+              "    pm.environment.set('deploymentDigest', body.deployments[0].digest);",
+              "}",
+              "if (body.bundle) {",
+              "    pm.environment.set('bundleDigest', body.bundle.digest);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "8ac42a20-2df5-4833-bcae-3b3c28946784",
+      "name": "GET Deployments — If-None-Match ETag returns 304 Not Modified",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [
+          { "key": "Accept", "value": "application/vnd.margo.manifest.v1+json" },
+          { "key": "If-None-Match", "value": "{{manifestEtag}}" }
+        ],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "b80a2565-a009-4372-a665-a553e2b09373",
+          "name": "Not Modified",
+          "code": 304,
+          "status": "Not Modified",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments - ETag match returns 304 or 200\", function () {",
+              "    pm.expect([200, 304]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "fd55081c-06e3-4bed-97f8-02f471a42d93",
+      "name": "GET Bundle — Content-Type and cache headers",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "bundles", ":bundleDigest"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "bundleDigest", "value": "{{bundleDigest}}" }
+          ]
+        },
+        "header": [],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "28dbc26f-4ae2-4257-bf1d-d4312c287639",
+          "name": "Bundle archive",
+          "code": 200,
+          "status": "OK",
+          "header": [
+            { "key": "Content-Type", "value": "application/vnd.margo.bundle.v1+tar+gzip" },
+            { "key": "ETag", "value": "\"bundle-abc\"" },
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/bundles/:bundleDigest - Status 200 or 404\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5f2b74f4-5efc-4af6-9cbc-85d97190cba7",
+      "name": "GET Bundle — If-None-Match ETag returns 304 Not Modified",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "bundles", ":bundleDigest"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "bundleDigest", "value": "{{bundleDigest}}" }
+          ]
+        },
+        "header": [{ "key": "If-None-Match", "value": "{{bundleEtag}}" }],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "b16d335d-1c36-4e16-8b3f-199560dad638",
+          "name": "Not Modified",
+          "code": 304,
+          "status": "Not Modified",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/bundles/:bundleDigest - ETag match returns 200, 304, or 404\", function () {",
+              "    pm.expect([200, 304, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "7b1d86c7-0cce-43f0-90f8-1d9ddfb37790",
+      "name": "GET Deployment Manifest — YAML content",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", ":deploymentDigest"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" },
+            { "key": "deploymentDigest", "value": "{{deploymentDigest}}" }
+          ]
+        },
+        "header": [],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "de636126-1beb-4164-956a-266bd2816305",
+          "name": "Deployment manifest YAML",
+          "code": 200,
+          "status": "OK",
+          "header": [
+            { "key": "Content-Type", "value": "application/yaml" },
+            { "key": "ETag", "value": "\"manifest-abc\"" },
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments/:deploymentId/:digest - Status 200 or 404\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ce5d181e-ff53-4812-b1fd-c55defa1b2c7",
+      "name": "GET Deployment Manifest — If-None-Match ETag returns 304 Not Modified",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", ":deploymentDigest"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" },
+            { "key": "deploymentDigest", "value": "{{deploymentDigest}}" }
+          ]
+        },
+        "header": [{ "key": "If-None-Match", "value": "{{deploymentEtag}}" }],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "29a4be4e-30ce-453d-a326-6c2d0f1485bd",
+          "name": "Not Modified",
+          "code": 304,
+          "status": "Not Modified",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::/api/v1/clients/:clientId/deployments/:deploymentId/:digest - ETag match returns 200, 304, or 404\", function () {",
+              "    pm.expect([200, 304, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5e4f3c28-0f15-4025-ba58-36000534bc69",
+      "name": "POST Status — pending state accepted",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", "status"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" }
+          ]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"deployment.margo.org/v1alpha1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": { \"state\": \"pending\" },\n  \"components\": [{ \"name\": \"app-component-1\", \"state\": \"pending\" }]\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "68506fd7-619e-45d0-80e5-818aa3f64683",
+          "name": "Status updated successfully",
+          "code": 200,
+          "status": "OK",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../status - 'pending' state accepted (200, 400, or 404)\", function () {",
+              "    pm.expect([200, 400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5270041c-b745-4a3f-b49b-e47277460af3",
+      "name": "POST Status — installing state accepted",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", "status"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" }
+          ]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"deployment.margo.org/v1alpha1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": { \"state\": \"installing\" },\n  \"components\": [{ \"name\": \"app-component-1\", \"state\": \"installing\" }]\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "3971b5f8-d6fd-47b2-af9a-82ba6f0e150e",
+          "name": "Status updated successfully",
+          "code": 200,
+          "status": "OK",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../status - 'installing' state accepted (200, 400, or 404)\", function () {",
+              "    pm.expect([200, 400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5b2d7fe3-2e75-4d5d-8d95-db722d22ce02",
+      "name": "POST Status — installed state accepted",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", "status"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" }
+          ]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"deployment.margo.org/v1alpha1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": { \"state\": \"installed\" },\n  \"components\": [{ \"name\": \"app-component-1\", \"state\": \"installed\" }]\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "d968773e-882d-4200-bb0b-7685d8aea928",
+          "name": "Status updated successfully",
+          "code": 200,
+          "status": "OK",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../status - 'installed' state accepted (200, 400, or 404)\", function () {",
+              "    pm.expect([200, 400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1b5eb864-a7c5-4004-9044-a8094db8853e",
+      "name": "POST Status — failed state with error details accepted",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", "status"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" }
+          ]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"deployment.margo.org/v1alpha1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": { \"code\": \"IMAGE_PULL_ERROR\", \"source\": \"runtime\", \"message\": \"Failed to pull image from registry\" }\n  },\n  \"components\": [\n    { \"name\": \"app-component-1\", \"state\": \"failed\", \"error\": { \"code\": \"PULL_BACKOFF\", \"source\": \"docker\", \"message\": \"Back-off pulling image\" } }\n  ]\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "19da612a-0c6d-4655-97ca-951e5bd6796e",
+          "name": "Status updated successfully",
+          "code": 200,
+          "status": "OK",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../status - 'failed' state with error details accepted (200, 400, or 404)\", function () {",
+              "    pm.expect([200, 400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

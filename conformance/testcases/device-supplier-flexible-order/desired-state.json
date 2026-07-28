@@ -1,0 +1,699 @@
+[
+  {
+    "id": "flex-desired-state",
+    "name": "Flexible Order — Desired State (GET deployments)",
+    "description": "GET /clients/{clientId}/deployments is the spec's desired-state endpoint (UnsignedAppStateManifest = 'the complete desired state for all workloads assigned to a device'). Uses the shared {clientId} from flex-onboarding; extracted values stay scenario-local.",
+    "steps": [
+      {
+        "id": "flex-desired-state-get",
+        "name": "Get Current Deployments",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          },
+          {
+            "field": "bundle.mediaType",
+            "operation": "equals",
+            "value": "application/vnd.margo.bundle.v1+tar+gzip"
+          },
+          {
+            "field": "bundle.digest",
+            "operation": "not_empty"
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          },
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "is_string"
+          },
+          {
+            "field": "bundle.url",
+            "operation": "not_empty"
+          },
+          {
+            "field": "deployments.0.url",
+            "operation": "not_empty"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "manifestEtag": "_headers.ETag",
+          "bundleDigest": "bundle.digest",
+          "deploymentId": "deployments.0.deploymentId",
+          "deploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "flex-desired-state-etag-match",
+        "name": "Get Deployments With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json",
+          "If-None-Match": "{manifestEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-desired-state-reject-bad-accept",
+        "name": "Reject Deployments Request With Unsupported Accept Header",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "expected_status": 406,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-desired-state-reject-unsigned",
+        "name": "Reject Unsigned GET Deployments",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "skip_signing": true,
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-desired-state-reject-unknown-client",
+        "name": "Reject Deployments For Unknown Client",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/not-a-real-client/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Client not found"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "flex-desired-state-reconciliation",
+    "name": "Flexible Order — Desired State Reconciliation Lifecycle",
+    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state, 'desired state' is a reconciliation pattern (poll -> version check -> fetch -> reconcile -> report status), not a single endpoint — confirmed against a real device-agent's stateSync/deployment/status logs on this VM. This scenario scripts the mock server's desired-state timeline via the test-control endpoint (PUT .../test/clients/{clientId}/deployments, not part of the real spec) to exercise manifestVersion progression, ETag steady-state caching, and add/remove reconciliation with status reporting — mirroring the real device-agent trace (empty -> DESIRED-STATE-ADDED -> installed -> removed). Uses the shared {clientId}. Ends with the client back on exactly the default deployment (a3e2f5dc-912e-494f-8395-52cf3769bc06), matching what every other flexible-order scenario assumes, so this scenario is safe to run in any relative position.",
+    "steps": [
+      {
+        "id": "flex-reconciliation-reset-empty",
+        "name": "Reset Desired State To Empty (test-control)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": []
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 2
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-get-empty",
+        "name": "Get Deployments — Confirm Empty Desired State",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 2
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {
+          "reconEmptyEtag": "_headers.ETag"
+        }
+      },
+      {
+        "id": "flex-reconciliation-steady-state-304",
+        "name": "Re-poll With Same ETag — Steady State (304, no reconciliation needed)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json",
+          "If-None-Match": "{reconEmptyEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-add-default",
+        "name": "Add Default Deployment Back (test-control) — DESIRED-STATE-ADDED",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 3
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-get-after-add",
+        "name": "Get Deployments — Confirm Deployment Present, Version Advanced",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json",
+          "If-None-Match": "{reconEmptyEtag}"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 3
+          },
+          {
+            "field": "bundle.digest",
+            "operation": "not_empty"
+          },
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "equals",
+            "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          }
+        ],
+        "extract_context": {
+          "reconBundleDigest": "bundle.digest",
+          "reconDeploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "flex-reconciliation-fetch-bundle",
+        "name": "Fetch Bundle For Newly-Added Deployment",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{reconBundleDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.ETag",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-fetch-manifest",
+        "name": "Fetch Individual Deployment Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/{reconDeploymentDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/yaml"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-status-pending",
+        "name": "Report Status: pending",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+          "status": { "state": "pending" },
+          "components": [{ "name": "app-component-1", "state": "pending" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-status-installing",
+        "name": "Report Status: installing",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+          "status": { "state": "installing" },
+          "components": [{ "name": "app-component-1", "state": "installing" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-status-installed",
+        "name": "Report Status: installed",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+          "status": { "state": "installed" },
+          "components": [{ "name": "app-component-1", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-add-second-deployment",
+        "name": "Assign A Second Deployment (test-control)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06", "recon-temp-deployment-001"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "manifestVersion", "operation": "equals", "value": 4 }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-status-second-installed",
+        "name": "Report Status: installed (second deployment)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/recon-temp-deployment-001/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "recon-temp-deployment-001",
+          "status": { "state": "installed" },
+          "components": [{ "name": "app-component-1", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-remove-second-deployment",
+        "name": "Unassign Second Deployment (test-control) — back to default only",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "manifestVersion", "operation": "equals", "value": 5 }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-status-second-removed",
+        "name": "Report Status: removed (second deployment, no longer desired)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/recon-temp-deployment-001/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "recon-temp-deployment-001",
+          "status": { "state": "removed" },
+          "components": [{ "name": "app-component-1", "state": "removed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-reconciliation-get-final-state",
+        "name": "Get Deployments — Confirm Restored To Default Only",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          { "field": "manifestVersion", "operation": "equals", "value": 5 },
+          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06" }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "flex-desired-state-multi-app",
+    "name": "Flexible Order — Multi-App Desired State (mock server reports both apps)",
+    "description": "Device-supplier counterpart to the wfm-supplier multi-app scenario, but fully deterministic since this mock server is entirely under test-harness control (no external operator to wait on). Uses the test-control endpoint to assign two REAL sample apps (sample-app-a: nginx, sample-app-b: redis — see device-supplier/sample-apps/{app-a,app-b}/compose.yaml, served by this mock server at /sample-apps/{app}/compose.yaml) simultaneously, verifies the mock server correctly reports BOTH in one desired-state manifest, brings both to 'installed' via individual status reports, then removes one (app-b) and verifies exactly one (app-a) remains. Ends by restoring the original default deployment (a3e2f5dc-912e-494f-8395-52cf3769bc06), matching every other flexible-order scenario's assumption, so this is safe to run in any shuffle order.",
+    "steps": [
+      {
+        "id": "flex-multiapp-assign-both",
+        "name": "Assign Both Sample Apps (test-control)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a", "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "deployments", "operation": "is_array" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-get-both",
+        "name": "Get Deployments — Confirm Mock Server Reports Both Apps",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a" },
+          { "field": "deployments.1.deploymentId", "operation": "equals", "value": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b" },
+          { "field": "bundle.digest", "operation": "not_empty" }
+        ],
+        "extract_context": {
+          "appADigest": "deployments.0.digest",
+          "appBDigest": "deployments.1.digest"
+        }
+      },
+      {
+        "id": "flex-multiapp-fetch-app-a-manifest",
+        "name": "Fetch App A Deployment Manifest (nginx compose)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a/{appADigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "_headers.Content-Type", "operation": "contains", "value": "application/yaml" },
+          { "field": "_raw", "operation": "contains", "value": "sample-app-a" },
+          { "field": "_raw", "operation": "contains", "value": "/sample-apps/app-a/compose.yaml" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-fetch-app-a-compose",
+        "name": "Fetch App A's Actual compose.yaml (served by this mock server)",
+        "method": "GET",
+        "endpoint": "/sample-apps/app-a/compose.yaml",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "_raw", "operation": "contains", "value": "nginx" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-a-pending",
+        "name": "Report App A Status: pending",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
+          "status": { "state": "pending" },
+          "components": [{ "name": "sample-app-a", "state": "pending" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-a-installing",
+        "name": "Report App A Status: installing",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
+          "status": { "state": "installing" },
+          "components": [{ "name": "sample-app-a", "state": "installing" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-a-installed",
+        "name": "Report App A Status: installed",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
+          "status": { "state": "installed" },
+          "components": [{ "name": "sample-app-a", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-fetch-app-b-manifest",
+        "name": "Fetch App B Deployment Manifest (redis compose)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b/{appBDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "_headers.Content-Type", "operation": "contains", "value": "application/yaml" },
+          { "field": "_raw", "operation": "contains", "value": "sample-app-b" },
+          { "field": "_raw", "operation": "contains", "value": "/sample-apps/app-b/compose.yaml" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-fetch-app-b-compose",
+        "name": "Fetch App B's Actual compose.yaml (served by this mock server)",
+        "method": "GET",
+        "endpoint": "/sample-apps/app-b/compose.yaml",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "_raw", "operation": "contains", "value": "redis" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-b-pending",
+        "name": "Report App B Status: pending",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
+          "status": { "state": "pending" },
+          "components": [{ "name": "sample-app-b", "state": "pending" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-b-installing",
+        "name": "Report App B Status: installing",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
+          "status": { "state": "installing" },
+          "components": [{ "name": "sample-app-b", "state": "installing" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-b-installed",
+        "name": "Report App B Status: installed — both apps now running",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
+          "status": { "state": "installed" },
+          "components": [{ "name": "sample-app-b", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-remove-app-b",
+        "name": "Remove App B, Keep App A (test-control)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-get-after-remove",
+        "name": "Get Deployments — Confirm Exactly App A Remains",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-status-app-b-removed",
+        "name": "Report App B Status: removed (no longer desired)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
+          "status": { "state": "removed" },
+          "components": [{ "name": "sample-app-b", "state": "removed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-restore-default",
+        "name": "Restore Default Deployment (test-control) — leave shared client in the state siblings expect",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-multiapp-get-final-state",
+        "name": "Get Deployments — Confirm Restored To Default Only",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06" }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

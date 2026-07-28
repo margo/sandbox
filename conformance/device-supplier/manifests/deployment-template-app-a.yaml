@@ -1,0 +1,16 @@
+apiVersion: margo.org/v1alpha1
+kind: ApplicationDeployment
+metadata:
+  name: {{deploymentId}}
+  annotations:
+    id: {{deploymentId}}
+spec:
+  appPackageRef:
+    id: sample-app-a
+  deploymentProfile:
+    type: compose
+    components:
+      - name: sample-app-a
+        properties:
+          packageLocation: {{packageLocation}}
+          wait: true

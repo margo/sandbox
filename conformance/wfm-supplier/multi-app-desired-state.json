@@ -1,0 +1,240 @@
+[
+  {
+    "id": "wfm-multi-app-desired-state",
+    "name": "Multi-App Desired State — Wait For Assignment, Reconcile, Wait For Removal",
+    "description": "Tests a real WFM server's desired-state correctness when 2+ apps are assigned to a device. Per docs.margo.org/specification/margo-management-interface/desired-state and the real device-agent traces captured on this VM, desired state is a reconciliation pattern, not a single request. This scenario onboards a device, then POLLS GET /deployments waiting for an operator to assign a second app via the WFM's own console (out of band — this test only observes, it never assigns or removes apps itself). Once 2+ apps are observed, it downloads and reports 'installed' status for EACH app individually (not just the first) — desired state is only fully reconciled once every assigned app is accounted for. It then polls again waiting for the operator to remove either app, and validates the WFM correctly reflects exactly one remaining deployment matching one of the two known IDs ('either A or B'), without assuming in advance which specific one gets removed.",
+    "steps": [
+      {
+        "id": "wfm-ma-onboard",
+        "name": "Onboard Device",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          { "field": "clientId", "operation": "is_string" }
+        ],
+        "extract_context": {
+          "clientId": "clientId"
+        }
+      },
+      {
+        "id": "wfm-ma-capabilities",
+        "name": "Report Capabilities",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "wfm-multi-app-test-device",
+            "vendor": "Conformance Test Suite",
+            "modelNumber": "CTS-MULTIAPP-1",
+            "serialNumber": "SN-MULTIAPP-001",
+            "roles": ["Standalone Device"],
+            "resources": {
+              "cpu": { "cores": 4, "architecture": "amd64" },
+              "memory": "8Gi",
+              "storage": "64Gi",
+              "interfaces": [{ "type": "ethernet" }],
+              "peripherals": []
+            }
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-wait-for-two-apps",
+        "name": "Wait For 2+ Apps To Be Assigned (poll — assign a second app via the WFM console now)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "poll": {
+          "interval_seconds": 10,
+          "timeout_seconds": 300,
+          "until": [
+            { "field": "deployments", "operation": "array_length_gte", "value": 2 }
+          ]
+        },
+        "validations": [
+          { "field": "deployments", "operation": "array_length_gte", "value": 2 }
+        ],
+        "extract_context": {
+          "appADeploymentId": "deployments.0.deploymentId",
+          "appADigest": "deployments.0.digest",
+          "appBDeploymentId": "deployments.1.deploymentId",
+          "appBDigest": "deployments.1.digest"
+        }
+      },
+      {
+        "id": "wfm-ma-fetch-app-a-manifest",
+        "name": "Fetch App A Deployment Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appADeploymentId}/{appADigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-a-pending",
+        "name": "Report App A Status: pending",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appADeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appADeploymentId}",
+          "status": { "state": "pending" },
+          "components": [{ "name": "app-a-component", "state": "pending" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-a-installing",
+        "name": "Report App A Status: installing",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appADeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appADeploymentId}",
+          "status": { "state": "installing" },
+          "components": [{ "name": "app-a-component", "state": "installing" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-a-installed",
+        "name": "Report App A Status: installed",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appADeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appADeploymentId}",
+          "status": { "state": "installed" },
+          "components": [{ "name": "app-a-component", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-fetch-app-b-manifest",
+        "name": "Fetch App B Deployment Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appBDeploymentId}/{appBDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-b-pending",
+        "name": "Report App B Status: pending",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appBDeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appBDeploymentId}",
+          "status": { "state": "pending" },
+          "components": [{ "name": "app-b-component", "state": "pending" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-b-installing",
+        "name": "Report App B Status: installing",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appBDeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appBDeploymentId}",
+          "status": { "state": "installing" },
+          "components": [{ "name": "app-b-component", "state": "installing" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-status-app-b-installed",
+        "name": "Report App B Status: installed — both apps now running",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{appBDeploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{appBDeploymentId}",
+          "status": { "state": "installed" },
+          "components": [{ "name": "app-b-component", "state": "installed" }]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "wfm-ma-wait-for-one-removed",
+        "name": "Wait For Either App To Be Removed (poll — delete app A or app B via the WFM console now)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "poll": {
+          "interval_seconds": 10,
+          "timeout_seconds": 300,
+          "until": [
+            { "field": "deployments", "operation": "array_length_equals", "value": 1 }
+          ]
+        },
+        "validations": [
+          { "field": "deployments", "operation": "array_length_equals", "value": 1 },
+          { "field": "deployments.0.deploymentId", "operation": "one_of", "value": ["{appADeploymentId}", "{appBDeploymentId}"] }
+        ],
+        "extract_context": {
+          "remainingDeploymentId": "deployments.0.deploymentId"
+        }
+      }
+    ]
+  }
+]

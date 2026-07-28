@@ -139,28 +139,31 @@
           "rule_id": "capabilities-009",
           "field": "properties.resources",
           "type": "object",
-          "required": true,
-          "description": "properties.resources is required"
+          "required": false,
+          "description": "properties.resources is optional; when present, cpu/memory/storage/interfaces/peripherals become required within it"
         },
         {
           "rule_id": "capabilities-010",
           "field": "properties.resources.cpu",
           "type": "object",
           "required": true,
-          "description": "properties.resources.cpu is required"
+          "requiredIf": "properties.resources",
+          "description": "properties.resources.cpu is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-011",
           "field": "properties.resources.cpu.cores",
           "type": "number",
           "required": true,
-          "description": "properties.resources.cpu.cores is required"
+          "requiredIf": "properties.resources",
+          "description": "properties.resources.cpu.cores is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-012",
           "field": "properties.resources.cpu.architecture",
           "type": "string",
           "required": false,
+          "requiredIf": "properties.resources",
           "enum": [
             "amd64",
             "x86_64",
@@ -174,30 +177,34 @@
           "field": "properties.resources.memory",
           "type": "string",
           "required": true,
+          "requiredIf": "properties.resources",
           "minLength": 1,
-          "description": "properties.resources.memory is required"
+          "description": "properties.resources.memory is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-014",
           "field": "properties.resources.storage",
           "type": "string",
           "required": true,
+          "requiredIf": "properties.resources",
           "minLength": 1,
-          "description": "properties.resources.storage is required"
+          "description": "properties.resources.storage is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-015",
           "field": "properties.resources.interfaces",
           "type": "array",
           "required": true,
+          "requiredIf": "properties.resources",
           "itemsType": "object",
-          "description": "properties.resources.interfaces is required"
+          "description": "properties.resources.interfaces is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-016",
           "field": "properties.resources.interfaces.*.type",
           "type": "string",
           "required": true,
+          "requiredIf": "properties.resources",
           "enum": [
             "ethernet",
             "wifi",
@@ -214,14 +221,16 @@
           "field": "properties.resources.peripherals",
           "type": "array",
           "required": true,
+          "requiredIf": "properties.resources",
           "itemsType": "object",
-          "description": "properties.resources.peripherals is required"
+          "description": "properties.resources.peripherals is required when properties.resources is present"
         },
         {
           "rule_id": "capabilities-018",
           "field": "properties.resources.peripherals.*.type",
           "type": "string",
           "required": true,
+          "requiredIf": "properties.resources",
           "enum": [
             "gpu",
             "display",
@@ -324,6 +333,13 @@
             "removed"
           ],
           "description": "Each component must include a valid state"
+        },
+        {
+          "rule_id": "status-009",
+          "field": "deviceId",
+          "type": "string",
+          "required": false,
+          "description": "deviceId is optional; when present it must be a string identifying the reporting device"
         }
       ],
       "response_structure": {

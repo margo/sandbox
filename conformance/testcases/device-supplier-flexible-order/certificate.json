@@ -1,0 +1,28 @@
+[
+  {
+    "id": "flex-certificate",
+    "name": "Flexible Order — Certificate Retrieval",
+    "description": "GET onboarding/certificate is public and takes no input, so negative coverage is inherently limited. Included primarily to prove it can run in any relative position alongside the other flexible-order scenarios.",
+    "steps": [
+      {
+        "id": "flex-certificate-get",
+        "name": "Get Root CA Certificate",
+        "method": "GET",
+        "endpoint": "/api/v1/onboarding/certificate",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "certificate",
+            "operation": "is_string"
+          },
+          {
+            "field": "certificate",
+            "operation": "not_empty"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

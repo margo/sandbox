@@ -64,6 +64,7 @@ type ValidationRule struct {
 	Field       string      `json:"field"`
 	Type        string      `json:"type"`
 	Required    bool        `json:"required"`
+	RequiredIf  string      `json:"requiredIf,omitempty"`
 	Value       interface{} `json:"value,omitempty"`
 	Enum        []string    `json:"enum,omitempty"`
 	MinLength   int         `json:"minLength,omitempty"`
@@ -86,6 +87,7 @@ type ClientData struct {
 	OnboardedAt     time.Time              `json:"onboarded_at"`
 	Capabilities    map[string]interface{} `json:"capabilities,omitempty"`
 	DeploymentsData []string               `json:"deployments,omitempty"`
+	ManifestVersion int                    `json:"manifest_version,omitempty"`
 }
 
 type DeploymentData struct {
@@ -146,6 +148,12 @@ func validateRequest(endpointKey string, body map[string]interface{}) []Validati
 }
 
 func applyRule(rule ValidationRule, body map[string]interface{}) *ValidationError {
+	if rule.RequiredIf != "" {
+		if _, parentExists := getFieldValues(body, rule.RequiredIf); !parentExists {
+			return nil // parent object not present at all — this rule doesn't apply
+		}
+	}
+
 	fieldValues, exists := getFieldValues(body, rule.Field)
 
 	// Check if required field is missing
@@ -632,13 +640,21 @@ func deploymentKey(clientID, deploymentID string) string {
 const defaultDeploymentID = "a3e2f5dc-912e-494f-8395-52cf3769bc06"
 
 func ensureDefaultDeployment(clientID string) {
-	key := deploymentKey(clientID, defaultDeploymentID)
+	ensureDeployment(clientID, defaultDeploymentID)
+}
+
+// ensureDeployment registers a DeploymentData entry for an arbitrary
+// deploymentID if one doesn't already exist, so status-history tracking
+// works consistently regardless of how the deployment was assigned
+// (onboarding default, or the test-control desired-state endpoint below).
+func ensureDeployment(clientID, deploymentID string) {
+	key := deploymentKey(clientID, deploymentID)
 	if _, exists := deployments[key]; exists {
 		return
 	}
 
 	deployments[key] = DeploymentData{
-		ID:            defaultDeploymentID,
+		ID:            deploymentID,
 		ClientID:      clientID,
 		StatusHistory: []interface{}{},
 	}
@@ -657,25 +673,72 @@ func sha256Hex(data []byte) string {
 	return fmt.Sprintf("%x", sum[:])
 }
 
-func buildDeploymentYAML(clientID, deploymentID string) []byte {
+// sampleApp describes a known, real sample application (backed by an actual
+// compose.yaml served by this mock server) that the test-control endpoint can
+// assign in place of the generic defaultDeploymentID. Unknown/custom
+// deploymentIDs (including defaultDeploymentID) fall back to the original
+// generic deployment-template.yaml, unchanged.
+type sampleApp struct {
+	TemplateFile    string
+	ComponentName   string
+	PackageLocation string // path on this server, combined with the request's baseURL
+}
+
+const (
+	sampleAppADeploymentID = "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"
+	sampleAppBDeploymentID = "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b"
+)
+
+var sampleApps = map[string]sampleApp{
+	sampleAppADeploymentID: {
+		TemplateFile:    "manifests/deployment-template-app-a.yaml",
+		ComponentName:   "sample-app-a",
+		PackageLocation: "/v1alpha2/margo/sample-apps/app-a/compose.yaml",
+	},
+	sampleAppBDeploymentID: {
+		TemplateFile:    "manifests/deployment-template-app-b.yaml",
+		ComponentName:   "sample-app-b",
+		PackageLocation: "/v1alpha2/margo/sample-apps/app-b/compose.yaml",
+	},
+}
+
+// requestBaseURL derives scheme+host from the incoming request so
+// packageLocation URLs we generate point back at whatever address the
+// caller actually used to reach us (works for localhost, LAN IP, or a real
+// hostname alike) instead of a hardcoded guess.
+func requestBaseURL(r *http.Request) string {
+	return "https://" + r.Host
+}
+
+func buildDeploymentYAML(clientID, deploymentID, baseURL string) []byte {
 	_ = clientID
-	templateBytes, err := os.ReadFile("manifests/deployment-template.yaml")
+	templateFile := "manifests/deployment-template.yaml"
+	packageLocation := ""
+	if app, ok := sampleApps[deploymentID]; ok {
+		templateFile = app.TemplateFile
+		packageLocation = baseURL + app.PackageLocation
+	}
+
+	templateBytes, err := os.ReadFile(templateFile)
 	if err != nil {
-		log.Printf("[DeploymentYAML] Warning: could not read deployment-template.yaml: %v — using empty manifest", err)
+		log.Printf("[DeploymentYAML] Warning: could not read %s: %v — using empty manifest", templateFile, err)
 		return []byte{}
 	}
 	result := strings.ReplaceAll(string(templateBytes), "{{deploymentId}}", deploymentID)
+	if packageLocation != "" {
+		result = strings.ReplaceAll(result, "{{packageLocation}}", packageLocation)
+	}
 	return []byte(result)
 }
 
-func buildBundleArchive(clientID string, deploymentIDs []string) ([]byte, error) {
+func buildBundleArchive(clientID string, deploymentIDs []string, baseURL string) ([]byte, error) {
 	var archive bytes.Buffer
 
 	gzipWriter := gzip.NewWriter(&archive)
 	tarWriter := tar.NewWriter(gzipWriter)
 
 	for _, deploymentID := range deploymentIDs {
-		content := buildDeploymentYAML(clientID, deploymentID)
+		content := buildDeploymentYAML(clientID, deploymentID, baseURL)
 		header := &tar.Header{
 			Name: fmt.Sprintf("%s.yaml", deploymentID),
 			Mode: 0600,
@@ -699,12 +762,12 @@ func buildBundleArchive(clientID string, deploymentIDs []string) ([]byte, error)
 	return archive.Bytes(), nil
 }
 
-func buildStateManifest(clientID string, deploymentIDs []string) (map[string]interface{}, string, error) {
+func buildStateManifest(clientID string, deploymentIDs []string, manifestVersion int, baseURL string) (map[string]interface{}, string, error) {
 	refs := make([]interface{}, 0, len(deploymentIDs))
 	bundle := interface{}(nil)
 
 	if len(deploymentIDs) > 0 {
-		bundleBytes, err := buildBundleArchive(clientID, deploymentIDs)
+		bundleBytes, err := buildBundleArchive(clientID, deploymentIDs, baseURL)
 		if err != nil {
 			return nil, "", err
 		}
@@ -718,7 +781,7 @@ func buildStateManifest(clientID string, deploymentIDs []string) (map[string]int
 		}
 
 		for _, deploymentID := range deploymentIDs {
-			yamlBytes := buildDeploymentYAML(clientID, deploymentID)
+			yamlBytes := buildDeploymentYAML(clientID, deploymentID, baseURL)
 			deploymentDigest := sha256Hex(yamlBytes)
 			refs = append(refs, map[string]interface{}{
 				"deploymentId": deploymentID,
@@ -730,7 +793,7 @@ func buildStateManifest(clientID string, deploymentIDs []string) (map[string]int
 	}
 
 	manifest := map[string]interface{}{
-		"manifestVersion": 1,
+		"manifestVersion": manifestVersion,
 		"bundle":          bundle,
 		"deployments":     refs,
 	}
@@ -868,6 +931,7 @@ func handleOnboarding(w http.ResponseWriter, r *http.Request) {
 		Certificate:     certRaw,
 		OnboardedAt:     time.Now().UTC(),
 		DeploymentsData: []string{defaultDeploymentID},
+		ManifestVersion: 1,
 	}
 	ensureDefaultDeployment(clientID)
 	mu.Unlock()
@@ -986,7 +1050,11 @@ func handleGetDeployments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manifest, etag, err := buildStateManifest(clientID, client.DeploymentsData)
+	manifestVersion := client.ManifestVersion
+	if manifestVersion == 0 {
+		manifestVersion = 1 // clients persisted before manifest versioning was added
+	}
+	manifest, etag, err := buildStateManifest(clientID, client.DeploymentsData, manifestVersion, requestBaseURL(r))
 	if err != nil {
 		respondJSON(w, 500, ResponseError{Error: "Failed to build deployment manifest"})
 		return
@@ -1026,7 +1094,7 @@ func handleGetBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bundleBytes, err := buildBundleArchive(clientID, client.DeploymentsData)
+	bundleBytes, err := buildBundleArchive(clientID, client.DeploymentsData, requestBaseURL(r))
 	if err != nil {
 		respondJSON(w, 500, ResponseError{
 			Error: "Failed to build deployment bundle",
@@ -1093,7 +1161,7 @@ func handleGetDeploymentManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	yamlBytes := buildDeploymentYAML(clientID, deploymentID)
+	yamlBytes := buildDeploymentYAML(clientID, deploymentID, requestBaseURL(r))
 	expectedDigest := sha256Hex(yamlBytes)
 	normalizedDigest := strings.TrimPrefix(digest, "sha256:")
 	if normalizedDigest != expectedDigest {
@@ -1198,6 +1266,105 @@ func handlePostStatus(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, 200, map[string]string{
 		"acknowledgement": "received",
 	})
+}
+
+// ===== TEST-CONTROL ENDPOINT (NOT PART OF THE MARGO SPEC) =====
+//
+// handleTestSetDeployments lets the conformance test suite script an evolving
+// desired-state timeline for a client — e.g. start empty, add a deployment,
+// remove it again — so reconciliation behavior (manifestVersion progression,
+// ETag invalidation, bundle/manifest changes) can be exercised and asserted
+// on demand instead of relying on the fixed one-shot manifest every client
+// gets at onboarding. Real device-agents under conformance test never call
+// this; only our own test harness does, so it skips signature verification.
+func handleTestSetDeployments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clientID := vars["clientId"]
+
+	mu.Lock()
+	client, exists := clients[clientID]
+	if !exists {
+		mu.Unlock()
+		respondJSON(w, 404, ResponseError{Error: fmt.Sprintf("Client not found: %s", clientID)})
+		return
+	}
+
+	var body struct {
+		DeploymentIDs []string `json:"deploymentIds"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		mu.Unlock()
+		respondJSON(w, 400, ResponseError{Error: `Invalid JSON body: expected {"deploymentIds": [...]}`})
+		return
+	}
+	newIDs := body.DeploymentIDs
+	if newIDs == nil {
+		newIDs = []string{}
+	}
+
+	if client.ManifestVersion == 0 {
+		client.ManifestVersion = 1 // clients persisted before manifest versioning was added
+	}
+	if !stringSetsEqual(client.DeploymentsData, newIDs) {
+		client.ManifestVersion++
+		client.DeploymentsData = newIDs
+		for _, id := range newIDs {
+			ensureDeployment(clientID, id)
+		}
+	}
+	clients[clientID] = client
+	version := client.ManifestVersion
+	mu.Unlock()
+
+	if err := saveClientsToFile(); err != nil {
+		log.Printf("[TestControl] ⚠ Failed to persist client: %v", err)
+	}
+	if err := saveDeploymentsToFile(); err != nil {
+		log.Printf("[TestControl] ⚠ Failed to persist deployments: %v", err)
+	}
+
+	log.Printf("[TestControl] Client %s desired state set to %v (manifestVersion=%d)", clientID, newIDs, version)
+
+	respondJSON(w, 200, map[string]interface{}{
+		"clientId":        clientID,
+		"deployments":     newIDs,
+		"manifestVersion": version,
+	})
+}
+
+// stringSetsEqual compares two string slices as unordered sets.
+func stringSetsEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[string]int, len(a))
+	for _, v := range a {
+		counts[v]++
+	}
+	for _, v := range b {
+		counts[v]--
+	}
+	for _, c := range counts {
+		if c != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// handleSampleAppFile serves the two real sample compose.yaml files (app-a,
+// app-b) referenced by sampleApps' packageLocation. Not part of the Margo
+// spec — plain static file serving, same as how a device-agent would fetch
+// packageLocation from any external host (e.g. the default template's
+// existing GitHub URL); no signature required.
+func handleSampleAppFile(w http.ResponseWriter, r *http.Request) {
+	app := mux.Vars(r)["app"]
+	if app != "app-a" && app != "app-b" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/yaml")
+	http.ServeFile(w, r, filepath.Join("sample-apps", app, "compose.yaml"))
 }
 
 // ===== RESPONSE HELPERS =====
@@ -1532,6 +1699,16 @@ func main() {
 	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/bundles/{digest}", handleGetBundle).Methods("GET")
 	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}", handleGetDeploymentManifest).Methods("GET")
 	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/deployments/{deploymentId}/status", handlePostStatus).Methods("POST")
+
+	// Test-control endpoint (not part of the Margo spec): lets the conformance
+	// suite script an evolving desired-state timeline for reconciliation tests.
+	router.HandleFunc("/v1alpha2/margo/api/v1/test/clients/{clientId}/deployments", handleTestSetDeployments).Methods("PUT")
+
+	// Static file serving for the sample compose apps referenced by
+	// sampleApps' packageLocation (not part of the Margo spec — a device-agent
+	// fetches packageLocation directly, wherever it points, same as the
+	// existing default template's external GitHub URL).
+	router.HandleFunc("/v1alpha2/margo/sample-apps/{app}/compose.yaml", handleSampleAppFile).Methods("GET")
 
 	// Ensure TLS certificates are available
 	certFile, keyFile, err := ensureTLSCertificates()

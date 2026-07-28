@@ -1,0 +1,107 @@
+[
+  {
+    "id": "flex-deployment-manifest",
+    "name": "Flexible Order — Deployment Manifest Download",
+    "description": "Self-contained: the first step is a local GET-deployments setup (scenario-scoped, not shared) to obtain deploymentId+digest, so this scenario never depends on flex-desired-state having run first. Only {clientId} is required from the shared onboarding context.",
+    "steps": [
+      {
+        "id": "flex-deployment-manifest-setup",
+        "name": "Get Current Deployments (local setup)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "deploymentId": "deployments.0.deploymentId",
+          "deploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "flex-deployment-manifest-download",
+        "name": "Download Individual Deployment Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/yaml"
+          },
+          {
+            "field": "_headers.Cache-Control",
+            "operation": "contains",
+            "value": "immutable"
+          },
+          {
+            "field": "_headers.Vary",
+            "operation": "contains",
+            "value": "Accept-Encoding"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "contains",
+            "value": "{deploymentDigest}"
+          }
+        ],
+        "extract_context": {
+          "deploymentEtag": "_headers.ETag"
+        }
+      },
+      {
+        "id": "flex-deployment-manifest-etag-match",
+        "name": "Download Individual Deployment Manifest With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "headers": {
+          "If-None-Match": "{deploymentEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-deployment-manifest-reject-wrong-digest",
+        "name": "Reject Deployment Manifest Download With Wrong Digest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/not-the-right-digest",
+        "headers": {},
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Deployment not found for digest"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "flex-deployment-manifest-reject-unsigned",
+        "name": "Reject Unsigned GET Deployment Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

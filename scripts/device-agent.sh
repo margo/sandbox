@@ -115,6 +115,8 @@ source "${SCRIPT_DIR}/modules/harbor.sh"
 source "${SCRIPT_DIR}/modules/certificates.sh"
 source "${SCRIPT_DIR}/modules/agent.sh"
 source "${SCRIPT_DIR}/modules/observability.sh"
+source "${SCRIPT_DIR}/modules/dns-host-config.sh"
+
 
 
 export GOINSECURE='github.com/margo/*'
@@ -178,6 +180,8 @@ install_prerequisites() {
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     setup_k3s
     configure_harbor_trust_for_k3s
+    sleep 5
+    configure_coredns_hosts
   fi
 
   echo 'prerequisites installation completed.'

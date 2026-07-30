@@ -39,14 +39,51 @@ get_ip_from_hosts() {
 #------------------------------------------------------------------------------
 # Adds or updates NodeHosts entries in the CoreDNS ConfigMap.
 #------------------------------------------------------------------------------
+
+add_or_update_host() {
+        local ip="$1"
+        local host="$2"
+
+        if awk -v host="$host" '
+            /^[[:space:]]*#/ { next }
+            $2 == host { found=1 }
+            END { exit !found }
+        ' <<<"$updated"; then
+
+            updated=$(
+                awk -v ip="$ip" -v host="$host" '
+                    /^[[:space:]]*#/ {
+                        print
+                        next
+                    }
+
+                    $2 == host {
+                        print ip " " host
+                        next
+                    }
+
+                    {
+                        print
+                    }
+                ' <<<"$updated"
+            )
+
+        else
+            if [[ -n "$updated" ]]; then
+                updated+=$'\n'
+            fi
+            updated+="${ip} ${host}"
+        fi
+}
+
 configure_coredns_hosts() {
     set -euo pipefail
 
     local namespace="kube-system"
     local configmap="coredns"
 
-    local harbor_host="harbor.machine"
-    local symphony_host="symphony.machine"
+    local harbor_host="${EXPOSED_HARBOR_HOST}"
+    local symphony_host="${WFM_HOST}"
 
     local harbor_ip
     local symphony_ip
@@ -81,42 +118,6 @@ configure_coredns_hosts() {
     )
 
     updated="$nodehosts"
-
-    add_or_update_host() {
-        local ip="$1"
-        local host="$2"
-
-        if awk -v host="$host" '
-            /^[[:space:]]*#/ { next }
-            $2 == host { found=1 }
-            END { exit !found }
-        ' <<<"$updated"; then
-
-            updated=$(
-                awk -v ip="$ip" -v host="$host" '
-                    /^[[:space:]]*#/ {
-                        print
-                        next
-                    }
-
-                    $2 == host {
-                        print ip " " host
-                        next
-                    }
-
-                    {
-                        print
-                    }
-                ' <<<"$updated"
-            )
-
-        else
-            if [[ -n "$updated" ]]; then
-                updated+=$'\n'
-            fi
-            updated+="${ip} ${host}"
-        fi
-    }
 
     add_or_update_host "$harbor_ip" "$harbor_host"
     add_or_update_host "$symphony_ip" "$symphony_host"

@@ -180,6 +180,7 @@ install_prerequisites() {
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     setup_k3s
     configure_harbor_trust_for_k3s
+    echo "Waiting for k3s to stabilize..."
     sleep 5
     configure_coredns_hosts
   fi

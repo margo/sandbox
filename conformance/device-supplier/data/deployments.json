@@ -1,12 +1,89 @@
 {
-  "457e13db-f965-42bf-879b-6b6254a2d6e3:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+  "e8102210-a5e3-4b92-95ff-9979da633fe4:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
     "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "457e13db-f965-42bf-879b-6b6254a2d6e3",
+    "client_id": "e8102210-a5e3-4b92-95ff-9979da633fe4",
     "status_history": []
   },
-  "457e13db-f965-42bf-879b-6b6254a2d6e3:b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a": {
+  "e98bee91-4d32-4ac8-9890-dcbb55396441:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
+    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+    "client_id": "e98bee91-4d32-4ac8-9890-dcbb55396441",
+    "status_history": [
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "deviceId": "flex-device-001",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "pending"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "pending"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installing"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installing"
+        }
+      },
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      }
+    ]
+  },
+  "e98bee91-4d32-4ac8-9890-dcbb55396441:b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a": {
     "id": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
-    "client_id": "457e13db-f965-42bf-879b-6b6254a2d6e3",
+    "client_id": "e98bee91-4d32-4ac8-9890-dcbb55396441",
     "status_history": [
       {
         "apiVersion": "deployment.margo.org/v1alpha1",
@@ -52,9 +129,9 @@
       }
     ]
   },
-  "457e13db-f965-42bf-879b-6b6254a2d6e3:c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b": {
+  "e98bee91-4d32-4ac8-9890-dcbb55396441:c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b": {
     "id": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
-    "client_id": "457e13db-f965-42bf-879b-6b6254a2d6e3",
+    "client_id": "e98bee91-4d32-4ac8-9890-dcbb55396441",
     "status_history": [
       {
         "apiVersion": "deployment.margo.org/v1alpha1",
@@ -114,9 +191,24 @@
       }
     ]
   },
-  "73bb1235-cfa2-4050-88dc-4def6b282c18:a3e2f5dc-912e-494f-8395-52cf3769bc06": {
-    "id": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-    "client_id": "73bb1235-cfa2-4050-88dc-4def6b282c18",
-    "status_history": []
+  "e98bee91-4d32-4ac8-9890-dcbb55396441:recon-temp-deployment-001": {
+    "id": "recon-temp-deployment-001",
+    "client_id": "e98bee91-4d32-4ac8-9890-dcbb55396441",
+    "status_history": [
+      {
+        "apiVersion": "deployment.margo.org/v1alpha1",
+        "components": [
+          {
+            "name": "app-component-1",
+            "state": "installed"
+          }
+        ],
+        "deploymentId": "recon-temp-deployment-001",
+        "kind": "DeploymentStatusManifest",
+        "status": {
+          "state": "installed"
+        }
+      }
+    ]
   }
 }

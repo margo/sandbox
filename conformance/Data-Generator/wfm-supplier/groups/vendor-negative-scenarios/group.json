@@ -3,6 +3,9 @@
   "version": "1.1.1",
   "persona": "wfm-supplier",
   "description": "new grp v1.1.1",
+  "FolderPath": [
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/vendor-negative-scenarios"
+  ],
   "testCases": [
     "5a670495-f35e-452f-b87a-d6d48d06cfeb",
     "746cb090-c884-466b-9c15-a79a88fc012b",
@@ -19,6 +22,7 @@
     "2f0f025c-3bb5-4e9f-9557-83a52fdaa2c1",
     "4090c79a-2989-4b13-8823-325b34071123",
     "fd1f9cbf-b5ae-4562-9b11-a46cca8a9e2e",
-    "7ec7ce3c-1e7d-4ecf-8827-1a6c3151fd23"
+    "7ec7ce3c-1e7d-4ecf-8827-1a6c3151fd23",
+    "8609c565-57fc-4a43-8cd7-ef395860ddf8"
   ]
 }

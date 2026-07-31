@@ -1,10 +1,10 @@
 {
-  "name": "bronze grp",
-  "version": "1.2.3",
+  "name": "silver",
+  "version": "1.1",
   "persona": "wfm-supplier",
-  "description": "usning the exisitng grp with v1.2.3",
+  "description": "ng",
   "FolderPath": [
-    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/bronze grp"
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/silver"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",

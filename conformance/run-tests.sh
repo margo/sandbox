@@ -34,6 +34,8 @@ DATA_GEN_DIR="$CONFORMANCE_DIR/Data-Generator"
 RUNNER_DIR="$CONFORMANCE_DIR/Runner"  # Output directory for test results
 WFM_GROUP_DIR="$DATA_GEN_DIR/wfm-supplier/groups"
 DEVICE_GROUP_DIR="$DATA_GEN_DIR/device-supplier/groups"
+APPLICATION_DIR="$CONFORMANCE_DIR/Application-Supplier"
+APPLICATION_SERVICE_DIR="$CONFORMANCE_DIR/Application-Supplier-Service"
 
 # Create output directories
 RUNNER_WFM="$RUNNER_DIR/wfm-supplier"
@@ -1114,11 +1116,78 @@ show_persona_menu() {
     echo "Which Margo Persona do you want to test?"
     echo "1. WFM Supplier"
     echo "2. Device Supplier"
+    echo "3. Application Supplier"
     echo ""
     echo "P) Check/Install Prerequisites (go, jq, openssl, node, newman)"
     echo "H) Help"
     echo "Q) Quit"
     echo ""
+}
+
+select_application() {
+
+    local app_dir="$APPLICATION_DIR"
+    local apps=()
+
+    {
+        echo ""
+        echo "Available Applications"
+        echo "======================"
+    } >&2
+
+    for dir in "$app_dir"/*; do
+        [[ -d "$dir" ]] && apps+=("$dir")
+    done
+
+    if [[ ${#apps[@]} -eq 0 ]]; then
+        echo "No applications found in $app_dir" >&2
+        return 1
+    fi
+
+    {
+        for i in "${!apps[@]}"; do
+            printf "  %d) %s\n" \
+                "$((i+1))" \
+                "$(basename "${apps[$i]}")"
+        done
+        echo ""
+    } >&2
+
+    read -p "Select Application (1-${#apps[@]}): " choice < /dev/tty
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || \
+       [[ $choice -lt 1 || $choice -gt ${#apps[@]} ]]; then
+        echo "Invalid selection" >&2
+        return 1
+    fi
+
+    echo "${apps[$((choice-1))]}"
+}
+
+run_application_supplier() {
+    local selected_app
+
+    selected_app=$(select_application)
+
+    local app_name
+    app_name=$(basename "$selected_app")
+
+    log "Selected Application: $app_name"
+
+    cd "$APPLICATION_SERVICE_DIR" || \
+        error "Unable to enter Application Supplier Service"
+
+    log "Running Application Validation..."
+
+    go run . "$selected_app"
+
+    local result=$?
+
+    # if [[ $result -eq 0 ]]; then
+    #     success "Application Validation Passed"
+    # else
+    #     error "Application Validation Failed"
+    # fi
 }
 
 ################################################################################
@@ -1158,6 +1227,10 @@ PERSONAS:
     • Runs functional test scenarios
     • Uses mock WFM server for validation
     • Generates conformance report with assertion results
+  Application Supplier:
+    • Validates application package structure
+    • Runs Application Supplier Service
+    • Executes application conformance checks
 
 WORKFLOW:
 
@@ -1671,7 +1744,7 @@ interactive_mode() {
     while true; do
         show_persona_menu
         
-        read -p "Select option (1-2, P, H, or Q): " choice
+        read -p "Select option (1-3, P, H, or Q): " choice
 
         case "${choice,,}" in
             1|wfm)
@@ -1684,6 +1757,11 @@ interactive_mode() {
                 info "You selected: Device Supplier"
                 run_device_flow
                 ;;
+            3|application)
+                echo ""
+                info "You selected: Application Supplier"
+                run_application_supplier
+                ;;
             p|prereq|prerequisites)
                 check_prerequisites || true
                 ;;
@@ -1695,7 +1773,7 @@ interactive_mode() {
                 exit 0
                 ;;
             *)
-                error "Invalid option. Please select 1, 2, P, H, or Q"
+                error "Invalid option. Please select 1, 2,3, P, H, or Q"
                 ;;
         esac
         
@@ -1758,13 +1836,16 @@ EOF
                 run_device_flow
             fi
             ;;
+        3|application)
+            run_application_supplier
+            ;;
         help|-h|--help)
             show_help
             ;;
         *)
             error "Unknown command: $command
 
-Usage: ./run-tests.sh [wfm|device|help]
+Usage: ./run-tests.sh [wfm|device|application|help]
 
 Run './run-tests.sh help' for detailed instructions."
             ;;

@@ -1,0 +1,431 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Application Conformance Report</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f5f5f5;
+}
+
+.header {
+    background: #333;
+    color: white;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.summary {
+    margin: 20px 0;
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.pass {
+    color: green;
+    font-weight: bold;
+}
+
+.fail {
+    color: red;
+    font-weight: bold;
+}
+
+.validate {
+    color: #007bff;
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
+}
+
+th,
+td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background: #f2f2f2;
+}
+
+.result-pass {
+    color: green;
+    font-weight: bold;
+}
+
+.result-fail {
+    color: red;
+    font-weight: bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+    <h1>Application Conformance Report</h1>
+
+    <p>
+        <strong>Application:</strong>
+        Hello World
+    </p>
+
+</div>
+
+<div class="summary">
+
+    <h2>Validation Summary</h2>
+
+    <p>
+        <strong>Total Entries:</strong>
+        17
+    </p>
+
+    <p>
+        <strong>Final Result:</strong>
+
+        
+            <span class="result-fail">❌ FAILED</span>
+        
+
+    </p>
+
+</div>
+
+<table>
+
+<tr>
+    <th>Validate</th>
+    <th>Status</th>
+    <th>Details</th>
+</tr>
+
+
+
+<tr>
+
+    <td>apiVersion</td>
+
+    <td class="fail">
+
+        
+            ❌ FAIL
+        
+
+    </td>
+
+    <td>apiVersion Key is required With Type=string</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>kind</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>Required, Type=string, Expected=ApplicationDescription, Value=ApplicationDescription</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>id</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>id  (Required, lowercase letters, numbers and dashes only, max length=200) = com-northstartida-hello-world</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>metadata.name</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>metadata.name  (Required, Type=string) = Hello World</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>metadata.version</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>metadata.version  (Required, Type=string) = 1.0</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>metadata.catalog.organization.name</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>organization.name  (Required, Type=string) = Northstar Industrial Applications</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>deploymentProfile</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>ID=com-northstartida-hello-world-helm-a, Type=helm</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>component.name</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>component.name  (Required, Type=string) = hello-world</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>repository</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>repository  (Required, Type=string) = oci://northstarida.azurecr.io/charts/hello-world</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>revision</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>revision  (Required, Type=string) = 1.0.1</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>schema</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>Name=requireText, DataType=string, AllowEmpty=false</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>configuration.section</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>Name=General Settings</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>setting.parameter.greeting</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>schema &#39;requireText&#39; found</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>setting.parameter.greetingAddressee</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>schema &#39;requireText&#39; found</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>parameter.greeting</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>Pointer=global.config.appGreeting, Component=hello-world</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>parameter.greetingAddressee</td>
+
+    <td class="pass">
+
+        
+            ✅ PASS
+        
+
+    </td>
+
+    <td>Pointer=global.config.appGreetingAddressee, Component=hello-world</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>Validating Helm component &#39;hello-world&#39;</td>
+
+    <td class="fail">
+
+        
+            ❌ FAIL
+        
+
+    </td>
+
+    <td>Helm validation failed for component &#39;hello-world&#39; : oci unreachable: Error: invalid reference: invalid repository
+</td>
+
+</tr>
+
+
+
+</table>
+
+</body>
+</html>

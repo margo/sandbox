@@ -261,21 +261,21 @@ On each VM, you need to configure environment variables (settings that tell the 
    cd $HOME/workspace/sandbox/scripts
    ```
 
-3. **Start the device's Workload Fleet Management Client**
+2. **Start the device's Workload Fleet Management Client**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: Device-agent-Start(k3s-device)`
 
-4. **Check device status**
+3. **Check device status**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
 
-5. **View device logs**
+4. **View device logs**
    ```bash
    # View the logs (replace <pod-name> with actual pod name from above using #7)
    sudo kubectl logs -f <pod-name> -n default

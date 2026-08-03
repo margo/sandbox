@@ -254,75 +254,22 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    You should see log messages indicating the service is running. Press `Ctrl+C` to exit the logs.
 
-**On K3s Device VM:**
 
-1. **Navigate to the scripts folder**
-   ```bash
-   cd $HOME/workspace/sandbox/scripts
-   ```
-
-2. **Configure the domain/host(name) resolution in coredns**
-
-   The k3s based setups don't pick the changes from `/etc/hosts` system file, hence it is better to add hostname details in the the coredns config itself.
-
-   2.1. Fetch the coredns config first:
-   ```bash
-   sudo kubectl -n kube-system edit configmap coredns
-   ```
-
-   2.2. Then add only the highlighted lines in the `NodeHosts` section with your IP addresses in them and save:
-   ```yaml
-   apiVersion: v1
-   data:
-     Corefile: |
-       .:53 {
-         errors
-         health
-         ready
-         kubernetes cluster.local in-addr.arpa ip6.arpa {
-           pods insecure
-           fallthrough in-addr.arpa ip6.arpa
-         }
-         hosts /etc/coredns/NodeHosts {
-           ttl 60
-           reload 15s
-           fallthrough
-         }
-         prometheus :9153
-         forward . /etc/resolv.conf
-         cache 30
-         loop
-         reload
-         loadbalance
-         import /etc/coredns/custom/*.override
-       }
-       import /etc/coredns/custom/*.server
-     NodeHosts: |
-       20.11.000.000 harbor.machine # Newly added line to resolve harbor.machine
-       20.11.000.000 symphony.machine # Newly added line to resolve symphony.machine
-       10.0.0.11 margo-wfm-v10
-   ```
-
-   2.3. Then apply the changes:
-   ```bash
-   sudo kubectl -n kube-system rollout restart deployment coredns
-   ```
-
-3. **Start the device's Workload Fleet Management Client**
+2. **Start the device's Workload Fleet Management Client**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: Device-agent-Start(k3s-device)`
 
-4. **Check device status**
+3. **Check device status**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
 
-5. **View device logs**
+4. **View device logs**
    ```bash
    # View the logs (replace <pod-name> with actual pod name from above using #7)
    sudo kubectl logs -f <pod-name> -n default

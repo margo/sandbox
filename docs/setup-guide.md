@@ -254,22 +254,28 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    You should see log messages indicating the service is running. Press `Ctrl+C` to exit the logs.
 
+**On K3s Device VM:**
 
-2. **Start the device's Workload Fleet Management Client**
+1. **Navigate to the scripts folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts
+   ```
+
+3. **Start the device's Workload Fleet Management Client**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `5` and press Enter
    - Choose: `Option 5: Device-agent-Start(k3s-device)`
 
-3. **Check device status**
+4. **Check device status**
    ```bash
     sudo -E bash device-agent.sh k3s
    ```
    - Type `7` and press Enter
    - Choose: `Option 7: Device-agent-Status`
 
-4. **View device logs**
+5. **View device logs**
    ```bash
    # View the logs (replace <pod-name> with actual pod name from above using #7)
    sudo kubectl logs -f <pod-name> -n default

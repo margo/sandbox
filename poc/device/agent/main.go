@@ -51,9 +51,10 @@ func NewAgent(configPath string) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Debugw("printing database location from config", "dbDir", cfg.Database.DataDir)
 
 	// Create database
-	db := database.NewDatabase("data/")
+	db := database.NewDatabase(cfg.Database.DataDir)
 
 	// Prepare request editors (e.g., request signer) for WFM client
 	clientOptions := []wfm.HTTPApiClientOptions{}

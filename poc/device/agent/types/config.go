@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -47,11 +48,16 @@ const (
 // Config struct
 type Config struct {
 	Logging            LoggingConfig               `yaml:"logging"            validate:"required"`
+	Database           DatabaseConfig              `yaml:"database"           validate:"required"`
 	DeviceRootIdentity DeviceRootIdentity          `yaml:"deviceRootIdentity" validate:"required"`
 	Wfm                WFMConfig                   `yaml:"wfm"                validate:"required"`
 	StateSeeking       StateSeekingConfig          `yaml:"stateSeeking"       validate:"required"`
 	Capabilities       CapabilitiesDiscoveryConfig `yaml:"capabilities"       validate:"required"`
 	Runtimes           []RuntimeInfo               `yaml:"runtimes"           validate:"required"`
+}
+
+type DatabaseConfig struct {
+	DataDir string `yaml:"dataDir" validate:"required"`
 }
 
 type StateSeekingConfig struct {
@@ -164,6 +170,10 @@ func validateConfig(config *Config) error {
 	if err := v.Struct(config); err != nil {
 		// Return the validator error directly so caller can inspect validation failures
 		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	if config.Database.DataDir == "" {
+		return errors.New("database.dataDir is required in configuration")
 	}
 
 	// logging.level must be present

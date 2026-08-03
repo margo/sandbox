@@ -1,6 +1,8 @@
 logging:
   # Log level (e.g., DEBUG, INFO, WARN, ERROR, FATAL)
   level: DEBUG
+database:
+  dataDir: "/var/lib/margo/device-agent/data" # directory where databse data is stored.
 
 # The device's root identity/attestation used for onboarding/registration of this device client with WFM (for auto-onboarding).
 deviceRootIdentity:

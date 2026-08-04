@@ -6,7 +6,6 @@ import (
     "path/filepath"
     "regexp"
     "time"
-
     "gopkg.in/yaml.v3"
 )
 
@@ -190,6 +189,7 @@ reportFile := filepath.Join(
 report := NewValidationReport()
 
 report.ApplicationName = app.Metadata.Name
+report.ApplicationVersion = app.Metadata.Version
 
 if report.ApplicationName == "" {
     report.ApplicationName = app.ID
@@ -244,11 +244,13 @@ fmt.Println(
             for _, component :=
                 range profile.Components {
 
-               report.Check(
+report.Check(
     fmt.Sprintf(
         "Validating Helm component '%s'",
         component.Name,
     ),
+    "network",
+    "Helm repository reachable",
 )
 
               err := ValidateHelmComponent(
@@ -257,13 +259,14 @@ fmt.Println(
 
 if err != nil {
 
-    report.Fail(
-        fmt.Sprintf(
-            "Helm validation failed for component '%s' : %v",
-            component.Name,
-            err,
-        ),
-    )
+report.Fail(
+    "unreachable",
+    fmt.Sprintf(
+        "Helm validation failed for component '%s' : %v",
+        component.Name,
+        err,
+    ),
+)
 
     fmt.Println(
         "FAIL:",
@@ -274,6 +277,7 @@ if err != nil {
 }
 
 report.Pass(
+    "reachable",
     fmt.Sprintf(
         "Helm repository reachable for component '%s'",
         component.Name,
@@ -297,13 +301,11 @@ fmt.Println(
                 location :=
                     component.Properties["packageLocation"].(string)
 
-                report.Check(
-    fmt.Sprintf(
-        "Validating packageLocation '%s'",
-        location,
-    ),
+               report.Check(
+    "compose.packageLocation",
+    "network",
+    "Package location reachable",
 )
-
 
                err := CheckPackageLocation(
     location,
@@ -312,12 +314,13 @@ fmt.Println(
 if err != nil {
 
     report.Fail(
-        fmt.Sprintf(
-            "packageLocation unreachable for component '%s' : %v",
-            component.Name,
-            err,
-        ),
-    )
+    "unreachable",
+    fmt.Sprintf(
+        "packageLocation unreachable for component '%s' : %v",
+        component.Name,
+        err,
+    ),
+)
 
     fmt.Println(
         "FAIL:",
@@ -328,6 +331,7 @@ if err != nil {
 }
 
 report.Pass(
+    location,
     fmt.Sprintf(
         "packageLocation reachable for component '%s'",
         component.Name,

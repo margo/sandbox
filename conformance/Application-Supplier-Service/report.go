@@ -1,20 +1,27 @@
 package main
 
 import (
+    "fmt"
     "html/template"
     "os"
+    "time"
 )
 
 type ValidationEntry struct {
-    Validate string
-    Details  string
-    Status   string
+    Field       string
+    Status      string
+    Type        string
+    Rule        string
+    ActualValue string
+    Remarks     string
 }
 
+
 type ValidationReport struct {
-    Entries []ValidationEntry
-    Status  string
-    ApplicationName string
+    Entries            []ValidationEntry
+    Status             string
+    ApplicationName    string
+    ApplicationVersion string
 }
 
 const reportTemplate = `
@@ -23,28 +30,40 @@ const reportTemplate = `
 
 <head>
 <meta charset="UTF-8">
-<title>Application Conformance Report</title>
+<title>Application Supplier Conformance Test Report</title>
 
 <style>
 
 body {
     font-family: Arial, sans-serif;
-    margin: 20px;
+    margin: 0;
     background: #f5f5f5;
 }
 
 .header {
     background: #333;
     color: white;
-    padding: 20px;
-    border-radius: 5px;
+    padding: 30px;
+}
+
+.header h1 {
+    margin: 0 0 30px 0;
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.header p {
+    font-size: 18px;
+    margin: 10px 0;
 }
 
 .summary {
-    margin: 20px 0;
+    padding: 20px;
     background: white;
-    padding: 15px;
-    border-radius: 5px;
+}
+
+.summary h2 {
+    margin-top: 0;
 }
 
 .pass {
@@ -57,36 +76,52 @@ body {
     font-weight: bold;
 }
 
-.validate {
-    color: #007bff;
-    font-weight: bold;
-}
-
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
     background: white;
 }
 
 th,
 td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+    border: 1px solid #ddd;
+    padding: 12px;
+    vertical-align: middle;
 }
 
 th {
     background: #f2f2f2;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: left;
 }
 
-.result-pass {
+.status-cell {
+    text-align: center;
+    min-width: 90px;
+}
+
+.pass-icon {
     color: green;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.pass-text {
+    color: green;
+    font-size: 16px;
     font-weight: bold;
 }
 
-.result-fail {
+.fail-icon {
     color: red;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.fail-text {
+    color: red;
+    font-size: 16px;
     font-weight: bold;
 }
 
@@ -98,33 +133,47 @@ th {
 
 <div class="header">
 
-    <h1>Application Conformance Report</h1>
+    <h1>
+        Application Supplier Conformance Test Report
+    </h1>
 
     <p>
         <strong>Application:</strong>
         {{.ApplicationName}}
     </p>
 
+    <p>
+        <strong>Application Version:</strong>
+        {{.ApplicationVersion}}
+    </p>
+
+    <p>
+        <strong>Generated:</strong>
+        {{now}}
+    </p>
+
 </div>
 
 <div class="summary">
 
-    <h2>Validation Summary</h2>
+    <h2>Summary</h2>
 
     <p>
-        <strong>Total Entries:</strong>
-        {{len .Entries}}
+        Total Checks: {{len .Entries}}
+        |
+        <span class="pass">
+            ✅ Passed: {{passedCount .Entries}}
+        </span>
+        |
+        <span class="fail">
+            ❌ Failed: {{failedCount .Entries}}
+        </span>
     </p>
 
     <p>
-        <strong>Final Result:</strong>
-
-        {{if eq .Status "PASSED"}}
-            <span class="result-pass">✅ PASSED</span>
-        {{else}}
-            <span class="result-fail">❌ FAILED</span>
-        {{end}}
-
+        <strong>
+            Success Rate: {{successRate .Entries}}%
+        </strong>
     </p>
 
 </div>
@@ -132,30 +181,40 @@ th {
 <table>
 
 <tr>
-    <th>Validate</th>
+    <th>Field</th>
     <th>Status</th>
-    <th>Details</th>
+    <th>Type</th>
+    <th>Validation Rule (Expected)</th>
+    <th>Actual Value</th>
+    <th>Remarks</th>
 </tr>
 
 {{range .Entries}}
 
 <tr>
 
-    <td>{{.Validate}}</td>
+    <td>{{.Field}}</td>
 
-    <td class="{{lower .Status}}">
+    <td class="status-cell">
 
         {{if eq .Status "PASS"}}
-            ✅ PASS
+            <div class="pass-icon">✅</div>
+            <div class="pass-text">PASS</div>
+
         {{else if eq .Status "FAIL"}}
-            ❌ FAIL
+            <div class="fail-icon">❌</div>
+            <div class="fail-text">FAIL</div>
+
         {{else}}
-            -
+            {{.Status}}
         {{end}}
 
     </td>
 
-    <td>{{.Details}}</td>
+    <td>{{.Type}}</td>
+    <td>{{.Rule}}</td>
+    <td>{{.ActualValue}}</td>
+    <td>{{.Remarks}}</td>
 
 </tr>
 
@@ -182,10 +241,10 @@ func (r *ValidationReport) Log(
     r.Entries = append(
         r.Entries,
         ValidationEntry{
-            Validate: validate,
-            Details:  details,
-            Status:   status,
-        },
+    Field:   validate,
+    Remarks: details,
+    Status:  status,
+},
     )
 
     if status == "FAIL" {
@@ -193,52 +252,151 @@ func (r *ValidationReport) Log(
     }
 }
 
-func (r *ValidationReport) Check(msg string) {
+func (r *ValidationReport) Check(
+    field string,
+    dataType string,
+    expected string,
+) {
+
     r.Entries = append(
         r.Entries,
         ValidationEntry{
-            Validate: msg,
+            Field:    field,
+            Type:     dataType,
+            Rule:     expected,
         },
     )
 }
 
 
-func (r *ValidationReport) Pass(msg string) {
+func (r *ValidationReport) Pass(
+    actual string,
+    details string,
+) {
 
-    if len(r.Entries) > 0 {
-
-        r.Entries[len(r.Entries)-1].Status = "PASS"
-        r.Entries[len(r.Entries)-1].Details = msg
-
+    if len(r.Entries) == 0 {
         return
     }
+
+    last :=
+        &r.Entries[len(r.Entries)-1]
+
+    last.Status = "PASS"
+    last.ActualValue = actual
+    last.Remarks = details
 }
 
-func (r *ValidationReport) Fail(msg string) {
+func (r *ValidationReport) Fail(
+    actual string,
+    details string,
+) {
 
-    if len(r.Entries) > 0 {
-
-        r.Entries[len(r.Entries)-1].Status = "FAIL"
-        r.Entries[len(r.Entries)-1].Details = msg
-
+    if len(r.Entries) == 0 {
+        return
     }
+
+    last :=
+        &r.Entries[len(r.Entries)-1]
+
+    last.Status = "FAIL"
+    last.ActualValue = actual
+    last.Remarks = details
 
     r.Status = "FAILED"
 }
 
 
 
-func (r *ValidationReport) GenerateHTMLReport(file string) error {
+func (r ValidationReport) GenerateHTMLReport(
+    file string,
+) error {
+
     funcMap := template.FuncMap{
+
         "lower": func(s string) string {
+
             switch s {
+
             case "PASS":
                 return "pass"
+
             case "FAIL":
                 return "fail"
+
             default:
-                return "Validate"
+                return "validate"
             }
+        },
+
+        "now": func() string {
+
+            return time.Now().
+                UTC().
+                Format(
+                    "2006-01-02T15:04:05Z",
+                )
+        },
+
+        "passedCount": func(
+            entries []ValidationEntry,
+        ) int {
+
+            count := 0
+
+            for _, e := range entries {
+
+                if e.Status == "PASS" {
+                    count++
+                }
+            }
+
+            return count
+        },
+
+        "failedCount": func(
+            entries []ValidationEntry,
+        ) int {
+
+            count := 0
+
+            for _, e := range entries {
+
+                if e.Status == "FAIL" {
+                    count++
+                }
+            }
+
+            return count
+        },
+
+        "successRate": func(
+            entries []ValidationEntry,
+        ) string {
+
+            total := 0
+            passed := 0
+
+            for _, e := range entries {
+
+                if e.Status == "PASS" ||
+                    e.Status == "FAIL" {
+
+                    total++
+
+                    if e.Status == "PASS" {
+                        passed++
+                    }
+                }
+            }
+
+            if total == 0 {
+                return "0.0"
+            }
+
+            return fmt.Sprintf(
+                "%.1f",
+                float64(passed)*100/float64(total),
+            )
         },
     }
 
@@ -249,6 +407,7 @@ func (r *ValidationReport) GenerateHTMLReport(file string) error {
     )
 
     f, err := os.Create(file)
+
     if err != nil {
         return err
     }

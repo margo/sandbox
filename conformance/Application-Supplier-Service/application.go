@@ -65,7 +65,7 @@ func validateTopLevel(
         fail(
             report,
             "(missing)",
-            "Application version information is missing.",
+            "API version is required but was not provided.",
         )
 
     } else {
@@ -73,10 +73,7 @@ func validateTopLevel(
         pass(
             report,
             app.APIVersion,
-            fmt.Sprintf(
-                "Application version '%s' conforms to the required format.",
-                app.APIVersion,
-            ),
+            "API version conforms to the required specification.",
         )
     }
 
@@ -92,7 +89,7 @@ func validateTopLevel(
         fail(
             report,
             "(missing)",
-            "Application type is missing.",
+            "Application type is required but was not provided.",
         )
 
     } else if app.Kind != "ApplicationDescription" {
@@ -100,10 +97,7 @@ func validateTopLevel(
         fail(
             report,
             app.Kind,
-            fmt.Sprintf(
-                "Application type must be 'ApplicationDescription'. Found '%s'.",
-                app.Kind,
-            ),
+            "Application type does not conform to the required baseline. Expected 'ApplicationDescription'.",
         )
 
     } else {
@@ -111,10 +105,7 @@ func validateTopLevel(
         pass(
             report,
             app.Kind,
-            fmt.Sprintf(
-                "Application type is valid. Found '%s'.",
-                app.Kind,
-            ),
+            "Application type conforms to the required baseline.",
         )
     }
 
@@ -134,7 +125,7 @@ func validateTopLevel(
         fail(
             report,
             "(missing)",
-            "Application identifier is required.",
+            "Application identifier is required but was not provided.",
         )
 
     } else if !re.MatchString(app.ID) {
@@ -142,10 +133,7 @@ func validateTopLevel(
         fail(
             report,
             app.ID,
-            fmt.Sprintf(
-                "Application ID format is invalid. Value='%s'.",
-                app.ID,
-            ),
+            "Application identifier does not conform to the required naming convention.",
         )
 
     } else {
@@ -153,10 +141,7 @@ func validateTopLevel(
         pass(
             report,
             app.ID,
-            fmt.Sprintf(
-                "Application ID '%s' is valid.",
-                app.ID,
-            ),
+            "Application identifier conforms to the required naming convention.",
         )
     }
 
@@ -180,7 +165,7 @@ func validateDeploymentProfiles(
         fail(
             report,
             "0 deployment profile(s)",
-            "At least one deployment profile must be provided.",
+            "At least one deployment profile is required.",
         )
 
     } else {
@@ -191,10 +176,7 @@ func validateDeploymentProfiles(
                 "%d deployment profile(s)",
                 len(app.DeploymentProfile),
             ),
-            fmt.Sprintf(
-                "%d deployment profile(s) found.",
-                len(app.DeploymentProfile),
-            ),
+            "Deployment profile configuration conforms to the required baseline.",
         )
     }
 
@@ -214,7 +196,7 @@ func validateDeploymentProfiles(
             fail(
                 report,
                 "(missing)",
-                "Deployment profile type is missing.",
+                "Deployment profile type is required but was not provided.",
             )
 
         } else if profile.Type != "helm" &&
@@ -223,10 +205,7 @@ func validateDeploymentProfiles(
             fail(
                 report,
                 profile.Type,
-                fmt.Sprintf(
-                    "Deployment type '%s' is not supported. Use 'helm' or 'compose'.",
-                    profile.Type,
-                ),
+                "Deployment profile type does not conform to the supported deployment specifications.",
             )
 
         } else {
@@ -234,10 +213,7 @@ func validateDeploymentProfiles(
             pass(
                 report,
                 profile.Type,
-                fmt.Sprintf(
-                    "Deployment profile type '%s' is valid.",
-                    profile.Type,
-                ),
+                "Deployment profile type conforms to the supported deployment specifications.",
             )
         }
 
@@ -253,7 +229,7 @@ func validateDeploymentProfiles(
             fail(
                 report,
                 "(missing)",
-                "Deployment profile identifier is missing.",
+                "Deployment profile identifier is required but was not provided.",
             )
 
         } else {
@@ -261,11 +237,7 @@ func validateDeploymentProfiles(
             pass(
                 report,
                 profile.ID,
-                fmt.Sprintf(
-                    "Deployment profile '%s' is configured using '%s'.",
-                    profile.ID,
-                    profile.Type,
-                ),
+                "Deployment profile configuration conforms to the defined specification.",
             )
         }
 
@@ -274,10 +246,7 @@ func validateDeploymentProfiles(
             fail(
                 report,
                 "0 component(s)",
-                fmt.Sprintf(
-                    "deploymentProfile '%s' has no components.",
-                    profile.ID,
-                ),
+                "Deployment profile does not contain any component definitions.",
             )
         }
 
@@ -295,7 +264,7 @@ func validateDeploymentProfiles(
                 fail(
                     report,
                     "(missing)",
-                    "A component name is missing.",
+                    "Component name is required but was not provided.",
                 )
 
             } else {
@@ -305,10 +274,7 @@ func validateDeploymentProfiles(
                 pass(
                     report,
                     component.Name,
-                    fmt.Sprintf(
-                        "Component '%s' is configured.",
-                        component.Name,
-                    ),
+                    "Component configuration conforms to the defined specification.",
                 )
             }
 
@@ -317,10 +283,7 @@ func validateDeploymentProfiles(
                 fail(
                     report,
                     "0 properties",
-                    fmt.Sprintf(
-                        "Configuration details are missing for component '%s'.",
-                        component.Name,
-                    ),
+                    "Component configuration properties are not defined.",
                 )
             }
 
@@ -341,10 +304,7 @@ func validateDeploymentProfiles(
                     fail(
                         report,
                         "(missing)",
-                        fmt.Sprintf(
-                            "Repository information is missing for component '%s'.",
-                            component.Name,
-                        ),
+                        "Repository configuration is required but was not provided.",
                     )
 
                 } else {
@@ -352,10 +312,7 @@ func validateDeploymentProfiles(
                     pass(
                         report,
                         fmt.Sprintf("%v", repository),
-                        fmt.Sprintf(
-                            "Repository information is available for component '%s'.",
-                            component.Name,
-                        ),
+                        "Repository configuration conforms to the deployment requirements.",
                     )
                 }
 
@@ -374,10 +331,7 @@ func validateDeploymentProfiles(
                     fail(
                         report,
                         "(missing)",
-                        fmt.Sprintf(
-                            "Revision information is missing for component '%s'.",
-                            component.Name,
-                        ),
+                        "Revision information is required but was not provided.",
                     )
 
                 } else {
@@ -385,10 +339,7 @@ func validateDeploymentProfiles(
                     pass(
                         report,
                         fmt.Sprintf("%v", revision),
-                        fmt.Sprintf(
-                            "Revision information is available for component '%s'.",
-                            component.Name,
-                        ),
+                        "Revision information conforms to the deployment requirements.",
                     )
                 }
             }
@@ -410,10 +361,7 @@ func validateDeploymentProfiles(
                     fail(
                         report,
                         "(missing)",
-                        fmt.Sprintf(
-                            "Package location is missing for component '%s'.",
-                            component.Name,
-                        ),
+                        "Package location is required but was not provided.",
                     )
 
                 } else {
@@ -421,10 +369,7 @@ func validateDeploymentProfiles(
                     pass(
                         report,
                         fmt.Sprintf("%v", packageLocation),
-                        fmt.Sprintf(
-                            "Package location is configured for component '%s'.",
-                            component.Name,
-                        ),
+                        "Package location conforms to the deployment requirements.",
                     )
                 }
             }
@@ -456,7 +401,7 @@ func validateSchemas(
             fail(
                 report,
                 "(missing)",
-                "Schema name is missing.",
+                "Schema name is required but was not provided.",
             )
 
         } else if schema.DataType == "" {
@@ -465,7 +410,7 @@ func validateSchemas(
                 report,
                 "(missing)",
                 fmt.Sprintf(
-                    "Data type is missing for schema '%s'.",
+                    "Schema '%s' does not define a data type.",
                     schema.Name,
                 ),
             )
@@ -478,7 +423,7 @@ func validateSchemas(
                 report,
                 schema.Name,
                 fmt.Sprintf(
-                    "Schema '%s' is configured correctly. DataType='%s', AllowEmpty=%t.",
+                    "Schema '%s' conforms to the defined specification. Data type='%s', AllowEmpty=%t.",
                     schema.Name,
                     schema.DataType,
                     schema.AllowEmpty,
@@ -509,10 +454,7 @@ func validateConfiguration(
         pass(
             report,
             section.Name,
-            fmt.Sprintf(
-                "Configuration section '%s' has been identified.",
-                section.Name,
-            ),
+            "Configuration section has been successfully identified.",
         )
 
         for _, setting := range section.Settings {
@@ -534,7 +476,7 @@ func validateConfiguration(
                     report,
                     setting.Parameter,
                     fmt.Sprintf(
-                        "Configuration uses parameter '%s', but that parameter is not defined.",
+                        "Referenced parameter '%s' is not defined.",
                         setting.Parameter,
                     ),
                 )
@@ -545,7 +487,7 @@ func validateConfiguration(
                     report,
                     setting.Parameter,
                     fmt.Sprintf(
-                        "Parameter '%s' is available.",
+                        "Parameter '%s' conforms to the defined specification.",
                         setting.Parameter,
                     ),
                 )
@@ -569,7 +511,7 @@ func validateConfiguration(
                         report,
                         setting.Schema,
                         fmt.Sprintf(
-                            "Schema '%s' is referenced but not defined.",
+                            "Referenced schema '%s' is not defined.",
                             setting.Schema,
                         ),
                     )
@@ -580,7 +522,7 @@ func validateConfiguration(
                         report,
                         setting.Schema,
                         fmt.Sprintf(
-                            "Schema '%s' is available.",
+                            "Schema '%s' conforms to the defined specification.",
                             setting.Schema,
                         ),
                     )
@@ -607,44 +549,42 @@ func validateParameterTargets(
             for _, component :=
                 range target.Components {
 
-                check(
-                    report,
-                    fmt.Sprintf(
-                        "parameter.%s",
-                        parameterName,
-                    ),
-                    "reference",
-                    "Must match a deployment component",
-                )
-
-                if !componentNames[component] {
-
-                    fail(
+                    check(
                         report,
-                        component,
                         fmt.Sprintf(
-                            "Parameter '%s' references component '%s', but that component is not defined.",
+                            "parameter.%s",
                             parameterName,
-                            component,
                         ),
+                        "reference",
+                        "Must match a deployment component",
                     )
 
-                } else {
+                    if !componentNames[component] {
 
-                    pass(
-                        report,
-                        component,
-                        fmt.Sprintf(
-                            "Parameter '%s' is successfully mapped to component '%s'. Pointer=%s",
-                            parameterName,
+                        fail(
+                            report,
                             component,
-                            target.Pointer,
-                        ),
-                    )
+                            fmt.Sprintf(
+                                "Parameter '%s' references a component that does not conform to the defined deployment configuration.",
+                                parameterName,
+                            ),
+                        )
+
+                    } else {
+
+                        pass(
+                            report,
+                            component,
+                            fmt.Sprintf(
+                                "Parameter '%s' conforms to the defined component mapping requirements. Pointer='%s'.",
+                                parameterName,
+                                target.Pointer,
+                            ),
+                        )
+                    }
                 }
             }
         }
-    }
 
     return nil
 }
@@ -666,7 +606,7 @@ func validateMetadata(
         fail(
             report,
             "(missing)",
-            "Application name is missing.",
+            "Application name is required but was not provided.",
         )
 
     } else {
@@ -674,10 +614,7 @@ func validateMetadata(
         pass(
             report,
             app.Metadata.Name,
-            fmt.Sprintf(
-                "Application name '%s' conforms to the required format.",
-                app.Metadata.Name,
-            ),
+            "Application name conforms to the required specification.",
         )
     }
 
@@ -693,7 +630,7 @@ func validateMetadata(
         fail(
             report,
             "(missing)",
-            "Application version is missing.",
+            "Application version is required but was not provided.",
         )
 
     } else {
@@ -701,10 +638,7 @@ func validateMetadata(
         pass(
             report,
             app.Metadata.Version,
-            fmt.Sprintf(
-                "Application version '%s' conforms to the required format.",
-                app.Metadata.Version,
-            ),
+            "Application version conforms to the required specification.",
         )
     }
 
@@ -720,7 +654,7 @@ func validateMetadata(
         fail(
             report,
             "0 organization(s)",
-            "At least one organization must be specified in the catalog.",
+            "At least one organization definition is required.",
         )
 
     } else {
@@ -731,10 +665,7 @@ func validateMetadata(
                 "%d organization(s)",
                 len(app.Metadata.Catalog.Organization),
             ),
-            fmt.Sprintf(
-                "%d organization(s) found in catalog.",
-                len(app.Metadata.Catalog.Organization),
-            ),
+            "Organization information conforms to the required specification.",
         )
     }
 
@@ -752,7 +683,7 @@ func validateMetadata(
             fail(
                 report,
                 "(missing)",
-                "An organization name must be provided.",
+                "Organization name is required but was not provided.",
             )
 
         } else {
@@ -760,10 +691,7 @@ func validateMetadata(
             pass(
                 report,
                 org.Name,
-                fmt.Sprintf(
-                    "Organization '%s' is registered in the catalog.",
-                    org.Name,
-                ),
+                "Organization information conforms to the required specification.",
             )
         }
     }

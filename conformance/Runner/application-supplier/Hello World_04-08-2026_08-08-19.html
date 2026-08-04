@@ -123,7 +123,7 @@ th {
 
     <p>
         <strong>Generated:</strong>
-        2026-08-04T07:02:46Z
+        2026-08-04T08:08:19Z
     </p>
 
 </div>
@@ -155,7 +155,7 @@ th {
 <table>
 
 <tr>
-    <th>Field</th>
+    <th>Application Description Attribute</th>
     <th>Status</th>
     <th>Type</th>
     <th>Validation Rule (Expected)</th>
@@ -182,7 +182,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>(missing)</td>
-    <td>Application version is required but was not provided.</td>
+    <td>API version is required but was not provided.</td>
 
 </tr>
 
@@ -205,7 +205,7 @@ th {
     <td>string</td>
     <td>ApplicationDescription</td>
     <td>ApplicationDescription</td>
-    <td>Application type conforms to the required value &#39;ApplicationDescription&#39;.</td>
+    <td>Application type conforms to the required baseline.</td>
 
 </tr>
 
@@ -228,7 +228,7 @@ th {
     <td>string</td>
     <td>lowercase letters, numbers and dashes only, max length=200</td>
     <td>com-northstartida-hello-world</td>
-    <td>Application identifier conforms to the specified pattern.</td>
+    <td>Application identifier conforms to the required naming convention.</td>
 
 </tr>
 
@@ -251,7 +251,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>Hello World</td>
-    <td>Application name &#39;Hello World&#39; conforms to the required format.</td>
+    <td>Application name conforms to the required specification.</td>
 
 </tr>
 
@@ -274,7 +274,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>1.0</td>
-    <td>Application version &#39;1.0&#39; conforms to the required format.</td>
+    <td>Application version conforms to the required specification.</td>
 
 </tr>
 
@@ -297,7 +297,7 @@ th {
     <td>array</td>
     <td>At least one organization</td>
     <td>1 organization(s)</td>
-    <td>1 organization(s) found in catalog.</td>
+    <td>Organization information conforms to the required specification.</td>
 
 </tr>
 
@@ -320,7 +320,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>Northstar Industrial Applications</td>
-    <td>Organization &#39;Northstar Industrial Applications&#39; is registered in the catalog.</td>
+    <td>Organization information conforms to the required specification.</td>
 
 </tr>
 
@@ -343,7 +343,7 @@ th {
     <td>array</td>
     <td>At least one deployment profile</td>
     <td>1 deployment profile(s)</td>
-    <td>1 deployment profile(s) found.</td>
+    <td>Deployment profile configuration conforms to the required baseline.</td>
 
 </tr>
 
@@ -389,7 +389,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>com-northstartida-hello-world-helm-a</td>
-    <td>Deployment profile &#39;com-northstartida-hello-world-helm-a&#39; is configured using &#39;helm&#39;.</td>
+    <td>Deployment profile configuration conforms to the defined specification.</td>
 
 </tr>
 
@@ -412,7 +412,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>hello-world</td>
-    <td>Component &#39;hello-world&#39; is configured.</td>
+    <td>Component configuration conforms to the defined specification.</td>
 
 </tr>
 
@@ -435,7 +435,7 @@ th {
     <td>string</td>
     <td>Repository URL required</td>
     <td>oci://northstarida.azurecr.io/charts/hello-world</td>
-    <td>Repository configuration has been successfully verified.</td>
+    <td>Repository configuration conforms to the deployment requirements.</td>
 
 </tr>
 
@@ -458,7 +458,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>1.0.1</td>
-    <td>Revision information is available for component &#39;hello-world&#39;.</td>
+    <td>Revision information conforms to the deployment requirements.</td>
 
 </tr>
 
@@ -481,7 +481,7 @@ th {
     <td>string</td>
     <td>name and dataType required</td>
     <td>requireText</td>
-    <td>Schema &#39;requireText&#39; is configured correctly. DataType=&#39;string&#39;, AllowEmpty=false.</td>
+    <td>Schema &#39;requireText&#39; conforms to the defined specification. Data type=&#39;string&#39;, AllowEmpty=false.</td>
 
 </tr>
 
@@ -504,7 +504,7 @@ th {
     <td>string</td>
     <td>Required (non-empty)</td>
     <td>General Settings</td>
-    <td>Configuration section &#39;General Settings&#39; has been identified.</td>
+    <td>Configuration section has been successfully identified.</td>
 
 </tr>
 
@@ -527,7 +527,7 @@ th {
     <td>reference</td>
     <td>Must match a parameter definition</td>
     <td>greeting</td>
-    <td>Parameter &#39;greeting&#39; is available.</td>
+    <td>Parameter &#39;greeting&#39; conforms to the defined specification.</td>
 
 </tr>
 
@@ -550,7 +550,7 @@ th {
     <td>reference</td>
     <td>Must match a schema definition</td>
     <td>requireText</td>
-    <td>Schema &#39;requireText&#39; is available.</td>
+    <td>Schema &#39;requireText&#39; conforms to the defined specification.</td>
 
 </tr>
 
@@ -573,7 +573,7 @@ th {
     <td>reference</td>
     <td>Must match a parameter definition</td>
     <td>greetingAddressee</td>
-    <td>Parameter &#39;greetingAddressee&#39; is available.</td>
+    <td>Parameter &#39;greetingAddressee&#39; conforms to the defined specification.</td>
 
 </tr>
 
@@ -596,30 +596,7 @@ th {
     <td>reference</td>
     <td>Must match a schema definition</td>
     <td>requireText</td>
-    <td>Schema &#39;requireText&#39; is available.</td>
-
-</tr>
-
-
-
-<tr>
-
-    <td>parameter.greetingAddressee</td>
-
-    <td class="status-cell">
-
-        
-            <div class="pass-icon">✅</div>
-            <div class="pass-text">PASS</div>
-
-        
-
-    </td>
-
-    <td>reference</td>
-    <td>Must match a deployment component</td>
-    <td>hello-world</td>
-    <td>Parameter &#39;greetingAddressee&#39; is successfully mapped to component &#39;hello-world&#39;. Pointer=global.config.appGreetingAddressee</td>
+    <td>Schema &#39;requireText&#39; conforms to the defined specification.</td>
 
 </tr>
 
@@ -642,7 +619,30 @@ th {
     <td>reference</td>
     <td>Must match a deployment component</td>
     <td>hello-world</td>
-    <td>Parameter &#39;greeting&#39; is successfully mapped to component &#39;hello-world&#39;. Pointer=global.config.appGreeting</td>
+    <td>Parameter &#39;greeting&#39; conforms to the defined component mapping requirements. Pointer=&#39;global.config.appGreeting&#39;.</td>
+
+</tr>
+
+
+
+<tr>
+
+    <td>parameter.greetingAddressee</td>
+
+    <td class="status-cell">
+
+        
+            <div class="pass-icon">✅</div>
+            <div class="pass-text">PASS</div>
+
+        
+
+    </td>
+
+    <td>reference</td>
+    <td>Must match a deployment component</td>
+    <td>hello-world</td>
+    <td>Parameter &#39;greetingAddressee&#39; conforms to the defined component mapping requirements. Pointer=&#39;global.config.appGreetingAddressee&#39;.</td>
 
 </tr>
 

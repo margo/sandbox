@@ -181,7 +181,7 @@ th {
 <table>
 
 <tr>
-    <th>Field</th>
+    <th>Application Description Attribute</th>
     <th>Status</th>
     <th>Type</th>
     <th>Validation Rule (Expected)</th>

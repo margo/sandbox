@@ -1,14 +1,14 @@
 # Default owners for everything
-* @singhmj-1 @vireshnavalli
+* @singhmj-1 @vireshnavalli @spulkit138 
 
 # Infra and scripts directory (CI/CD)
-/scripts/ @nitparihar @sanjujunnuthula
-/.github/ @nitparihar @sanjujunnuthula
-/helmchart @nitparihar @sanjujunnuthula
-/docker-compose @nitparihar @sanjujunnuthula
+/scripts/ @nitparihar @sanjujunnuthula @rishabhrai9616
+/.github/ @nitparihar @sanjujunnuthula @rishabhrai9616
+/helmchart @nitparihar @sanjujunnuthula @rishabhrai9616
+/docker-compose @nitparihar @sanjujunnuthula @rishabhrai9616
 
 # All testing directories
-**/testing/ @nitparihar @sanjujunnuthula
+**/testing/ @nitparihar @sanjujunnuthula @rishabhrai9616
 
 # Root LICENSE file
 /LICENSE @ajcraig @phil-abb

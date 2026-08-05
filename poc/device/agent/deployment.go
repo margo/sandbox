@@ -240,7 +240,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 	profileType := appDeployment.Spec.DeploymentProfile.Type
 
 	switch profileType {
-	case sbi.Helm:
+	case sbi.AppDeploymentProfileTypeHelm:
 		//  Check if Helm client is available
 		if dm.helmClient == nil {
 			err = fmt.Errorf(
@@ -250,7 +250,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 			err = dm.deployOrUpdateHelm(ctx, deploymentId, appDeployment)
 		}
 
-	case sbi.Compose:
+	case sbi.AppDeploymentProfileTypeCompose:
 		// Check if Compose client is available
 		if dm.composeClient == nil {
 			err = fmt.Errorf(
@@ -615,9 +615,9 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 	var removeErr error
 	switch profileType {
-	case sbi.Helm:
+	case sbi.AppDeploymentProfileTypeHelm:
 		removeErr = dm.removeHelm(ctx, deploymentId, appDeployment)
-	case sbi.Compose:
+	case sbi.AppDeploymentProfileTypeCompose:
 		removeErr = dm.removeCompose(ctx, deploymentId, appDeployment)
 	default:
 		dm.log.Warnw(

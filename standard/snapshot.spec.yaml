@@ -1,7 +1,7 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Margo Workload Management API
-  version: 1.0.0
+  version: 1.0.0-rc.2
   description: 
     API for managing workloads on Margo-compliant edge devices.
     Includes the APIs for exchanging desired state and current state.
@@ -10,7 +10,7 @@ info:
 
 servers:
   - url: https://wfm.margo.org/
-    description: Workload Fleet Manager API
+    description: Workload Fleet Manager APIs
 
 security:
   - PayloadSignature: []
@@ -403,8 +403,7 @@ components:
         Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1].
         Prevents rollback attacks. The first manifest MUST use 1.
     DeploymentBundleRef:
-      type: object
-      nullable: true
+      type: [object, 'null']
       description: >
         Describes a single archive containing all ApplicationDeployment documents. If there are zero deployments (deployments array is empty) the property MUST be present with the value null (it MUST NOT be omitted).
       properties:
@@ -471,6 +470,13 @@ components:
     DeviceCapabilitiesManifest:
       type: object
       required: [apiVersion, kind, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         apiVersion:
           type: string
@@ -479,7 +485,13 @@ components:
           enum: [DeviceCapabilitiesManifest]
         properties:
           type: object
-          required: [id, vendor, modelNumber, serialNumber, cpu, memory, storage, otelCollector, supportedRuntimes, supportedDeploymentTypes ] 
+          required: [id, vendor, modelNumber, serialNumber]
+          # Only identity fields are required. A device that hosts workloads reports cpus, memory,
+          # storage, peripherals, interfaces, otelCollector (true), supportedRuntimes (>=1), and
+          # supportedDeploymentTypes (>=1). A device that does not host workloads (e.g. a see-thru
+          # gateway that only relays the devices behind it) omits those fields.
+          # The WFM infers it is non-hosting from their absence and infers a
+          # gateway from the parent/child deviceId hierarchy.
           properties:
             id:
               $ref: '#/components/schemas/DeviceId'
@@ -489,59 +501,43 @@ components:
               type: string
             serialNumber:
               type: string
-            cpu:
+            cpus:
               type: array
-              minItems: 1
-              description: List of CPU entries available on the device.
               items:
                 type: object
-                required: [cores, architecture]
+                required: [cores]
                 properties:
                   cores:
-                    type: integer
-                    description: Number of CPU cores.
+                    type: number
                   architecture:
                     type: string
                     enum: [amd64, arm64, arm]
-                    description: CPU architecture.
             memory:
               type: string
-              description: Total memory available on the device (e.g. "59 Gi").
             storage:
               type: string
-              description: Total storage available on the device (e.g. "1862 Gi").
             peripherals:
               type: array
-              description: Peripherals present on the device.
               items:
                 $ref: '#/components/schemas/DevicePeripheral'
             interfaces:
               type: array
-              description: Communication interfaces present on the device.
               items:
                 $ref: '#/components/schemas/DeviceCommunicationInterface'
             otelCollector:
               type: boolean
-              description: Reports whether an OTEL collector is present on the device.
             supportedRuntimes:
               type: array
               minItems: 1
-              description: >
-                Standard Margo OCI runtimes available on the device.
-                A device MUST report at least one entry.
               items:
                 type: string
                 enum: [oci]
             supportedDeploymentTypes:
               type: array
               minItems: 1
-              description: >
-                Manifest/deployment formats the device can receive and process locally.
-                A device MUST report at least one entry.
               items:
                 type: string
                 enum: [helm, compose]
-
     DeviceId:
       # format: "{id}[/{id}[/{id}...]]"
       # Top-level id is required and must include only unreserved characters as specified in RFC3986.
@@ -671,6 +667,13 @@ components:
       type: object
       description: Helm Application Deployment Profile Component
       required: [name, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -695,6 +698,13 @@ components:
       type: object
       description: Compose Application Deployment Profile Component
       required: [name, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -719,6 +729,13 @@ components:
       type: object
       description: Application Deployment Profile
       required: [type, components]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         type:
           type: string
@@ -768,6 +785,13 @@ components:
       type: object
       description: Application Deployment specification
       required: [applicationId, deploymentProfile]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         applicationId:
           type: string

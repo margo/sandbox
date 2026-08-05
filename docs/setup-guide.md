@@ -7,8 +7,8 @@
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
 | **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager |
-| **Device VM 1 (Standalone Cluster)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
-| **Device VM 2 (Standalone Device)** | 4 | 4-8GB | 50GB | Docker-based device |
+| **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
+| **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
 **Requirements:**
 - Ubuntu operating system (**ubuntu-24.04.3-desktop-amd64 or server**) (you can check by doing ```cat /etc/os-release```)

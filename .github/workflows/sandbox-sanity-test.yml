@@ -353,7 +353,7 @@ jobs:
           done
 
 
-      - name: WFM-Client (Standalone Cluster) – Start
+      - name: WFM-Client (Helm-capable device) - Start
         working-directory: scripts
         run: |
           sudo -E bash ./device-agent.sh k3s start-k3s
@@ -370,7 +370,7 @@ jobs:
             sleep 2
           done
 
-      - name: WFM-Client (Standalone Device) – Start
+      - name: WFM-Client (Compose-capable device) - Start
         working-directory: scripts
         run: |
           sudo -E bash ./device-agent.sh docker create-rsa-certs

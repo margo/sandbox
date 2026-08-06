@@ -890,6 +890,23 @@ func handleOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check the blocklist before format validity: a blocklisted value should be
+	// rejected as "not trusted" (403) even if it isn't itself a well-formed
+	// certificate — format-validity is a separate, lower-priority concern.
+	if isRejectedCertificate(certRaw) {
+		respondJSON(w, 403, ResponseError{Error: "Client rejected"})
+		return
+	}
+
+	// Reject certificates that aren't structurally valid X.509 (e.g. plaintext
+	// garbage). Reuses the same parser the signature path
+	// uses (extractPublicKeyFromCertPEM), so accepted formats stay consistent
+	// across onboarding and authenticated endpoints.
+	if _, err := extractPublicKeyFromCertPEM(certRaw); err != nil {
+		respondJSON(w, 400, ResponseError{Error: "Invalid certificate format or structure", Message: err.Error()})
+		return
+	}
+
 	// Optionally accept the WFM root CA certificate from the client during onboarding
 	caCertRaw, _ := body["caCertificate"].(string)
 	if caCertRaw != "" {
@@ -915,11 +932,6 @@ func handleOnboarding(w http.ResponseWriter, r *http.Request) {
 	if len(errors) > 0 {
 		statusCode, payload := validationErrorResponse("POST_onboarding", errors)
 		respondJSON(w, statusCode, payload)
-		return
-	}
-
-	if isRejectedCertificate(certRaw) {
-		respondJSON(w, 403, ResponseError{Error: "Client rejected"})
 		return
 	}
 

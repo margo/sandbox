@@ -479,6 +479,7 @@ discover_wfm_group_collections() {
     fi
 
     for testcases_path in "${testcase_paths[@]}"; do
+         && testcases_p[[ "$testcases_path" != /* ]]ath="$CONFORMANCE_DIR/$testcases_path"
 
         echo "[DEBUG] Looking inside: $testcases_path" >&2
 
@@ -549,6 +550,7 @@ discover_group_scenario_files() {
     fi
 
     for testcases_path in "${testcase_paths[@]}"; do
+        [[ "$testcases_path" != /* ]] && testcases_path="$CONFORMANCE_DIR/$testcases_path"
 
         echo "[DEBUG] Looking for scenario files in: $testcases_path" >&2
 

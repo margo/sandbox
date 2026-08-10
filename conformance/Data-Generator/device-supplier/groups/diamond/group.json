@@ -4,7 +4,7 @@
   "persona": "device-supplier",
   "description": "v1.0.0",
   "FolderPath": [
-    "/home/margo/rishab/sandbox/conformance/testcases/user2"
+    "testcases/user2"
   ],
   "testCases": [
     "045403b4-89ac-4c08-9146-7a92040c3476",

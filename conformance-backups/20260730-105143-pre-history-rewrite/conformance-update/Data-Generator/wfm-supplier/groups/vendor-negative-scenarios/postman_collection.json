@@ -1,0 +1,361 @@
+{
+  "info": {
+    "_postman_id": "8609c565-57fc-4a43-8cd7-ef395860ddf8",
+    "name": "Margo WFM Supplier — Negative Conformance Tests",
+    "description": "Negative conformance tests for the WFM Supplier persona. Covers error scenarios: bad certificate format (400), certificate not trusted (403), missing/invalid signature (400/401), wrong Accept header (406/500), semantic body errors (422), and unknown client (404). The runner automatically triggers each error by applying the appropriate strategy based on the response example code and name.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "5a670495-f35e-452f-b87a-d6d48d06cfeb",
+      "name": "POST Onboarding — Invalid certificate format or structure",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "onboarding"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": []
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"NOT_A_VALID_PEM_CERTIFICATE\"\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "746cb090-c884-466b-9c15-a79a88fc012b",
+          "name": "Invalid certificate format or structure.",
+          "code": 400,
+          "status": "Bad Request",
+          "header": [],
+          "body": "{\"error\": \"Invalid certificate format\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::/api/v1/onboarding - Invalid cert format returns 400 (or 401 if signature checked first)\", function () {",
+              "    pm.expect([400, 401, 409]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6698850c-51b4-4b49-bd43-e755a89b9d3b",
+      "name": "POST Onboarding — Certificate not trusted or client rejected",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "onboarding"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": []
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"onboarding.margo.org/v1alpha1\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"<fresh-unregistered-cert>\"\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "704d3d46-145c-4a4d-8e45-a11098a92076",
+          "name": "Client certificate not trusted or client rejected.",
+          "code": 403,
+          "status": "Forbidden",
+          "header": [],
+          "body": "{\"error\": \"Certificate not trusted\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::/api/v1/onboarding - Untrusted cert returns 403 (or 400/401)\", function () {",
+              "    pm.expect([400, 401, 403]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "11083d25-7236-471d-8455-89d8c67f9d10",
+      "name": "POST Capabilities — Signature verification failed",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{{clientId}}\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"MDL-001\",\n    \"serialNumber\": \"SN-0001\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 4, \"architecture\": \"amd64\" },\n      \"memory\": \"8Gi\",\n      \"storage\": \"64Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "76dc6c15-c78c-4f1d-b9e6-b37055dec7f8",
+          "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
+          "code": 401,
+          "status": "Unauthorized",
+          "header": [],
+          "body": "{\"error\": \"Signature verification failed\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../capabilities - No signature returns 400 or 401\", function () {",
+              "    pm.expect([400, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "d6472975-6b22-46b8-83fe-d730929ec369",
+      "name": "POST Capabilities — Client certificate not trusted or has been revoked",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{{clientId}}\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"MDL-001\",\n    \"serialNumber\": \"SN-0001\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 4, \"architecture\": \"amd64\" },\n      \"memory\": \"8Gi\",\n      \"storage\": \"64Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "16a17a99-8569-408a-9820-02ea32ee5f4a",
+          "name": "Client certificate is not trusted or has been revoked.",
+          "code": 403,
+          "status": "Forbidden",
+          "header": [],
+          "body": "{\"error\": \"Certificate not trusted\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../capabilities - Untrusted cert returns 400, 401, or 403\", function () {",
+              "    pm.expect([400, 401, 403]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "cce2e8d1-dde4-41b0-893d-6b988c353b91",
+      "name": "POST Capabilities — Request body includes a semantic error",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"wrong.api.version/v99\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{clientId}\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"MDL-001\",\n    \"serialNumber\": \"SN-0001\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 4, \"architecture\": \"amd64\" },\n      \"memory\": \"8Gi\",\n      \"storage\": \"64Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "d0dbc06c-3c2c-431e-80af-99ef5baccc1b",
+          "name": "Request body includes a semantic error.",
+          "code": 422,
+          "status": "Unprocessable Entity",
+          "header": [],
+          "body": "{\"error\": \"Semantic validation failed\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../capabilities - Wrong apiVersion returns 400 or 422\", function () {",
+              "    pm.expect([400, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ac5ccdb9-ba6c-4cfd-af52-1afc19860899",
+      "name": "GET Deployments — Wrong Accept header returns 406",
+      "request": {
+        "method": "GET",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [{ "key": "clientId", "value": "{{clientId}}" }]
+        },
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "body": {}
+      },
+      "response": [
+        {
+          "id": "dceb4304-b240-469a-8e42-2d97d2b3bfd6",
+          "name": "Not Acceptable",
+          "code": 406,
+          "status": "Not Acceptable",
+          "header": [],
+          "body": "",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[GET]::.../deployments - Wrong Accept header returns 406 (or 400/500 if not implemented)\", function () {",
+              "    pm.expect([400, 406, 500]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2f0f025c-3bb5-4e9f-9557-83a52fdaa2c1",
+      "name": "POST Status — Request body includes a semantic error (invalid state)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", ":clientId", "deployments", ":deploymentId", "status"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": [
+            { "key": "clientId", "value": "{{clientId}}" },
+            { "key": "deploymentId", "value": "{{deploymentId}}" }
+          ]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"deployment.margo.org/v1alpha1\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"{deploymentId}\",\n  \"status\": { \"state\": \"not-a-valid-state-value\" },\n  \"components\": [{ \"name\": \"app\", \"state\": \"installed\" }]\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "4090c79a-2989-4b13-8823-325b34071123",
+          "name": "Request body includes a semantic error.",
+          "code": 422,
+          "status": "Unprocessable Entity",
+          "header": [],
+          "body": "{\"error\": \"Invalid state value\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../status - Invalid state value returns 400 or 422 (404 if no deployment)\", function () {",
+              "    pm.expect([400, 404, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "fd1f9cbf-b5ae-4562-9b11-a46cca8a9e2e",
+      "name": "POST Capabilities — Unknown client returns 404",
+      "request": {
+        "method": "POST",
+        "url": {
+          "path": ["api", "v1", "clients", "nonexistent-client-00000000", "capabilities"],
+          "host": ["{{baseUrl}}"],
+          "query": [],
+          "variable": []
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"nonexistent-client-00000000\",\n    \"vendor\": \"TestVendor\",\n    \"modelNumber\": \"MDL-001\",\n    \"serialNumber\": \"SN-0001\",\n    \"roles\": [\"Standalone Device\"],\n    \"resources\": {\n      \"cpu\": { \"cores\": 4, \"architecture\": \"amd64\" },\n      \"memory\": \"8Gi\",\n      \"storage\": \"64Gi\",\n      \"interfaces\": [{ \"type\": \"ethernet\" }],\n      \"peripherals\": []\n    }\n  }\n}",
+          "options": { "raw": { "headerFamily": "json", "language": "json" } }
+        }
+      },
+      "response": [
+        {
+          "id": "7ec7ce3c-1e7d-4ecf-8827-1a6c3151fd23",
+          "name": "Client not found.",
+          "code": 404,
+          "status": "Not Found",
+          "header": [],
+          "body": "{\"error\": \"Client not found\"}",
+          "cookie": [],
+          "_": { "postman_previewlanguage": "json" }
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"[POST]::.../capabilities - Unknown clientId returns 400 or 404\", function () {",
+              "    pm.expect([400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

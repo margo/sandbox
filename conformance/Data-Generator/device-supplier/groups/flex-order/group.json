@@ -4,7 +4,7 @@
   "persona": "device-supplier",
   "description": "new",
   "FolderPath": [
-    "/home/margo/test/sandbox/conformance/testcases/device-supplier-flexible-order"
+    "testcases/device-supplier-flexible-order"
   ],
   "flexibleOrder": true,
   "testCases": []

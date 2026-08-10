@@ -1,0 +1,106 @@
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              Device Supplier Conformance Test Runner                         ║
+║                   Data-Driven Test Framework                                 ║
+║                                                                              ║
+║  Testing against: https://localhost:3001/v1alpha2/margo                                 ║
+║  Spec: Margo Management Interface API 1.0.0                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+	
+✅ WFM Server is ready
+
+▶ Running Scenario: Device Onboarding (scenario-onboarding)
+  Description: Certificate retrieval plus successful and rejected onboarding flows.
+  → Step: Get Root CA Certificate
+    ✅ PASS (HTTP 200)
+  → Step: Onboard Trusted Device
+    ❌ FAIL: Expected HTTP 201, got 401
+  → Step: Reject Blocklisted Certificate
+    ❌ FAIL: Expected HTTP 403, got 401
+
+▶ Running Scenario: Capabilities Reporting (scenario-capabilities)
+  Description: POST and PUT capability manifests that match the spec-aligned schema.
+  → Step: Onboard Device (Setup)
+    ❌ FAIL: Expected HTTP 201, got 401
+  → Step: Report Capabilities with POST
+    ❌ FAIL: Expected HTTP 201, got 404
+  → Step: Report Capabilities with PUT
+    ❌ FAIL: Expected HTTP 201, got 404
+
+▶ Running Scenario: Deployment Retrieval And Status (scenario-deployments)
+  Description: Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.
+  → Step: Onboard Device (Setup)
+    ❌ FAIL: Expected HTTP 201, got 401
+  → Step: Get Current Deployments
+    ❌ FAIL: Expected HTTP 200, got 404
+  → Step: Get Deployments With Matching ETag
+    ❌ FAIL: Expected HTTP 304, got 404
+  → Step: Download Deployment Bundle
+    ❌ FAIL: Expected HTTP 200, got 404
+  → Step: Download Bundle With Matching ETag
+    ❌ FAIL: Expected HTTP 304, got 404
+  → Step: Download Individual Deployment Manifest
+    ❌ FAIL: Expected HTTP 200, got 404
+  → Step: Download Individual Deployment Manifest With Matching ETag
+    ❌ FAIL: Expected HTTP 304, got 404
+  → Step: Report Deployment Status
+    ❌ FAIL: Expected HTTP 200, got 404
+
+▶ Running Scenario: Onboarding Error Handling (scenario-onboarding-errors)
+  Description: Spec-shaped 400 and 401 onboarding responses.
+  → Step: Reject Onboarding With Invalid Api Version
+    ❌ FAIL: Expected HTTP 400, got 401
+  → Step: Reject Onboarding With Missing Certificate
+    ✅ PASS (HTTP 400)
+  → Step: Reject Onboarding With Empty Certificate
+    ✅ PASS (HTTP 400)
+  → Step: Reject Onboarding Without Signature
+    ✅ PASS (HTTP 401)
+
+▶ Running Scenario: Capabilities Error Handling (scenario-capabilities-errors)
+  Description: Negative tests for digest, schema, role, interface, and client validation.
+  → Step: Onboard Device (Setup)
+    ❌ FAIL: Expected HTTP 201, got 401
+  → Step: Reject Capabilities With Missing Properties
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Capabilities With Invalid Role
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Capabilities With Invalid Interface Type
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Capabilities With Invalid Cpu Architecture
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Capabilities With Missing Content-Digest
+    ❌ FAIL: Expected HTTP 400, got 404
+  → Step: Reject Capabilities Without Signature
+    ❌ FAIL: Expected HTTP 401, got 404
+  → Step: Reject Capabilities For Unknown Client
+    ✅ PASS (HTTP 404)
+
+▶ Running Scenario: Status And Retrieval Errors (scenario-status-and-retrieval-errors)
+  Description: Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.
+  → Step: Onboard Device (Setup)
+    ❌ FAIL: Expected HTTP 201, got 401
+  → Step: Get Current Deployments (Setup)
+    ❌ FAIL: Expected HTTP 200, got 404
+  → Step: Reject Deployments Request With Unsupported Accept Header
+    ❌ FAIL: Expected HTTP 406, got 404
+  → Step: Reject Bundle Download With Wrong Digest
+    ❌ FAIL: Validation failed for field 'error': contains
+  → Step: Reject Deployment Manifest Download With Wrong Digest
+    ❌ FAIL: Validation failed for field 'error': contains
+  → Step: Reject Status With Invalid State
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Status With Missing Component Name
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Status With Path Deployment Mismatch
+    ❌ FAIL: Expected HTTP 422, got 404
+  → Step: Reject Status With Missing Content-Digest
+    ❌ FAIL: Expected HTTP 400, got 404
+  → Step: Reject Status Without Signature
+    ❌ FAIL: Expected HTTP 401, got 404
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  Test Results: 5 PASSED, 31 FAILED (Total: 36)
+╚══════════════════════════════════════════════════════════════════════════════╝
+📊 Test report saved: reports/conformance-report-2026-04-16T06-14-00-000Z.html
+exit status 1

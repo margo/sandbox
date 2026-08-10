@@ -4,7 +4,7 @@
   "persona": "wfm-supplier",
   "description": "v1.0.0",
   "FolderPath": [
-    "/home/margo/rishab/sandbox/conformance/testcases/user1"
+    "testcases/user1"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",

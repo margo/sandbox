@@ -4,8 +4,8 @@
   "persona": "wfm-supplier",
   "description": "using bronze grp",
   "FolderPath": [
-    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/bronze grp",
-    "/home/margo/test/sandbox/conformance/testcases/user1-wfm"
+    "Data-Generator/wfm-supplier/groups/bronze grp",
+    "testcases/user1-wfm"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",

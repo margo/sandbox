@@ -1,8 +1,8 @@
 {
   "name": "flex-order",
-  "version": "1.0.0",
+  "version": "1.1",
   "persona": "device-supplier",
-  "description": "Proves post-onboarding WFM API calls (capabilities, desired-state, bundle, deployment-manifest, status) work correctly in any relative order, not just the original fixed chain. Onboarding is the only fixed-first scenario; its clientId is shared across all others.",
+  "description": "new",
   "FolderPath": [
     "/home/margo/test/sandbox/conformance/testcases/device-supplier-flexible-order"
   ],

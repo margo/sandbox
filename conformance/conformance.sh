@@ -665,7 +665,23 @@ create_test_group() {
         filename=$(basename "$file")
         log " Processing: $filename"
 
-        IDS=$(jq -r '.. | .id? // empty' "$file" 2>/dev/null || true)
+        # Walk only the real test-structure containers — Postman's "item"
+        # (folders/requests) and our device-scenario "steps" — and take
+        # each one's own .id. A plain ".. | .id?" also descends into
+        # request/response bodies, headers, and auth blocks, which can
+        # contain unrelated "id" fields (e.g. a fake deviceId in a test
+        # payload, or a UUID buried in a header) that aren't test-case IDs.
+        IDS=$(jq -r '
+            def walk_ids:
+                if type == "object" then
+                    (if has("id") then (.id | tostring) else empty end),
+                    (if (.item? // empty) | type == "array" then .item[] | walk_ids else empty end),
+                    (if (.steps? // empty) | type == "array" then .steps[] | walk_ids else empty end)
+                elif type == "array" then
+                    .[] | walk_ids
+                else empty end;
+            walk_ids
+        ' "$file" 2>/dev/null || true)
 
         if [[ -z "$IDS" ]]; then
             IDS=$(jq -r '.. | .name? // empty' "$file" 2>/dev/null \
@@ -691,6 +707,11 @@ create_test_group() {
     if [[ "$APPEND_MODE" == true && -f "$GROUP_PATH/group.json" ]]; then
         OLD_TESTS=$(jq '.testCases // []' "$GROUP_PATH/group.json")
         OLD_PATHS=$(jq '.FolderPath // []' "$GROUP_PATH/group.json")
+        # Preserve flexibleOrder from the existing group.json — groups that opt
+        # into it (e.g. flex-order) rely on an empty testCases (= "run every
+        # scenario") plus this flag to run the fixed_first scenario first, then
+        # the rest in random order. Regenerating must not silently turn that off.
+        OLD_FLEXIBLE=$(jq -r '.flexibleOrder // false' "$GROUP_PATH/group.json" 2>/dev/null || echo false)
 
         jq -n \
             --arg name "$GROUP_NAME" \
@@ -701,13 +722,15 @@ create_test_group() {
             --argjson old "$OLD_TESTS" \
             --argjson new "$TESTS_JSON" \
             --argjson oldPaths "$OLD_PATHS" \
+            --argjson flexibleOrder "$OLD_FLEXIBLE" \
             '{
                 name: $name,
                 version: $version,
                 persona: $persona,
                 description: $desc,
                 FolderPath: ($oldPaths + [$folder] | unique),
-                testCases: ($old + $new | unique)
+                flexibleOrder: $flexibleOrder,
+                testCases: (if $flexibleOrder then [] else ($old + $new | unique) end)
             }' > "$GROUP_PATH/group.json"
 
         success " Reading JSON files, extracting test case IDs, and adding them to the group.json"

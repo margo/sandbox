@@ -649,6 +649,7 @@ create_test_group() {
     echo ""
     read -p "Enter folder path containing JSON files: " INPUT_PATH
     [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
+    INPUT_PATH="$(realpath --relative-to="$CONFORMANCE_DIR" "$INPUT_PATH")"
 
     log " Reading all JSON files from folder..."
 

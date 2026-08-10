@@ -12,7 +12,7 @@
 ▶ Running Scenario: Capabilities Reporting (scenario-capabilities)
   Description: POST and PUT capability manifests that match the spec-aligned schema.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 5012fe1f-8321-4efe-854f-6aedb1bc3b72
+    📎 Captured clientId = 67a603f1-fdd9-4e15-8111-f9b5c93c015a
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Report Capabilities with POST
     ✅ PASS - HTTP 201 (Expected: 201)
@@ -22,7 +22,7 @@
 ▶ Running Scenario: Capabilities Error Handling (scenario-capabilities-errors)
   Description: Negative tests for digest, schema, role, interface, and client validation.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 58998522-6bd7-424a-9494-352d79d283a6
+    📎 Captured clientId = 0155f7c0-754d-424e-8a5e-853e7de4386e
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Reject Capabilities With Missing Properties
     ✅ PASS - HTTP 422 (Expected: 422)
@@ -42,10 +42,10 @@
 ▶ Running Scenario: Deployment Retrieval And Status (scenario-deployments)
   Description: Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 3f2f4c2a-9305-4a36-b6f6-c4c226c4e82f
+    📎 Captured clientId = cd3b65da-c89c-4678-a71f-b4c6de11ac0a
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Get Current Deployments
-    📎 Captured manifestEtag = "ebfc3affba6c0b6ea2f2f50ad7d1a01b7963b2c09d2e25cd54b545cb05fc04b4"
+    📎 Captured manifestEtag = "f315f2ff29c62bdae9aa3fc9838284d8da00c41013c2bb5371dc95eb2dda4eeb"
     📎 Captured bundleDigest = sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f
     📎 Captured deploymentId = a3e2f5dc-912e-494f-8395-52cf3769bc06
     📎 Captured deploymentDigest = sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa
@@ -68,19 +68,17 @@
 ▶ Running Scenario: Live Assertion Demo — Dynamic Error Code (scenario-live-assertion-demo)
   Description: DEMO SCENARIO: Proves server reloads assertions.json on every restart. Step 7.1 sends an invalid capabilities request (missing apiVersion) which triggers a validation error. The expected HTTP status code comes directly from error_responses.unprocessable.status_code in assertions.json. Change that one value, restart, re-run — the code changes without touching any Go code.
   → Step: Onboard Device (Demo Setup)
-    📎 Captured clientId = 95a1406a-27ed-48f7-b6c8-dc1aaced57c6
+    📎 Captured clientId = 2acd8ade-8a35-4ece-8de9-d9e66e232369
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Invalid Capabilities (missing apiVersion) — expects 422 from assertion
     ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Invalid Memory Format
-    ❌ FAIL - Expected HTTP 422, got 201
 
 ▶ Running Scenario: Device Onboarding (scenario-onboarding)
   Description: Certificate retrieval plus successful and rejected onboarding flows.
   → Step: Get Root CA Certificate
     ✅ PASS - HTTP 200 (Expected: 200)
   → Step: Onboard Trusted Device
-    📎 Captured clientId = a5121b66-3a69-4125-b257-280eb355be9d
+    📎 Captured clientId = 68fb966c-81ed-475d-8170-2b27ed758881
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Reject Blocklisted Certificate
     ✅ PASS - HTTP 403 (Expected: 403)
@@ -103,10 +101,10 @@
 ▶ Running Scenario: Status And Retrieval Errors (scenario-status-and-retrieval-errors)
   Description: Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 1d5e5197-fdf1-4c3d-8f4b-28356a482e53
+    📎 Captured clientId = 90b54be8-d0eb-49b3-a4a4-97c56a4436cf
     ✅ PASS - HTTP 201 (Expected: 201)
   → Step: Get Current Deployments (Setup)
-    📎 Captured manifestEtag = "0702736ad431a1ea09c45b871a425446e51cf42fb5b36556858330bacedf334e"
+    📎 Captured manifestEtag = "8d9fea79c99bfdc0099e281289042e96c7457fcd9f3df046ee6c38f6a2e9e68d"
     📎 Captured bundleDigest = sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f
     📎 Captured deploymentId = a3e2f5dc-912e-494f-8395-52cf3769bc06
     📎 Captured deploymentDigest = sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa
@@ -135,6 +133,6 @@
     ✅ PASS - HTTP 401 (Expected: 401)
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  Test Results: 43 PASSED, 1 FAILED (Total: 44)
+║  Test Results: 43 PASSED, 0 FAILED (Total: 43)
 ╚══════════════════════════════════════════════════════════════════════════════╝
-📊 Test report saved: reports/conformance-report-2026-08-03T08-09-28-000Z.html
+📊 Test report saved: reports/conformance-report-2026-08-10T08-11-09-000Z.html

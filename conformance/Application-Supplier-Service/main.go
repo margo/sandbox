@@ -155,8 +155,19 @@ if appName == "" {
     appName = filepath.Base(workDir)
 }
 
+reportDir := filepath.Join(
+    "..",
+    "Runner",
+    "application-supplier",
+)
+
+_ = os.MkdirAll(
+    reportDir,
+    os.ModePerm,
+)
+
 reportFile := filepath.Join(
-    "/home/margo/rishab/sandbox/conformance/Runner/application-supplier",
+    reportDir,
     fmt.Sprintf(
         "%s_%s.html",
         appName,

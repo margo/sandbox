@@ -4,8 +4,8 @@
   "persona": "wfm-supplier",
   "description": "new silver grp",
   "FolderPath": [
-    "Data-Generator/wfm-supplier/groups/silver",
-    "testcases/user1"
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/silver",
+    "/home/margo/test/sandbox/conformance/testcases/user1"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",

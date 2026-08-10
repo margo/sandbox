@@ -4,8 +4,8 @@
   "persona": "wfm-supplier",
   "description": "v1.0.0",
   "FolderPath": [
-    "testcases/user1",
-    "testcases/user2"
+    "/home/margo/test/sandbox/conformance/testcases/user1",
+    "/home/margo/test/sandbox/conformance/testcases/user2"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",

@@ -1,0 +1,395 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WFM Conformance Report — WFM Scenario</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2933; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .meta { font-size: 13px; color: #555; margin-bottom: 18px; }
+    .summary { margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+    .summary.all-pass { color: #166534; }
+    .summary.has-fail { color: #b91c1c; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 24px; }
+    th, td { border: 1px solid #d7dde5; padding: 7px 9px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    tr.pass td:first-child { color: #166534; font-weight: 700; }
+    tr.fail td:first-child, tr.fail td:last-child { color: #b91c1c; font-weight: 700; }
+    .scenario-summary td:nth-child(4) { color: #b91c1c; }
+    tr.pass.scenario-summary td:nth-child(4) { color: inherit; }
+  </style>
+</head>
+<body>
+  <h1>Margo WFM Conformance Report</h1>
+  <div class="meta">
+    Group: <strong>WFM Scenario</strong> &nbsp;|&nbsp;
+    WFM: <strong>https://symphony.machine:8082/v1alpha2/margo</strong> &nbsp;|&nbsp;
+    Run: <strong>2026-06-23T06:56:53.430Z</strong>
+  </div>
+  <div class="summary has-fail">
+    ❌ 27 passed, 1 failed, 28 total
+  </div>
+
+  <h2>Scenario Summary</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Total</th><th>Passed</th><th>Failed</th></tr>
+    </thead>
+    <tbody class="scenario-summary">
+    <tr class="fail">
+      <td>Margo Workload Management API</td>
+      <td>28</td>
+      <td>27</td>
+      <td>1</td>
+    </tr></tbody>
+  </table>
+
+  <h2>Step Details</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th><th>Scenario</th><th>Step</th><th>Name</th>
+        <th>Method</th><th>Endpoint</th><th>Expected</th><th>Actual</th><th>Failure Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>c42f4b7d-992a-4af0-924b-2eb4d787678a</td>
+      <td>Download Root CA certificate — Root CA certificate</td>
+      <td>GET</td>
+      <td>/api/v1/onboarding/certificate</td>
+      <td>200</td>
+      <td>200</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>0b95ee4e-dc64-4119-b07e-69c3342da26a</td>
+      <td>Complete onboarding with client certificate — New client onboarded successfully.</td>
+      <td>POST</td>
+      <td>/api/v1/onboarding</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>0510e725-a124-415f-a9b9-0d369e1d94e2</td>
+      <td>Report device capabilities — Capabilities reported successfully</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>8bb41ecf-4010-4dd0-ba9e-11033cfe66cd</td>
+      <td>Update device capabilities (Update) — Capabilities reported successfully</td>
+      <td>PUT</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>195c5f23-c8c7-491a-b622-3ce29a0aa9c4</td>
+      <td>Retrieve bundle information for a specific device and digest — Bundle archive (immutable)</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/bundles/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>200</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>2bd8b6a4-ac94-435b-a365-42f07a064bc3</td>
+      <td>Retrieve the complete desired state for all workloads assigned to a device — Manifest returned in the negotiated format</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments</td>
+      <td>200</td>
+      <td>200</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>36fdd629-6c79-4991-86a2-49be8dbcf96f</td>
+      <td>Retrieve an individual ApplicationDeployment YAML file — The response body is the raw ApplicationDeployment YAML file (Content-Type: application/yaml). The content MUST match the {digest} path segment; the server MUST return 404 if it does not have the exact digest referenced.
+</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>200</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>6283ddb7-ae5b-4602-ae16-fa7b3aff0bc0</td>
+      <td>Report deployment status — The deployment status was added, or updated, successfully.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/status</td>
+      <td>200</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>f9e10c20-8474-47ec-81c0-fc7c0823891d</td>
+      <td>Complete onboarding with client certificate — Invalid certificate format or structure.</td>
+      <td>POST</td>
+      <td>/api/v1/onboarding</td>
+      <td>400</td>
+      <td>409</td>
+      <td></td>
+    </tr>
+
+    <tr class="fail">
+      <td>FAIL</td>
+      <td>Margo Workload Management API</td>
+      <td>e89bca4b-f257-434a-8397-d604c2b42eb8</td>
+      <td>Complete onboarding with client certificate — Client certificate not trusted or client rejected.</td>
+      <td>POST</td>
+      <td>/api/v1/onboarding</td>
+      <td>403</td>
+      <td>201</td>
+      <td>expected HTTP 403, got 201</td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>f206fb46-f592-45ea-a6f1-6569371ee515</td>
+      <td>Report device capabilities — Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>400</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>5fc47546-2c1a-4956-9b6a-cfdfb31b88f6</td>
+      <td>Report device capabilities — Signature verification failed. Ensure you are signing with the correct X.509 private key.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>401</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>066c0155-a489-428e-9535-dabb36c7aaf6</td>
+      <td>Report device capabilities — Client certificate is not trusted or has been revoked.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>403</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>a3f7146c-5c7f-41f1-82d4-9ed75c84ec24</td>
+      <td>Report device capabilities — Request body includes a semantic error.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>422</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>eb9e178c-5df0-420c-8169-c223cc174a86</td>
+      <td>Update device capabilities (Update) — Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.</td>
+      <td>PUT</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>400</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>7b600483-4a8d-41ea-957c-88600e2a5f83</td>
+      <td>Update device capabilities (Update) — Signature verification failed. Ensure you are signing with the correct X.509 private key.</td>
+      <td>PUT</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>401</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>6fb8f5bb-2932-4287-adb3-4e2f0b477a90</td>
+      <td>Update device capabilities (Update) — Client certificate is not trusted or has been revoked.</td>
+      <td>PUT</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>403</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>8ec05b96-3f1d-4030-b2c6-67c9e98bf811</td>
+      <td>Update device capabilities (Update) — Request body includes a semantic error.</td>
+      <td>PUT</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/capabilities</td>
+      <td>422</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>5755e4a7-8329-4ceb-b210-8c41e6423569</td>
+      <td>Retrieve bundle information for a specific device and digest — Representation not modified</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/bundles/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>304</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>a7d2c754-66c3-4e45-aecb-987e481d9343</td>
+      <td>Retrieve bundle information for a specific device and digest — Invalid request.</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/bundles/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>400</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>80315591-d033-4c57-8d63-9979889e6317</td>
+      <td>Retrieve bundle information for a specific device and digest — Bundle not found for the given digest</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/bundles/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>404</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>17a2b787-ca67-4dd6-a72b-27cd1290bebc</td>
+      <td>Retrieve the complete desired state for all workloads assigned to a device — Not Modified - Manifest has not changed</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments</td>
+      <td>304</td>
+      <td>200</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>f54748a1-72c1-4fb9-a64f-7e4b2b36ba54</td>
+      <td>Retrieve the complete desired state for all workloads assigned to a device — Not Acceptable - Server cannot generate a response matching the Accept header</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments</td>
+      <td>406</td>
+      <td>500</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>e0358da8-3b31-4278-af5f-84d5e347bacd</td>
+      <td>Retrieve an individual ApplicationDeployment YAML file — Deployment not found for the given digest</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/sha256:0000000000000000000000000000000000000000000000000000000000000000</td>
+      <td>404</td>
+      <td>404</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>aee967e3-204c-4193-b500-2559110e5c02</td>
+      <td>Report deployment status — Missing or invalid content-digest header. Ensure the SHA256 hash of the base64-encoded payload is included.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/status</td>
+      <td>400</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>387e5c5b-1a88-42a8-8c8d-e46e7aa20865</td>
+      <td>Report deployment status — Signature verification failed. Ensure you are signing with the correct X.509 private key.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/status</td>
+      <td>401</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>292d8e91-d376-4d2b-81d9-7c44cbc89ef3</td>
+      <td>Report deployment status — Client certificate is not trusted or has been revoked.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/status</td>
+      <td>403</td>
+      <td>400</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Margo Workload Management API</td>
+      <td>6e674338-64ef-434c-9905-3ddff3d14877</td>
+      <td>Report deployment status — Request body includes a semantic error.</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-85c1515de25b585e-1782197812/deployments/deployment-none-00000000/status</td>
+      <td>422</td>
+      <td>400</td>
+      <td></td>
+    </tr></tbody>
+  </table>
+</body>
+</html>

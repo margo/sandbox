@@ -1,10 +1,11 @@
 {
-  "name": "seimens",
-  "version": "v1.0.0",
+  "name": "bronze grp",
+  "version": "1.1.2",
   "persona": "wfm-supplier",
-  "description": "v1.0.0",
+  "description": "using bronze grp",
   "FolderPath": [
-    "/home/margo/rishab/sandbox/conformance/testcases/user1"
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/bronze grp",
+    "/home/margo/test/sandbox/conformance/testcases/user1-wfm"
   ],
   "testCases": [
     "02555be8-873a-4f60-b961-449291382227",
@@ -28,6 +29,7 @@
     "5fc47546-2c1a-4956-9b6a-cfdfb31b88f6",
     "60f5d625-d7de-4c1c-9820-134aefea4c7d",
     "6283ddb7-ae5b-4602-ae16-fa7b3aff0bc0",
+    "6babf73f-f617-4f25-a1b6-414b665ed6b5",
     "6e674338-64ef-434c-9905-3ddff3d14877",
     "6fb8f5bb-2932-4287-adb3-4e2f0b477a90",
     "7b600483-4a8d-41ea-957c-88600e2a5f83",
@@ -50,7 +52,6 @@
     "f206fb46-f592-45ea-a6f1-6569371ee515",
     "f54748a1-72c1-4fb9-a64f-7e4b2b36ba54",
     "f9e10c20-8474-47ec-81c0-fc7c0823891d",
-    "fc6a5159-3b3f-4140-8092-25992e18f959",
-    "6babf73f-f617-4f25-a1b6-414b665ed6b5"
+    "fc6a5159-3b3f-4140-8092-25992e18f959"
   ]
 }

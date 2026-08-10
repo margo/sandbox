@@ -4,7 +4,7 @@
   "persona": "wfm-supplier",
   "description": "new grp v1.1.1",
   "FolderPath": [
-    "Data-Generator/wfm-supplier/groups/vendor-negative-scenarios"
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/vendor-negative-scenarios"
   ],
   "testCases": [
     "5a670495-f35e-452f-b87a-d6d48d06cfeb",

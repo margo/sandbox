@@ -4,7 +4,7 @@
   "persona": "wfm-supplier",
   "description": "Enhanced positive conformance tests covering the full device-agent lifecycle with request chaining, ETag/304 caching, response schema validation, and all deployment status states. Uses Postman collection format — consistent with gold/silver/diamond groups.",
   "FolderPath": [
-    "Data-Generator/wfm-supplier/groups/vendor-positive-extended"
+    "/home/margo/test/sandbox/conformance/Data-Generator/wfm-supplier/groups/vendor-positive-extended"
   ],
   "testCases": [
     "1f9630d3-9ee9-4477-81b4-785aef04ca6c",

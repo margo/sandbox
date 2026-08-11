@@ -14,8 +14,7 @@ import (
 )
 
 type DeviceClientSettings struct {
-	deviceClientId string
-
+	deviceClientId                                  string
 	deviceRootIdentity                              types.DeviceRootIdentity
 	authEnabled                                     bool
 	wfmEndpointsForClient                           []string

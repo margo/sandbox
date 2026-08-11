@@ -47,7 +47,7 @@ func WithEnableHelmDeployment() Option {
 
 		auth.supportedRuntimes = append(
 			auth.supportedRuntimes,
-			sbi.Oci,
+			sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci,
 		)
 	}
 }

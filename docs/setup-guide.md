@@ -196,6 +196,16 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```bash
    cd $HOME/workspace/sandbox/scripts
    ```
+3. **(Optional) Generate Labels for Device**
+
+   If you want device to inherit user-defined labels, first create the required labels using the provided helper script.
+
+   Run:
+
+   ```bash
+   bash create-device-labels.sh
+   ```
+   and follow on screen instructions to create user defined labels. Prefixing with an organization domain is RECOMMENDED for supplier-specific labels.
 
 3. **Install Basic Tools**
 

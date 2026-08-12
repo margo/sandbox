@@ -43,16 +43,18 @@ update_capabilities_labels() {
     local labels_file="./labels.json"
     local capabilities_file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
 
-    # Check labels.json exists
+    # Check labels.json exists, if not, clean up the labels from configuration.json as well
     if [[ ! -f "$labels_file" ]]; then
         echo "File '$labels_file' not found, skipping label copying to capabilties"
+        remove_json_key $capabilities_file
         return 0
     fi
 
-    # Check labels.json is not empty
+    # Check labels.json is not empty, if not, clean up the labels from configuration.json as well
     if [[ ! -s "$labels_file" ]]; then
-        echo "File '$labels_file' is empty."
-        return 1
+        echo "File '$labels_file' is empty. skipping label copying to capabilties"
+        remove_json_key $capabilities_file
+        return 0
     fi
 
     # Validate JSON files
@@ -75,4 +77,26 @@ update_capabilities_labels() {
     && mv "$tmp_file" "$capabilities_file"
 
     echo "Successfully updated .labels in $capabilities_file"
+}
+
+# This will simply remove labels key from configuration.json
+remove_json_key() {
+    local file="$1"
+    local key="labels"
+
+    cp "$file" "$file.bak" || {
+        echo "ERROR: Failed to create backup of '$file'"
+        return 1
+    }
+
+    if jq "del(.${key})" "$file" > "$file.tmp" &&
+       mv "$file.tmp" "$file"; then
+        rm -f "$file.bak"
+        return 0
+    fi
+
+    echo "ERROR: Failed to remove key '${key}' from '$file'. Restoring original file."
+    mv "$file.bak" "$file" 2>/dev/null
+    rm -f "$file.tmp"
+    return 1
 }

@@ -40,7 +40,7 @@ clone_dev_repo() {
 }
 
 update_capabilities_labels() {
-    local labels_file="./labels.json"
+    local labels_file="${SCRIPT_DIR}/labels.json"
     local capabilities_file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
 
     # Check labels.json exists, if not, clean up the labels from configuration.json as well
@@ -100,3 +100,5 @@ remove_json_key() {
     rm -f "$file.tmp"
     return 1
 }
+
+WHITELIST: https://static.rust-lang.org , https://sh.rustup.rs

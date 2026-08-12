@@ -207,6 +207,23 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    and follow on screen instructions to create user defined labels. Prefixing with an organization domain is RECOMMENDED for supplier-specific labels.
 
+   Alternatively, if you have labels prepared & just want to use them without using above helper script, you can:
+   - Create a labels.json file in current working directory
+   - Paste your labels as a json object in labels.json, finally file should look like this: 
+      ```json
+      {
+        "northstarida.com/hypervisor": "hyper-v",
+        "northstarida.com/wasm.runtime": [
+            "wamr"
+        ],
+        "northstarida.com/wasm.package.format": [
+            ".wasm",
+            ".aot"
+        ],
+        "northstarida.com/os": "zephyr"
+      }
+      ```
+
 3. **Install Basic Tools**
 
    Based on the device type, select **k3s** or **docker** while sourcing the environment variables. For example:

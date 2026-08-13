@@ -100,5 +100,3 @@ remove_json_key() {
     rm -f "$file.tmp"
     return 1
 }
-
-WHITELIST: https://static.rust-lang.org , https://sh.rustup.rs

@@ -16,6 +16,7 @@ import (
 const (
 	AppDeploymentProfileTypeCompose AppDeploymentProfileType = "compose"
 	AppDeploymentProfileTypeHelm    AppDeploymentProfileType = "helm"
+	AppDeploymentProfileTypeNil     AppDeploymentProfileType = "<nil>"
 )
 
 // Valid indicates whether the value is a known member of the AppDeploymentProfileType enum.
@@ -240,6 +241,7 @@ func (e ConfigurationSchemaDataType) Valid() bool {
 // Defines values for DeploymentExecutionProfileType.
 const (
 	DeploymentExecutionProfileTypeCompose DeploymentExecutionProfileType = "compose"
+	DeploymentExecutionProfileTypeCustom  DeploymentExecutionProfileType = "custom"
 	DeploymentExecutionProfileTypeHelm    DeploymentExecutionProfileType = "helm"
 )
 
@@ -254,6 +256,18 @@ func (e DeploymentExecutionProfileType) Valid() bool {
 		return false
 	}
 }
+
+// Defines values for DeviceConstraintOperator.
+const (
+	DeviceConstraintOperatorContainsAll  DeviceConstraintOperator = "ContainsAll"
+	DeviceConstraintOperatorContainsAny  DeviceConstraintOperator = "ContainsAny"
+	DeviceConstraintOperatorDoesNotExist DeviceConstraintOperator = "DoesNotExist"
+	DeviceConstraintOperatorExists       DeviceConstraintOperator = "Exists"
+	DeviceConstraintOperatorGt           DeviceConstraintOperator = "Gt"
+	DeviceConstraintOperatorIn           DeviceConstraintOperator = "In"
+	DeviceConstraintOperatorLt           DeviceConstraintOperator = "Lt"
+	DeviceConstraintOperatorNotIn        DeviceConstraintOperator = "NotIn"
+)
 
 // Defines values for DeviceOnboardStatus.
 const (
@@ -297,6 +311,16 @@ func (e OciAuthenticationType) Valid() bool {
 	}
 }
 
+// Defines values for SimpleSelectorOperator.
+const (
+	SimpleSelectorOperatorDoesNotExist SimpleSelectorOperator = "DoesNotExist"
+	SimpleSelectorOperatorExists       SimpleSelectorOperator = "Exists"
+	SimpleSelectorOperatorGt           SimpleSelectorOperator = "Gt"
+	SimpleSelectorOperatorIn           SimpleSelectorOperator = "In"
+	SimpleSelectorOperatorLt           SimpleSelectorOperator = "Lt"
+	SimpleSelectorOperatorNotIn        SimpleSelectorOperator = "NotIn"
+)
+
 // APIResponse defines model for APIResponse.
 type APIResponse struct {
 	// RequestId Request identifier
@@ -321,10 +345,9 @@ type AppDeploymentProfile struct {
 	Components []AppDeploymentProfile_Components_Item `json:"components" yaml:"components"`
 
 	// Description Description of the deployment profile
-	Description *string `json:"description" yaml:"description"`
-
-	// RequiredResources Required resources for this deployment profile
-	RequiredResources *RequiredResources `json:"requiredResources" yaml:"requiredResources"`
+	Description       *string            `json:"description" yaml:"description"`
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
+	RequiredResources *RequiredResources `json:"requiredResources,omitempty"`
 
 	// Type Type of deployment profile
 	Type AppDeploymentProfileType `json:"type" yaml:"type"`
@@ -665,6 +688,17 @@ type ApplicationPackageStatus struct {
 // ApplicationPackageStatusState State of the application package
 type ApplicationPackageStatusState string
 
+// CapacityRequirements defines model for CapacityRequirements.
+type CapacityRequirements struct {
+	Cpu *CpuRequirements `json:"cpu,omitempty"`
+
+	// Memory Minimum memory required by the deployment profile.
+	Memory *string `json:"memory,omitempty"`
+
+	// Storage Minimum storage required by the deployment profile.
+	Storage *string `json:"storage,omitempty"`
+}
+
 // ComposeApplicationDeploymentProfileComponent Compose Application Deployment Profile Component
 type ComposeApplicationDeploymentProfileComponent struct {
 	// Name Name of the component
@@ -763,6 +797,20 @@ type ConfigurationSetting struct {
 	Schema string `json:"schema" yaml:"schema"`
 }
 
+// ConstraintValue defines model for ConstraintValue.
+type ConstraintValue struct {
+	union json.RawMessage
+}
+
+// ConstraintValue0 defines model for .
+type ConstraintValue0 = string
+
+// ConstraintValue1 defines model for .
+type ConstraintValue1 = float32
+
+// ConstraintValue2 defines model for .
+type ConstraintValue2 = bool
+
 // ContextualInfo defines model for ContextualInfo.
 type ContextualInfo struct {
 	// Code Code of the contextual information
@@ -772,10 +820,39 @@ type ContextualInfo struct {
 	Message *string `json:"message,omitempty"`
 }
 
+// CpuRequirements defines model for CpuRequirements.
+type CpuRequirements struct {
+	// Architectures Allowed CPU architectures.
+	Architectures *[]string `json:"architectures,omitempty"`
+
+	// Cores Minimum CPU cores required.
+	Cores *float32 `json:"cores,omitempty"`
+}
+
+// CustomDeploymentProfileComponent Custom Application Deployment Profile Component
+type CustomDeploymentProfileComponent struct {
+	// Name Name of the component
+	Name       string `json:"name"`
+	Properties struct {
+		// Repository Repository of the component
+		Repository string `json:"repository"`
+
+		// Revision Revision of the component
+		Revision *string `json:"revision,omitempty"`
+
+		// Timeout Timeout for the component
+		Timeout *string `json:"timeout,omitempty"`
+
+		// Wait Wait for the component to be ready
+		Wait *bool `json:"wait,omitempty"`
+	} `json:"properties"`
+}
+
 // DeploymentExecutionProfile Application Deployment Profile
 type DeploymentExecutionProfile struct {
 	// Components Components of the deployment profile
-	Components []DeploymentExecutionProfile_Components_Item `json:"components"`
+	Components        []DeploymentExecutionProfile_Components_Item `json:"components"`
+	DeviceConstraints *DeviceConstraints                           `json:"deviceConstraints,omitempty"`
 
 	// Type Type of deployment profile
 	Type DeploymentExecutionProfileType `json:"type"`
@@ -809,6 +886,21 @@ type DeploymentParameterValue struct {
 
 // DeploymentParameters Application Parameters
 type DeploymentParameters map[string]DeploymentParameterValue
+
+// DeviceConstraintOperator defines model for DeviceConstraintOperator.
+type DeviceConstraintOperator string
+
+// DeviceConstraints defines model for DeviceConstraints.
+type DeviceConstraints struct {
+	CapacityRequirements *CapacityRequirements    `json:"capacityRequirements,omitempty"`
+	EligibilityRules     *[]DeviceEligibilityRule `json:"eligibilityRules,omitempty"`
+}
+
+// DeviceEligibilityRule defines model for DeviceEligibilityRule.
+type DeviceEligibilityRule struct {
+	LabelSelector    *LabelSelector    `json:"labelSelector,omitempty"`
+	PropertySelector *PropertySelector `json:"propertySelector,omitempty"`
+}
 
 // DeviceListResp List of Devices
 type DeviceListResp struct {
@@ -937,6 +1029,27 @@ type HelmDeploymentProfileComponent struct {
 	} `json:"properties"`
 }
 
+// ItemMatchExpression defines model for ItemMatchExpression.
+type ItemMatchExpression struct {
+	// Key JSON Pointer relative to the array element.
+	Key      string                 `json:"key"`
+	Operator SimpleSelectorOperator `json:"operator"`
+	Values   *[]ConstraintValue     `json:"values,omitempty"`
+}
+
+// ItemSelector defines model for ItemSelector.
+type ItemSelector struct {
+	MatchExpressions []ItemMatchExpression `json:"matchExpressions"`
+}
+
+// LabelSelector defines model for LabelSelector.
+type LabelSelector struct {
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
+
+// MatchExpression defines model for MatchExpression.
+type MatchExpression = interface{}
+
 // Metadata defines model for Metadata.
 type Metadata struct {
 	// Annotations Annotations for the resource
@@ -999,6 +1112,11 @@ type PaginationMetadata struct {
 	RemainingItemCount *int `json:"remainingItemCount,omitempty"`
 }
 
+// PropertySelector defines model for PropertySelector.
+type PropertySelector struct {
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
+
 // RequiredResources defines model for RequiredResources.
 type RequiredResources struct {
 	Cpu *struct {
@@ -1026,6 +1144,9 @@ type RequiredResources struct {
 	// Storage Required storage (e.g., "10Gi")
 	Storage *string `json:"storage" yaml:"storage"`
 }
+
+// SimpleSelectorOperator defines model for SimpleSelectorOperator.
+type SimpleSelectorOperator string
 
 // ValidationError defines model for ValidationError.
 type ValidationError struct {
@@ -1309,6 +1430,94 @@ func (t *ApplicationPackageSpec_Source) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsConstraintValue0 returns the union data inside the ConstraintValue as a ConstraintValue0
+func (t ConstraintValue) AsConstraintValue0() (ConstraintValue0, error) {
+	var body ConstraintValue0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromConstraintValue0 overwrites any union data inside the ConstraintValue as the provided ConstraintValue0
+func (t *ConstraintValue) FromConstraintValue0(v ConstraintValue0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeConstraintValue0 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue0
+func (t *ConstraintValue) MergeConstraintValue0(v ConstraintValue0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JsonMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsConstraintValue1 returns the union data inside the ConstraintValue as a ConstraintValue1
+func (t ConstraintValue) AsConstraintValue1() (ConstraintValue1, error) {
+	var body ConstraintValue1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromConstraintValue1 overwrites any union data inside the ConstraintValue as the provided ConstraintValue1
+func (t *ConstraintValue) FromConstraintValue1(v ConstraintValue1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeConstraintValue1 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue1
+func (t *ConstraintValue) MergeConstraintValue1(v ConstraintValue1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JsonMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsConstraintValue2 returns the union data inside the ConstraintValue as a ConstraintValue2
+func (t ConstraintValue) AsConstraintValue2() (ConstraintValue2, error) {
+	var body ConstraintValue2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromConstraintValue2 overwrites any union data inside the ConstraintValue as the provided ConstraintValue2
+func (t *ConstraintValue) FromConstraintValue2(v ConstraintValue2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeConstraintValue2 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue2
+func (t *ConstraintValue) MergeConstraintValue2(v ConstraintValue2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JsonMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ConstraintValue) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ConstraintValue) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // AsHelmDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a HelmDeploymentProfileComponent
 func (t DeploymentExecutionProfile_Components_Item) AsHelmDeploymentProfileComponent() (HelmDeploymentProfileComponent, error) {
 	var body HelmDeploymentProfileComponent
@@ -1357,6 +1566,32 @@ func (t *DeploymentExecutionProfile_Components_Item) MergeComposeDeploymentProfi
 	}
 
 	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCustomDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a CustomDeploymentProfileComponent
+func (t DeploymentExecutionProfile_Components_Item) AsCustomDeploymentProfileComponent() (CustomDeploymentProfileComponent, error) {
+	var body CustomDeploymentProfileComponent
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCustomDeploymentProfileComponent overwrites any union data inside the DeploymentExecutionProfile_Components_Item as the provided CustomDeploymentProfileComponent
+func (t *DeploymentExecutionProfile_Components_Item) FromCustomDeploymentProfileComponent(v CustomDeploymentProfileComponent) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCustomDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided CustomDeploymentProfileComponent
+func (t *DeploymentExecutionProfile_Components_Item) MergeCustomDeploymentProfileComponent(v CustomDeploymentProfileComponent) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JsonMerge(t.union, b)
 	t.union = merged
 	return err
 }

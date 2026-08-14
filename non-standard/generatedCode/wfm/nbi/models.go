@@ -269,6 +269,13 @@ const (
 	DeviceConstraintOperatorNotIn        DeviceConstraintOperator = "NotIn"
 )
 
+// Defines values for DeviceManifestRespEligible.
+const (
+	False   DeviceManifestRespEligible = "false"
+	True    DeviceManifestRespEligible = "true"
+	Unknown DeviceManifestRespEligible = "unknown"
+)
+
 // Defines values for DeviceOnboardStatus.
 const (
 	DeviceOnboardStatusFAILED     DeviceOnboardStatus = "FAILED"
@@ -916,6 +923,9 @@ type DeviceManifestResp struct {
 	// ApiVersion API version
 	ApiVersion string `json:"apiVersion"`
 
+	// Eligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
+	Eligible *DeviceManifestRespEligible `json:"eligible,omitempty"`
+
 	// Id Unique device identifier
 	Id *string `json:"id" yaml:"id"`
 
@@ -931,6 +941,9 @@ type DeviceManifestResp struct {
 	// State State of the device
 	State DeviceState `json:"state"`
 }
+
+// DeviceManifestRespEligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
+type DeviceManifestRespEligible string
 
 // DeviceOnboardStatus defines model for DeviceOnboardStatus.
 type DeviceOnboardStatus string
@@ -1188,6 +1201,9 @@ type ListDevicesParams struct {
 
 	// Continue Token for pagination
 	Continue *string `form:"continue,omitempty" json:"continue,omitempty"`
+
+	// AppPackageId optional parameter for application package Id, when provided, marks eligible devices separately
+	AppPackageId *string `form:"appPackageId,omitempty" json:"appPackageId,omitempty"`
 }
 
 // CreateApplicationDeploymentJSONRequestBody defines body for CreateApplicationDeployment for application/json ContentType.

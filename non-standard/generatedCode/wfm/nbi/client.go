@@ -90,7 +90,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-
 	// ListApplicationDeployments List ApplicationDeployments
 	//
 	// List all ApplicationDeployments in manifest style.
@@ -421,7 +420,6 @@ func NewListApplicationDeploymentsRequest(server string, params *ListApplication
 		var rawQueryFragments []string
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -429,11 +427,9 @@ func NewListApplicationDeploymentsRequest(server string, params *ListApplication
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if params.Continue != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "continue", *params.Continue, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -441,7 +437,6 @@ func NewListApplicationDeploymentsRequest(server string, params *ListApplication
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -595,7 +590,6 @@ func NewListAppPackagesRequest(server string, params *ListAppPackagesParams) (*h
 		var rawQueryFragments []string
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -603,11 +597,9 @@ func NewListAppPackagesRequest(server string, params *ListAppPackagesParams) (*h
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if params.Continue != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "continue", *params.Continue, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -615,7 +607,6 @@ func NewListAppPackagesRequest(server string, params *ListAppPackagesParams) (*h
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -708,7 +699,6 @@ func NewDeleteAppPackageRequest(server string, id string, params *DeleteAppPacka
 		var rawQueryFragments []string
 
 		if params.Force != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "force", *params.Force, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -716,7 +706,6 @@ func NewDeleteAppPackageRequest(server string, id string, params *DeleteAppPacka
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -796,7 +785,6 @@ func NewListDevicesRequest(server string, params *ListDevicesParams) (*http.Requ
 		var rawQueryFragments []string
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -804,11 +792,9 @@ func NewListDevicesRequest(server string, params *ListDevicesParams) (*http.Requ
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if params.Continue != nil {
-
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "continue", *params.Continue, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
@@ -816,13 +802,27 @@ func NewListDevicesRequest(server string, params *ListDevicesParams) (*http.Requ
 					rawQueryFragments = append(rawQueryFragments, qp)
 				}
 			}
-
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+		if params.AppPackageId != nil {
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "appPackageId", runtime.ParamLocationQuery, *params.AppPackageId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -876,7 +876,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-
 	// ListApplicationDeploymentsWithResponse List ApplicationDeployments
 	//
 	// List all ApplicationDeployments in manifest style.

@@ -649,6 +649,12 @@ components:
             yaml: "description"
           description: Description of the deployment profile
           type: string
+        deviceConstraints:
+          x-oapi-codegen-extra-tags:
+            json: "deviceConstraints"
+            yaml: "deviceConstraints"
+          description: Description of the device capabilties required for this particular application
+          $ref: "#/components/schemas/DeviceConstraints"
         # id:
         #   description: Unique identifier for the deployment profile
         #   type: string
@@ -668,6 +674,7 @@ components:
           enum:
           - helm
           - compose
+          -
           type: string
       required:
       - type
@@ -1336,19 +1343,48 @@ components:
       properties:
         type:
           type: string
-          enum: ["helm", "compose"]
+          enum: ["helm", "compose", "custom"]
           description: Type of deployment profile
+        deviceConstraints:
+          description: Description of the device capabilties required for this particular application
+          $ref: "#/components/schemas/DeviceConstraints"
+
         components:
           type: array
           items:
             oneOf:
               - $ref: '#/components/schemas/HelmDeploymentProfileComponent'
               - $ref: '#/components/schemas/ComposeDeploymentProfileComponent'
+              - $ref: '#/components/schemas/CustomDeploymentProfileComponent'
           description: Components of the deployment profile
 
     HelmDeploymentProfileComponent:
       type: object
       description: Helm Application Deployment Profile Component
+      required: [name, properties]
+      properties:
+        name:
+          type: string
+          description: Name of the component
+        properties:
+          type: object
+          required: [repository]
+          properties:
+            repository:
+              type: string
+              description: Repository of the component
+            revision:
+              type: string
+              description: Revision of the component
+            timeout:
+              type: string
+              description: Timeout for the component
+            wait:
+              type: boolean
+              description: Wait for the component to be ready
+    CustomDeploymentProfileComponent:
+      type: object
+      description: Custom Application Deployment Profile Component
       required: [name, properties]
       properties:
         name:
@@ -1663,6 +1699,201 @@ components:
     DeviceOnboardStatus:
       type: string
       enum: [IN-PROGRESS, ONBOARDED, FAILED]
+    DeviceConstraints:
+      type: object
+      additionalProperties: false
+      properties:
+        capacityRequirements:
+          $ref: '#/components/schemas/CapacityRequirements'
+        eligibilityRules:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceEligibilityRule'
+
+    CapacityRequirements:
+      type: object
+      additionalProperties: false
+      properties:
+        cpu:
+          $ref: '#/components/schemas/CpuRequirements'
+        memory:
+          type: string
+          description: Minimum memory required by the deployment profile.
+          examples:
+            - "1024Mi"
+        storage:
+          type: string
+          description: Minimum storage required by the deployment profile.
+          examples:
+            - "10Gi"
+
+    CpuRequirements:
+      type: object
+      additionalProperties: false
+      properties:
+        cores:
+          type: number
+          minimum: 0
+          description: Minimum CPU cores required.
+        architectures:
+          type: array
+          items:
+            type: string
+          description: Allowed CPU architectures.
+
+    DeviceEligibilityRule:
+      type: object
+      additionalProperties: false
+      properties:
+        propertySelector:
+          $ref: '#/components/schemas/PropertySelector'
+        labelSelector:
+          $ref: '#/components/schemas/LabelSelector'
+      minProperties: 1
+
+    PropertySelector:
+      type: object
+      required:
+        - matchExpressions
+      additionalProperties: false
+      properties:
+        matchExpressions:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MatchExpression'
+
+    LabelSelector:
+      type: object
+      required:
+        - matchExpressions
+      additionalProperties: false
+      properties:
+        matchExpressions:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MatchExpression'
+
+    MatchExpression:
+      type: object
+      required:
+        - key
+        - operator
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: >
+            JSON Pointer for property selectors or exact label key for label selectors.
+        operator:
+          $ref: '#/components/schemas/DeviceConstraintOperator'
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintValue'
+        itemSelector:
+          $ref: '#/components/schemas/ItemSelector'
+
+      allOf:
+
+        # Exists / DoesNotExist
+        - if:
+            properties:
+              operator:
+                enum:
+                  - Exists
+                  - DoesNotExist
+          then:
+            not:
+              required:
+                - values
+            properties:
+              itemSelector: false
+
+        # In / NotIn / Gt / Lt
+        - if:
+            properties:
+              operator:
+                enum:
+                  - In
+                  - NotIn
+                  - Gt
+                  - Lt
+          then:
+            required:
+              - values
+
+        # ContainsAll / ContainsAny
+        - if:
+            properties:
+              operator:
+                enum:
+                  - ContainsAll
+                  - ContainsAny
+          then:
+            required:
+              - itemSelector
+            not:
+              required:
+                - values
+
+    ItemSelector:
+      type: object
+      required:
+        - matchExpressions
+      additionalProperties: false
+      properties:
+        matchExpressions:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ItemMatchExpression'
+
+    ItemMatchExpression:
+      type: object
+      required:
+        - key
+        - operator
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: JSON Pointer relative to the array element.
+        operator:
+          $ref: '#/components/schemas/SimpleSelectorOperator'
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintValue'
+
+    DeviceConstraintOperator:
+      type: string
+      enum:
+        - In
+        - NotIn
+        - Exists
+        - DoesNotExist
+        - Gt
+        - Lt
+        - ContainsAll
+        - ContainsAny
+
+    SimpleSelectorOperator:
+      type: string
+      enum:
+        - In
+        - NotIn
+        - Exists
+        - DoesNotExist
+        - Gt
+        - Lt
+
+    ConstraintValue:
+      oneOf:
+        - type: string
+        - type: number
+        - type: boolean
 
     # Common Schemas
     ContextualInfo:

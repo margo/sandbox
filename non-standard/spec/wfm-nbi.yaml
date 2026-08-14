@@ -381,6 +381,11 @@ paths:
           in: query
           schema: { type: string }
           description: Token for pagination
+        - name: appPackageId
+          in: query
+          schema:
+            type: string
+          description: optional parameter for application package Id, when provided, marks eligible devices separately
       responses:
         '200':
           description: List of Devices
@@ -1658,6 +1663,10 @@ components:
           type: string
           default: Device
           description: Resource kind
+        eligible:
+          type: string
+          enum: ["true", "false", "unknown"]
+          description: if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back. 
         id:
           type: string
           description: Unique device identifier

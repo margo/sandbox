@@ -28,6 +28,26 @@ deploymentProfiles:
           revision: {{HELM_REVISION}} # e.g., 0.1.0
           wait: true
           timeout: 5m
+    deviceConstraints:
+      capacityRequirements:
+        cpu:
+          cores: 1
+        memory: 1024Mi
+        storage: 5Gi
+      eligibilityRules:
+        - propertySelector:
+            matchExpressions:
+            - key: /vendor
+              operator: In
+              values:
+              - "EdgeCircuit Systems"
+              - "NanoEdge Devices"
+          labelSelector:
+            matchExpressions:
+            - key: example.com/hyper-v.host
+              operator: In
+              values:
+              - true
     requiredResources:
       cpu:
         cores: 1

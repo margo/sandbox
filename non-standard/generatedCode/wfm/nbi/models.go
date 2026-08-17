@@ -238,6 +238,15 @@ func (e ConfigurationSchemaDataType) Valid() bool {
 	}
 }
 
+// Defines values for DeploymentCpuRequirementArchitectures.
+const (
+	Amd64   DeploymentCpuRequirementArchitectures = "amd64"
+	Arm     DeploymentCpuRequirementArchitectures = "arm"
+	Arm64   DeploymentCpuRequirementArchitectures = "arm64"
+	Other   DeploymentCpuRequirementArchitectures = "other"
+	Riscv64 DeploymentCpuRequirementArchitectures = "riscv64"
+)
+
 // Defines values for DeploymentExecutionProfileType.
 const (
 	DeploymentExecutionProfileTypeCompose DeploymentExecutionProfileType = "compose"
@@ -297,6 +306,18 @@ func (e DeviceOnboardStatus) Valid() bool {
 	}
 }
 
+// Defines values for MatchExpressionOperator.
+const (
+	ContainsAll  MatchExpressionOperator = "ContainsAll"
+	ContainsAny  MatchExpressionOperator = "ContainsAny"
+	DoesNotExist MatchExpressionOperator = "DoesNotExist"
+	Exists       MatchExpressionOperator = "Exists"
+	Gt           MatchExpressionOperator = "Gt"
+	In           MatchExpressionOperator = "In"
+	Lt           MatchExpressionOperator = "Lt"
+	NotIn        MatchExpressionOperator = "NotIn"
+)
+
 // Defines values for OciAuthenticationType.
 const (
 	Basic OciAuthenticationType = "basic"
@@ -352,7 +373,9 @@ type AppDeploymentProfile struct {
 	Components []AppDeploymentProfile_Components_Item `json:"components" yaml:"components"`
 
 	// Description Description of the deployment profile
-	Description       *string            `json:"description" yaml:"description"`
+	Description *string `json:"description" yaml:"description"`
+
+	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
 	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
 	RequiredResources *RequiredResources `json:"requiredResources,omitempty"`
 
@@ -695,14 +718,15 @@ type ApplicationPackageStatus struct {
 // ApplicationPackageStatusState State of the application package
 type ApplicationPackageStatusState string
 
-// CapacityRequirements defines model for CapacityRequirements.
+// CapacityRequirements Minimum device capacity required by the deployment profile.
 type CapacityRequirements struct {
-	Cpu *CpuRequirements `json:"cpu,omitempty"`
+	// Cpu CPU element specifying the CPU requirements for the deployment.
+	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
 
-	// Memory Minimum memory required by the deployment profile.
+	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
 	Memory *string `json:"memory,omitempty"`
 
-	// Storage Minimum storage required by the deployment profile.
+	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
 	Storage *string `json:"storage,omitempty"`
 }
 
@@ -804,20 +828,6 @@ type ConfigurationSetting struct {
 	Schema string `json:"schema" yaml:"schema"`
 }
 
-// ConstraintValue defines model for ConstraintValue.
-type ConstraintValue struct {
-	union json.RawMessage
-}
-
-// ConstraintValue0 defines model for .
-type ConstraintValue0 = string
-
-// ConstraintValue1 defines model for .
-type ConstraintValue1 = float32
-
-// ConstraintValue2 defines model for .
-type ConstraintValue2 = bool
-
 // ContextualInfo defines model for ContextualInfo.
 type ContextualInfo struct {
 	// Code Code of the contextual information
@@ -827,13 +837,23 @@ type ContextualInfo struct {
 	Message *string `json:"message,omitempty"`
 }
 
-// CpuRequirements defines model for CpuRequirements.
-type CpuRequirements struct {
-	// Architectures Allowed CPU architectures.
-	Architectures *[]string `json:"architectures,omitempty"`
+// CustomApplicationDeploymentProfileComponent Custom Application Deployment Profile Component
+type CustomApplicationDeploymentProfileComponent struct {
+	// Name Name of the component
+	Name       string `json:"name" yaml:"name"`
+	Properties struct {
+		// KeyLocation Key location of the component
+		KeyLocation *string `json:"keyLocation" yaml:"keyLocation"`
 
-	// Cores Minimum CPU cores required.
-	Cores *float32 `json:"cores,omitempty"`
+		// PackageLocation Package location of the component
+		PackageLocation string `json:"packageLocation" yaml:"packageLocation"`
+
+		// Timeout Timeout for the component
+		Timeout *string `json:"timeout" yaml:"timeout"`
+
+		// Wait Wait for the component to be ready
+		Wait *bool `json:"wait" yaml:"wait"`
+	} `json:"properties" yaml:"properties"`
 }
 
 // CustomDeploymentProfileComponent Custom Application Deployment Profile Component
@@ -855,11 +875,25 @@ type CustomDeploymentProfileComponent struct {
 	} `json:"properties"`
 }
 
+// DeploymentCpuRequirement CPU element specifying the CPU requirements for the deployment.
+type DeploymentCpuRequirement struct {
+	// Architectures The CPU architectures supported by the deployment.
+	Architectures *[]DeploymentCpuRequirementArchitectures `json:"architectures,omitempty"`
+
+	// Cores The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
+	Cores float32 `json:"cores"`
+}
+
+// DeploymentCpuRequirementArchitectures defines model for DeploymentCpuRequirement.Architectures.
+type DeploymentCpuRequirementArchitectures string
+
 // DeploymentExecutionProfile Application Deployment Profile
 type DeploymentExecutionProfile struct {
 	// Components Components of the deployment profile
-	Components        []DeploymentExecutionProfile_Components_Item `json:"components"`
-	DeviceConstraints *DeviceConstraints                           `json:"deviceConstraints,omitempty"`
+	Components []DeploymentExecutionProfile_Components_Item `json:"components"`
+
+	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
 
 	// Type Type of deployment profile
 	Type DeploymentExecutionProfileType `json:"type"`
@@ -894,19 +928,13 @@ type DeploymentParameterValue struct {
 // DeploymentParameters Application Parameters
 type DeploymentParameters map[string]DeploymentParameterValue
 
-// DeviceConstraintOperator defines model for DeviceConstraintOperator.
-type DeviceConstraintOperator string
-
-// DeviceConstraints defines model for DeviceConstraints.
+// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
 type DeviceConstraints struct {
-	CapacityRequirements *CapacityRequirements    `json:"capacityRequirements,omitempty"`
-	EligibilityRules     *[]DeviceEligibilityRule `json:"eligibilityRules,omitempty"`
-}
+	// CapacityRequirements Minimum device capacity required by the deployment profile.
+	CapacityRequirements *CapacityRequirements `json:"capacityRequirements,omitempty"`
 
-// DeviceEligibilityRule defines model for DeviceEligibilityRule.
-type DeviceEligibilityRule struct {
-	LabelSelector    *LabelSelector    `json:"labelSelector,omitempty"`
-	PropertySelector *PropertySelector `json:"propertySelector,omitempty"`
+	// EligibilityRules Optional rules used to match the deployment with device properties and supplier-defined labels reported in the device capabilities.
+	EligibilityRules *[]EligibilityRule `json:"eligibilityRules,omitempty"`
 }
 
 // DeviceListResp List of Devices
@@ -959,6 +987,15 @@ type DeviceSpec struct {
 // DeviceState defines model for DeviceState.
 type DeviceState struct {
 	Onboard DeviceOnboardStatus `json:"onboard"`
+}
+
+// EligibilityRule A rule matching properties and supplier-defined labels reported through the device capabilities.
+type EligibilityRule struct {
+	// LabelSelector A set of match expressions evaluated with AND semantics.
+	LabelSelector *Selector `json:"labelSelector,omitempty"`
+
+	// PropertySelector A set of match expressions evaluated with AND semantics.
+	PropertySelector *Selector `json:"propertySelector,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -1042,26 +1079,23 @@ type HelmDeploymentProfileComponent struct {
 	} `json:"properties"`
 }
 
-// ItemMatchExpression defines model for ItemMatchExpression.
-type ItemMatchExpression struct {
-	// Key JSON Pointer relative to the array element.
-	Key      string                 `json:"key"`
-	Operator SimpleSelectorOperator `json:"operator"`
-	Values   *[]ConstraintValue     `json:"values,omitempty"`
+// MatchExpression An expression used to match a device's reported capabilities properties or labels.
+type MatchExpression struct {
+	// ItemSelector A set of match expressions evaluated with AND semantics.
+	ItemSelector *Selector `json:"itemSelector,omitempty"`
+
+	// Key The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the exact label key.
+	Key string `json:"key"`
+
+	// Operator Operator used to evaluate the referenced value.
+	Operator MatchExpressionOperator `json:"operator"`
+
+	// Values Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`, `Gt`, or `Lt` operator.
+	Values *[]interface{} `json:"values,omitempty"`
 }
 
-// ItemSelector defines model for ItemSelector.
-type ItemSelector struct {
-	MatchExpressions []ItemMatchExpression `json:"matchExpressions"`
-}
-
-// LabelSelector defines model for LabelSelector.
-type LabelSelector struct {
-	MatchExpressions []MatchExpression `json:"matchExpressions"`
-}
-
-// MatchExpression defines model for MatchExpression.
-type MatchExpression = interface{}
+// MatchExpressionOperator Operator used to evaluate the referenced value.
+type MatchExpressionOperator string
 
 // Metadata defines model for Metadata.
 type Metadata struct {
@@ -1125,11 +1159,6 @@ type PaginationMetadata struct {
 	RemainingItemCount *int `json:"remainingItemCount,omitempty"`
 }
 
-// PropertySelector defines model for PropertySelector.
-type PropertySelector struct {
-	MatchExpressions []MatchExpression `json:"matchExpressions"`
-}
-
 // RequiredResources defines model for RequiredResources.
 type RequiredResources struct {
 	Cpu *struct {
@@ -1158,8 +1187,11 @@ type RequiredResources struct {
 	Storage *string `json:"storage" yaml:"storage"`
 }
 
-// SimpleSelectorOperator defines model for SimpleSelectorOperator.
-type SimpleSelectorOperator string
+// Selector A set of match expressions evaluated with AND semantics.
+type Selector struct {
+	// MatchExpressions Match expressions evaluated against the device's reported capabilities.
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
 
 // ValidationError defines model for ValidationError.
 type ValidationError struct {
@@ -1260,6 +1292,32 @@ func (t *AppDeploymentProfile_Components_Item) MergeComposeApplicationDeployment
 	}
 
 	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCustomApplicationDeploymentProfileComponent returns the union data inside the AppDeploymentProfile_Components_Item as a CustomApplicationDeploymentProfileComponent
+func (t AppDeploymentProfile_Components_Item) AsCustomApplicationDeploymentProfileComponent() (CustomApplicationDeploymentProfileComponent, error) {
+	var body CustomApplicationDeploymentProfileComponent
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCustomApplicationDeploymentProfileComponent overwrites any union data inside the AppDeploymentProfile_Components_Item as the provided CustomApplicationDeploymentProfileComponent
+func (t *AppDeploymentProfile_Components_Item) FromCustomApplicationDeploymentProfileComponent(v CustomApplicationDeploymentProfileComponent) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCustomApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided CustomApplicationDeploymentProfileComponent
+func (t *AppDeploymentProfile_Components_Item) MergeCustomApplicationDeploymentProfileComponent(v CustomApplicationDeploymentProfileComponent) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JsonMerge(t.union, b)
 	t.union = merged
 	return err
 }
@@ -1442,94 +1500,6 @@ func (t ApplicationPackageSpec_Source) MarshalJSON() ([]byte, error) {
 }
 
 func (t *ApplicationPackageSpec_Source) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsConstraintValue0 returns the union data inside the ConstraintValue as a ConstraintValue0
-func (t ConstraintValue) AsConstraintValue0() (ConstraintValue0, error) {
-	var body ConstraintValue0
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromConstraintValue0 overwrites any union data inside the ConstraintValue as the provided ConstraintValue0
-func (t *ConstraintValue) FromConstraintValue0(v ConstraintValue0) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeConstraintValue0 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue0
-func (t *ConstraintValue) MergeConstraintValue0(v ConstraintValue0) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JsonMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsConstraintValue1 returns the union data inside the ConstraintValue as a ConstraintValue1
-func (t ConstraintValue) AsConstraintValue1() (ConstraintValue1, error) {
-	var body ConstraintValue1
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromConstraintValue1 overwrites any union data inside the ConstraintValue as the provided ConstraintValue1
-func (t *ConstraintValue) FromConstraintValue1(v ConstraintValue1) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeConstraintValue1 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue1
-func (t *ConstraintValue) MergeConstraintValue1(v ConstraintValue1) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JsonMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsConstraintValue2 returns the union data inside the ConstraintValue as a ConstraintValue2
-func (t ConstraintValue) AsConstraintValue2() (ConstraintValue2, error) {
-	var body ConstraintValue2
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromConstraintValue2 overwrites any union data inside the ConstraintValue as the provided ConstraintValue2
-func (t *ConstraintValue) FromConstraintValue2(v ConstraintValue2) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeConstraintValue2 performs a merge with any union data inside the ConstraintValue, using the provided ConstraintValue2
-func (t *ConstraintValue) MergeConstraintValue2(v ConstraintValue2) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JsonMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t ConstraintValue) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *ConstraintValue) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

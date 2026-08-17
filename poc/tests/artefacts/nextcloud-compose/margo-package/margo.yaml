@@ -30,6 +30,26 @@ deploymentProfiles:
           revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
           timeout: 5m
+    deviceConstraints:
+      capacityRequirements:
+        cpu:
+          cores: 1
+        memory: 1024Mi
+        storage: 5Gi
+      eligibilityRules:
+        - propertySelector:
+            matchExpressions:
+            - key: /vendor
+              operator: In
+              values:
+              - "EdgeCircuit Systems"
+              - "NanoEdge Devices"
+          labelSelector:
+            matchExpressions:
+            - key: example.com/hyper-v.host
+              operator: In
+              values:
+              - true
 parameters:
   mysqlDatabase:
     value: nextcloud

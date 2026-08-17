@@ -110,7 +110,7 @@ deploy_instance() {
   
   echo ""
   echo "🖥️  Available devices:"
-  ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices --application-package-id package_id
+  ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list devices --appPkgId "$package_id"
   
   echo ""
   read -p "Enter the device ID for deployment: " device_id

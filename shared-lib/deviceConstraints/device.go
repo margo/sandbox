@@ -15,6 +15,7 @@ type DeviceCheckerIface interface {
 	HasEnoughCPUCores(arch *[]string, cores float32) (bool, error)
 	HasEnoughMemory(mem *string) (bool, error)
 	HasEnoughStorage(storage *string) (bool, error)
+	CheckEligibility(checks *clModels.CapacityRequirements) (bool, string, error)
 }
 
 // NewDeviceCapabilityChecker creates a new DeviceCheckerIface backed by
@@ -27,6 +28,60 @@ func NewDeviceCapabilityChecker(i clModels.DeviceCapabilitiesManifest) DeviceChe
 // deviceCapabilities is a type alias over DeviceCapabilitiesManifest that
 // implements DeviceCheckerIface with hardware constraint checking methods.
 type deviceCapabilities clModels.DeviceCapabilitiesManifest
+
+// CheckEligibility validates that a device meets all capacity requirements
+// defined in checks (CPU, memory, storage). Returns true if all checks pass,
+// along with a human-readable reason string if any check fails.
+func (dc *deviceCapabilities) CheckEligibility(checks *clModels.CapacityRequirements) (bool, string, error) {
+
+	// No requirements to check — device always qualifies.
+	if checks == nil {
+		return true, "", nil
+	}
+
+	if checks.Cpu != nil {
+		// Convert architecture enum slice to string slice for comparison.
+		var archStrings *[]string
+		if checks.Cpu.Architectures != nil {
+			archs := make([]string, len(*checks.Cpu.Architectures))
+			for i, a := range *checks.Cpu.Architectures {
+				archs[i] = string(a)
+			}
+			archStrings = &archs
+		}
+
+		result, err := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
+		if err != nil {
+			return result, "", err
+		}
+		if !result {
+			return result, "cpu requirement not fulfilled", nil
+		}
+	}
+
+	if checks.Memory != nil {
+		result, err := dc.HasEnoughMemory(checks.Memory)
+		if err != nil {
+			return result, "", err
+		}
+
+		if !result {
+			return result, "mem requirement not fulfilled", nil
+		}
+	}
+
+	if checks.Storage != nil {
+		result, err := dc.HasEnoughStorage(checks.Storage)
+		if err != nil {
+			return result, "", err
+		}
+		if !result {
+			return result, "storage requirement not fulfilled", nil
+		}
+	}
+
+	return true, "", nil
+}
 
 // HasEnoughCPUCores checks whether the device has at least the required number
 // of CPU cores. If arch is provided, only CPUs matching one of the specified
@@ -118,66 +173,4 @@ func satisfies(required, actual string) (bool, error) {
 
 	// Cmp returns -1, 0, or 1; >= 0 means actual meets or exceeds required.
 	return act.Cmp(req) >= 0, nil
-}
-
-// checkCapacityRequirements validates that a device meets all capacity requirements
-// defined in checks (CPU, memory, storage). Returns true if all checks pass,
-// along with a human-readable reason string if any check fails.
-func checkCapacityRequirements(device *clModels.DeviceCapabilitiesManifest, checks *clModels.CapacityRequirements) (bool, string, error) {
-	result := false
-
-	// No requirements to check — device always qualifies.
-	if checks == nil {
-		return true, "", nil
-	}
-
-	if device == nil {
-		return false, "", errors.New("device info cannot be nil when checking for capacity requirements")
-	}
-
-	dc := NewDeviceCapabilityChecker(*device)
-	if checks.Cpu != nil {
-		// Convert architecture enum slice to string slice for comparison.
-		var archStrings *[]string
-		if checks.Cpu.Architectures != nil {
-			archs := make([]string, len(*checks.Cpu.Architectures))
-			for i, a := range *checks.Cpu.Architectures {
-				archs[i] = string(a)
-			}
-			archStrings = &archs
-		}
-		result, err := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
-		if err != nil {
-			return result, "", err
-		}
-		if !result {
-			return result, "cpu requirement not fulfilled", nil
-		}
-	}
-
-	if checks.Memory != nil {
-		ok, err := dc.HasEnoughMemory(checks.Memory)
-		if err != nil {
-			return result, "", err
-		}
-		// All prior checks must also pass; short-circuit if memory check fails.
-		result = result && ok
-		if !result {
-			return result, "mem requirement not fulfilled", nil
-		}
-	}
-
-	if checks.Storage != nil {
-		ok, err := dc.HasEnoughStorage(checks.Storage)
-		if err != nil {
-			return result, "", err
-		}
-		// All prior checks must also pass; short-circuit if storage check fails.
-		result = result && ok
-		if !result {
-			return result, "storage requirement not fulfilled", nil
-		}
-	}
-
-	return true, "", nil
 }

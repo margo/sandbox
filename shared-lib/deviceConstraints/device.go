@@ -1,1 +1,183 @@
 package deviceconstraints
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+
+	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"k8s.io/apimachinery/pkg/api/resource"
+)
+
+// DeviceCheckerIface defines the contract for checking whether a device
+// meets specific hardware capacity requirements.
+type DeviceCheckerIface interface {
+	HasEnoughCPUCores(arch *[]string, cores float32) (bool, error)
+	HasEnoughMemory(mem *string) (bool, error)
+	HasEnoughStorage(storage *string) (bool, error)
+}
+
+// NewDeviceCapabilityChecker creates a new DeviceCheckerIface backed by
+// the provided DeviceCapabilitiesManifest.
+func NewDeviceCapabilityChecker(i clModels.DeviceCapabilitiesManifest) DeviceCheckerIface {
+	dc := deviceCapabilities(i)
+	return &dc
+}
+
+// deviceCapabilities is a type alias over DeviceCapabilitiesManifest that
+// implements DeviceCheckerIface with hardware constraint checking methods.
+type deviceCapabilities clModels.DeviceCapabilitiesManifest
+
+// HasEnoughCPUCores checks whether the device has at least the required number
+// of CPU cores. If arch is provided, only CPUs matching one of the specified
+// architectures are considered. If arch is nil, any CPU with sufficient cores satisfies the requirement.
+func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) (bool, error) {
+	if dc.Properties.Cpus == nil {
+		return false, errors.New("cpu not defined for device")
+	}
+
+	for _, c := range *dc.Properties.Cpus {
+
+		// No architecture filter specified — any CPU with enough cores satisfies the requirement.
+		if arch == nil {
+			if c.Cores >= cores {
+				return true, nil
+			}
+			continue
+		}
+
+		// Skip CPUs that don't report their architecture, as we cannot verify compatibility.
+		if c.Architecture == nil {
+			continue
+		}
+
+		// Skip CPUs whose architecture is not in the required architectures list.
+		if i := slices.Index(*arch, string(*c.Architecture)); i == -1 {
+			continue
+		}
+
+		if c.Cores >= cores {
+			return true, nil
+		}
+
+	}
+
+	return false, nil
+}
+
+// HasEnoughMemory checks whether the device has at least the required amount of memory.
+// A nil requirement is treated as no constraint and always passes.
+func (dc *deviceCapabilities) HasEnoughMemory(mem *string) (bool, error) {
+	// No memory requirement specified — always satisfied.
+	if mem == nil {
+		return true, nil
+	}
+
+	if dc.Properties.Memory == nil {
+		return false, errors.New("memory not defined for device")
+	}
+
+	ok, err := satisfies(*mem, *dc.Properties.Memory)
+	if err != nil {
+		return false, fmt.Errorf("failed to check memory requirements, err : %s", err.Error())
+	}
+	return ok, nil
+}
+
+// HasEnoughStorage checks whether the device has at least the required amount of storage.
+// A nil requirement is treated as no constraint and always passes.
+func (dc *deviceCapabilities) HasEnoughStorage(storage *string) (bool, error) {
+	// No storage requirement specified — always satisfied.
+	if storage == nil {
+		return true, nil
+	}
+
+	if dc.Properties.Storage == nil {
+		return false, errors.New("storage not defined for device")
+	}
+
+	ok, err := satisfies(*storage, *dc.Properties.Storage)
+	if err != nil {
+		return false, fmt.Errorf("failed to check storage requirements, err : %s", err.Error())
+	}
+	return ok, nil
+}
+
+// satisfies parses both required and actual values as Kubernetes resource quantities
+// and returns true if actual >= required.
+func satisfies(required, actual string) (bool, error) {
+	req, err := resource.ParseQuantity(required)
+	if err != nil {
+		return false, err
+	}
+
+	act, err := resource.ParseQuantity(actual)
+	if err != nil {
+		return false, err
+	}
+
+	// Cmp returns -1, 0, or 1; >= 0 means actual meets or exceeds required.
+	return act.Cmp(req) >= 0, nil
+}
+
+// checkCapacityRequirements validates that a device meets all capacity requirements
+// defined in checks (CPU, memory, storage). Returns true if all checks pass,
+// along with a human-readable reason string if any check fails.
+func checkCapacityRequirements(device *clModels.DeviceCapabilitiesManifest, checks *clModels.CapacityRequirements) (bool, string, error) {
+	result := false
+
+	// No requirements to check — device always qualifies.
+	if checks == nil {
+		return true, "", nil
+	}
+
+	if device == nil {
+		return false, "", errors.New("device info cannot be nil when checking for capacity requirements")
+	}
+
+	dc := NewDeviceCapabilityChecker(*device)
+	if checks.Cpu != nil {
+		// Convert architecture enum slice to string slice for comparison.
+		var archStrings *[]string
+		if checks.Cpu.Architectures != nil {
+			archs := make([]string, len(*checks.Cpu.Architectures))
+			for i, a := range *checks.Cpu.Architectures {
+				archs[i] = string(a)
+			}
+			archStrings = &archs
+		}
+		result, err := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
+		if err != nil {
+			return result, "", err
+		}
+		if !result {
+			return result, "cpu requirement not fulfilled", nil
+		}
+	}
+
+	if checks.Memory != nil {
+		ok, err := dc.HasEnoughMemory(checks.Memory)
+		if err != nil {
+			return result, "", err
+		}
+		// All prior checks must also pass; short-circuit if memory check fails.
+		result = result && ok
+		if !result {
+			return result, "mem requirement not fulfilled", nil
+		}
+	}
+
+	if checks.Storage != nil {
+		ok, err := dc.HasEnoughStorage(checks.Storage)
+		if err != nil {
+			return result, "", err
+		}
+		// All prior checks must also pass; short-circuit if storage check fails.
+		result = result && ok
+		if !result {
+			return result, "storage requirement not fulfilled", nil
+		}
+	}
+
+	return true, "", nil
+}

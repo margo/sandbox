@@ -1,14 +1,15 @@
 package deviceconstraints
 
 import (
-	nsModels "github.com/margo/sandbox/non-standard/generatedCode/wfm/nbi"
+	"fmt"
+
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 )
 
 type DeviceSelectorIface interface {
-	SelectEligibleDevice(devices []*clModels.DeviceCapabilitiesManifest, checks *nsModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error)
-	IsDeviceEligible(device *clModels.DeviceCapabilitiesManifest, checks *nsModels.DeviceConstraints) (bool, string, error)
+	SelectEligibleDevice(devices []*clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error)
+	IsDeviceEligible(device *clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) (bool, string, error)
 }
 
 func NewDeviceSelector(logger *zap.SugaredLogger) DeviceSelectorIface {
@@ -27,7 +28,7 @@ When a non-nil error is returned, the resulting device slice is guaranteed to be
 */
 func (ds *deviceSelectorImplementation) SelectEligibleDevice(
 	devices []*clModels.DeviceCapabilitiesManifest,
-	checks *nsModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error) {
+	checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error) {
 
 	eligibleDevs := make([]*clModels.DeviceCapabilitiesManifest, 0)
 	var gErr error
@@ -69,7 +70,53 @@ func (ds *deviceSelectorImplementation) SelectEligibleDevice(
 // reason are guaranteed to be their zero values (false, "").
 func (ds *deviceSelectorImplementation) IsDeviceEligible(
 	device *clModels.DeviceCapabilitiesManifest,
-	checks *nsModels.DeviceConstraints) (bool, string, error) {
+	checks *clModels.DeviceConstraints) (bool, string, error) {
 
-	return true, "", nil
+	/*
+		Algorithm:
+		1. Check Capacity requirements first.
+		2.
+	*/
+
+	if checks == nil {
+		return true, "", nil
+	}
+
+	dc := NewDeviceCapabilityChecker(*device)
+	ok, reason, err := dc.CheckEligibility(checks.CapacityRequirements)
+	if err != nil {
+		// Handle error
+		return false, "", fmt.Errorf("failed to check device eligibility, err: %s", err.Error())
+	}
+
+	if !ok {
+		return false, fmt.Sprintf("not enough resources: capacity : %s", reason), nil
+	}
+
+	lse := NewLabelSelectorEngine(device.Labels)
+
+	finalReason := ""
+	// Out of all Eligibility rules, at least 1 needs to pass to consider that device.
+	// Hence, we just need to find that particular rule.
+	// Label Eligibility & Property Eligibility have AND relationship
+	for _, v := range *checks.EligibilityRules {
+
+		// continue checking labels
+		if v.LabelSelector != nil {
+			ok, reason := lse.Evaluate(v.LabelSelector)
+			if !ok {
+				finalReason = reason
+				continue
+			}
+		}
+
+		//TODO: continue checking selectors
+		if v.PropertySelector != nil {
+
+		}
+
+		return true, "", nil
+	}
+
+	return false, finalReason, nil
 }

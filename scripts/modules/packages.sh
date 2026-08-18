@@ -130,68 +130,76 @@ build_custom_otel_container_images() {
   echo "📦 Chart: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
 }
 
-
-
 push_nextcloud_compose_to_oci() {
   echo "📦 Pushing Nextcloud Compose Archive to OCI Registry (HTTPS)..."
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose-archive"
+
+  local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/code/compose"
   local repository="${OCI_ORGANIZATION}/nextcloud-compose-archive"
 
+  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
   NEXTCLOUD_COMPOSE_REVISION="1.0.0"
 
   local tag=${NEXTCLOUD_COMPOSE_REVISION:-latest}
   local archive_name="nextcloud-compose-archive-${tag}.tar.gz"
-  local archive_path="$app_dir/$archive_name"
- 
+  local archive_path="/tmp/${archive_name}"
+
   cd "$app_dir" || {
     echo "❌ Nextcloud package dir missing: $app_dir"
     return 1
   }
- 
+
   echo "$REGISTRY_PASS" | oras login \
     "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" \
     --password-stdin \
     --insecure
- 
+
   if [ ! -f "compose.yaml" ]; then
     echo "❌ compose.yaml not found in $app_dir"
     return 1
   fi
- 
+
   echo "📦 Creating Compose Archive..."
+
   # Stage files at archive root (no wrapping top-level directory)
   local staging_dir
   staging_dir=$(mktemp -d)
- 
+
+  # Ensure cleanup on function exit
+  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+
   # Copy compose.yaml
   cp "compose.yaml" "$staging_dir/compose.yaml"
- 
+
   # Copy additional resources if present
   if [ -d "resources" ]; then
     cp -a resources "$staging_dir/"
   fi
-  
-  # Create the Margo Compose Archive with files at root
+
+  # Create archive in /tmp
   tar -czf "$archive_path" \
     -C "$staging_dir" \
     .
- 
-  rm -rf "$staging_dir"
- 
+
   if [ ! -f "$archive_path" ]; then
     echo "❌ Failed to create Compose Archive"
     return 1
   fi
- 
+
   echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."
-  oras push \
-  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
-  --artifact-type "application/vnd.org.margo.component.compose+json" \
-  --insecure \
-  "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
- 
+
+  # ORAS requires a relative filename, so push from /tmp
+  (
+    cd /tmp || exit 1
+
+    oras push \
+      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+      --artifact-type "application/vnd.org.margo.component.compose+json" \
+      --insecure \
+      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
+  )
+
   if [ $? -eq 0 ]; then
     echo "✅ Nextcloud Compose Archive pushed successfully"
     echo "📍 OCI: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"

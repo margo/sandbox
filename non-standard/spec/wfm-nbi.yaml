@@ -771,6 +771,7 @@ components:
               type: boolean
           required:
           - repository
+          - revision
           type: object
       required:
       - name
@@ -823,6 +824,7 @@ components:
               type: boolean
           required:
           - repository
+          - revision
           type: object
       required:
       - name
@@ -1356,7 +1358,7 @@ components:
           description: Name of the component
         properties:
           type: object
-          required: [repository]
+          required: [repository, revision]
           properties:
             repository:
               type: string
@@ -1381,7 +1383,7 @@ components:
           description: Name of the component
         properties:
           type: object
-          required: [repository]
+          required: [repository, revision]
           properties:
             repository:
               type: string

@@ -72,7 +72,7 @@ get_oci_repository_path() {
 
   # Dynamic discovery from margo.yaml
   if [ -f "$margo_file" ]; then
-    local compose_location=$(grep "packageLocation:" "$margo_file" | head -1 | sed 's/.*packageLocation:\s*//' | tr -d '"' | tr -d "'" | xargs)
+    local compose_location=$(grep "repository:" "$margo_file" | grep -v "registryUrl" | head -1 | sed 's/.*repository:\s*//' | tr -d '"' | tr -d "'" | xargs)
     local helm_repo=$(grep "repository:" "$margo_file" | grep -v "registryUrl" | head -1 | sed 's/.*repository:\s*//' | tr -d '"' | tr -d "'" | xargs)
 
     if [ -n "$compose_location" ]; then

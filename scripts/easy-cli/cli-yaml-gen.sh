@@ -208,6 +208,7 @@ generate_compose_instance() {
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters(currently read-only).
 # This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
+
 apiVersion: non-margo.org
 kind: ApplicationDeployment
 metadata:
@@ -231,38 +232,61 @@ EOF
         gsub(/"/, "", name)
         print "COMPONENT_NAME:" name
       }
-      if (/packageLocation:/) {
-        location = $0
-        sub(/.*packageLocation:/, "", location)
-        gsub(/^[ \t]+|[ \t]+$/, "", location)
-        gsub(/"/, "", location)
-        print "PACKAGE_LOCATION:" location
+      if (/repository:/ && !/registryUrl/) {
+        repo = $0
+        sub(/.*repository:/, "", repo)
+        gsub(/^[ \t]+|[ \t]+$/, "", repo)
+        gsub(/"/, "", repo)
+        print "REPOSITORY:" repo
+      }
+      if (/revision:/) {
+        rev = $0
+        sub(/.*revision:/, "", rev)
+        gsub(/^[ \t]+|[ \t]+$/, "", rev)
+        gsub(/"/, "", rev)
+        print "REVISION:" rev
       }
     }' "$margo_file" | {
       local current_name=""
+      local current_repo=""
+      local current_rev="1.0.0"
+
       while IFS=: read -r key value; do
         case "$key" in
           COMPONENT_NAME)
             current_name="$value"
             ;;
-          PACKAGE_LOCATION)
-            if [ -n "$current_name" ]; then
+          REPOSITORY)
+            current_repo="$value"
+            ;;
+          REVISION)
+            current_rev="$value"
+            if [ -n "$current_name" ] && [ -n "$current_repo" ]; then
               cat >> "$output_file" <<COMPONENT
       - name: ${current_name}
         properties:
-          packageLocation: ${value}
+          repository: ${current_repo}
+          revision: ${current_rev}
+          wait: true
+          timeout: 5m
 COMPONENT
               current_name=""
+              current_repo=""
+              current_rev="1.0.0"
             fi
             ;;
         esac
       done
     }
   else
+    local current_rev="1.0.0"
     cat >> "$output_file" <<COMPONENT
       - name: ${stack_name}
         properties:
-          packageLocation: ${repository}
+          repository: ${repository}
+          revision: ${current_rev}
+          wait: true
+          timeout: 5m
 COMPONENT
   fi
 

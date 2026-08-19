@@ -87,7 +87,10 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 		return false, fmt.Sprintf("not enough resources: capacity : %s", reason), nil
 	}
 
-	lse := NewLabelSelectorEngine(device.Labels)
+	if checks.EligibilityRules == nil {
+		return true, "", nil
+	}
+
 	pse := NewPropertySelectorEngine(device)
 
 	finalReason := ""
@@ -98,6 +101,12 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 
 		// continue checking labels
 		if v.LabelSelector != nil {
+			if device.Labels == nil {
+				finalReason = "device has no labels defined, but application's device constraints require label based matching"
+				continue
+			}
+
+			lse := NewLabelSelectorEngine(*device.Labels)
 			ok, reason := lse.Evaluate(v.LabelSelector)
 			if !ok {
 				finalReason = reason

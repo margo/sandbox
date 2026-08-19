@@ -1,7 +1,6 @@
 package deviceconstraints
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 
@@ -12,7 +11,7 @@ import (
 // DeviceCheckerIface defines the contract for checking whether a device
 // meets specific hardware capacity requirements.
 type DeviceCheckerIface interface {
-	HasEnoughCPUCores(arch *[]string, cores float32) (bool, error)
+	HasEnoughCPUCores(arch *[]string, cores float32) bool
 	HasEnoughMemory(mem *string) (bool, error)
 	HasEnoughStorage(storage *string) (bool, error)
 	CheckEligibility(checks *clModels.CapacityRequirements) (bool, string, error)
@@ -50,10 +49,7 @@ func (dc *deviceCapabilities) CheckEligibility(checks *clModels.CapacityRequirem
 			archStrings = &archs
 		}
 
-		result, err := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
-		if err != nil {
-			return result, "", err
-		}
+		result := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
 		if !result {
 			return result, "cpu requirement not fulfilled", nil
 		}
@@ -86,9 +82,9 @@ func (dc *deviceCapabilities) CheckEligibility(checks *clModels.CapacityRequirem
 // HasEnoughCPUCores checks whether the device has at least the required number
 // of CPU cores. If arch is provided, only CPUs matching one of the specified
 // architectures are considered. If arch is nil, any CPU with sufficient cores satisfies the requirement.
-func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) (bool, error) {
+func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) bool {
 	if dc.Properties.Cpus == nil {
-		return false, errors.New("cpu not defined for device")
+		return false
 	}
 
 	for _, c := range *dc.Properties.Cpus {
@@ -96,7 +92,7 @@ func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) (
 		// No architecture filter specified — any CPU with enough cores satisfies the requirement.
 		if arch == nil {
 			if c.Cores >= cores {
-				return true, nil
+				return true
 			}
 			continue
 		}
@@ -112,24 +108,24 @@ func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) (
 		}
 
 		if c.Cores >= cores {
-			return true, nil
+			return true
 		}
 
 	}
 
-	return false, nil
+	return false
 }
 
 // HasEnoughMemory checks whether the device has at least the required amount of memory.
 // A nil requirement is treated as no constraint and always passes.
 func (dc *deviceCapabilities) HasEnoughMemory(mem *string) (bool, error) {
 	// No memory requirement specified — always satisfied.
-	if mem == nil {
+	if mem == nil || *mem == "" {
 		return true, nil
 	}
 
-	if dc.Properties.Memory == nil {
-		return false, errors.New("memory not defined for device")
+	if dc.Properties.Memory == nil || *dc.Properties.Memory == "" {
+		return false, nil
 	}
 
 	ok, err := satisfies(*mem, *dc.Properties.Memory)
@@ -143,12 +139,12 @@ func (dc *deviceCapabilities) HasEnoughMemory(mem *string) (bool, error) {
 // A nil requirement is treated as no constraint and always passes.
 func (dc *deviceCapabilities) HasEnoughStorage(storage *string) (bool, error) {
 	// No storage requirement specified — always satisfied.
-	if storage == nil {
+	if storage == nil || *storage == "" {
 		return true, nil
 	}
 
-	if dc.Properties.Storage == nil {
-		return false, errors.New("storage not defined for device")
+	if dc.Properties.Storage == nil || *dc.Properties.Storage == "" {
+		return false, nil
 	}
 
 	ok, err := satisfies(*storage, *dc.Properties.Storage)

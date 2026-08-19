@@ -21,9 +21,9 @@ type LabelSelectorEngine struct {
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 }
 
-func NewLabelSelectorEngine(labels *map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties) SelectorEngineIface {
+func NewLabelSelectorEngine(labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties) SelectorEngineIface {
 	return &LabelSelectorEngine{
-		labels: *labels,
+		labels: labels,
 	}
 }
 

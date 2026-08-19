@@ -4,59 +4,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
 // helpers
 
-func newLogger(t *testing.T) *zap.SugaredLogger {
-	t.Helper()
-	l, err := zap.NewDevelopment()
-	require.NoError(t, err)
-	return l.Sugar()
-}
-
-func strLabel(v string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
-	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
-	_ = p.FromDeviceCapabilitiesManifestLabels0(v)
-	return p
-}
-
-func numLabel(v float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
-	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
-	_ = p.FromDeviceCapabilitiesManifestLabels1(v)
-	return p
-}
-
-func boolLabel(v bool) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
-	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
-	_ = p.FromDeviceCapabilitiesManifestLabels2(v)
-	return p
-}
-
-func strSliceLabel(v []string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
-	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
-	_ = p.FromDeviceCapabilitiesManifestLabels3(v)
-	return p
-}
-
-func numSliceLabel(v []float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
-	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
-	_ = p.FromDeviceCapabilitiesManifestLabels4(v)
-	return p
-}
-
-func vals(v ...interface{}) *[]interface{} { return &v }
-
 func newEngine(
 	t *testing.T,
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties,
 ) SelectorEngineIface {
 	t.Helper()
-	return NewLabelSelectorEngine(&labels)
+	return NewLabelSelectorEngine(labels)
 }
 
 // ── In ───────────────────────────────────────────────────────────────────────

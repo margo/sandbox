@@ -379,7 +379,8 @@
             "v1",
             "clients",
             ":clientId",
-            "capabilities"
+            "capabilities",
+            ":deviceId"
           ],
           "host": [
             "{{baseUrl}}"
@@ -395,6 +396,16 @@
               "type": "any",
               "value": "aute magna",
               "key": "clientId"
+            },
+            {
+              "disabled": false,
+              "type": "any",
+              "value": "",
+              "key": "deviceId",
+              "description": {
+                "content": "(Required) ",
+                "type": "text/plain"
+              }
             }
           ]
         },
@@ -728,7 +739,8 @@
             "v1",
             "clients",
             ":clientId",
-            "capabilities"
+            "capabilities",
+            ":deviceId"
           ],
           "host": [
             "{{baseUrl}}"
@@ -744,6 +756,16 @@
               "type": "any",
               "value": "aute magna",
               "key": "clientId"
+            },
+            {
+              "disabled": false,
+              "type": "any",
+              "value": "",
+              "key": "deviceId",
+              "description": {
+                "content": "(Required) ",
+                "type": "text/plain"
+              }
             }
           ]
         },

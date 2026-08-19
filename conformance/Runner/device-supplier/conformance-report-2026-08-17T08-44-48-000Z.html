@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Supplier Conformance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f2f2f2; }
+        .version-warning { margin: 16px 0; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Device Supplier Conformance Test Report</h1>
+        <p>CTT Margo Version: 1.0.0-rc.2</p>
+        <p>Claimed App Version: 1.0.0-rc.2</p>
+        <p>Generated: 2026-08-17T08:44:48Z</p>
+    </div>
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Tests: 76 | <span class="pass">&#x2705; Passed: 76</span> | <span class="fail">&#x274C; Failed: 0</span></p>
+        <p>Success Rate: 100.0%</p>
+    </div>
+    <table>
+        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>
+
+        <tr>
+            <td>Reject Onboarding With Invalid Api Version</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Missing Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Empty Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Missing Kind</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Onboarding With Wrong Kind Value</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Blocklisted Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>403</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Without Signature Succeeds (alt clientId, not shared)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Trusted Device (canonical, shared clientId — must stay last)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities with POST (full resources)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities with PUT (full resources)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities With Empty Peripherals (regression test)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities Missing cpus</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing Properties</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Peripheral Type</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Interface Type</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Invalid Cpu Architecture</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities With Missing Content-Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities Without Signature</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Capabilities For Unknown Client</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments (local setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Deployment Status</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Deployment Status With Optional deviceId (now type-checked)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Invalid State</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing Component Name</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Path Deployment Mismatch</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status With Missing Content-Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Status Without Signature</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Deployments Request With Unsupported Accept Header</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>406</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Deployments</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Deployments For Unknown Client</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments (local setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Individual Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Individual Deployment Manifest With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Deployment Manifest Download With Wrong Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Root CA Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Current Deployments (local setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Deployment Bundle</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Bundle With Matching ETag</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Bundle Download With Wrong Digest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned GET Bundle</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Dedicated Client For This Scenario (not shared)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reset Desired State To Empty (test-control)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Empty Desired State</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Re-poll With Same ETag — Steady State (304, no reconciliation needed)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Add Default Deployment Back (test-control) — DESIRED-STATE-ADDED</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Deployment Present, Version Advanced</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch Bundle For Newly-Added Deployment</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch Individual Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status: pending</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status: installing</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status: installed</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Assign A Second Deployment (test-control)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status: installed (second deployment)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Unassign Second Deployment (test-control) — back to default only</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Status: removed (second deployment, no longer desired)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Restored To Default Only</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Assign Both Sample Apps (test-control)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Mock Server Reports Both Apps</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch App A Deployment Manifest (nginx compose)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch App A's Actual compose.yaml (served by this mock server)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App A Status: pending</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App A Status: installing</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App A Status: installed</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch App B Deployment Manifest (redis compose)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Fetch App B's Actual compose.yaml (served by this mock server)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App B Status: pending</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App B Status: installing</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App B Status: installed — both apps now running</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Remove App B, Keep App A (test-control)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Exactly App A Remains</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report App B Status: removed (no longer desired)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Restore Default Deployment (test-control) — leave shared client in the state siblings expect</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Confirm Restored To Default Only</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+    </table>
+</body>
+</html>

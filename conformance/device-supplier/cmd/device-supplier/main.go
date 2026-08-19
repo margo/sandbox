@@ -235,6 +235,14 @@ func applyRule(rule ValidationRule, body map[string]interface{}) *ValidationErro
 					Error:  fmt.Sprintf("%s must be a number, got %T", rule.Field, fieldValue),
 				}
 			}
+
+		case "boolean":
+			if _, ok := fieldValue.(bool); !ok {
+				return &ValidationError{
+					RuleID: rule.RuleID,
+					Error:  fmt.Sprintf("%s must be a boolean, got %T", rule.Field, fieldValue),
+				}
+			}
 		}
 	}
 
@@ -830,14 +838,14 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 func handleDiscovery(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, 200, map[string]interface{}{
 		"name":     "Mock WFM Server for Device Supplier",
-		"version":  "1.0.0",
+		"version":  "1.0.0-rc.2",
 		"persona":  "device_supplier",
-		"spec_url": "https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml",
+		"spec_url": "https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0-rc.2.yaml",
 		"endpoints": []string{
 			"GET  /api/v1/onboarding/certificate",
 			"POST /api/v1/onboarding",
-			"POST /api/v1/clients/{clientId}/capabilities",
-			"PUT  /api/v1/clients/{clientId}/capabilities",
+			"POST /api/v1/clients/{clientId}/capabilities/{deviceId}",
+			"PUT  /api/v1/clients/{clientId}/capabilities/{deviceId}",
 			"GET  /api/v1/clients/{clientId}/deployments",
 			"GET  /api/v1/clients/{clientId}/bundles/{digest}",
 			"GET  /api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}",
@@ -1702,7 +1710,11 @@ func main() {
 	router.HandleFunc("/v1alpha2/margo/api/v1/onboarding/certificate", handleGetCertificate).Methods("GET")
 	router.HandleFunc("/v1alpha2/margo/api/v1/onboarding", handleOnboarding).Methods("POST")
 
-	// Capabilities
+	// Capabilities — spec path includes {deviceId} (a device is scoped to a client, but
+	// distinct from it, e.g. a gateway fronting several child devices). The no-deviceId
+	// route is also kept registered for backward compatibility with existing test data.
+	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/capabilities/{deviceId}", handlePostCapabilities).Methods("POST")
+	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/capabilities/{deviceId}", handlePutCapabilities).Methods("PUT")
 	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/capabilities", handlePostCapabilities).Methods("POST")
 	router.HandleFunc("/v1alpha2/margo/api/v1/clients/{clientId}/capabilities", handlePutCapabilities).Methods("PUT")
 

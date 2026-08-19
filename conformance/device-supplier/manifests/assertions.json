@@ -123,88 +123,63 @@
         },
         {
           "rule_id": "capabilities-008",
-          "field": "properties.roles",
+          "field": "properties.cpus",
           "type": "array",
           "required": true,
-          "minItems": 1,
-          "itemsType": "string",
-          "itemsEnum": [
-            "Standalone Cluster",
-            "Cluster Leader",
-            "Standalone Device"
-          ],
-          "description": "properties.roles must contain at least one valid Margo device role"
+          "itemsType": "object",
+          "description": "properties.cpus is required and must be an array of CPU objects"
         },
         {
           "rule_id": "capabilities-009",
-          "field": "properties.resources",
-          "type": "object",
-          "required": false,
-          "description": "properties.resources is optional; when present, cpu/memory/storage/interfaces/peripherals become required within it"
+          "field": "properties.cpus.*.cores",
+          "type": "number",
+          "required": true,
+          "requiredIf": "properties.cpus",
+          "description": "Each entry in properties.cpus must declare cores"
         },
         {
           "rule_id": "capabilities-010",
-          "field": "properties.resources.cpu",
-          "type": "object",
-          "required": true,
-          "requiredIf": "properties.resources",
-          "description": "properties.resources.cpu is required when properties.resources is present"
-        },
-        {
-          "rule_id": "capabilities-011",
-          "field": "properties.resources.cpu.cores",
-          "type": "number",
-          "required": true,
-          "requiredIf": "properties.resources",
-          "description": "properties.resources.cpu.cores is required when properties.resources is present"
-        },
-        {
-          "rule_id": "capabilities-012",
-          "field": "properties.resources.cpu.architecture",
+          "field": "properties.cpus.*.architecture",
           "type": "string",
           "required": false,
-          "requiredIf": "properties.resources",
+          "requiredIf": "properties.cpus",
           "enum": [
             "amd64",
-            "x86_64",
             "arm64",
             "arm"
           ],
-          "description": "properties.resources.cpu.architecture must use a supported architecture value when present"
+          "description": "properties.cpus[].architecture must use a supported architecture value when present"
+        },
+        {
+          "rule_id": "capabilities-011",
+          "field": "properties.memory",
+          "type": "string",
+          "required": true,
+          "minLength": 1,
+          "description": "properties.memory is required"
+        },
+        {
+          "rule_id": "capabilities-012",
+          "field": "properties.storage",
+          "type": "string",
+          "required": true,
+          "minLength": 1,
+          "description": "properties.storage is required"
         },
         {
           "rule_id": "capabilities-013",
-          "field": "properties.resources.memory",
-          "type": "string",
+          "field": "properties.interfaces",
+          "type": "array",
           "required": true,
-          "requiredIf": "properties.resources",
-          "minLength": 1,
-          "description": "properties.resources.memory is required when properties.resources is present"
+          "itemsType": "object",
+          "description": "properties.interfaces is required and must be an array of interface objects"
         },
         {
           "rule_id": "capabilities-014",
-          "field": "properties.resources.storage",
+          "field": "properties.interfaces.*.type",
           "type": "string",
           "required": true,
-          "requiredIf": "properties.resources",
-          "minLength": 1,
-          "description": "properties.resources.storage is required when properties.resources is present"
-        },
-        {
-          "rule_id": "capabilities-015",
-          "field": "properties.resources.interfaces",
-          "type": "array",
-          "required": true,
-          "requiredIf": "properties.resources",
-          "itemsType": "object",
-          "description": "properties.resources.interfaces is required when properties.resources is present"
-        },
-        {
-          "rule_id": "capabilities-016",
-          "field": "properties.resources.interfaces.*.type",
-          "type": "string",
-          "required": true,
-          "requiredIf": "properties.resources",
+          "requiredIf": "properties.interfaces",
           "enum": [
             "ethernet",
             "wifi",
@@ -217,20 +192,19 @@
           "description": "Each interface must declare a supported type"
         },
         {
-          "rule_id": "capabilities-017",
-          "field": "properties.resources.peripherals",
+          "rule_id": "capabilities-015",
+          "field": "properties.peripherals",
           "type": "array",
           "required": true,
-          "requiredIf": "properties.resources",
           "itemsType": "object",
-          "description": "properties.resources.peripherals is required when properties.resources is present"
+          "description": "properties.peripherals is required and must be an array of peripheral objects"
         },
         {
-          "rule_id": "capabilities-018",
-          "field": "properties.resources.peripherals.*.type",
+          "rule_id": "capabilities-016",
+          "field": "properties.peripherals.*.type",
           "type": "string",
           "required": true,
-          "requiredIf": "properties.resources",
+          "requiredIf": "properties.peripherals",
           "enum": [
             "gpu",
             "display",
@@ -239,6 +213,38 @@
             "speaker"
           ],
           "description": "Each peripheral must declare a supported type"
+        },
+        {
+          "rule_id": "capabilities-017",
+          "field": "properties.otelCollector",
+          "type": "boolean",
+          "required": true,
+          "description": "properties.otelCollector is required"
+        },
+        {
+          "rule_id": "capabilities-018",
+          "field": "properties.supportedRuntimes",
+          "type": "array",
+          "required": true,
+          "minItems": 1,
+          "itemsType": "string",
+          "itemsEnum": [
+            "oci"
+          ],
+          "description": "properties.supportedRuntimes is required and must contain at least one supported runtime"
+        },
+        {
+          "rule_id": "capabilities-019",
+          "field": "properties.supportedDeploymentTypes",
+          "type": "array",
+          "required": true,
+          "minItems": 1,
+          "itemsType": "string",
+          "itemsEnum": [
+            "helm",
+            "compose"
+          ],
+          "description": "properties.supportedDeploymentTypes is required and must contain at least one supported deployment type"
         }
       ],
       "response_structure": {

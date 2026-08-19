@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Supplier Conformance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f2f2f2; }
+        .version-warning { margin: 16px 0; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Device Supplier Conformance Test Report</h1>
+        <p>CTT Margo Version: 1.0.0-rc.2</p>
+        <p>Claimed App Version: unknown</p>
+        <p>Generated: 2026-08-17T08:43:47Z</p>
+    </div>
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Tests: 13 | <span class="pass">&#x2705; Passed: 13</span> | <span class="fail">&#x274C; Failed: 0</span></p>
+        <p>Success Rate: 100.0%</p>
+    </div>
+    <table>
+        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>
+
+        <tr>
+            <td>Get Root CA Certificate</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Capabilities with POST</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Update Capabilities with PUT</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployment Manifest</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Get Deployments — Cached (ETag match returns 304)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Download Deployment Bundle</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Report Deployment Status</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboard Device (Setup)</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Invalid Peripheral Type in Capabilities</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Reject Unsigned Capabilities Request</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+    </table>
+</body>
+</html>

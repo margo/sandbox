@@ -66,11 +66,16 @@ generate_wfm_tests() {
     # Use Portman to generate Postman collection from OpenAPI
     cd "$CONFORMANCE_DIR/wfm-supplier"
     
+    # The npm package is "portman" is unrelated (a "Socket port manager"); the
+    # real OpenAPI-to-Postman tool is "@apideck/portman". Pinned to 1.34.1
+    # because 1.35.0 pulled in @faker-js/faker@10, which is ESM-only and
+    # crashes under Node <20 (this environment runs Node 18).
+    local portman_cmd=(portman)
     if ! command -v portman &> /dev/null; then
-        warn "Portman not installed. Installing from npm..."
-        npm install -g portman
+        info "Portman not installed globally; running via npx (no install/permissions needed)..."
+        portman_cmd=(npx --yes @apideck/portman@1.34.1)
     fi
-    
+
     log "🔧 Running Portman to generate test cases..."
     
     # Determine if spec is a URL or local file
@@ -105,7 +110,7 @@ generate_wfm_tests() {
     
     # Run Portman
     log "📋 Generating Postman collection..."
-    if ! portman -l "$spec_file" -o postman_collection.json 2>/dev/null; then
+    if ! "${portman_cmd[@]}" -l "$spec_file" -o postman_collection.json 2>/dev/null; then
         error "Portman generation failed"
     fi
     
@@ -398,11 +403,16 @@ generate_device_openapi_tests() {
     cd "$CONFORMANCE_DIR/device-supplier" 2>/dev/null || \
         error "device-supplier directory not found"
     
+    # The npm package is "portman" is unrelated (a "Socket port manager"); the
+    # real OpenAPI-to-Postman tool is "@apideck/portman". Pinned to 1.34.1
+    # because 1.35.0 pulled in @faker-js/faker@10, which is ESM-only and
+    # crashes under Node <20 (this environment runs Node 18).
+    local portman_cmd=(portman)
     if ! command -v portman &> /dev/null; then
-        warn "Portman not installed. Installing from npm..."
-        npm install -g portman
+        info "Portman not installed globally; running via npx (no install/permissions needed)..."
+        portman_cmd=(npx --yes @apideck/portman@1.34.1)
     fi
-    
+
     log "🔧 Running Portman to generate OpenAPI contract tests..."
     
     # Create a temporary OpenAPI spec file
@@ -414,7 +424,7 @@ generate_device_openapi_tests() {
     fi
     
     # Generate Postman collection for device endpoints
-    portman --spec "$spec_file" --output device_postman_collection.json 2>/dev/null || \
+    "${portman_cmd[@]}" --spec "$spec_file" --output device_postman_collection.json 2>/dev/null || \
         error "Portman generation failed"
     
     log "✅ Contract tests generated"
@@ -626,10 +636,10 @@ create_test_group() {
 
     GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
 
-    # Version
+    # App Version
     echo ""
     read -p "Enter version of Margo Specification: " VERSION
-    [[ -z "$VERSION" ]] && VERSION="1.0.0"
+    [[ -z "$VERSION" ]] && VERSION="1.0.0-rc.2"
 
     # Description
     echo ""

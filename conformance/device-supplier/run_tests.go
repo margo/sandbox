@@ -33,6 +33,12 @@ const (
 // WFMServer is the mock WFM server base URL; defaults below, overridable via -url.
 var WFMServer = "https://localhost:3001/v1alpha2/margo"
 
+// ClaimedAppVersion is the artifact/app version under test, set via -claimed-app-version.
+var ClaimedAppVersion = "unknown"
+
+// CTTMargoVersion is the Margo spec version this conformance tool validates against, set via -ctt-margo-version.
+var CTTMargoVersion = "unknown"
+
 // verbose gates printing the full JSON response body for every step; set from -verbose in main().
 var verbose bool
 
@@ -108,9 +114,13 @@ func main() {
 	seedFlag := flag.Int64("seed", 0, "Random seed for -flexible-order shuffling (0 = derive from current time; the seed actually used is always printed for reproducibility)")
 	clientIDFlag := flag.String("client-id", "", "Pre-existing clientId to seed {clientId} with instead of onboarding fresh. Lets you run scenario files one at a time by hand: run onboarding.json first, copy the clientId it prints, then pass it here for subsequent files.")
 	verboseFlag := flag.Bool("verbose", false, "Print the full JSON response body (plus response headers) for every step. Useful when running one scenario file at a time by hand to inspect exactly what the server returned.")
+	claimedAppVersionFlag := flag.String("claimed-app-version", "unknown", "Claimed App Version — the artifact/app version under test, from the selected group's group.json")
+	cttMargoVersionFlag := flag.String("ctt-margo-version", "1.0.0-rc.2", "CTT Margo Version — the Margo spec version this conformance tool validates against")
 	flag.Parse()
 	WFMServer = *urlFlag
 	verbose = *verboseFlag
+	ClaimedAppVersion = *claimedAppVersionFlag
+	CTTMargoVersion = *cttMargoVersionFlag
 
 	if err := ensureCertificates(); err != nil {
 		log.Fatalf("Error preparing certificates: %v", err)
@@ -132,9 +142,13 @@ func main() {
 ║                   Data-Driven Test Framework                                 ║
 ║                                                                              ║
 ║  Testing against: ` + WFMServer + `                                 ║
-║  Spec: Margo Management Interface API 1.0.0                                 ║
+║  Spec: Margo Management Interface API 1.0.0-rc.2                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 	`)
+	fmt.Printf("Claimed App Version: %s  ·  CTT Margo Version: %s\n", ClaimedAppVersion, CTTMargoVersion)
+	if ClaimedAppVersion != "unknown" && ClaimedAppVersion != CTTMargoVersion {
+		fmt.Printf("\033[32m⚠ Version Mismatch: Claimed App Version (%s) differs from CTT Margo Version (%s)\033[0m\n", ClaimedAppVersion, CTTMargoVersion)
+	}
 
 	// Wait for server to be ready
 	if !waitForServer(5 * time.Second) {
@@ -749,7 +763,12 @@ func generateHTMLReport(results []TestResult) string {
 		}
 	}
 
-	html := "<!DOCTYPE html>\n<html>\n<head>\n    <title>Device Supplier Conformance Report</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }\n        .summary { margin: 20px 0; }\n        .pass { color: green; font-weight: bold; }\n        .fail { color: red; font-weight: bold; }\n        table { width: 100%; border-collapse: collapse; margin-top: 20px; }\n        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }\n        th { background: #f2f2f2; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>Device Supplier Conformance Test Report</h1>\n        <p>Margo Workload Management API 1.0.0</p>\n        <p>Generated: " + time.Now().Format(time.RFC3339) + "</p>\n    </div>\n    <div class=\"summary\">\n        <h2>Summary</h2>\n        <p>Total Tests: " + fmt.Sprintf("%d", len(results)) + " | <span class=\"pass\">&#x2705; Passed: " + fmt.Sprintf("%d", passCount) + "</span> | <span class=\"fail\">&#x274C; Failed: " + fmt.Sprintf("%d", failCount) + "</span></p>\n        <p>Success Rate: " + fmt.Sprintf("%.1f", float64(passCount)/float64(len(results))*100) + "%</p>\n    </div>\n    <table>\n        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>\n"
+	versionWarning := ""
+	if ClaimedAppVersion != "unknown" && ClaimedAppVersion != CTTMargoVersion {
+		versionWarning = "<div class=\"version-warning\">⚠ Version Mismatch: Claimed App Version (" + ClaimedAppVersion + ") differs from CTT Margo Version (" + CTTMargoVersion + ")</div>\n    "
+	}
+
+	html := "<!DOCTYPE html>\n<html>\n<head>\n    <title>Device Supplier Conformance Report</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }\n        .summary { margin: 20px 0; }\n        .pass { color: green; font-weight: bold; }\n        .fail { color: red; font-weight: bold; }\n        table { width: 100%; border-collapse: collapse; margin-top: 20px; }\n        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }\n        th { background: #f2f2f2; }\n        .version-warning { margin: 16px 0; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>Device Supplier Conformance Test Report</h1>\n        <p>CTT Margo Version: " + CTTMargoVersion + "</p>\n        <p>Claimed App Version: " + ClaimedAppVersion + "</p>\n        <p>Generated: " + time.Now().Format(time.RFC3339) + "</p>\n    </div>\n    " + versionWarning + "<div class=\"summary\">\n        <h2>Summary</h2>\n        <p>Total Tests: " + fmt.Sprintf("%d", len(results)) + " | <span class=\"pass\">&#x2705; Passed: " + fmt.Sprintf("%d", passCount) + "</span> | <span class=\"fail\">&#x274C; Failed: " + fmt.Sprintf("%d", failCount) + "</span></p>\n        <p>Success Rate: " + fmt.Sprintf("%.1f", float64(passCount)/float64(len(results))*100) + "%</p>\n    </div>\n    <table>\n        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>\n"
 
 	for _, r := range results {
 		statusClass := "pass"

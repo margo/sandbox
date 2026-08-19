@@ -17,10 +17,7 @@
         "headers": {},
         "expected_status": 201,
         "validations": [
-          {
-            "field": "clientId",
-            "operation": "is_string"
-          }
+          { "field": "clientId", "operation": "is_string" }
         ],
         "extract_context": {
           "clientId": "clientId",
@@ -40,37 +37,20 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-COMPOSE-1",
             "serialNumber": "SN-CORE-001",
-            "cpus": [
-              {
-                "cores": 4,
-                "architecture": "arm64"
-              }
-            ],
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
             "memory": "8Gi",
             "storage": "64Gi",
-            "interfaces": [
-              {
-                "type": "ethernet"
-              }
-            ],
+            "interfaces": [{ "type": "ethernet" }],
             "peripherals": [],
             "otelCollector": true,
-            "supportedRuntimes": [
-              "oci"
-            ],
-            "supportedDeploymentTypes": [
-              "compose"
-            ]
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["compose"]
           }
         },
         "headers": {},
         "expected_status": 201,
         "validations": [
-          {
-            "field": "status",
-            "operation": "equals",
-            "value": "capabilities_received"
-          }
+          { "field": "status", "operation": "equals", "value": "capabilities_received" }
         ],
         "extract_context": {}
       },
@@ -87,40 +67,20 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-HELM-1",
             "serialNumber": "SN-CORE-002",
-            "cpus": [
-              {
-                "cores": 8,
-                "architecture": "amd64"
-              }
-            ],
+            "cpus": [{ "cores": 8, "architecture": "amd64" }],
             "memory": "32Gi",
             "storage": "256Gi",
-            "interfaces": [
-              {
-                "type": "ethernet"
-              },
-              {
-                "type": "wifi"
-              }
-            ],
+            "interfaces": [{ "type": "ethernet" }, { "type": "wifi" }],
             "peripherals": [],
             "otelCollector": true,
-            "supportedRuntimes": [
-              "oci"
-            ],
-            "supportedDeploymentTypes": [
-              "helm"
-            ]
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["helm"]
           }
         },
         "headers": {},
         "expected_status": 201,
         "validations": [
-          {
-            "field": "status",
-            "operation": "equals",
-            "value": "capabilities_received"
-          }
+          { "field": "status", "operation": "equals", "value": "capabilities_received" }
         ],
         "extract_context": {}
       },
@@ -137,36 +97,20 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-INVALID-1",
             "serialNumber": "SN-CORE-003",
-            "cpus": [
-              {
-                "cores": 4,
-                "architecture": "arm64"
-              }
-            ],
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
             "memory": "8Gi",
             "storage": "64Gi",
-            "interfaces": [
-              {
-                "type": "ethernet"
-              }
-            ],
+            "interfaces": [{ "type": "ethernet" }],
             "peripherals": [],
             "otelCollector": true,
-            "supportedRuntimes": [
-              "oci"
-            ],
-            "supportedDeploymentTypes": [
-              "docker-swarm"
-            ]
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["docker-swarm"]
           }
         },
         "headers": {},
         "expected_status": 422,
         "validations": [
-          {
-            "field": "errors",
-            "operation": "is_array"
-          }
+          { "field": "errors", "operation": "is_array" }
         ],
         "extract_context": {}
       },
@@ -183,36 +127,20 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-INVALID-2",
             "serialNumber": "SN-CORE-004",
-            "cpus": [
-              {
-                "cores": 4,
-                "architecture": "arm64"
-              }
-            ],
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
             "memory": "8Gi",
             "storage": "64Gi",
-            "interfaces": [
-              {
-                "type": "ethernet"
-              }
-            ],
+            "interfaces": [{ "type": "ethernet" }],
             "peripherals": [],
             "otelCollector": true,
-            "supportedRuntimes": [
-              "containerd-direct"
-            ],
-            "supportedDeploymentTypes": [
-              "compose"
-            ]
+            "supportedRuntimes": ["containerd-direct"],
+            "supportedDeploymentTypes": ["compose"]
           }
         },
         "headers": {},
         "expected_status": 422,
         "validations": [
-          {
-            "field": "errors",
-            "operation": "is_array"
-          }
+          { "field": "errors", "operation": "is_array" }
         ],
         "extract_context": {}
       },
@@ -229,35 +157,20 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-INVALID-3",
             "serialNumber": "SN-CORE-005",
-            "cpus": [
-              {
-                "architecture": "arm64"
-              }
-            ],
+            "cpus": [{ "architecture": "arm64" }],
             "memory": "8Gi",
             "storage": "64Gi",
-            "interfaces": [
-              {
-                "type": "ethernet"
-              }
-            ],
+            "interfaces": [{ "type": "ethernet" }],
             "peripherals": [],
             "otelCollector": true,
-            "supportedRuntimes": [
-              "oci"
-            ],
-            "supportedDeploymentTypes": [
-              "compose"
-            ]
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["compose"]
           }
         },
         "headers": {},
         "expected_status": 422,
         "validations": [
-          {
-            "field": "errors",
-            "operation": "is_array"
-          }
+          { "field": "errors", "operation": "is_array" }
         ],
         "extract_context": {}
       }
@@ -281,10 +194,7 @@
         "headers": {},
         "expected_status": 201,
         "validations": [
-          {
-            "field": "clientId",
-            "operation": "is_string"
-          }
+          { "field": "clientId", "operation": "is_string" }
         ],
         "extract_context": {
           "clientId": "clientId"
@@ -298,15 +208,8 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          {
-            "field": "manifestVersion",
-            "operation": "is_number"
-          },
-          {
-            "field": "_headers.Content-Type",
-            "operation": "contains",
-            "value": "application/vnd.margo.manifest.v1+json"
-          }
+          { "field": "manifestVersion", "operation": "is_number" },
+          { "field": "_headers.Content-Type", "operation": "contains", "value": "application/vnd.margo.manifest.v1+json" }
         ],
         "extract_context": {}
       },
@@ -315,9 +218,7 @@
         "name": "Reset Desired State To Empty (test-control)",
         "method": "PUT",
         "endpoint": "/api/v1/test/clients/{clientId}/deployments",
-        "request_body": {
-          "deploymentIds": []
-        },
+        "request_body": { "deploymentIds": [] },
         "skip_signing": true,
         "headers": {},
         "expected_status": 200,
@@ -334,14 +235,8 @@
         },
         "expected_status": 200,
         "validations": [
-          {
-            "field": "manifestVersion",
-            "operation": "is_number"
-          },
-          {
-            "field": "deployments",
-            "operation": "is_array"
-          }
+          { "field": "manifestVersion", "operation": "is_number" },
+          { "field": "deployments", "operation": "is_array" }
         ],
         "extract_context": {}
       }

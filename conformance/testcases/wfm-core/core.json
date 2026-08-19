@@ -1,0 +1,179 @@
+[
+  {
+    "id": "wfm-core-capability-roles",
+    "name": "Capability Reporting — Device Role Variants",
+    "description": "Per docs.margo.org/specification/margo-management-interface/device-capabilities and the WFM Supplier conformance requirements, the WFM must accept capability manifests for either the Standalone Cluster role (helm only) or the Standalone Device role (compose only), and reject invalid supportedDeploymentTypes/supportedRuntimes values with 422. Declarative scenario format — same shape device-supplier groups use, run directly by run_wfm_scenarios.js against a real WFM (no Postman collection involved).",
+    "steps": [
+      {
+        "id": "step-wfm-core-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          { "field": "clientId", "operation": "is_string" }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-wfm-core-1.1",
+        "name": "Report Capabilities — Standalone Device Role (compose only)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-COMPOSE-1",
+            "serialNumber": "SN-WFM-CORE-001",
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [{ "type": "ethernet" }],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["compose"]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-wfm-core-1.2",
+        "name": "Report Capabilities — Standalone Cluster Role (helm only)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-HELM-1",
+            "serialNumber": "SN-WFM-CORE-002",
+            "cpus": [{ "cores": 8, "architecture": "amd64" }],
+            "memory": "32Gi",
+            "storage": "256Gi",
+            "interfaces": [{ "type": "ethernet" }, { "type": "wifi" }],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["helm"]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-wfm-core-1.3",
+        "name": "Reject Capabilities — Invalid supportedDeploymentTypes Value",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-INVALID-1",
+            "serialNumber": "SN-WFM-CORE-003",
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [{ "type": "ethernet" }],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["docker-swarm"]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-wfm-core-1.4",
+        "name": "Reject Capabilities — Invalid supportedRuntimes Value",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-INVALID-2",
+            "serialNumber": "SN-WFM-CORE-004",
+            "cpus": [{ "cores": 4, "architecture": "arm64" }],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [{ "type": "ethernet" }],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": ["containerd-direct"],
+            "supportedDeploymentTypes": ["compose"]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "wfm-core-manifest-negotiation",
+    "name": "Desired State — Default Content Negotiation",
+    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state, the WFM MUST default to application/vnd.margo.manifest.v1+json when the client omits the Accept header entirely — distinct from sending an explicit, unsupported Accept value (already covered elsewhere).",
+    "steps": [
+      {
+        "id": "step-wfm-core-2.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          { "field": "clientId", "operation": "is_string" }
+        ],
+        "extract_context": {
+          "clientId": "clientId"
+        }
+      },
+      {
+        "id": "step-wfm-core-2.1",
+        "name": "Get Deployments With No Accept Header — Defaults To Manifest Format",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "manifestVersion", "operation": "is_number" }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

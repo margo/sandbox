@@ -32,8 +32,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -42,7 +41,8 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
@@ -56,8 +56,7 @@
           "certificate": "rnd-key-7f3a91b2c4d8e6"
         },
         "skip_certificate_injection": true,
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 403,
         "validations": [
           {
@@ -85,8 +84,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -95,14 +93,15 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
         "id": "step-2.1",
         "name": "Report Capabilities with POST",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -111,31 +110,35 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": [
-                {
-                  "type": "camera"
-                }
-              ]
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "camera"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -150,7 +153,7 @@
         "id": "step-2.2",
         "name": "Report Capabilities with PUT",
         "method": "PUT",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -159,31 +162,34 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device",
-              "Cluster Leader"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 8,
                 "architecture": "amd64"
+              }
+            ],
+            "memory": "32Gi",
+            "storage": "512Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
               },
-              "memory": "32Gi",
-              "storage": "512Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                },
-                {
-                  "type": "wifi"
-                }
-              ],
-              "peripherals": []
-            }
+              {
+                "type": "wifi"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -211,8 +217,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -221,7 +226,8 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
@@ -293,8 +299,7 @@
         "name": "Download Deployment Bundle",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 200,
         "validations": [
           {
@@ -333,8 +338,7 @@
         "name": "Download Individual Deployment Manifest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 200,
         "validations": [
           {
@@ -393,8 +397,7 @@
             }
           ]
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 200,
         "validations": [
           {
@@ -422,8 +425,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 400,
         "validations": [
           {
@@ -443,8 +445,7 @@
           "apiVersion": "onboarding.margo.org/v1alpha1",
           "kind": "OnboardingRequest"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 400,
         "validations": [
           {
@@ -466,8 +467,7 @@
           "certificate": ""
         },
         "skip_certificate_injection": true,
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 400,
         "validations": [
           {
@@ -530,8 +530,7 @@
           "certificate": "./certs/device-cert.pem"
         },
         "skip_signing": true,
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -558,8 +557,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -568,20 +566,20 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
         "id": "step-5.1",
         "name": "Reject Capabilities With Missing Properties",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -593,9 +591,9 @@
       },
       {
         "id": "step-5.2",
-        "name": "Reject Capabilities With Invalid Role",
+        "name": "Reject Capabilities With Invalid Peripheral Type",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -604,27 +602,35 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Unknown Role"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "not-a-real-type"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -638,7 +644,7 @@
         "id": "step-5.3",
         "name": "Reject Capabilities With Invalid Interface Type",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -647,27 +653,31 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "serial"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "serial"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -681,7 +691,7 @@
         "id": "step-5.4",
         "name": "Reject Capabilities With Invalid Cpu Architecture",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -690,27 +700,31 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "sparc"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -724,7 +738,7 @@
         "id": "step-5.5",
         "name": "Reject Capabilities With Missing Content-Digest",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -733,23 +747,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {
@@ -769,7 +788,7 @@
         "id": "step-5.6",
         "name": "Reject Capabilities Without Signature",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -778,28 +797,32 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "skip_signing": true,
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 401,
         "validations": [
           {
@@ -814,7 +837,7 @@
         "id": "step-5.7",
         "name": "Reject Capabilities For Unknown Client",
         "method": "POST",
-        "endpoint": "/api/v1/clients/not-a-real-client/capabilities",
+        "endpoint": "/api/v1/clients/not-a-real-client/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -823,27 +846,31 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-12345",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 404,
         "validations": [
           {
@@ -871,8 +898,7 @@
           "kind": "OnboardingRequest",
           "certificate": "./certs/device-cert.pem"
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 201,
         "validations": [
           {
@@ -881,7 +907,8 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
@@ -923,8 +950,7 @@
         "name": "Reject Bundle Download With Wrong Digest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/bundles/not-the-right-digest",
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 404,
         "validations": [
           {
@@ -940,8 +966,7 @@
         "name": "Reject Deployment Manifest Download With Wrong Digest",
         "method": "GET",
         "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/not-the-right-digest",
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 404,
         "validations": [
           {
@@ -971,8 +996,7 @@
             }
           ]
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -1000,8 +1024,7 @@
             }
           ]
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -1030,8 +1053,7 @@
             }
           ]
         },
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 422,
         "validations": [
           {
@@ -1093,8 +1115,7 @@
           ]
         },
         "skip_signing": true,
-        "headers": {
-        },
+        "headers": {},
         "expected_status": 401,
         "validations": [
           {
@@ -1184,14 +1205,15 @@
           }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         }
       },
       {
         "id": "step-7.1",
         "name": "Invalid Capabilities (missing apiVersion) — expects 422 from assertion",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "kind": "DeviceCapabilitiesManifest",
           "properties": {
@@ -1199,14 +1221,28 @@
             "vendor": "Demo Corp",
             "modelNumber": "DEMO-X1",
             "serialNumber": "SN-DEMO-001",
-            "roles": ["Standalone Device"],
-            "resources": {
-              "cpu": { "cores": 4, "architecture": "amd64" },
-              "memory": "8Gi",
-              "storage": "128Gi",
-              "interfaces": [{ "type": "ethernet" }],
-              "peripherals": []
-            }
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "128Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -1219,39 +1255,52 @@
         ],
         "extract_context": {}
       },
-
       {
-  "id": "step-custom-1",
-  "name": "Invalid Memory Format",
-  "method": "POST",
-  "endpoint": "/api/v1/clients/{clientId}/capabilities",
-  "request_body": {
-    "apiVersion": "device.margo.org/v1alpha1",
-    "kind": "DeviceCapabilitiesManifest",
-    "properties": {
-      "id": "device-invalid-mem",
-      "vendor": "Acme Corp",
-      "modelNumber": "ACM-XYZ",
-      "serialNumber": "SN-99999",
-      "roles": ["Standalone Device"],
-      "resources": {
-        "cpu": { "cores": 4, "architecture": "amd64" },
-        "memory": "sixteen_gb",
-        "storage": "256Gi",
-        "interfaces": [{ "type": "ethernet" }],
-        "peripherals": []
+        "id": "step-custom-1",
+        "name": "Non-Standard Memory String Is Accepted (spec places no format constraint on memory/storage)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-invalid-mem",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-99999",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "sixteen_gb",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ]
       }
-    }
-  },
-  "expected_status": 422,
-  "validations": [
-    {
-      "field": "errors",
-      "operation": "is_array"
-    }
-  ]
-}
     ]
   }
-
 ]

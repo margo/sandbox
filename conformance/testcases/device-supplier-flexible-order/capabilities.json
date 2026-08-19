@@ -8,7 +8,7 @@
         "id": "flex-capabilities-post-full",
         "name": "Report Capabilities with POST (full resources)",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -17,27 +17,32 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-001",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": [
-                {
-                  "type": "camera"
-                }
-              ]
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "camera"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -55,7 +60,7 @@
         "id": "flex-capabilities-put-full",
         "name": "Report Capabilities with PUT (full resources)",
         "method": "PUT",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -64,27 +69,31 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-001",
-            "roles": [
-              "Standalone Device",
-              "Cluster Leader"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 8,
                 "architecture": "amd64"
+              }
+            ],
+            "memory": "32Gi",
+            "storage": "512Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
               },
-              "memory": "32Gi",
-              "storage": "512Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                },
-                {
-                  "type": "wifi"
-                }
-              ],
-              "peripherals": []
-            }
+              {
+                "type": "wifi"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -100,9 +109,9 @@
       },
       {
         "id": "flex-capabilities-post-no-resources",
-        "name": "Report Capabilities Without resources (now valid — regression test)",
+        "name": "Report Capabilities With Empty Peripherals (regression test)",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -111,8 +120,27 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-001",
-            "roles": [
-              "Standalone Device"
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
             ]
           }
         },
@@ -129,9 +157,9 @@
       },
       {
         "id": "flex-capabilities-reject-resources-missing-cpu",
-        "name": "Reject Capabilities When resources Present But Missing cpu",
+        "name": "Reject Capabilities Missing cpus",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -140,19 +168,22 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-001",
-            "roles": [
-              "Standalone Device"
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
             ],
-            "resources": {
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -169,7 +200,7 @@
         "id": "flex-capabilities-reject-missing-properties",
         "name": "Reject Capabilities With Missing Properties",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest"
@@ -186,9 +217,9 @@
       },
       {
         "id": "flex-capabilities-reject-invalid-role",
-        "name": "Reject Capabilities With Invalid Role",
+        "name": "Reject Capabilities With Invalid Peripheral Type",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -197,23 +228,32 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-002",
-            "roles": [
-              "Unknown Role"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "not-a-real-type"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -230,7 +270,7 @@
         "id": "flex-capabilities-reject-invalid-interface-type",
         "name": "Reject Capabilities With Invalid Interface Type",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -239,23 +279,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-003",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "serial"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "serial"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -272,7 +317,7 @@
         "id": "flex-capabilities-reject-invalid-cpu-architecture",
         "name": "Reject Capabilities With Invalid Cpu Architecture",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -281,23 +326,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-004",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "sparc"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -314,7 +364,7 @@
         "id": "flex-capabilities-reject-missing-content-digest",
         "name": "Reject Capabilities With Missing Content-Digest",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -323,23 +373,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-005",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {
@@ -359,7 +414,7 @@
         "id": "flex-capabilities-reject-unsigned",
         "name": "Reject Capabilities Without Signature",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -368,23 +423,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-006",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "skip_signing": true,
@@ -403,7 +463,7 @@
         "id": "flex-capabilities-reject-unknown-client",
         "name": "Reject Capabilities For Unknown Client",
         "method": "POST",
-        "endpoint": "/api/v1/clients/not-a-real-client/capabilities",
+        "endpoint": "/api/v1/clients/not-a-real-client/capabilities/{clientId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -412,23 +472,28 @@
             "vendor": "Acme Corp",
             "modelNumber": "ACM-XYZ",
             "serialNumber": "SN-FLEX-007",
-            "roles": [
-              "Standalone Device"
-            ],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "arm64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                {
-                  "type": "ethernet"
-                }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},

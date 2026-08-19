@@ -3,136 +3,43 @@
 ║              Device Supplier Conformance Test Runner                         ║
 ║                   Data-Driven Test Framework                                 ║
 ║                                                                              ║
-║  Testing against: https://10.0.0.10:3001/v1alpha2/margo                                 ║
-║  Spec: Margo Management Interface API 1.0.0                                 ║
+║  Testing against: https://localhost:3001/v1alpha2/margo                                 ║
+║  Spec: Margo Management Interface API 1.0.0-rc.2                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 	
+Claimed App Version: 1.0.0-rc.2  ·  CTT Margo Version: 1.0.0-rc.2
 ✅ WFM Server is ready
 
-▶ Running Scenario: Capabilities Reporting (scenario-capabilities)
-  Description: POST and PUT capability manifests that match the spec-aligned schema.
+▶ Running Scenario: Capability Reporting — Device Role Variants (device-core-capability-roles)
+  Description: Per docs.margo.org/specification/margo-management-interface/device-capabilities and the Device Supplier conformance requirements, a device fills either the Standalone Cluster role (Kubernetes + Helm) or the Standalone Device role (Compose) — supportedDeploymentTypes is how a device declares which. This scenario covers both role variants as positive cases, plus negative coverage for invalid enum values and a malformed cpus[] entry not exercised by other groups.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 67a603f1-fdd9-4e15-8111-f9b5c93c015a
+    📎 Captured clientId = 8950bc84-01c3-475a-922b-8804a9885dec
+    📎 Captured deviceId = 8950bc84-01c3-475a-922b-8804a9885dec
     ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Report Capabilities with POST
+  → Step: Report Capabilities — Standalone Device Role (compose only)
     ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Report Capabilities with PUT
+  → Step: Report Capabilities — Standalone Cluster Role (helm only)
     ✅ PASS - HTTP 201 (Expected: 201)
+  → Step: Reject Capabilities — Invalid supportedDeploymentTypes Value
+    ✅ PASS - HTTP 422 (Expected: 422)
+  → Step: Reject Capabilities — Invalid supportedRuntimes Value
+    ✅ PASS - HTTP 422 (Expected: 422)
+  → Step: Reject Capabilities — cpus[] Entry Missing Required cores
+    ✅ PASS - HTTP 422 (Expected: 422)
 
-▶ Running Scenario: Capabilities Error Handling (scenario-capabilities-errors)
-  Description: Negative tests for digest, schema, role, interface, and client validation.
+▶ Running Scenario: Desired State — Default Negotiation and Zero-Deployment Manifest (device-core-manifest-semantics)
+  Description: Per docs.margo.org/specification/margo-management-interface/desired-state: (1) the WFM (here, our mock server) MUST default to application/vnd.margo.manifest.v1+json when the Accept header is omitted entirely, not just when it's the exact expected value; (2) when a client has zero deployments assigned, the manifest's deployments field MUST still be a valid (empty) array. Both are edge cases the other device-supplier groups don't exercise directly. Note: the spec also requires the manifest's bundle field to be explicit null (not omitted) when deployments is empty — not independently verified here, because this suite's validation engine can't distinguish a field that's present-but-null from one that's absent (both read as Go/JS nil); confirmed instead by reading the mock server's response-construction code directly.
   → Step: Onboard Device (Setup)
-    📎 Captured clientId = 0155f7c0-754d-424e-8a5e-853e7de4386e
+    📎 Captured clientId = c5c47934-1f99-43a4-8b5e-137d7bb7e6b2
     ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Reject Capabilities With Missing Properties
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Capabilities With Invalid Role
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Capabilities With Invalid Interface Type
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Capabilities With Invalid Cpu Architecture
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Capabilities With Missing Content-Digest
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Capabilities Without Signature
-    ✅ PASS - HTTP 401 (Expected: 401)
-  → Step: Reject Capabilities For Unknown Client
-    ✅ PASS - HTTP 404 (Expected: 404)
-
-▶ Running Scenario: Deployment Retrieval And Status (scenario-deployments)
-  Description: Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.
-  → Step: Onboard Device (Setup)
-    📎 Captured clientId = cd3b65da-c89c-4678-a71f-b4c6de11ac0a
-    ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Get Current Deployments
-    📎 Captured manifestEtag = "f315f2ff29c62bdae9aa3fc9838284d8da00c41013c2bb5371dc95eb2dda4eeb"
-    📎 Captured bundleDigest = sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f
-    📎 Captured deploymentId = a3e2f5dc-912e-494f-8395-52cf3769bc06
-    📎 Captured deploymentDigest = sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa
+  → Step: Get Deployments With No Accept Header — Defaults To Manifest Format
     ✅ PASS - HTTP 200 (Expected: 200)
-  → Step: Get Deployments With Matching ETag
-    ✅ PASS - HTTP 304 (Expected: 304)
-  → Step: Download Deployment Bundle
-    📎 Captured bundleEtag = "sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f"
+  → Step: Reset Desired State To Empty (test-control)
     ✅ PASS - HTTP 200 (Expected: 200)
-  → Step: Download Bundle With Matching ETag
-    ✅ PASS - HTTP 304 (Expected: 304)
-  → Step: Download Individual Deployment Manifest
-    📎 Captured deploymentEtag = "sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa"
+  → Step: Get Deployments — Zero Deployments Still Returns A Valid (Empty) Manifest
     ✅ PASS - HTTP 200 (Expected: 200)
-  → Step: Download Individual Deployment Manifest With Matching ETag
-    ✅ PASS - HTTP 304 (Expected: 304)
-  → Step: Report Deployment Status
-    ✅ PASS - HTTP 200 (Expected: 200)
-
-▶ Running Scenario: Live Assertion Demo — Dynamic Error Code (scenario-live-assertion-demo)
-  Description: DEMO SCENARIO: Proves server reloads assertions.json on every restart. Step 7.1 sends an invalid capabilities request (missing apiVersion) which triggers a validation error. The expected HTTP status code comes directly from error_responses.unprocessable.status_code in assertions.json. Change that one value, restart, re-run — the code changes without touching any Go code.
-  → Step: Onboard Device (Demo Setup)
-    📎 Captured clientId = 2acd8ade-8a35-4ece-8de9-d9e66e232369
-    ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Invalid Capabilities (missing apiVersion) — expects 422 from assertion
-    ✅ PASS - HTTP 422 (Expected: 422)
-
-▶ Running Scenario: Device Onboarding (scenario-onboarding)
-  Description: Certificate retrieval plus successful and rejected onboarding flows.
-  → Step: Get Root CA Certificate
-    ✅ PASS - HTTP 200 (Expected: 200)
-  → Step: Onboard Trusted Device
-    📎 Captured clientId = 68fb966c-81ed-475d-8170-2b27ed758881
-    ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Reject Blocklisted Certificate
-    ✅ PASS - HTTP 403 (Expected: 403)
-
-▶ Running Scenario: Onboarding Error Handling (scenario-onboarding-errors)
-  Description: Spec-shaped 400 and 401 onboarding responses.
-  → Step: Reject Onboarding With Invalid Api Version
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Onboarding With Missing Certificate
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Onboarding With Empty Certificate
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Onboarding With Missing Kind
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Onboarding With Wrong Kind Value
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Onboard Without Signature Succeeds
-    ✅ PASS - HTTP 201 (Expected: 201)
-
-▶ Running Scenario: Status And Retrieval Errors (scenario-status-and-retrieval-errors)
-  Description: Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.
-  → Step: Onboard Device (Setup)
-    📎 Captured clientId = 90b54be8-d0eb-49b3-a4a4-97c56a4436cf
-    ✅ PASS - HTTP 201 (Expected: 201)
-  → Step: Get Current Deployments (Setup)
-    📎 Captured manifestEtag = "8d9fea79c99bfdc0099e281289042e96c7457fcd9f3df046ee6c38f6a2e9e68d"
-    📎 Captured bundleDigest = sha256:ef66f028e19b2322a574da4f34e61021d6f63a7fe6dbed98d2ba85915cd09f6f
-    📎 Captured deploymentId = a3e2f5dc-912e-494f-8395-52cf3769bc06
-    📎 Captured deploymentDigest = sha256:aa4a6fe74fec2b91ec0173f48e61b950a4ae3e56a16f4ab5ad2acb19e2df07fa
-    ✅ PASS - HTTP 200 (Expected: 200)
-  → Step: Reject Deployments Request With Unsupported Accept Header
-    ✅ PASS - HTTP 406 (Expected: 406)
-  → Step: Reject Bundle Download With Wrong Digest
-    ✅ PASS - HTTP 404 (Expected: 404)
-  → Step: Reject Deployment Manifest Download With Wrong Digest
-    ✅ PASS - HTTP 404 (Expected: 404)
-  → Step: Reject Status With Invalid State
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Status With Missing Component Name
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Status With Path Deployment Mismatch
-    ✅ PASS - HTTP 422 (Expected: 422)
-  → Step: Reject Status With Missing Content-Digest
-    ✅ PASS - HTTP 400 (Expected: 400)
-  → Step: Reject Status Without Signature
-    ✅ PASS - HTTP 401 (Expected: 401)
-  → Step: Reject Unsigned GET Deployments
-    ✅ PASS - HTTP 401 (Expected: 401)
-  → Step: Reject Unsigned GET Bundle
-    ✅ PASS - HTTP 401 (Expected: 401)
-  → Step: Reject Unsigned GET Deployment Manifest
-    ✅ PASS - HTTP 401 (Expected: 401)
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  Test Results: 43 PASSED, 0 FAILED (Total: 43)
+║  Test Results: 10 PASSED, 0 FAILED (Total: 10)
 ╚══════════════════════════════════════════════════════════════════════════════╝
-📊 Test report saved: reports/conformance-report-2026-08-10T08-11-09-000Z.html
+📊 Test report saved: reports/conformance-report-2026-08-17T12-52-09-000Z.html

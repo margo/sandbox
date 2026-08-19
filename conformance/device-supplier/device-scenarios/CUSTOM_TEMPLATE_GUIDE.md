@@ -57,41 +57,62 @@ Every step's `endpoint` must be one of the 8 real Margo API endpoints:
 |---|--------|----------|---------|
 | 1 | GET | `/api/v1/onboarding/certificate` | Fetch root CA cert |
 | 2 | POST | `/api/v1/onboarding` | Register device, receive `clientId` |
-| 3 | POST | `/api/v1/clients/{clientId}/capabilities` | Report device capabilities |
-| 4 | PUT | `/api/v1/clients/{clientId}/capabilities` | Update device capabilities |
+| 3 | POST | `/api/v1/clients/{clientId}/capabilities/{deviceId}` | Report device capabilities |
+| 4 | PUT | `/api/v1/clients/{clientId}/capabilities/{deviceId}` | Update device capabilities |
 | 5 | GET | `/api/v1/clients/{clientId}/deployments` | Get deployment manifest |
 | 6 | GET | `/api/v1/clients/{clientId}/bundles/{digest}` | Download deployment bundle |
 | 7 | GET | `/api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}` | Get individual deployment |
 | 8 | POST | `/api/v1/clients/{clientId}/deployments/{deploymentId}/status` | Report deployment status |
 
-> `{clientId}`, `{digest}`, `{deploymentId}` are placeholders — the runner substitutes values saved from earlier steps using `extract_context`.
+> `{clientId}`, `{digest}`, `{deploymentId}` are placeholders — the runner substitutes values saved from earlier steps using `extract_context`. `{deviceId}` works the same way; this suite models one device per client, so extract it alongside `clientId` from the same onboarding response (e.g. `"extract_context": {"clientId": "clientId", "deviceId": "clientId"}`).
 
 ---
 
 ## Step 4: Know What Values Are Valid
 
-Use these values in your `request_body` to pass validation:
+Use these values in your `request_body` to pass validation. Per the current spec
+(docs.margo.org/specification/margo-management-interface/device-capabilities), a
+capabilities-reporting device has no `roles` field and no `resources` wrapper —
+`cpus`, `memory`, `storage`, `peripherals`, `interfaces`, `otelCollector`,
+`supportedRuntimes`, and `supportedDeploymentTypes` sit directly under `properties`,
+and `cpus` is an array (a device can report more than one CPU):
 
-**`properties.roles`** — must be a non-empty array, each item must be one of:
-- `"Standalone Cluster"`
-- `"Cluster Leader"`
-- `"Standalone Device"`
+**`properties.cpus[*].architecture`** — one of:
+- `"amd64"`, `"arm64"`, `"arm"`
 
-**`properties.resources.cpu.architecture`** — one of:
-- `"amd64"`, `"x86_64"`, `"arm64"`, `"arm"`
-
-**`properties.resources.interfaces[*].type`** — one of:
+**`properties.interfaces[*].type`** — one of:
 - `"ethernet"`, `"wifi"`, `"cellular"`, `"bluetooth"`, `"usb"`, `"canbus"`, `"rs232"`
+
+**`properties.peripherals[*].type`** — one of:
+- `"gpu"`, `"display"`, `"camera"`, `"microphone"`, `"speaker"`
+
+**`properties.supportedRuntimes`** — non-empty array, each item one of:
+- `"oci"`
+
+**`properties.supportedDeploymentTypes`** — non-empty array, each item one of:
+- `"helm"`, `"compose"`
 
 **`apiVersion` values** (must match exactly):
 - Onboarding: `"onboarding.margo.org/v1alpha1"`
 - Capabilities: `"device.margo.org/v1alpha1"`
-- Status: `"orchestration.margo.org/v1alpha1"`
+- Status: `"deployment.margo.org/v1alpha1"`
 
 **`kind` values** (must match exactly):
 - Onboarding: `"OnboardingRequest"`
 - Capabilities: `"DeviceCapabilitiesManifest"`
-- Status: `"AppDeploymentStatus"`
+- Status: `"DeploymentStatusManifest"`
+
+**Status request body shape** — `deploymentId` is top-level (not nested under `status`), and both `status.state` and each `components[].state` use the same state enum:
+```json
+{
+  "apiVersion": "deployment.margo.org/v1alpha1",
+  "kind": "DeploymentStatusManifest",
+  "deploymentId": "your-deployment-id",
+  "status": { "state": "installed" },
+  "components": [ { "name": "your-component-name", "state": "installed" } ]
+}
+```
+`state` (both places) — one of: `"pending"`, `"installing"`, `"installed"`, `"failed"`, `"removing"`, `"removed"`
 
 ---
 
@@ -160,7 +181,7 @@ Use `extract_context` to save response values, then inject them as `{placeholder
 ```json
 "extract_context": {
   "clientId":    "clientId",
-  "bundleDigest": "bundleRef.digest",
+  "bundleDigest": "bundle.digest",
   "manifestEtag": "_headers.ETag"
 }
 ```
@@ -185,7 +206,7 @@ Placeholders work in: `endpoint`, `headers` values, and string values inside `re
   "id": "step-1.1",
   "name": "Report Capabilities",
   "method": "POST",
-  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
   "request_body": {
     "apiVersion": "device.margo.org/v1alpha1",
     "kind": "DeviceCapabilitiesManifest",
@@ -194,14 +215,14 @@ Placeholders work in: `endpoint`, `headers` values, and string values inside `re
       "vendor": "Acme",
       "modelNumber": "ACM-001",
       "serialNumber": "SN-12345",
-      "roles": ["Standalone Device"],
-      "resources": {
-        "cpu": { "cores": 4, "architecture": "amd64" },
-        "memory": "8Gi",
-        "storage": "128Gi",
-        "interfaces": [{ "type": "ethernet" }],
-        "peripherals": []
-      }
+      "cpus": [{ "cores": 4, "architecture": "amd64" }],
+      "memory": "8Gi",
+      "storage": "128Gi",
+      "interfaces": [{ "type": "ethernet" }],
+      "peripherals": [],
+      "otelCollector": false,
+      "supportedRuntimes": ["oci"],
+      "supportedDeploymentTypes": ["helm", "compose"]
     }
   },
   "headers": {},
@@ -216,9 +237,9 @@ Placeholders work in: `endpoint`, `headers` values, and string values inside `re
 ```json
 {
   "id": "step-2.1",
-  "name": "Reject Invalid Role",
+  "name": "Reject Invalid Peripheral Type",
   "method": "POST",
-  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
   "request_body": {
     "apiVersion": "device.margo.org/v1alpha1",
     "kind": "DeviceCapabilitiesManifest",
@@ -227,14 +248,14 @@ Placeholders work in: `endpoint`, `headers` values, and string values inside `re
       "vendor": "Acme",
       "modelNumber": "ACM-001",
       "serialNumber": "SN-12345",
-      "roles": ["InvalidRoleName"],
-      "resources": {
-        "cpu": { "cores": 4, "architecture": "amd64" },
-        "memory": "8Gi",
-        "storage": "128Gi",
-        "interfaces": [{ "type": "ethernet" }],
-        "peripherals": []
-      }
+      "cpus": [{ "cores": 4, "architecture": "amd64" }],
+      "memory": "8Gi",
+      "storage": "128Gi",
+      "interfaces": [{ "type": "ethernet" }],
+      "peripherals": [{ "type": "InvalidPeripheralType" }],
+      "otelCollector": false,
+      "supportedRuntimes": ["oci"],
+      "supportedDeploymentTypes": ["helm", "compose"]
     }
   },
   "headers": {},
@@ -251,7 +272,7 @@ Placeholders work in: `endpoint`, `headers` values, and string values inside `re
   "id": "step-3.1",
   "name": "Reject Unsigned Request",
   "method": "POST",
-  "endpoint": "/api/v1/clients/{clientId}/capabilities",
+  "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
   "request_body": { ... },
   "headers": {},
   "expected_status": 401,
@@ -329,7 +350,7 @@ open reports/conformance-report-*.html
 | 403 | Certificate in the rejected-certificates blocklist |
 | 404 | `clientId` not registered, wrong bundle digest |
 | 406 | Wrong `Accept` header on GET deployments |
-| 422 | Invalid field value (`roles`, `architecture`, `interface.type`), empty required array, field type mismatch |
+| 422 | Invalid field value (`cpus[*].architecture`, `interfaces[*].type`, `peripherals[*].type`, `supportedRuntimes`, `supportedDeploymentTypes`), missing required field, empty required array, field type mismatch |
 
 ---
 

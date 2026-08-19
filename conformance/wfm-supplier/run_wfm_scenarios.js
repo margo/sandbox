@@ -21,6 +21,18 @@ const privateKeyPath = path.join(certDir, 'device.key');
 const deviceCertPath = path.join(certDir, 'device-cert.pem');
 const caCertPath = path.join(certDir, 'ca-cert.pem');
 
+// CTT Margo Version — the Margo spec version this conformance tool validates against
+function readCttMargoVersion() {
+  try {
+    const specText = fs.readFileSync(path.join(__dirname, 'spec.yaml'), 'utf8');
+    const match = specText.match(/^\s*version:\s*(\S+)/m);
+    return match ? match[1] : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+const cttMargoVersion = readCttMargoVersion();
+
 // Compute SHA-256 hex thumbprint of PKIX DER public key — matches ComputeKeyIDFromPrivateKeyPEM
 // in shared-lib/crypto/keyid.go so the WFM can correlate the keyid to the registered cert.
 function computeKeyId(privateKeyPem) {
@@ -79,6 +91,29 @@ function postmanPathToEndpoint(pathArr) {
 // bodyMerge:   shallow-merge top-level fields into the parsed Postman body
 // bodyNested:  set nested fields (dot-notation keys like "properties.id")
 // extract_context, validations, skip_signing: override defaults
+// Current spec (docs.margo.org/specification/margo-management-interface/device-capabilities):
+// no "roles" field (removed, not renamed), and "resources" is gone — cpus/memory/storage/
+// peripherals/interfaces are flat under properties, cpus is an array (was singular "cpu"),
+// plus three new fields: otelCollector, supportedRuntimes, supportedDeploymentTypes.
+const DEVICE_CAPABILITIES_BODY = {
+  apiVersion: 'device.margo.org/v1alpha1',
+  kind: 'DeviceCapabilitiesManifest',
+  properties: {
+    id: '{deviceId}',
+    vendor: 'Acme Corp',
+    modelNumber: 'ACM-XYZ',
+    serialNumber: 'SN-12345',
+    cpus: [{ cores: 4, architecture: 'arm64' }],
+    memory: '16Gi',
+    storage: '256Gi',
+    peripherals: [],
+    interfaces: [{ type: 'ethernet' }],
+    otelCollector: false,
+    supportedRuntimes: ['oci'],
+    supportedDeploymentTypes: ['helm', 'compose'],
+  },
+};
+
 const POSTMAN_ENDPOINT_RULES = {
   'GET /api/v1/onboarding/certificate': {
     skip_signing: true,
@@ -90,16 +125,20 @@ const POSTMAN_ENDPOINT_RULES = {
       kind: 'OnboardingRequest',
       certificate: './certs/device-cert.pem',
     },
-    extract_context: { clientId: 'clientId' },
+    // deviceId: this suite models one device per client, so the device shares the
+    // client's identity. Spec allows deviceId to differ from clientId (e.g. a gateway
+    // fronting multiple child devices); revisit if/when a multi-device scenario is added.
+    extract_context: { clientId: 'clientId', deviceId: 'clientId' },
     validations: [{ field: 'clientId', operation: 'is_string' }],
   },
-  'POST /api/v1/clients/{clientId}/capabilities': {
-    bodyMerge: { apiVersion: 'device.margo.org/v1alpha1', kind: 'DeviceCapabilitiesManifest' },
-    bodyNested: { 'properties.id': '{clientId}' },
+  // Spec path is /clients/{clientId}/capabilities/{deviceId} — verified against Symphony
+  // directly (both the old no-deviceId path and this one return 201; the spec's is correct
+  // and matches the currently-published API version).
+  'POST /api/v1/clients/{clientId}/capabilities/{deviceId}': {
+    body: DEVICE_CAPABILITIES_BODY,
   },
-  'PUT /api/v1/clients/{clientId}/capabilities': {
-    bodyMerge: { apiVersion: 'device.margo.org/v1alpha1', kind: 'DeviceCapabilitiesManifest' },
-    bodyNested: { 'properties.id': '{clientId}' },
+  'PUT /api/v1/clients/{clientId}/capabilities/{deviceId}': {
+    body: DEVICE_CAPABILITIES_BODY,
   },
   'GET /api/v1/clients/{clientId}/deployments': {
     extract_context: {
@@ -148,40 +187,45 @@ function deriveErrorBehavior(resp) {
   const name = (resp.name || '').toLowerCase();
 
   if (code === 304) {
-    // "Not Modified" — send If-None-Match; server may still return 200 or 404 if no cached entry
-    return { add_if_none_match: true, accepted_statuses: [200, 304, 404] };
+    // "Not Modified" — send If-None-Match; the spec documents 304 as the sole valid
+    // response for a matching conditional GET. No 200/404 fallback: neither is a
+    // documented outcome here, so accepting them would hide a server that doesn't
+    // honor If-None-Match at all.
+    return { add_if_none_match: true };
   }
   if (code === 406) {
-    // "Not Acceptable" — some servers return 500 if they don't implement content negotiation
-    return { wrong_accept: true, accepted_statuses: [406, 500] };
+    // "Not Acceptable" — request an unsupported Accept header; the spec documents only
+    // 406 for this case. A 500 means the server errored instead of correctly rejecting
+    // the request — that's a real defect, not an acceptable alternative.
+    return { wrong_accept: true };
   }
   if (/content.?digest/i.test(name)) {
-    // "Missing or invalid content-digest" — skipping signing omits digest; server may return 400 or 401
-    return { skip_signing: true, accepted_statuses: [400, 401] };
+    // "Missing or invalid content-digest" — omit only the Content-Digest header (not the
+    // signature). Spec documents 400 for this specific case; 401 belongs to the separate
+    // signature-failure test below.
+    return { skip_content_digest: true };
   }
   if (/signature.*fail|signature.*verif/i.test(name) || code === 401) {
-    // "Signature verification failed" — skip signing; some servers return 400 instead of 401
-    return { skip_signing: true, accepted_statuses: [400, 401] };
+    // "Signature verification failed" — skip signing.
+    // Spec documents 401 for this specific case; 400 belongs to content-digest, a different test.
+    return { skip_signing: true };
   }
   if (/invalid.*cert.*format|cert.*format.*invalid|cert.*format.*struct/i.test(name)) {
     // skip_signing: prevents 409 "already registered" when the device keyid is already onboarded.
-    // Symphony may validate signature first (→ 401) or cert format first (→ 400); accept both.
-    return { bad_certificate: true, skip_signing: true, accepted_statuses: [400, 401, 409] };
+    // Spec documents only 400 for invalid certificate format on onboarding.
+    return { bad_certificate: true, skip_signing: true };
   }
   if (/not.*trusted|revoked|rejected/i.test(name) || code === 403) {
-    // "Certificate not trusted" — use fresh unregistered cert; server may return 400, 401, or 403
-    return { fresh_cert: true, accepted_statuses: [400, 401, 403] };
+    // "Certificate not trusted" — use fresh unregistered cert. Spec documents 403 for this case.
+    return { fresh_cert: true };
   }
   if (/semantic.*error|body.*semantic|request body includes/i.test(name) || code === 422) {
-    return { use_placeholder_body: true, accepted_statuses: [400, 422] };
+    // Spec documents 422 for a semantic body error; 400 belongs to content-digest, a different test.
+    return { use_placeholder_body: true };
   }
-  if (code === 404) {
-    // 404: CONTEXT_FALLBACKS produce a well-formed non-existent path; server should return 404
-    // Also accept 400 (some servers reject non-matching digest formats) and 301 (redirect edge case)
-    return { accepted_statuses: [400, 404, 301] };
-  }
-  // Generic 400 or any other explicitly documented error: accept the documented code plus 404
-  return { accepted_statuses: [code > 0 ? code : 400, 404] };
+  // Any other documented error (404 CONTEXT_FALLBACKS, or anything else): hold it to its
+  // own documented code — no blanket fallback (e.g. 301 isn't documented anywhere in spec).
+  return {};
 }
 
 // Build one runStep descriptor from a single response example inside a Postman item.
@@ -208,6 +252,7 @@ function deriveStepFromResponse(parentItem, resp) {
   const errorBehavior = is_success ? {} : deriveErrorBehavior(resp);
 
   const skip_signing = errorBehavior.skip_signing ?? (rules.skip_signing ?? false);
+  const skip_content_digest = errorBehavior.skip_content_digest ?? false;
   const fresh_cert   = errorBehavior.fresh_cert ?? false;
 
   // Derive the request body
@@ -225,10 +270,13 @@ function deriveStepFromResponse(parentItem, resp) {
       if (rules.bodyNested && request_body) request_body = applyBodyNested(request_body, rules.bodyNested);
     }
   } else if (errorBehavior.bad_certificate) {
-    // 400 "Invalid certificate format" — send a plaintext string as the certificate field
+    // 400 "Invalid certificate format" — send a plaintext string as the certificate field.
+    // Unique per run: a fixed literal gets remembered as "already registered" by a real,
+    // persistent WFM (like Symphony), turning this into a false 409 on the next run instead
+    // of the intended 400.
     request_body = {
       ...(rules.body || {}),
-      certificate: 'INVALID_NOT_A_PEM_CERTIFICATE',
+      certificate: `INVALID_NOT_A_PEM_CERTIFICATE-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     };
   } else if (errorBehavior.use_placeholder_body) {
     // 422 "Semantic error" — keep the Postman Lorem-Ipsum body (bad apiVersion, invalid values)
@@ -280,6 +328,7 @@ function deriveStepFromResponse(parentItem, resp) {
     validations,
     extract_context,
     skip_signing,
+    skip_content_digest,
     fresh_cert,
   };
 }
@@ -746,8 +795,14 @@ function printFinalSummary(allResults, scenarioResultsList, reportPath) {
   const totalFailed = allResults.length - totalPassed;
 
   console.log('\n' + THICK_LINE);
-  const grpLabel = groupName ? `Group: ${groupName}${groupVersion ? ` (v${groupVersion})` : ''}  ·  ` : '';
+  const grpLabel = groupName ? `Group: ${groupName}  ·  ` : '';
   console.log(` CONFORMANCE SUMMARY  ·  ${grpLabel}${allResults.length} tests`);
+  console.log(` Claimed App Version: ${groupVersion || 'unknown'}  ·  CTT Margo Version: ${cttMargoVersion}`);
+  if (groupVersion && groupVersion !== cttMargoVersion) {
+    console.log(
+      `\x1b[32m⚠ Version Mismatch: Claimed App Version (${groupVersion}) differs from CTT Margo Version (${cttMargoVersion})\x1b[0m`
+    );
+  }
   console.log(THICK_LINE);
 
   // Per-scenario table
@@ -814,9 +869,10 @@ async function performHTTPStep(step) {
 
   if (bodyText) headers['Content-Type'] = headers['Content-Type'] || 'application/json';
 
-  // Always prepare Content-Digest for body requests so the WFM doesn't reject due to
-  // missing digest before it has a chance to check for the signature.
-  prepareContentDigest(headers, bodyText);
+  // Prepare Content-Digest for body requests so the WFM doesn't reject due to missing
+  // digest before it has a chance to check for the signature — unless the step is
+  // specifically testing a missing/invalid Content-Digest, in which case it must be omitted.
+  if (!step.skip_content_digest) prepareContentDigest(headers, bodyText);
 
   if (!step.skip_signing) signRequest(method, url, headers, bodyText);
 
@@ -977,9 +1033,7 @@ function htmlEscape(value) {
 function writeReport() {
   const passed = results.filter((r) => r.passed).length;
   const failed = results.length - passed;
-  const grpLabel = groupName
-    ? `${htmlEscape(groupName)}${groupVersion ? ` v${htmlEscape(groupVersion)}` : ''}`
-    : 'WFM Scenario';
+  const grpLabel = groupName ? htmlEscape(groupName) : 'WFM Scenario';
 
   const rows = results
     .map(
@@ -1032,15 +1086,23 @@ function writeReport() {
     tr.fail td:first-child, tr.fail td:last-child { color: #b91c1c; font-weight: 700; }
     .scenario-summary td:nth-child(4) { color: #b91c1c; }
     tr.pass.scenario-summary td:nth-child(4) { color: inherit; }
+    .version-warning { margin-bottom: 14px; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Margo WFM Conformance Report</h1>
   <div class="meta">
     Group: <strong>${grpLabel}</strong> &nbsp;|&nbsp;
+    Claimed App Version: <strong>${htmlEscape(groupVersion || 'unknown')}</strong> &nbsp;|&nbsp;
+    CTT Margo Version: <strong>${htmlEscape(cttMargoVersion)}</strong> &nbsp;|&nbsp;
     WFM: <strong>${htmlEscape(baseUrl)}</strong> &nbsp;|&nbsp;
     Run: <strong>${new Date().toISOString()}</strong>
   </div>
+  ${
+    groupVersion && groupVersion !== cttMargoVersion
+      ? `<div class="version-warning">⚠ Version Mismatch: Claimed App Version (${htmlEscape(groupVersion)}) differs from CTT Margo Version (${htmlEscape(cttMargoVersion)})</div>`
+      : ''
+  }
   <div class="summary ${failed === 0 ? 'all-pass' : 'has-fail'}">
     ${failed === 0 ? '✅' : '❌'} ${passed} passed, ${failed} failed, ${results.length} total
   </div>

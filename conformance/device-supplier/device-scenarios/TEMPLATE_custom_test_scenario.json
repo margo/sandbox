@@ -12,7 +12,10 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "certificate", "operation": "exists" }
+          {
+            "field": "certificate",
+            "operation": "exists"
+          }
         ],
         "extract_context": {}
       },
@@ -29,11 +32,18 @@
         "headers": {},
         "expected_status": 201,
         "validations": [
-          { "field": "clientId", "operation": "exists" },
-          { "field": "clientId", "operation": "is_string" }
+          {
+            "field": "clientId",
+            "operation": "exists"
+          },
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
         ],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         },
         "skip_signing": false,
         "skip_certificate_injection": false
@@ -59,7 +69,8 @@
         "expected_status": 201,
         "validations": [],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         },
         "skip_signing": false
       },
@@ -67,7 +78,7 @@
         "id": "step-2.1",
         "name": "Report Capabilities with POST",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -76,19 +87,28 @@
             "vendor": "Your Vendor Name",
             "modelNumber": "MODEL-001",
             "serialNumber": "SN-00001",
-            "roles": ["Standalone Device"],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 4,
                 "architecture": "amd64"
-              },
-              "memory": "8Gi",
-              "storage": "128Gi",
-              "interfaces": [
-                { "type": "ethernet" }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "128Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -101,7 +121,7 @@
         "id": "step-2.2",
         "name": "Update Capabilities with PUT",
         "method": "PUT",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -110,19 +130,28 @@
             "vendor": "Your Vendor Name",
             "modelNumber": "MODEL-001",
             "serialNumber": "SN-00001",
-            "roles": ["Standalone Device"],
-            "resources": {
-              "cpu": {
+            "cpus": [
+              {
                 "cores": 8,
                 "architecture": "amd64"
-              },
-              "memory": "16Gi",
-              "storage": "256Gi",
-              "interfaces": [
-                { "type": "ethernet" }
-              ],
-              "peripherals": []
-            }
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
@@ -152,7 +181,8 @@
         "expected_status": 201,
         "validations": [],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         },
         "skip_signing": false
       },
@@ -166,11 +196,17 @@
         },
         "expected_status": 200,
         "validations": [
-          { "field": "bundleRef", "operation": "exists" },
-          { "field": "bundleRef.digest", "operation": "exists" }
+          {
+            "field": "bundle",
+            "operation": "exists"
+          },
+          {
+            "field": "bundle.digest",
+            "operation": "exists"
+          }
         ],
         "extract_context": {
-          "bundleDigest": "bundleRef.digest",
+          "bundleDigest": "bundle.digest",
           "manifestEtag": "_headers.ETag"
         },
         "skip_signing": false
@@ -208,18 +244,18 @@
         "method": "POST",
         "endpoint": "/api/v1/clients/{clientId}/deployments/your-deployment-id/status",
         "request_body": {
-          "apiVersion": "orchestration.margo.org/v1alpha1",
-          "kind": "AppDeploymentStatus",
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "your-deployment-id",
           "status": {
-            "deploymentId": "your-deployment-id",
-            "components": [
-              {
-                "name": "your-component-name",
-                "phase": "Running",
-                "message": "Component deployed successfully"
-              }
-            ]
-          }
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "your-component-name",
+              "state": "installed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
@@ -248,15 +284,16 @@
         "expected_status": 201,
         "validations": [],
         "extract_context": {
-          "clientId": "clientId"
+          "clientId": "clientId",
+          "deviceId": "clientId"
         },
         "skip_signing": false
       },
       {
         "id": "step-4.1",
-        "name": "Reject Invalid Role in Capabilities",
+        "name": "Reject Invalid Peripheral Type in Capabilities",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -265,20 +302,41 @@
             "vendor": "Your Vendor Name",
             "modelNumber": "MODEL-001",
             "serialNumber": "SN-00001",
-            "roles": ["InvalidRole"],
-            "resources": {
-              "cpu": { "cores": 4, "architecture": "amd64" },
-              "memory": "8Gi",
-              "storage": "128Gi",
-              "interfaces": [{ "type": "ethernet" }],
-              "peripherals": []
-            }
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "128Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "InvalidPeripheralType"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
         "expected_status": 422,
         "validations": [
-          { "field": "errors", "operation": "is_array" }
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
         ],
         "extract_context": {},
         "skip_signing": false
@@ -287,7 +345,7 @@
         "id": "step-4.2",
         "name": "Reject Unsigned Capabilities Request",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/capabilities",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
         "request_body": {
           "apiVersion": "device.margo.org/v1alpha1",
           "kind": "DeviceCapabilitiesManifest",
@@ -296,20 +354,37 @@
             "vendor": "Your Vendor Name",
             "modelNumber": "MODEL-001",
             "serialNumber": "SN-00001",
-            "roles": ["Standalone Device"],
-            "resources": {
-              "cpu": { "cores": 4, "architecture": "amd64" },
-              "memory": "8Gi",
-              "storage": "128Gi",
-              "interfaces": [{ "type": "ethernet" }],
-              "peripherals": []
-            }
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "128Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
           }
         },
         "headers": {},
         "expected_status": 401,
         "validations": [
-          { "field": "error", "operation": "exists" }
+          {
+            "field": "error",
+            "operation": "exists"
+          }
         ],
         "extract_context": {},
         "skip_signing": true

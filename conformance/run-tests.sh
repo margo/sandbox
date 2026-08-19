@@ -656,6 +656,25 @@ create_temp_scenarios_file() {
     mktemp /tmp/margo-device-scenarios.XXXXXX.json
 }
 
+get_ctt_margo_version() {
+    local spec_file="$CONFORMANCE_DIR/wfm-supplier/spec.yaml"
+    [[ -f "$spec_file" ]] || { echo "unknown"; return; }
+    grep -m1 -E '^\s*version:' "$spec_file" | sed -E 's/^\s*version:\s*//' | tr -d '\r'
+}
+
+confirm_version_mismatch() {
+    local claimed_app_version="$1"
+    local ctt_margo_version
+    ctt_margo_version=$(get_ctt_margo_version)
+
+    if [[ -n "$claimed_app_version" && "$claimed_app_version" != "unknown" && "$claimed_app_version" != "$ctt_margo_version" ]]; then
+        echo ""
+        echo -e "\033[32m⚠ Version Mismatch: Claimed App Version ($claimed_app_version) differs from CTT Margo Version ($ctt_margo_version)\033[0m"
+        read -p "Do you want to continue? (y/N): " confirm_continue < /dev/tty
+        [[ "${confirm_continue,,}" == "y" ]] || error "Aborted due to version mismatch"
+    fi
+}
+
 run_wfm_scenario_group() {
     local wfm_url="$1"
     local group_path="$2"
@@ -664,6 +683,8 @@ run_wfm_scenario_group() {
     local report_file
     local scenario_runner="$CONFORMANCE_DIR/wfm-supplier/run_wfm_scenarios.js"
     local cert_dir="$CONFORMANCE_DIR/wfm-supplier/newman-data/certs"
+    local claimed_app_version
+    claimed_app_version=$(jq -r '.version // ""' "$group_path/group.json" 2>/dev/null)
 
     command -v node >/dev/null 2>&1 || error "Node.js not found. Install Node.js before running WFM scenario tests."
     [[ -f "$scenario_runner" ]] || error "WFM scenario runner not found: $scenario_runner"
@@ -681,6 +702,8 @@ run_wfm_scenario_group() {
     [[ -f "$cert_dir/device.key" ]] || error "Device private key not found: $cert_dir/device.key"
     [[ -f "$cert_dir/device-cert.pem" ]] || error "Device certificate not found: $cert_dir/device-cert.pem"
 
+    confirm_version_mismatch "$claimed_app_version"
+
     scenario_file=$(create_temp_scenarios_file)
     build_device_group_scenarios "$group_path" "$scenario_file"
 
@@ -690,7 +713,7 @@ run_wfm_scenario_group() {
     log "📊 Report: $report_file"
 
     set +e
-    node "$scenario_runner" "$wfm_url" "$scenario_file" "$report_file" "$cert_dir"
+    node "$scenario_runner" "$wfm_url" "$scenario_file" "$report_file" "$cert_dir" "$group_name" "$claimed_app_version"
     local result=$?
     set -e
 
@@ -880,6 +903,8 @@ execute_wfm_tests_with_group() {
         -out "$cert_dir/device-cert.pem" \
         -subj "/C=IN/ST=GGN/L=Sector48/O=Margo/OU=Conformance/CN=$temp_device_id" >/dev/null 2>&1
 
+    confirm_version_mismatch "$group_version"
+
     log "▶️  Running test cases from group: $group_name"
     echo ""
 
@@ -908,7 +933,7 @@ execute_wfm_tests_with_group() {
         log "📊 Report: $(basename "$report_file")"
 
         set +e
-        node "$scenario_runner" "$wfm_url" "$filtered_collection" "$report_file" "$cert_dir"
+        node "$scenario_runner" "$wfm_url" "$filtered_collection" "$report_file" "$cert_dir" "$group_name" "$group_version"
         local result=$?
         set -e
 
@@ -981,9 +1006,28 @@ select_device_test_scenarios() {
 
 execute_device_tests() {
     local test_scenarios="${1:-}"
-    
+    local group_path="${2:-}"
+
     if [[ -z "$test_scenarios" ]]; then
         error "Test scenarios file not provided"
+    fi
+
+    local claimed_app_version="unknown"
+    [[ -n "$group_path" && -f "$group_path/group.json" ]] && \
+        claimed_app_version=$(jq -r '.version // "unknown"' "$group_path/group.json" 2>/dev/null)
+    local ctt_margo_version
+    ctt_margo_version=$(get_ctt_margo_version)
+    confirm_version_mismatch "$claimed_app_version"
+
+    # Groups may opt into flexible-order mode (fixed_first onboarding, then the
+    # rest of the scenarios in a random relative order) via a "flexibleOrder"
+    # key in their group.json — same check used by the interactive device flow,
+    # duplicated here because this function is also reached directly via
+    # `./run-tests.sh device <group>`.
+    local extra_flags=()
+    if [[ -n "$group_path" && "$(jq -r '.flexibleOrder // false' "$group_path/group.json" 2>/dev/null)" == "true" ]]; then
+        extra_flags+=("-flexible-order")
+        info "🔀 Flexible-order mode enabled for group '$(basename "$group_path")'."
     fi
     
     log "🚀 Starting Device Supplier Test Execution"
@@ -1072,7 +1116,7 @@ execute_device_tests() {
     echo ""
     
     local test_result=0
-    if ./bin/run_tests 2>&1 | tee "$RUNNER_DEVICE/test-execution.log"; then
+    if ./bin/run_tests -claimed-app-version "$claimed_app_version" -ctt-margo-version "$ctt_margo_version" "${extra_flags[@]}" 2>&1 | tee "$RUNNER_DEVICE/test-execution.log"; then
         test_result=0
     else
         test_result=1
@@ -1615,6 +1659,13 @@ device_run_tests() {
         info "🔀 Flexible-order mode enabled for group '$group_name'."
     fi
 
+    local claimed_app_version
+    claimed_app_version=$(jq -r '.version // "unknown"' "$device_group/group.json" 2>/dev/null)
+    local ctt_margo_version
+    ctt_margo_version=$(get_ctt_margo_version)
+    extra_flags+=("-claimed-app-version" "$claimed_app_version" "-ctt-margo-version" "$ctt_margo_version")
+    confirm_version_mismatch "$claimed_app_version"
+
     # Prompt user for the WFM URL — default to the detected host IP so it
     # matches the URL shown in step 2 (Start Mock WFM Server)
     local host_ip
@@ -1832,7 +1883,7 @@ EOF
                 local group_scenarios
                 group_scenarios=$(create_temp_scenarios_file)
                 build_device_group_scenarios "$group_path" "$group_scenarios"
-                execute_device_tests "$group_scenarios"
+                execute_device_tests "$group_scenarios" "$group_path"
                 rm -f "$group_scenarios"
             else
                 run_device_flow

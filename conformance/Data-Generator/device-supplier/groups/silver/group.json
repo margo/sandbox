@@ -1,11 +1,12 @@
 {
   "name": "silver",
-  "version": "v1.0.0",
+  "version": "1.0.0-rc.2",
   "persona": "device-supplier",
-  "description": "v1.0.0",
+  "description": "Regenerated via CLI-1 (E2E verification pass)",
   "FolderPath": [
     "testcases/user2Device"
   ],
+  "flexibleOrder": false,
   "testCases": [
     "demo-device-001",
     "device-001",

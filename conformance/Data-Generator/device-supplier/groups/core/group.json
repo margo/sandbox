@@ -1,0 +1,11 @@
+{
+  "name": "core",
+  "version": "1.0.0-rc.2",
+  "persona": "device-supplier",
+  "description": "Generic/positive/negative/edge coverage of Device Supplier conformance requirements not exercised by the other groups: device-role capability variants (Standalone Cluster vs Standalone Device), invalid supportedDeploymentTypes/supportedRuntimes enum values, a malformed cpus[] entry, default content negotiation when Accept is omitted, and the zero-deployments manifest edge case.",
+  "FolderPath": [
+    "testcases/device-core"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

@@ -122,13 +122,35 @@
   {
     "id": "flex-desired-state-reconciliation",
     "name": "Flexible Order — Desired State Reconciliation Lifecycle",
-    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state, 'desired state' is a reconciliation pattern (poll -> version check -> fetch -> reconcile -> report status), not a single endpoint — confirmed against a real device-agent's stateSync/deployment/status logs on this VM. This scenario scripts the mock server's desired-state timeline via the test-control endpoint (PUT .../test/clients/{clientId}/deployments, not part of the real spec) to exercise manifestVersion progression, ETag steady-state caching, and add/remove reconciliation with status reporting — mirroring the real device-agent trace (empty -> DESIRED-STATE-ADDED -> installed -> removed). Uses the shared {clientId}. Ends with the client back on exactly the default deployment (a3e2f5dc-912e-494f-8395-52cf3769bc06), matching what every other flexible-order scenario assumes, so this scenario is safe to run in any relative position.",
+    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state, 'desired state' is a reconciliation pattern (poll -> version check -> fetch -> reconcile -> report status), not a single endpoint — confirmed against a real device-agent's stateSync/deployment/status logs on this VM. This scenario scripts the mock server's desired-state timeline via the test-control endpoint (PUT .../test/clients/{reconClientId}/deployments, not part of the real spec) to exercise manifestVersion progression, ETag steady-state caching, and add/remove reconciliation with status reporting — mirroring the real device-agent trace (empty -> DESIRED-STATE-ADDED -> installed -> removed). Onboards its own dedicated client (not the shared {clientId}) so its hardcoded manifestVersion assertions stay valid no matter what order this scenario runs in relative to others that also mutate the shared client's desired state.",
     "steps": [
+      {
+        "id": "flex-reconciliation-onboard",
+        "name": "Onboard Dedicated Client For This Scenario (not shared)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "reconClientId": "clientId"
+        }
+      },
       {
         "id": "flex-reconciliation-reset-empty",
         "name": "Reset Desired State To Empty (test-control)",
         "method": "PUT",
-        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/test/clients/{reconClientId}/deployments",
         "request_body": {
           "deploymentIds": []
         },
@@ -152,7 +174,7 @@
         "id": "flex-reconciliation-get-empty",
         "name": "Get Deployments — Confirm Empty Desired State",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments",
         "headers": {
           "Accept": "application/vnd.margo.manifest.v1+json"
         },
@@ -176,7 +198,7 @@
         "id": "flex-reconciliation-steady-state-304",
         "name": "Re-poll With Same ETag — Steady State (304, no reconciliation needed)",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments",
         "headers": {
           "Accept": "application/vnd.margo.manifest.v1+json",
           "If-None-Match": "{reconEmptyEtag}"
@@ -189,9 +211,11 @@
         "id": "flex-reconciliation-add-default",
         "name": "Add Default Deployment Back (test-control) — DESIRED-STATE-ADDED",
         "method": "PUT",
-        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/test/clients/{reconClientId}/deployments",
         "request_body": {
-          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+          "deploymentIds": [
+            "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          ]
         },
         "skip_signing": true,
         "headers": {},
@@ -209,7 +233,7 @@
         "id": "flex-reconciliation-get-after-add",
         "name": "Get Deployments — Confirm Deployment Present, Version Advanced",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments",
         "headers": {
           "Accept": "application/vnd.margo.manifest.v1+json",
           "If-None-Match": "{reconEmptyEtag}"
@@ -240,7 +264,7 @@
         "id": "flex-reconciliation-fetch-bundle",
         "name": "Fetch Bundle For Newly-Added Deployment",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/bundles/{reconBundleDigest}",
+        "endpoint": "/api/v1/clients/{reconClientId}/bundles/{reconBundleDigest}",
         "headers": {},
         "expected_status": 200,
         "validations": [
@@ -255,7 +279,7 @@
         "id": "flex-reconciliation-fetch-manifest",
         "name": "Fetch Individual Deployment Manifest",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/{reconDeploymentDigest}",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/{reconDeploymentDigest}",
         "headers": {},
         "expected_status": 200,
         "validations": [
@@ -271,18 +295,29 @@
         "id": "flex-reconciliation-status-pending",
         "name": "Report Status: pending",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-          "status": { "state": "pending" },
-          "components": [{ "name": "app-component-1", "state": "pending" }]
+          "status": {
+            "state": "pending"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "pending"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -290,18 +325,29 @@
         "id": "flex-reconciliation-status-installing",
         "name": "Report Status: installing",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-          "status": { "state": "installing" },
-          "components": [{ "name": "app-component-1", "state": "installing" }]
+          "status": {
+            "state": "installing"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installing"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -309,18 +355,29 @@
         "id": "flex-reconciliation-status-installed",
         "name": "Report Status: installed",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/a3e2f5dc-912e-494f-8395-52cf3769bc06/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "a3e2f5dc-912e-494f-8395-52cf3769bc06",
-          "status": { "state": "installed" },
-          "components": [{ "name": "app-component-1", "state": "installed" }]
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -328,15 +385,22 @@
         "id": "flex-reconciliation-add-second-deployment",
         "name": "Assign A Second Deployment (test-control)",
         "method": "PUT",
-        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/test/clients/{reconClientId}/deployments",
         "request_body": {
-          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06", "recon-temp-deployment-001"]
+          "deploymentIds": [
+            "a3e2f5dc-912e-494f-8395-52cf3769bc06",
+            "recon-temp-deployment-001"
+          ]
         },
         "skip_signing": true,
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "manifestVersion", "operation": "equals", "value": 4 }
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 4
+          }
         ],
         "extract_context": {}
       },
@@ -344,18 +408,29 @@
         "id": "flex-reconciliation-status-second-installed",
         "name": "Report Status: installed (second deployment)",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/recon-temp-deployment-001/status",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/recon-temp-deployment-001/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "recon-temp-deployment-001",
-          "status": { "state": "installed" },
-          "components": [{ "name": "app-component-1", "state": "installed" }]
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -363,15 +438,21 @@
         "id": "flex-reconciliation-remove-second-deployment",
         "name": "Unassign Second Deployment (test-control) — back to default only",
         "method": "PUT",
-        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/test/clients/{reconClientId}/deployments",
         "request_body": {
-          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+          "deploymentIds": [
+            "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          ]
         },
         "skip_signing": true,
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "manifestVersion", "operation": "equals", "value": 5 }
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 5
+          }
         ],
         "extract_context": {}
       },
@@ -379,18 +460,29 @@
         "id": "flex-reconciliation-status-second-removed",
         "name": "Report Status: removed (second deployment, no longer desired)",
         "method": "POST",
-        "endpoint": "/api/v1/clients/{clientId}/deployments/recon-temp-deployment-001/status",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments/recon-temp-deployment-001/status",
         "request_body": {
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "recon-temp-deployment-001",
-          "status": { "state": "removed" },
-          "components": [{ "name": "app-component-1", "state": "removed" }]
+          "status": {
+            "state": "removed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "removed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -398,14 +490,22 @@
         "id": "flex-reconciliation-get-final-state",
         "name": "Get Deployments — Confirm Restored To Default Only",
         "method": "GET",
-        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "endpoint": "/api/v1/clients/{reconClientId}/deployments",
         "headers": {
           "Accept": "application/vnd.margo.manifest.v1+json"
         },
         "expected_status": 200,
         "validations": [
-          { "field": "manifestVersion", "operation": "equals", "value": 5 },
-          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06" }
+          {
+            "field": "manifestVersion",
+            "operation": "equals",
+            "value": 5
+          },
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "equals",
+            "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          }
         ],
         "extract_context": {}
       }
@@ -422,13 +522,19 @@
         "method": "PUT",
         "endpoint": "/api/v1/test/clients/{clientId}/deployments",
         "request_body": {
-          "deploymentIds": ["b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a", "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b"]
+          "deploymentIds": [
+            "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
+            "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b"
+          ]
         },
         "skip_signing": true,
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "deployments", "operation": "is_array" }
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          }
         ],
         "extract_context": {}
       },
@@ -442,9 +548,20 @@
         },
         "expected_status": 200,
         "validations": [
-          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a" },
-          { "field": "deployments.1.deploymentId", "operation": "equals", "value": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b" },
-          { "field": "bundle.digest", "operation": "not_empty" }
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "equals",
+            "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"
+          },
+          {
+            "field": "deployments.1.deploymentId",
+            "operation": "equals",
+            "value": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b"
+          },
+          {
+            "field": "bundle.digest",
+            "operation": "not_empty"
+          }
         ],
         "extract_context": {
           "appADigest": "deployments.0.digest",
@@ -459,9 +576,21 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "_headers.Content-Type", "operation": "contains", "value": "application/yaml" },
-          { "field": "_raw", "operation": "contains", "value": "sample-app-a" },
-          { "field": "_raw", "operation": "contains", "value": "/sample-apps/app-a/compose.yaml" }
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/yaml"
+          },
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "sample-app-a"
+          },
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "/sample-apps/app-a/compose.yaml"
+          }
         ],
         "extract_context": {}
       },
@@ -474,7 +603,11 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "_raw", "operation": "contains", "value": "nginx" }
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "nginx"
+          }
         ],
         "extract_context": {}
       },
@@ -487,13 +620,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
-          "status": { "state": "pending" },
-          "components": [{ "name": "sample-app-a", "state": "pending" }]
+          "status": {
+            "state": "pending"
+          },
+          "components": [
+            {
+              "name": "sample-app-a",
+              "state": "pending"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -506,13 +650,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
-          "status": { "state": "installing" },
-          "components": [{ "name": "sample-app-a", "state": "installing" }]
+          "status": {
+            "state": "installing"
+          },
+          "components": [
+            {
+              "name": "sample-app-a",
+              "state": "installing"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -525,13 +680,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a",
-          "status": { "state": "installed" },
-          "components": [{ "name": "sample-app-a", "state": "installed" }]
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "sample-app-a",
+              "state": "installed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -543,9 +709,21 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "_headers.Content-Type", "operation": "contains", "value": "application/yaml" },
-          { "field": "_raw", "operation": "contains", "value": "sample-app-b" },
-          { "field": "_raw", "operation": "contains", "value": "/sample-apps/app-b/compose.yaml" }
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/yaml"
+          },
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "sample-app-b"
+          },
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "/sample-apps/app-b/compose.yaml"
+          }
         ],
         "extract_context": {}
       },
@@ -558,7 +736,11 @@
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "_raw", "operation": "contains", "value": "redis" }
+          {
+            "field": "_raw",
+            "operation": "contains",
+            "value": "redis"
+          }
         ],
         "extract_context": {}
       },
@@ -571,13 +753,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
-          "status": { "state": "pending" },
-          "components": [{ "name": "sample-app-b", "state": "pending" }]
+          "status": {
+            "state": "pending"
+          },
+          "components": [
+            {
+              "name": "sample-app-b",
+              "state": "pending"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -590,13 +783,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
-          "status": { "state": "installing" },
-          "components": [{ "name": "sample-app-b", "state": "installing" }]
+          "status": {
+            "state": "installing"
+          },
+          "components": [
+            {
+              "name": "sample-app-b",
+              "state": "installing"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -609,13 +813,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
-          "status": { "state": "installed" },
-          "components": [{ "name": "sample-app-b", "state": "installed" }]
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "sample-app-b",
+              "state": "installed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -625,7 +840,9 @@
         "method": "PUT",
         "endpoint": "/api/v1/test/clients/{clientId}/deployments",
         "request_body": {
-          "deploymentIds": ["b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"]
+          "deploymentIds": [
+            "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"
+          ]
         },
         "skip_signing": true,
         "headers": {},
@@ -643,7 +860,11 @@
         },
         "expected_status": 200,
         "validations": [
-          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a" }
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "equals",
+            "value": "b7f1c3a0-1a2b-4c3d-9e5f-6a7b8c9d0e1a"
+          }
         ],
         "extract_context": {}
       },
@@ -656,13 +877,24 @@
           "apiVersion": "deployment.margo.org/v1alpha1",
           "kind": "DeploymentStatusManifest",
           "deploymentId": "c8e2d4b1-2b3c-5d4e-0f6a-7b8c9d0e1f2b",
-          "status": { "state": "removed" },
-          "components": [{ "name": "sample-app-b", "state": "removed" }]
+          "status": {
+            "state": "removed"
+          },
+          "components": [
+            {
+              "name": "sample-app-b",
+              "state": "removed"
+            }
+          ]
         },
         "headers": {},
         "expected_status": 200,
         "validations": [
-          { "field": "acknowledgement", "operation": "equals", "value": "received" }
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
         ],
         "extract_context": {}
       },
@@ -672,7 +904,9 @@
         "method": "PUT",
         "endpoint": "/api/v1/test/clients/{clientId}/deployments",
         "request_body": {
-          "deploymentIds": ["a3e2f5dc-912e-494f-8395-52cf3769bc06"]
+          "deploymentIds": [
+            "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          ]
         },
         "skip_signing": true,
         "headers": {},
@@ -690,7 +924,11 @@
         },
         "expected_status": 200,
         "validations": [
-          { "field": "deployments.0.deploymentId", "operation": "equals", "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06" }
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "equals",
+            "value": "a3e2f5dc-912e-494f-8395-52cf3769bc06"
+          }
         ],
         "extract_context": {}
       }

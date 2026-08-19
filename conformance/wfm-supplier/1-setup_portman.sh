@@ -22,7 +22,7 @@ echo ""
 ################################################################################
 
 # OpenAPI Specification - can be provided as first argument or use default
-DEFAULT_SPEC_URL="https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0.yaml"
+DEFAULT_SPEC_URL="https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0-rc.2.yaml"
 SPEC_URL="${1:-$DEFAULT_SPEC_URL}"
 SPEC_FILE="spec.yaml"
 COLLECTION_FILE="postman_collection.json"

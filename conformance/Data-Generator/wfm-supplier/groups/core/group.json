@@ -1,0 +1,11 @@
+{
+  "name": "core",
+  "version": "1.0.0-rc.2",
+  "persona": "wfm-supplier",
+  "description": "Generic/positive/negative/edge coverage of WFM Supplier conformance requirements not exercised by the other groups: device-role capability variants (Standalone Cluster vs Standalone Device), invalid supportedDeploymentTypes/supportedRuntimes enum values, and default content negotiation when Accept is omitted. Declarative scenario format (not Postman) — proves out the same self-service authoring model device-supplier already uses.",
+  "FolderPath": [
+    "testcases/wfm-core"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

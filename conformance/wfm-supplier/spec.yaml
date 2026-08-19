@@ -1,7 +1,7 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Margo Workload Management API
-  version: 1.0.0
+  version: 1.0.0-rc.2
   description: 
     API for managing workloads on Margo-compliant edge devices.
     Includes the APIs for exchanging desired state and current state.
@@ -10,7 +10,7 @@ info:
 
 servers:
   - url: https://wfm.margo.org/
-    description: Workload Fleet Manager API
+    description: Workload Fleet Manager APIs
 
 security:
   - PayloadSignature: []
@@ -85,7 +85,7 @@ paths:
       - PayloadSignature: []
       summary: Complete onboarding with client certificate
 
-  /api/v1/clients/{clientId}/capabilities:
+  /api/v1/clients/{clientId}/capabilities/{deviceId}:
     post:
       summary: Report device capabilities
       security:
@@ -96,6 +96,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeviceId'
       requestBody:
         required: true
         content:
@@ -111,6 +116,8 @@ paths:
           description: Signature verification failed. Ensure you are signing with the correct X.509 private key.
         '403':
           description: Client certificate is not trusted or has been revoked.
+        '404':
+          description: No client with the given `clientID` was found.
         '422':
           description: Request body includes a semantic error.
     put:
@@ -123,6 +130,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeviceId'
       requestBody:
         required: true
         content:
@@ -138,9 +150,36 @@ paths:
           description: Signature verification failed. Ensure you are signing with the correct X.509 private key.
         '403':
           description: Client certificate is not trusted or has been revoked.
+        '404':
+          description: No client with the given `clientID` was found.
         '422':
           description: Request body includes a semantic error.
-
+    delete:
+      summary: Remove device (Unregister)
+      security:
+        - PayloadSignature: []
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeviceId'
+      responses:
+        '204':
+          description: Device capabilities removed successfully
+        '400':
+          description: Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.
+        '401':
+          description: Signature verification failed. Ensure you are signing with the correct X.509 private key.
+        '403':
+          description: Client certificate is not trusted or has been revoked.
+        '404':
+          description: Client or device not found.
   /api/v1/clients/{clientId}/bundles/{digest}:
     get:
       summary: Retrieve bundle information for a specific device and digest
@@ -262,7 +301,7 @@ paths:
           required: true
           schema:
             type: string
-          description: UUID of the ApplicationDeployment (metadata.annotations.id)
+          description: Unique identifier for the application deployment
         - name: digest
           in: path
           required: true
@@ -364,8 +403,7 @@ components:
         Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1].
         Prevents rollback attacks. The first manifest MUST use 1.
     DeploymentBundleRef:
-      type: object
-      nullable: true
+      type: [object, 'null']
       description: >
         Describes a single archive containing all ApplicationDeployment documents. If there are zero deployments (deployments array is empty) the property MUST be present with the value null (it MUST NOT be omitted).
       properties:
@@ -397,7 +435,7 @@ components:
         deploymentId:
           type: string
           description: >
-            The unique UUID from the ApplicationDeployment's metadata.annotations.id.
+            Unique identifier for the application deployment.
         digest:
           type: string
           description: >
@@ -432,6 +470,13 @@ components:
     DeviceCapabilitiesManifest:
       type: object
       required: [apiVersion, kind, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         apiVersion:
           type: string
@@ -440,46 +485,71 @@ components:
           enum: [DeviceCapabilitiesManifest]
         properties:
           type: object
-          required: [id, vendor, modelNumber, serialNumber, roles, resources]
+          required: [id, vendor, modelNumber, serialNumber]
+          # Only identity fields are required. A device that hosts workloads reports cpus, memory,
+          # storage, peripherals, interfaces, otelCollector (true), supportedRuntimes (>=1), and
+          # supportedDeploymentTypes (>=1). A device that does not host workloads (e.g. a see-thru
+          # gateway that only relays the devices behind it) omits those fields.
+          # The WFM infers it is non-hosting from their absence and infers a
+          # gateway from the parent/child deviceId hierarchy.
           properties:
             id:
-              type: string
+              $ref: '#/components/schemas/DeviceId'
             vendor:
               type: string
             modelNumber:
               type: string
             serialNumber:
               type: string
-            roles:
+            cpus:
               type: array
               items:
+                type: object
+                required: [cores]
+                properties:
+                  cores:
+                    type: number
+                  architecture:
+                    type: string
+                    enum: [amd64, arm64, arm]
+            memory:
+              type: string
+            storage:
+              type: string
+            peripherals:
+              type: array
+              items:
+                $ref: '#/components/schemas/DevicePeripheral'
+            interfaces:
+              type: array
+              items:
+                $ref: '#/components/schemas/DeviceCommunicationInterface'
+            otelCollector:
+              type: boolean
+            supportedRuntimes:
+              type: array
+              minItems: 1
+              items:
                 type: string
-                enum: [Standalone Cluster, Cluster Leader, Standalone Device]
-            resources:
-              type: object
-              required: [cpu, memory, storage, peripherals, interfaces]
-              properties:
-                cpu:
-                  type: object
-                  required: [cores]
-                  properties:
-                    cores:
-                      type: number
-                    architecture:
-                      type: string
-                      enum: [amd64, arm64, arm]
-                memory:
-                  type: string
-                storage:
-                  type: string
-                peripherals:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/DevicePeripheral'
-                interfaces:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/DeviceCommunicationInterface'
+                enum: [oci]
+            supportedDeploymentTypes:
+              type: array
+              minItems: 1
+              items:
+                type: string
+                enum: [helm, compose]
+    DeviceId:
+      # format: "{id}[/{id}[/{id}...]]"
+      # Top-level id is required and must include only unreserved characters as specified in RFC3986.
+      # Subsequent ids are only used when referencing child devices, and must include only unreserved characters as specified in RFC3986 when present.
+      type: string
+      pattern: '^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$'
+    DeviceId_with_asterisk:
+      # format: "{id}[/{id}[/{id}...]/*]"
+      # Top-level id is required and must include only unreserved characters as specified in RFC3986.
+      # Subsequent ids are only used when referencing child devices, and must include only unreserved characters as specified in RFC3986 when present.
+      type: string
+      pattern: '^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*(\/\*)?$'
 
     ComponentStatus:
       type: object
@@ -495,6 +565,8 @@ components:
           properties:
             code:
               type: string
+            source:
+              type: string
             message:
               type: string
 
@@ -509,6 +581,8 @@ components:
           enum: [DeploymentStatusManifest]
         deploymentId:
           type: string
+        deviceId:
+          $ref: '#/components/schemas/DeviceId'
         status:
           type: object
           required: [state]
@@ -520,6 +594,8 @@ components:
               type: object
               properties:
                 code:
+                  type: string
+                source:
                   type: string
                 message:
                   type: string
@@ -563,35 +639,41 @@ components:
           type: string
           default: ApplicationDeployment
           description: Resource kind
+        id:
+          type: string
+          description: Unique identifier for the application deployment
         metadata:
           $ref: '#/components/schemas/appDeploymentMetadata'
         spec:
           $ref: '#/components/schemas/appDeploymentSpec'
     appDeploymentMetadata:
       type: object
-      required: [name]
+      required: [annotations, name, namespace, deviceId]
       properties:
-        id:
-          type: string
-          description: Unique identifier for the application deployment
         name:
           type: string
           description: Name of the resource
         namespace:
           type: string
           description: Namespace of the resource
+        deviceId:
+          $ref: '#/components/schemas/DeviceId_with_asterisk'
+          description: Device ID of the target device for the deployment
         labels:
           type: object
           additionalProperties: { type: string }
           description: Labels for the resource
-        annotations:
-          type: object
-          additionalProperties: { type: string }
-          description: Annotations for the resource
     helmApplicationDeploymentProfileComponent:
       type: object
       description: Helm Application Deployment Profile Component
       required: [name, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -616,6 +698,13 @@ components:
       type: object
       description: Compose Application Deployment Profile Component
       required: [name, properties]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -640,6 +729,13 @@ components:
       type: object
       description: Application Deployment Profile
       required: [type, components]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
         type:
           type: string
@@ -688,8 +784,25 @@ components:
     appDeploymentSpec:
       type: object
       description: Application Deployment specification
-      required: [appPackageRef, deploymentProfile]
+      required: [applicationId, deploymentProfile]
+      patternProperties:
+        '^x-[a-z][a-z0-9-]*-extensions$':
+          type: object
+          description: >-
+            Vendor-specific extension. Keys MUST match x-<unique-name>-extensions
+            where <unique-name> matches [a-z][a-z0-9-]*.
+      additionalProperties: false
       properties:
+        applicationId:
+          type: string
+          description: >-
+            An identifier for the application.
+            The id is used to help create unique identifiers where required, such as namespaces.
+            The id must be lower case letters and numbers and MAY contain dashes.
+            Uppercase letters, underscores and periods MUST NOT be used.
+            The id MUST NOT be more than 200 characters.
+            The applicationId MUST match the associated application description's top-level "id" attribute.
+          pattern: "^[-a-z0-9]{1,200}$"
         deploymentProfile:
           $ref: '#/components/schemas/appDeploymentProfile'
           description: Deployment profile

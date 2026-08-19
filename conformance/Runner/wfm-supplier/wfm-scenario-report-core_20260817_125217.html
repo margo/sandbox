@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WFM Conformance Report — core</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2933; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .meta { font-size: 13px; color: #555; margin-bottom: 18px; }
+    .summary { margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+    .summary.all-pass { color: #166534; }
+    .summary.has-fail { color: #b91c1c; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 24px; }
+    th, td { border: 1px solid #d7dde5; padding: 7px 9px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    tr.pass td:first-child { color: #166534; font-weight: 700; }
+    tr.fail td:first-child, tr.fail td:last-child { color: #b91c1c; font-weight: 700; }
+    .scenario-summary td:nth-child(4) { color: #b91c1c; }
+    tr.pass.scenario-summary td:nth-child(4) { color: inherit; }
+    .version-warning { margin-bottom: 14px; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Margo WFM Conformance Report</h1>
+  <div class="meta">
+    Group: <strong>core</strong> &nbsp;|&nbsp;
+    Claimed App Version: <strong>1.0.0-rc.2</strong> &nbsp;|&nbsp;
+    CTT Margo Version: <strong>1.0.0-rc.2</strong> &nbsp;|&nbsp;
+    WFM: <strong>https://symphony.machine:8082/v1alpha2/margo</strong> &nbsp;|&nbsp;
+    Run: <strong>2026-08-17T12:52:17.673Z</strong>
+  </div>
+  
+  <div class="summary has-fail">
+    ❌ 4 passed, 3 failed, 7 total
+  </div>
+
+  <h2>Scenario Summary</h2>
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Total</th><th>Passed</th><th>Failed</th></tr>
+    </thead>
+    <tbody class="scenario-summary">
+    <tr class="fail">
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>5</td>
+      <td>3</td>
+      <td>2</td>
+    </tr>
+
+    <tr class="fail">
+      <td>Desired State — Default Content Negotiation</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1</td>
+    </tr></tbody>
+  </table>
+
+  <h2>Step Details</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th><th>Scenario</th><th>Step</th><th>Name</th>
+        <th>Method</th><th>Endpoint</th><th>Expected</th><th>Actual</th><th>Failure Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>step-wfm-core-1.0</td>
+      <td>Onboard Device (Setup)</td>
+      <td>POST</td>
+      <td>/api/v1/onboarding</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>step-wfm-core-1.1</td>
+      <td>Report Capabilities — Standalone Device Role (compose only)</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-c541f8ab0c840a26-1786971137/capabilities/client-c541f8ab0c840a26-1786971137</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>step-wfm-core-1.2</td>
+      <td>Report Capabilities — Standalone Cluster Role (helm only)</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-c541f8ab0c840a26-1786971137/capabilities/client-c541f8ab0c840a26-1786971137</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="fail">
+      <td>FAIL</td>
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>step-wfm-core-1.3</td>
+      <td>Reject Capabilities — Invalid supportedDeploymentTypes Value</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-c541f8ab0c840a26-1786971137/capabilities/client-c541f8ab0c840a26-1786971137</td>
+      <td>422</td>
+      <td>201</td>
+      <td>expected HTTP 422, got 201</td>
+    </tr>
+
+    <tr class="fail">
+      <td>FAIL</td>
+      <td>Capability Reporting — Device Role Variants</td>
+      <td>step-wfm-core-1.4</td>
+      <td>Reject Capabilities — Invalid supportedRuntimes Value</td>
+      <td>POST</td>
+      <td>/api/v1/clients/client-c541f8ab0c840a26-1786971137/capabilities/client-c541f8ab0c840a26-1786971137</td>
+      <td>422</td>
+      <td>201</td>
+      <td>expected HTTP 422, got 201</td>
+    </tr>
+
+    <tr class="pass">
+      <td>PASS</td>
+      <td>Desired State — Default Content Negotiation</td>
+      <td>step-wfm-core-2.0</td>
+      <td>Onboard Device (Setup)</td>
+      <td>POST</td>
+      <td>/api/v1/onboarding</td>
+      <td>201</td>
+      <td>201</td>
+      <td></td>
+    </tr>
+
+    <tr class="fail">
+      <td>FAIL</td>
+      <td>Desired State — Default Content Negotiation</td>
+      <td>step-wfm-core-2.1</td>
+      <td>Get Deployments With No Accept Header — Defaults To Manifest Format</td>
+      <td>GET</td>
+      <td>/api/v1/clients/client-2b3cf9c3f17a3f05-1786971137/deployments</td>
+      <td>200</td>
+      <td>500</td>
+      <td>expected HTTP 200, got 500</td>
+    </tr></tbody>
+  </table>
+</body>
+</html>

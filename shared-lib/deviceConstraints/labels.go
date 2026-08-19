@@ -5,7 +5,6 @@ import (
 
 	"github.com/margo/sandbox/shared-lib/set"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
-	"go.uber.org/zap"
 )
 
 type SelectorEngineIface interface {
@@ -19,7 +18,6 @@ type SelectorEngineIface interface {
 }
 
 type LabelSelectorEngine struct {
-	logger *zap.SugaredLogger
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 }
 

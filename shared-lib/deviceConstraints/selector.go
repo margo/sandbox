@@ -72,12 +72,6 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 	device *clModels.DeviceCapabilitiesManifest,
 	checks *clModels.DeviceConstraints) (bool, string, error) {
 
-	/*
-		Algorithm:
-		1. Check Capacity requirements first.
-		2.
-	*/
-
 	if checks == nil {
 		return true, "", nil
 	}
@@ -94,6 +88,7 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 	}
 
 	lse := NewLabelSelectorEngine(device.Labels)
+	pse := NewPropertySelectorEngine(device)
 
 	finalReason := ""
 	// Out of all Eligibility rules, at least 1 needs to pass to consider that device.
@@ -110,9 +105,12 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 			}
 		}
 
-		//TODO: continue checking selectors
 		if v.PropertySelector != nil {
-
+			ok, reason := pse.Evaluate(v.PropertySelector)
+			if !ok {
+				finalReason = reason
+				continue
+			}
 		}
 
 		return true, "", nil

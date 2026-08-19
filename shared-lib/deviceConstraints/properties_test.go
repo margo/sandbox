@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/margo/sandbox/shared-lib/pointers"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
@@ -132,7 +133,7 @@ func TestResolvePointer_TopLevel_StringField_ExactValue(t *testing.T) {
 
 func TestResolvePointer_TopLevel_BoolField_True(t *testing.T) {
 	d := baseDevice()
-	d.Properties.OtelCollector = ptr(true)
+	d.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(d)
 
 	val, exists, err := e.resolvePointer("/otelCollector")
@@ -144,7 +145,7 @@ func TestResolvePointer_TopLevel_BoolField_True(t *testing.T) {
 
 func TestResolvePointer_TopLevel_BoolField_False(t *testing.T) {
 	d := baseDevice()
-	d.Properties.OtelCollector = ptr(false)
+	d.Properties.OtelCollector = pointers.Ptr(false)
 	e := engine(d)
 
 	val, exists, err := e.resolvePointer("/otelCollector")
@@ -156,7 +157,7 @@ func TestResolvePointer_TopLevel_BoolField_False(t *testing.T) {
 
 func TestResolvePointer_TopLevel_StringField_Memory(t *testing.T) {
 	d := baseDevice()
-	d.Properties.Memory = ptr("64Gi")
+	d.Properties.Memory = pointers.Ptr("64Gi")
 	e := engine(d)
 
 	val, exists, err := e.resolvePointer("/memory")
@@ -498,7 +499,7 @@ func TestResolvePointer_SingleKey_SerialNumber_Match(t *testing.T) {
 
 func TestResolvePointer_SingleKey_OtelCollector_True(t *testing.T) {
 	d := minimalDevice()
-	d.Properties.OtelCollector = ptr(true)
+	d.Properties.OtelCollector = pointers.Ptr(true)
 
 	val, exists, err := engine(d).resolvePointer("/otelCollector")
 
@@ -509,7 +510,7 @@ func TestResolvePointer_SingleKey_OtelCollector_True(t *testing.T) {
 
 func TestResolvePointer_SingleKey_OtelCollector_False(t *testing.T) {
 	d := minimalDevice()
-	d.Properties.OtelCollector = ptr(false)
+	d.Properties.OtelCollector = pointers.Ptr(false)
 
 	val, exists, err := engine(d).resolvePointer("/otelCollector")
 
@@ -520,7 +521,7 @@ func TestResolvePointer_SingleKey_OtelCollector_False(t *testing.T) {
 
 func TestResolvePointer_SingleKey_Memory_Match(t *testing.T) {
 	d := minimalDevice()
-	d.Properties.Memory = ptr("64Gi")
+	d.Properties.Memory = pointers.Ptr("64Gi")
 
 	val, exists, err := engine(d).resolvePointer("/memory")
 
@@ -531,7 +532,7 @@ func TestResolvePointer_SingleKey_Memory_Match(t *testing.T) {
 
 func TestResolvePointer_SingleKey_Storage_Match(t *testing.T) {
 	d := minimalDevice()
-	d.Properties.Storage = ptr("1862Gi")
+	d.Properties.Storage = pointers.Ptr("1862Gi")
 
 	val, exists, err := engine(d).resolvePointer("/storage")
 
@@ -952,7 +953,7 @@ func TestHandleIn_ScalarNumber_NoMatch(t *testing.T) {
 
 func TestHandleIn_ScalarBool_Match(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
 
 	me := &clModels.MatchExpression{
@@ -968,7 +969,7 @@ func TestHandleIn_ScalarBool_Match(t *testing.T) {
 
 func TestHandleIn_ScalarBool_NoMatch(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	device.Properties.OtelCollector = ptr(false)
+	device.Properties.OtelCollector = pointers.Ptr(false)
 	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
 
 	me := &clModels.MatchExpression{
@@ -1338,7 +1339,7 @@ func TestHandleNotIn_ScalarNumber_InValues_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_ScalarBool_False_NotInValues_ReturnsTrue(t *testing.T) {
 	// device has otelCollector=false; values=[true] → false not in [true] → true
 	device := deviceWithVendor("Acme")
-	device.Properties.OtelCollector = ptr(false)
+	device.Properties.OtelCollector = pointers.Ptr(false)
 	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
 
 	me := &clModels.MatchExpression{
@@ -1354,7 +1355,7 @@ func TestHandleNotIn_ScalarBool_False_NotInValues_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_ScalarBool_True_InValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
 
 	me := &clModels.MatchExpression{
@@ -1557,7 +1558,7 @@ func TestHandleNotIn_MixedTypeValues_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_BoolMultipleValues_ReturnsFalse(t *testing.T) {
 	// Boolean values MUST contain exactly one entry
 	device := deviceWithVendor("Acme")
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
 
 	me := &clModels.MatchExpression{
@@ -1828,7 +1829,7 @@ func TestHandleExists_ScalarString_SerialNumber_Present_ReturnsTrue(t *testing.T
 func TestHandleExists_OptionalBool_OtelCollector_Present_ReturnsTrue(t *testing.T) {
 	// OtelCollector is set → present in JSON → Exists must return true.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -1845,7 +1846,7 @@ func TestHandleExists_OptionalBool_OtelCollector_False_Present_ReturnsTrue(t *te
 	// OtelCollector=false is still present (not nil) → Exists must return true.
 	// A zero value is not the same as absent.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(false)
+	device.Properties.OtelCollector = pointers.Ptr(false)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -1876,7 +1877,7 @@ func TestHandleExists_OptionalBool_OtelCollector_Nil_ReturnsFalse(t *testing.T) 
 
 func TestHandleExists_OptionalString_Memory_Present_ReturnsTrue(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Memory = ptr("64Gi")
+	device.Properties.Memory = pointers.Ptr("64Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -1906,7 +1907,7 @@ func TestHandleExists_OptionalString_Memory_Nil_ReturnsFalse(t *testing.T) {
 
 func TestHandleExists_OptionalString_Storage_Present_ReturnsTrue(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Storage = ptr("1862Gi")
+	device.Properties.Storage = pointers.Ptr("1862Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2206,7 +2207,7 @@ func TestHandleExists_RepeatedCalls_ConsistentResults(t *testing.T) {
 func TestHandleExists_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	// Resolving two different keys on the same engine must not interfere.
 	device := baseDevice()
-	device.Properties.Memory = ptr("64Gi")
+	device.Properties.Memory = pointers.Ptr("64Gi")
 	device.Properties.Storage = nil // absent
 	e := engine(device)
 
@@ -2276,7 +2277,7 @@ func TestHandleDoesNotExists_ScalarString_SerialNumber_Present_ReturnsFalse(t *t
 func TestHandleDoesNotExists_OptionalBool_OtelCollector_Present_ReturnsFalse(t *testing.T) {
 	// OtelCollector is set → present in JSON → DoesNotExist must return false.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2293,7 +2294,7 @@ func TestHandleDoesNotExists_OptionalBool_OtelCollector_False_Present_ReturnsFal
 	// OtelCollector=false is still present (not nil) → DoesNotExist must return false.
 	// A zero/false value is not the same as absent.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(false)
+	device.Properties.OtelCollector = pointers.Ptr(false)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2324,7 +2325,7 @@ func TestHandleDoesNotExists_OptionalBool_OtelCollector_Nil_ReturnsTrue(t *testi
 
 func TestHandleDoesNotExists_OptionalString_Memory_Present_ReturnsFalse(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Memory = ptr("64Gi")
+	device.Properties.Memory = pointers.Ptr("64Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2355,7 +2356,7 @@ func TestHandleDoesNotExists_OptionalString_Memory_Nil_ReturnsTrue(t *testing.T)
 
 func TestHandleDoesNotExists_OptionalString_Storage_Present_ReturnsFalse(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Storage = ptr("1862Gi")
+	device.Properties.Storage = pointers.Ptr("1862Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2677,7 +2678,7 @@ func TestHandleDoesNotExists_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	// Resolving two different keys on the same engine must not interfere.
 	// /memory is present, /storage is absent.
 	device := baseDevice()
-	device.Properties.Memory = ptr("64Gi")
+	device.Properties.Memory = pointers.Ptr("64Gi")
 	device.Properties.Storage = nil
 	e := engine(device)
 
@@ -2834,7 +2835,7 @@ func TestHandleGt_ResolvedString_ReturnsFalse(t *testing.T) {
 func TestHandleGt_ResolvedBool_ReturnsFalse(t *testing.T) {
 	// /otelCollector resolves to a bool → Gt requires a number → false.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -3195,7 +3196,7 @@ func TestHandleLt_ResolvedString_ReturnsFalse(t *testing.T) {
 func TestHandleLt_ResolvedBool_ReturnsFalse(t *testing.T) {
 	// /otelCollector resolves to a bool → Lt requires a number → false.
 	device := baseDevice()
-	device.Properties.OtelCollector = ptr(true)
+	device.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -3746,7 +3747,7 @@ func TestHandleContainsAll_ResolvedScalarBool_ReturnsFalse(t *testing.T) {
 	// /otelCollector resolves to a bool scalar.
 	// ContainsAll requires an array of objects → must return false.
 	d := baseDevice()
-	d.Properties.OtelCollector = ptr(true)
+	d.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(d)
 
 	me := clModels.MatchExpression{
@@ -5841,7 +5842,7 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndExists_BothTrue_ReturnsTrue
 	// 1. /peripherals ContainsAll {/manufacturer Exists} → true (all have manufacturer)
 	// 2. /otelCollector Exists                           → true
 	d := containsAllPeripheralDevice()
-	d.Properties.OtelCollector = ptr(true)
+	d.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(d)
 
 	selector := &clModels.Selector{
@@ -6408,7 +6409,7 @@ func TestHandleContainsAny_ResolvedScalarBool_ReturnsFalse(t *testing.T) {
 	// /otelCollector resolves to a bool scalar.
 	// ContainsAny requires an array of objects → must return false.
 	d := baseDevice()
-	d.Properties.OtelCollector = ptr(true)
+	d.Properties.OtelCollector = pointers.Ptr(true)
 	e := engine(d)
 
 	me := clModels.MatchExpression{

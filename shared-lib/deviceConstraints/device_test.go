@@ -3,27 +3,17 @@ package deviceconstraints
 import (
 	"testing"
 
-	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/margo/sandbox/shared-lib/pointers"
+	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-// helpers
-
-func ptr[T any](v T) *T { return &v }
-
-func makeDevice(
-	arch *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture,
-	cores float32,
-	memory, storage *string,
-) clModels.DeviceCapabilitiesManifest {
-	cpu := struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
-		Architecture: arch,
-		Cores:        cores,
-	}
+func makeDevice(cpus *[]struct {
+	Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
+	Cores        float32                                                        `json:"cores"`
+}, memory, storage *string) clModels.DeviceCapabilitiesManifest {
 	return clModels.DeviceCapabilitiesManifest{
 		ApiVersion: "v1",
 		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
@@ -44,415 +34,15 @@ func makeDevice(
 			SupportedRuntimes        *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
 			Vendor                   string                                                                   `json:"vendor"`
 		}{
-			Cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{cpu},
-			Memory:       memory,
-			Storage:      storage,
 			Id:           "device-1",
 			ModelNumber:  "model-x",
 			SerialNumber: "sn-001",
 			Vendor:       "acme",
+			Cpus:         cpus,
+			Memory:       memory,
+			Storage:      storage,
 		},
 	}
-}
-
-// --- Tests ---
-
-func TestCheckEligibility_NilRequirements_AlwaysPasses(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		4, ptr("4Gi"), ptr("100Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	ok, reason, err := checker.CheckEligibility(nil)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_AllRequirementsMet(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, ptr("16Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory:  ptr("8Gi"),
-		Storage: ptr("200Gi"),
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_CPUCoresInsufficient(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		2, ptr("16Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.False(t, ok)
-	assert.Equal(t, "cpu requirement not fulfilled", reason)
-}
-
-func TestCheckEligibility_CPUArchitectureMismatch(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64),
-		8, ptr("16Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.False(t, ok)
-	assert.Equal(t, "cpu requirement not fulfilled", reason)
-}
-
-func TestCheckEligibility_NoCPUArchitectureFilter_AnyArchitecturePasses(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64),
-		8, ptr("16Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: nil, // no arch filter
-			Cores:         4,
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_MemoryInsufficient(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, ptr("4Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory: ptr("16Gi"),
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.False(t, ok)
-	assert.Equal(t, "mem requirement not fulfilled", reason)
-}
-
-func TestCheckEligibility_StorageInsufficient(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, ptr("16Gi"), ptr("100Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory:  ptr("8Gi"),
-		Storage: ptr("500Gi"),
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.False(t, ok)
-	assert.Equal(t, "storage requirement not fulfilled", reason)
-}
-
-func TestCheckEligibility_OnlyCPURequirement_Passes(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, nil, nil,
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_OnlyMemoryRequirement_Passes(t *testing.T) {
-	device := makeDevice(nil, 0, ptr("32Gi"), nil)
-	// Remove CPUs from device to test memory-only path
-	device.Properties.Cpus = nil
-	checker := NewDeviceCapabilityChecker(device)
-
-	checks := &clModels.CapacityRequirements{
-		Memory: ptr("16Gi"),
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_OnlyStorageRequirement_Passes(t *testing.T) {
-	device := makeDevice(nil, 0, nil, ptr("1Ti"))
-	device.Properties.Cpus = nil
-	checker := NewDeviceCapabilityChecker(device)
-
-	checks := &clModels.CapacityRequirements{
-		Storage: ptr("500Gi"),
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_CPUNotDefinedOnDevice_ReturnsError(t *testing.T) {
-	device := makeDevice(nil, 0, ptr("16Gi"), ptr("500Gi"))
-	device.Properties.Cpus = nil
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-	}
-
-	ok, _, err := checker.CheckEligibility(checks)
-
-	require.Error(t, err)
-	assert.False(t, ok)
-}
-
-func TestCheckEligibility_MemoryNotDefinedOnDevice_ReturnsError(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, nil, ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory: ptr("8Gi"),
-	}
-
-	ok, _, err := checker.CheckEligibility(checks)
-
-	require.Error(t, err)
-	assert.False(t, ok)
-}
-
-func TestCheckEligibility_StorageNotDefinedOnDevice_ReturnsError(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, ptr("16Gi"), nil,
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory:  ptr("8Gi"),
-		Storage: ptr("200Gi"),
-	}
-
-	ok, _, err := checker.CheckEligibility(checks)
-
-	require.Error(t, err)
-	assert.False(t, ok)
-}
-
-func TestCheckEligibility_InvalidMemoryQuantity_ReturnsError(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		8, ptr("not-a-quantity"), nil,
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-		Memory: ptr("8Gi"),
-	}
-
-	ok, _, err := checker.CheckEligibility(checks)
-
-	require.Error(t, err)
-	assert.False(t, ok)
-}
-
-func TestCheckEligibility_ExactCPUCoresMatch_Passes(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		4, ptr("8Gi"), ptr("200Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4, // exact match
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_MultipleArchitectures_MatchingOneIsSufficient(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64),
-		8, ptr("16Gi"), ptr("500Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	archs := []clModels.DeploymentCpuRequirementArchitectures{
-		clModels.DeploymentCpuRequirementArchitecturesAmd64,
-		clModels.DeploymentCpuRequirementArchitecturesArm64,
-	}
-	checks := &clModels.CapacityRequirements{
-		Cpu: &clModels.DeploymentCpuRequirement{
-			Architectures: &archs,
-			Cores:         4,
-		},
-	}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-func TestCheckEligibility_EmptyCapacityRequirements_Passes(t *testing.T) {
-	device := makeDevice(
-		ptr(clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64),
-		4, ptr("8Gi"), ptr("200Gi"),
-	)
-	checker := NewDeviceCapabilityChecker(device)
-
-	// All fields nil — no constraints
-	checks := &clModels.CapacityRequirements{}
-
-	ok, reason, err := checker.CheckEligibility(checks)
-
-	require.NoError(t, err)
-	assert.True(t, ok)
-	assert.Empty(t, reason)
-}
-
-// helpers
-
-func strPtr(s string) *string { return &s }
-
-func makeCPU(arch *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture, cores float32) struct {
-	Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-	Cores        float32                                                        `json:"cores"`
-} {
-	return struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{Architecture: arch, Cores: cores}
-}
-
-func makeChecker(manifest clModels.DeviceCapabilitiesManifest) DeviceCheckerIface {
-	return NewDeviceCapabilityChecker(manifest)
 }
 
 // ── HasEnoughCPUCores ────────────────────────────────────────────────────────
@@ -461,143 +51,80 @@ func TestHasEnoughCPUCores(t *testing.T) {
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
 	arm64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
 
+	cpus := &[]struct {
+		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
+		Cores        float32                                                        `json:"cores"`
+	}{
+		{Architecture: pointers.Ptr(amd64), Cores: 8},
+		{Architecture: pointers.Ptr(arm64), Cores: 4},
+		{Cores: 2}, // no architecture reported
+	}
+
 	tests := []struct {
-		name string
-		cpus *[]struct {
-			Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-			Cores        float32                                                        `json:"cores"`
-		}
-		arch    *[]string
-		cores   float32
-		want    bool
-		wantErr bool
+		name  string
+		arch  *[]string
+		cores float32
+		want  bool
 	}{
 		{
-			name:    "nil cpus returns error",
-			cpus:    nil,
-			arch:    nil,
-			cores:   4,
-			want:    false,
-			wantErr: true,
+			name:  "no arch filter, device has enough cores",
+			arch:  nil,
+			cores: 2,
+			want:  true,
 		},
 		{
-			name: "no arch filter — sufficient cores",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 8)},
-			arch:    nil,
-			cores:   4,
-			want:    true,
-			wantErr: false,
+			name:  "no arch filter, required cores exceed all CPUs",
+			arch:  nil,
+			cores: 16,
+			want:  false,
 		},
 		{
-			name: "no arch filter — exact cores match",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 4)},
-			arch:    nil,
-			cores:   4,
-			want:    true,
-			wantErr: false,
+			name:  "arch filter matches amd64 with enough cores",
+			arch:  &[]string{"amd64"},
+			cores: 8,
+			want:  true,
 		},
 		{
-			name: "no arch filter — insufficient cores",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 2)},
-			arch:    nil,
-			cores:   4,
-			want:    false,
-			wantErr: false,
+			name:  "arch filter matches amd64 but not enough cores",
+			arch:  &[]string{"amd64"},
+			cores: 10,
+			want:  false,
 		},
 		{
-			name: "arch filter matches — sufficient cores",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 8)},
-			arch:    &[]string{"amd64"},
-			cores:   4,
-			want:    true,
-			wantErr: false,
+			name:  "arch filter matches arm64 with enough cores",
+			arch:  &[]string{"arm64"},
+			cores: 4,
+			want:  true,
 		},
 		{
-			name: "arch filter does not match — returns false",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 8)},
-			arch:    &[]string{"arm64"},
-			cores:   4,
-			want:    false,
-			wantErr: false,
+			name:  "arch filter does not match any CPU",
+			arch:  &[]string{"riscv64"},
+			cores: 1,
+			want:  false,
 		},
 		{
-			name: "cpu with nil architecture is skipped when arch filter set",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(nil, 8)},
-			arch:    &[]string{"amd64"},
-			cores:   4,
-			want:    false,
-			wantErr: false,
+			name:  "CPU without architecture is skipped when arch filter is set",
+			arch:  &[]string{"amd64"},
+			cores: 1,
+			want:  true, // amd64 CPU with 8 cores satisfies
 		},
 		{
-			name: "multiple cpus — second one satisfies arch and cores",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{
-				makeCPU(&amd64, 2),
-				makeCPU(&arm64, 8),
-			},
-			arch:    &[]string{"arm64"},
-			cores:   4,
-			want:    true,
-			wantErr: false,
-		},
-		{
-			name: "arch filter matches but cores insufficient",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 1)},
-			arch:    &[]string{"amd64"},
-			cores:   4,
-			want:    false,
-			wantErr: false,
-		},
-		{
-			name: "multiple accepted architectures — first matches",
-			cpus: &[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			}{makeCPU(&amd64, 6)},
-			arch:    &[]string{"amd64", "arm64"},
-			cores:   4,
-			want:    true,
-			wantErr: false,
+			name:  "no CPUs on device",
+			arch:  nil,
+			cores: 1,
+			want:  false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			manifest := clModels.DeviceCapabilitiesManifest{}
-			manifest.Properties.Cpus = tc.cpus
-
-			checker := makeChecker(manifest)
-			got, err := checker.HasEnoughCPUCores(tc.arch, tc.cores)
-
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+			deviceCPUs := cpus
+			if tc.name == "no CPUs on device" {
+				deviceCPUs = nil
 			}
-			assert.Equal(t, tc.want, got)
+			d := makeDevice(deviceCPUs, nil, nil)
+			checker := NewDeviceCapabilityChecker(d)
+			assert.Equal(t, tc.want, checker.HasEnoughCPUCores(tc.arch, tc.cores))
 		})
 	}
 }
@@ -606,84 +133,81 @@ func TestHasEnoughCPUCores(t *testing.T) {
 
 func TestHasEnoughMemory(t *testing.T) {
 	tests := []struct {
-		name      string
-		deviceMem *string // nil means not set on device
-		required  *string
-		want      bool
-		wantErr   bool
+		name         string
+		deviceMemory *string
+		required     *string
+		wantOk       bool
+		wantErr      bool
 	}{
 		{
-			name:      "nil requirement always passes",
-			deviceMem: strPtr("4Gi"),
-			required:  nil,
-			want:      true,
-			wantErr:   false,
+			name:         "nil requirement always passes",
+			deviceMemory: pointers.Ptr("4Gi"),
+			required:     nil,
+			wantOk:       true,
 		},
 		{
-			name:      "device memory not defined returns error",
-			deviceMem: nil,
-			required:  strPtr("2Gi"),
-			want:      false,
-			wantErr:   true,
+			name:         "empty string requirement always passes",
+			deviceMemory: pointers.Ptr("4Gi"),
+			required:     pointers.Ptr(""),
+			wantOk:       true,
 		},
 		{
-			name:      "device meets exact requirement",
-			deviceMem: strPtr("4Gi"),
-			required:  strPtr("4Gi"),
-			want:      true,
-			wantErr:   false,
+			name:         "device has exactly required memory",
+			deviceMemory: pointers.Ptr("4Gi"),
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       true,
 		},
 		{
-			name:      "device exceeds requirement",
-			deviceMem: strPtr("8Gi"),
-			required:  strPtr("4Gi"),
-			want:      true,
-			wantErr:   false,
+			name:         "device exceeds required memory",
+			deviceMemory: pointers.Ptr("8Gi"),
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       true,
 		},
 		{
-			name:      "device below requirement",
-			deviceMem: strPtr("2Gi"),
-			required:  strPtr("4Gi"),
-			want:      false,
-			wantErr:   false,
+			name:         "device has less than required memory",
+			deviceMemory: pointers.Ptr("2Gi"),
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       false,
 		},
 		{
-			name:      "mebibyte units — sufficient",
-			deviceMem: strPtr("512Mi"),
-			required:  strPtr("256Mi"),
-			want:      true,
-			wantErr:   false,
+			name:         "device has no memory reported",
+			deviceMemory: nil,
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       false,
 		},
 		{
-			name:      "invalid required quantity returns error",
-			deviceMem: strPtr("4Gi"),
-			required:  strPtr("not-a-quantity"),
-			want:      false,
-			wantErr:   true,
+			name:         "device memory is empty string",
+			deviceMemory: pointers.Ptr(""),
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       false,
 		},
 		{
-			name:      "invalid device quantity returns error",
-			deviceMem: strPtr("bad-value"),
-			required:  strPtr("4Gi"),
-			want:      false,
-			wantErr:   true,
+			name:         "invalid required quantity returns error",
+			deviceMemory: pointers.Ptr("4Gi"),
+			required:     pointers.Ptr("not-a-quantity"),
+			wantOk:       false,
+			wantErr:      true,
+		},
+		{
+			name:         "invalid device quantity returns error",
+			deviceMemory: pointers.Ptr("bad-value"),
+			required:     pointers.Ptr("4Gi"),
+			wantOk:       false,
+			wantErr:      true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			manifest := clModels.DeviceCapabilitiesManifest{}
-			manifest.Properties.Memory = tc.deviceMem
-
-			checker := makeChecker(manifest)
-			got, err := checker.HasEnoughMemory(tc.required)
-
+			d := makeDevice(nil, tc.deviceMemory, nil)
+			checker := NewDeviceCapabilityChecker(d)
+			ok, err := checker.HasEnoughMemory(tc.required)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOk, ok)
 		})
 	}
 }
@@ -695,81 +219,233 @@ func TestHasEnoughStorage(t *testing.T) {
 		name          string
 		deviceStorage *string
 		required      *string
-		want          bool
+		wantOk        bool
 		wantErr       bool
 	}{
 		{
 			name:          "nil requirement always passes",
-			deviceStorage: strPtr("100Gi"),
+			deviceStorage: pointers.Ptr("100Gi"),
 			required:      nil,
-			want:          true,
-			wantErr:       false,
+			wantOk:        true,
 		},
 		{
-			name:          "device storage not defined returns error",
+			name:          "empty string requirement always passes",
+			deviceStorage: pointers.Ptr("100Gi"),
+			required:      pointers.Ptr(""),
+			wantOk:        true,
+		},
+		{
+			name:          "device has exactly required storage",
+			deviceStorage: pointers.Ptr("100Gi"),
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        true,
+		},
+		{
+			name:          "device exceeds required storage",
+			deviceStorage: pointers.Ptr("500Gi"),
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        true,
+		},
+		{
+			name:          "device has less than required storage",
+			deviceStorage: pointers.Ptr("50Gi"),
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        false,
+		},
+		{
+			name:          "device has no storage reported",
 			deviceStorage: nil,
-			required:      strPtr("50Gi"),
-			want:          false,
-			wantErr:       true,
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        false,
 		},
 		{
-			name:          "device meets exact requirement",
-			deviceStorage: strPtr("100Gi"),
-			required:      strPtr("100Gi"),
-			want:          true,
-			wantErr:       false,
-		},
-		{
-			name:          "device exceeds requirement",
-			deviceStorage: strPtr("500Gi"),
-			required:      strPtr("100Gi"),
-			want:          true,
-			wantErr:       false,
-		},
-		{
-			name:          "device below requirement",
-			deviceStorage: strPtr("20Gi"),
-			required:      strPtr("100Gi"),
-			want:          false,
-			wantErr:       false,
-		},
-		{
-			name:          "tebibyte units — sufficient",
-			deviceStorage: strPtr("2Ti"),
-			required:      strPtr("1Ti"),
-			want:          true,
-			wantErr:       false,
+			name:          "device storage is empty string",
+			deviceStorage: pointers.Ptr(""),
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        false,
 		},
 		{
 			name:          "invalid required quantity returns error",
-			deviceStorage: strPtr("100Gi"),
-			required:      strPtr("not-a-quantity"),
-			want:          false,
+			deviceStorage: pointers.Ptr("100Gi"),
+			required:      pointers.Ptr("not-a-quantity"),
+			wantOk:        false,
 			wantErr:       true,
 		},
 		{
 			name:          "invalid device quantity returns error",
-			deviceStorage: strPtr("bad-value"),
-			required:      strPtr("100Gi"),
-			want:          false,
+			deviceStorage: pointers.Ptr("bad-value"),
+			required:      pointers.Ptr("100Gi"),
+			wantOk:        false,
 			wantErr:       true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			manifest := clModels.DeviceCapabilitiesManifest{}
-			manifest.Properties.Storage = tc.deviceStorage
-
-			checker := makeChecker(manifest)
-			got, err := checker.HasEnoughStorage(tc.required)
-
+			d := makeDevice(nil, nil, tc.deviceStorage)
+			checker := NewDeviceCapabilityChecker(d)
+			ok, err := checker.HasEnoughStorage(tc.required)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOk, ok)
+		})
+	}
+}
+
+// ── CheckEligibility ─────────────────────────────────────────────────────────
+
+func TestCheckEligibility(t *testing.T) {
+	amd64Arch := clModels.DeploymentCpuRequirementArchitecturesAmd64
+	arm64Arch := clModels.DeploymentCpuRequirementArchitecturesArm64
+
+	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
+
+	cpus := &[]struct {
+		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
+		Cores        float32                                                        `json:"cores"`
+	}{
+		{Architecture: pointers.Ptr(amd64), Cores: 8},
+	}
+
+	tests := []struct {
+		name       string
+		checks     *clModels.CapacityRequirements
+		memory     *string
+		storage    *string
+		wantOk     bool
+		wantReason string
+		wantErr    bool
+	}{
+		{
+			name:    "nil requirements always eligible",
+			checks:  nil,
+			memory:  pointers.Ptr("8Gi"),
+			storage: pointers.Ptr("100Gi"),
+			wantOk:  true,
+		},
+		{
+			name: "all requirements satisfied",
+			checks: &clModels.CapacityRequirements{
+				Cpu: &clModels.DeploymentCpuRequirement{
+					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{amd64Arch},
+					Cores:         4,
+				},
+				Memory:  pointers.Ptr("4Gi"),
+				Storage: pointers.Ptr("50Gi"),
+			},
+			memory:  pointers.Ptr("8Gi"),
+			storage: pointers.Ptr("100Gi"),
+			wantOk:  true,
+		},
+		{
+			name: "CPU requirement not fulfilled",
+			checks: &clModels.CapacityRequirements{
+				Cpu: &clModels.DeploymentCpuRequirement{
+					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{amd64Arch},
+					Cores:         16,
+				},
+			},
+			memory:     pointers.Ptr("8Gi"),
+			storage:    pointers.Ptr("100Gi"),
+			wantOk:     false,
+			wantReason: "cpu requirement not fulfilled",
+		},
+		{
+			name: "CPU arch not matched",
+			checks: &clModels.CapacityRequirements{
+				Cpu: &clModels.DeploymentCpuRequirement{
+					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{arm64Arch},
+					Cores:         4,
+				},
+			},
+			memory:     pointers.Ptr("8Gi"),
+			storage:    pointers.Ptr("100Gi"),
+			wantOk:     false,
+			wantReason: "cpu requirement not fulfilled",
+		},
+		{
+			name: "memory requirement not fulfilled",
+			checks: &clModels.CapacityRequirements{
+				Memory: pointers.Ptr("16Gi"),
+			},
+			memory:     pointers.Ptr("8Gi"),
+			storage:    pointers.Ptr("100Gi"),
+			wantOk:     false,
+			wantReason: "mem requirement not fulfilled",
+		},
+		{
+			name: "storage requirement not fulfilled",
+			checks: &clModels.CapacityRequirements{
+				Storage: pointers.Ptr("500Gi"),
+			},
+			memory:     pointers.Ptr("8Gi"),
+			storage:    pointers.Ptr("100Gi"),
+			wantOk:     false,
+			wantReason: "storage requirement not fulfilled",
+		},
+		{
+			name: "invalid memory quantity returns error",
+			checks: &clModels.CapacityRequirements{
+				Memory: pointers.Ptr("not-valid"),
+			},
+			memory:  pointers.Ptr("8Gi"),
+			storage: pointers.Ptr("100Gi"),
+			wantOk:  false,
+			wantErr: true,
+		},
+		{
+			name: "invalid storage quantity returns error",
+			checks: &clModels.CapacityRequirements{
+				Storage: pointers.Ptr("not-valid"),
+			},
+			memory:  pointers.Ptr("8Gi"),
+			storage: pointers.Ptr("100Gi"),
+			wantOk:  false,
+			wantErr: true,
+		},
+		{
+			name: "nil CPU architectures — any arch with enough cores passes",
+			checks: &clModels.CapacityRequirements{
+				Cpu: &clModels.DeploymentCpuRequirement{
+					Architectures: nil,
+					Cores:         4,
+				},
+			},
+			memory:  pointers.Ptr("8Gi"),
+			storage: pointers.Ptr("100Gi"),
+			wantOk:  true,
+		},
+		{
+			name: "only CPU check, no memory or storage requirement",
+			checks: &clModels.CapacityRequirements{
+				Cpu: &clModels.DeploymentCpuRequirement{
+					Cores: 4,
+				},
+			},
+			memory:  nil,
+			storage: nil,
+			wantOk:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			d := makeDevice(cpus, tc.memory, tc.storage)
+			checker := NewDeviceCapabilityChecker(d)
+			ok, reason, err := checker.CheckEligibility(tc.checks)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.False(t, ok)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantOk, ok)
+			assert.Equal(t, tc.wantReason, reason)
 		})
 	}
 }

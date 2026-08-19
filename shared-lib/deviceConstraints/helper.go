@@ -1,25 +1,8 @@
 package deviceconstraints
 
-import "fmt"
-
-func GetSpecificSlice[T string | int](arr []any) []T {
-	if len(arr) == 0 {
-		return []T{}
-	}
-
-	fe := arr[0]
-	t := fmt.Sprintf("%T", fe)
-	result := make([]T, len(arr))
-	switch t {
-	case "string", "int":
-		for _, a := range arr {
-			result = append(result, a.(T))
-		}
-
-	}
-	return result
-
-}
+import (
+	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+)
 
 func buildResult(ok bool, reason string, result, touched bool) (bool, bool, string) {
 	if ok {
@@ -80,3 +63,35 @@ func scalarEqual(a, b any) bool {
 		return false
 	}
 }
+
+func strLabel(v string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
+	_ = p.FromDeviceCapabilitiesManifestLabels0(v)
+	return p
+}
+
+func numLabel(v float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
+	_ = p.FromDeviceCapabilitiesManifestLabels1(v)
+	return p
+}
+
+func boolLabel(v bool) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
+	_ = p.FromDeviceCapabilitiesManifestLabels2(v)
+	return p
+}
+
+func strSliceLabel(v []string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
+	_ = p.FromDeviceCapabilitiesManifestLabels3(v)
+	return p
+}
+
+func numSliceLabel(v []float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
+	_ = p.FromDeviceCapabilitiesManifestLabels4(v)
+	return p
+}
+
+func vals(v ...interface{}) *[]interface{} { return &v }

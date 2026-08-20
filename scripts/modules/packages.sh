@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/packages.sh - OCI package management
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 push_nextcloud_to_oci() {
   echo "📦 Pushing Nextcloud application package to OCI Registry (HTTPS)..."
@@ -19,6 +19,14 @@ push_nextcloud_to_oci() {
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
+
+  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
+  NEXTCLOUD_COMPOSE_REVISION="1.0.0"
+  compose_deploy_file="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package/margo.yaml"
+
+  echo "Updating compose margo.yaml with repository and revision..."
+  sed -i "s|{{NEXTCLOUD_COMPOSE_REPOSITORY}}|$NEXTCLOUD_COMPOSE_REPOSITORY|g" "$compose_deploy_file" 2>/dev/null || true
+  sed -i "s|{{NEXTCLOUD_COMPOSE_REVISION}}|$NEXTCLOUD_COMPOSE_REVISION|g" "$compose_deploy_file" 2>/dev/null || true
 
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
 
@@ -92,7 +100,7 @@ build_custom_otel_container_images() {
 
   cd "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/code/app"
   docker build . -t "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-app:latest"
-  
+
   echo "Ensuring Harbor registry login (HTTPS)..."
   docker login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" -u admin -p Harbor12345
   echo "Pushing otel images to Harbor..."
@@ -108,7 +116,7 @@ build_custom_otel_container_images() {
   CHART_VERSION=$(grep "^version:" "$CHART_FILE" | awk '{print $2}')
 
   echo "Using existing chart version: $CHART_VERSION"
-                                       
+
   sed -i "s|{{REPOSITORY}}|$OTEL_APP_CONTAINER_URL|g" "$deploy_file" 2>/dev/null || true
   sed -i "s|{{TAG}}|$tag|g" "$deploy_file" 2>/dev/null || true
   echo "Packaging Helm chart version $CHART_VERSION..."
@@ -117,7 +125,7 @@ build_custom_otel_container_images() {
   echo "Pushing chart to Harbor (HTTPS)..."
   helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" --insecure-skip-tls-verify
 
-                                                            
+
   HELM_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
   HELM_REVISION="$CHART_VERSION"
   helm_deploy_file="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package/margo.yaml"
@@ -139,7 +147,7 @@ push_nextcloud_compose_to_oci() {
   NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
   NEXTCLOUD_COMPOSE_REVISION="1.0.0"
 
-  local tag=${NEXTCLOUD_COMPOSE_REVISION:-latest}
+  local tag=${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}
   local archive_name="nextcloud-compose-archive-${tag}.tar.gz"
   local archive_path="/tmp/${archive_name}"
 

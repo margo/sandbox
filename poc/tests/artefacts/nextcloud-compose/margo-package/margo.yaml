@@ -27,7 +27,7 @@ deploymentProfiles:
       - name: nextcloud-stack
         properties:
           repository: {{NEXTCLOUD_COMPOSE_REPOSITORY}} # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
-          revision: {{NEXTCLOUD_COMPOSE_REVISION:-1.0.0}}
+          revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
           timeout: 5m
 parameters:

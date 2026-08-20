@@ -10,6 +10,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/shared-lib/constraints"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/margo/sandbox/standard/pkg"
@@ -25,6 +26,7 @@ type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
 	composeClient *workloads.DockerComposeCliClient
+	capabilities  *sbi.DeviceCapabilitiesManifest
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 	//  Mutex to prevent concurrent reconciliation
@@ -33,6 +35,7 @@ type DeploymentManager struct {
 
 func NewDeploymentManager(
 	db database.DatabaseIfc,
+	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
 	composeClient *workloads.DockerComposeCliClient,
 	log *zap.SugaredLogger,
@@ -42,6 +45,7 @@ func NewDeploymentManager(
 		helmClient:     helmClient,
 		composeClient:  composeClient,
 		log:            log,
+		capabilities:   capabilities,
 		stopChan:       make(chan struct{}),
 		reconcileLocks: sync.Map{},
 	}
@@ -138,6 +142,7 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 		// Only deploy if not already installed
 		if currentState != sbi.DeploymentStatusManifestStatusStateInstalled {
 			dm.log.Debugw("deploying pending deployment", "deploymentId", deploymentId)
+			// TODO: Check if device is eligible or not, if not, set it to failed state even before deployment
 			dm.deployOrUpdate(ctx, deploymentId, *record.DesiredState)
 		} else {
 			dm.log.Debugw("deployment already installed, skipping", "deploymentId", deploymentId)
@@ -197,6 +202,25 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 	}
 }
 
+func (dm *DeploymentManager) checkDeviceEligibility(
+	desiredState database.AppDeploymentState,
+) (bool, string, error) {
+	dc := constraints.New()
+	ok, reason, err := dc.IsDeviceEligible(
+		dm.capabilities,
+		desiredState.Spec.DeploymentProfile.DeviceConstraints,
+	)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !ok {
+		return false, reason, nil
+	}
+
+	return true, "", nil
+}
+
 func (dm *DeploymentManager) deployOrUpdate(
 	ctx context.Context,
 	deploymentId string,
@@ -224,6 +248,35 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetPhase(deploymentId, "FAILED", "No components found")
 		return
 	}
+
+	ok, reason, err := dm.checkDeviceEligibility(desiredState)
+	if err != nil {
+		// Set current state even on failure
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(
+			deploymentId,
+			"FAILED",
+			fmt.Sprintf("failed to check for device eligibility, err : %s", err.Error()),
+		)
+		return
+	}
+
+	if !ok {
+		// Set current state even on failure
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(
+			deploymentId,
+			"FAILED",
+			fmt.Sprintf("device ineligibile, reason : %s", reason),
+		)
+		return
+	}
+
+	dm.log.Infow("device eligible for deployment", "appId", deploymentId)
 
 	// Initialize per-component status for ALL components before starting deployment.
 	// This ensures the status report always contains one entry per component (spec requirement).

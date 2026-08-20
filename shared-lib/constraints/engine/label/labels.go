@@ -1,69 +1,60 @@
-package deviceconstraints
+package label
 
 import (
 	"fmt"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	"github.com/margo/sandbox/shared-lib/set"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-type SelectorEngineIface interface {
-	Evaluate(*clModels.Selector) (bool, string)
-	HandleIn(*clModels.MatchExpression) (bool, string)
-	HandleNotIn(*clModels.MatchExpression) (bool, string)
-	HandleExists(*clModels.MatchExpression) (bool, string)
-	HandleDoesNotExists(*clModels.MatchExpression) (bool, string)
-	HandleGt(*clModels.MatchExpression) (bool, string)
-	HandleLt(*clModels.MatchExpression) (bool, string)
-}
-
-type LabelSelectorEngine struct {
+type labelSelectorEngine struct {
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 }
 
-func NewLabelSelectorEngine(labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties) SelectorEngineIface {
-	return &LabelSelectorEngine{
+func New(labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties) common.LabelSelectorEngineIface {
+	return &labelSelectorEngine{
 		labels: labels,
 	}
 }
 
-func (ls *LabelSelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
+func (ls *labelSelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
 	result, touched := false, false
 	for _, me := range s.MatchExpressions {
 		switch me.Operator {
 		case clModels.In:
 			ok, reason := ls.HandleIn(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.NotIn:
 			ok, reason := ls.HandleNotIn(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Exists:
 			ok, reason := ls.HandleExists(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.DoesNotExist:
 			ok, reason := ls.HandleDoesNotExists(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Gt:
 			ok, reason := ls.HandleGt(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Lt:
 			ok, reason := ls.HandleLt(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
@@ -75,7 +66,7 @@ func (ls *LabelSelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
 	return result, ""
 }
 
-func (ls *LabelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, string) {
 	if me.Values == nil {
 		return false, "invalid match expression, values is required for IN"
 	}
@@ -173,7 +164,7 @@ func (ls *LabelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 	return false, fmt.Sprintf("label %s has an unsupported value type", me.Key)
 }
 
-func (ls *LabelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, string) {
 	if me.Values == nil {
 		return false, "invalid match expression, values is required for NotIn"
 	}
@@ -271,21 +262,21 @@ func (ls *LabelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 	return false, fmt.Sprintf("label %s has an unsupported value type", me.Key)
 }
 
-func (ls *LabelSelectorEngine) HandleExists(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleExists(me *clModels.MatchExpression) (bool, string) {
 	if _, ok := ls.labels[me.Key]; !ok {
 		return false, fmt.Sprintf("key %s not found in labels", me.Key)
 	}
 	return true, ""
 }
 
-func (ls *LabelSelectorEngine) HandleDoesNotExists(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleDoesNotExists(me *clModels.MatchExpression) (bool, string) {
 	if _, ok := ls.labels[me.Key]; ok {
 		return false, fmt.Sprintf("key %s is present in labels", me.Key)
 	}
 	return true, ""
 }
 
-func (ls *LabelSelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, string) {
 	if me.Values == nil || len(*me.Values) == 0 {
 		return false, "invalid match expression, values is required for Gt"
 	}
@@ -317,7 +308,7 @@ func (ls *LabelSelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, str
 	return false, fmt.Sprintf("label %s has an unsupported value type for Gt, must be a number", me.Key)
 }
 
-func (ls *LabelSelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, string) {
+func (ls *labelSelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, string) {
 	if me.Values == nil || len(*me.Values) == 0 {
 		return false, "invalid match expression, values is required for Lt"
 	}

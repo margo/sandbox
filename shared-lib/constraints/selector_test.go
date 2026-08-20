@@ -1,14 +1,14 @@
-package deviceconstraints
+package constraints
 
 import (
 	"encoding/json"
 	"testing"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	"github.com/margo/sandbox/shared-lib/pointers"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 // ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ func buildPropertySelector(expressions []clModels.MatchExpression) *clModels.Sel
 func buildMatchExpression(
 	key string,
 	op clModels.MatchExpressionOperator,
-	values []interface{},
+	values []any,
 ) clModels.MatchExpression {
 	me := clModels.MatchExpression{
 		Key:      key,
@@ -127,9 +127,8 @@ func buildMatchExpression(
 
 // newTestSelector returns a DeviceSelectorIface backed by a no-op logger,
 // suitable for use in all unit tests in this file.
-func newTestSelector() DeviceSelectorIface {
-	logger, _ := zap.NewDevelopment()
-	return NewDeviceSelector(logger.Sugar())
+func newTestSelector() common.DeviceSelectorIface {
+	return New()
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-package deviceconstraints
+package property
 
 import (
 	"testing"
@@ -6,13 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	"github.com/margo/sandbox/shared-lib/pointers"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
-
-func values(vs ...any) *[]any {
-	return &vs
-}
 
 // ---------------------------------------------------------------------------
 // Helpers — build a minimal but valid DeviceCapabilitiesManifest
@@ -81,9 +78,9 @@ func baseDevice() *clModels.DeviceCapabilitiesManifest {
 	}
 }
 
-// engine returns a *PropertySelectorEngine (concrete type) for white-box testing.
-func engine(d *clModels.DeviceCapabilitiesManifest) *PropertySelectorEngine {
-	return NewPropertySelectorEngine(d).(*PropertySelectorEngine)
+// engine returns a *propertySelectorEngine (concrete type) for white-box testing.
+func engine(d *clModels.DeviceCapabilitiesManifest) *propertySelectorEngine {
+	return New(d).(*propertySelectorEngine)
 }
 
 // ---------------------------------------------------------------------------
@@ -861,12 +858,12 @@ func TestResolvePointer_ScalarAndArrayOfObjects_IndependentResults(t *testing.T)
 func TestHandleIn_ScalarString_Match(t *testing.T) {
 	// /vendor resolves to "EdgeCircuit Systems"; values contains it → true
 	device := deviceWithVendor("EdgeCircuit Systems")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -876,12 +873,12 @@ func TestHandleIn_ScalarString_Match(t *testing.T) {
 
 func TestHandleIn_ScalarString_NoMatch(t *testing.T) {
 	device := deviceWithVendor("Unknown Vendor")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -892,12 +889,12 @@ func TestHandleIn_ScalarString_NoMatch(t *testing.T) {
 func TestHandleIn_ScalarString_CaseSensitive(t *testing.T) {
 	// Spec: string comparisons MUST be exact and case-sensitive
 	device := deviceWithVendor("edgecircuit systems")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("EdgeCircuit Systems"),
+		Values:   common.Vals("EdgeCircuit Systems"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -916,12 +913,12 @@ func TestHandleIn_ScalarNumber_Match(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: cores},
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.In,
-		Values:   values(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -938,12 +935,12 @@ func TestHandleIn_ScalarNumber_NoMatch(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: float32(2)},
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.In,
-		Values:   values(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -954,12 +951,12 @@ func TestHandleIn_ScalarNumber_NoMatch(t *testing.T) {
 func TestHandleIn_ScalarBool_Match(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = pointers.Ptr(true)
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.In,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -970,12 +967,12 @@ func TestHandleIn_ScalarBool_Match(t *testing.T) {
 func TestHandleIn_ScalarBool_NoMatch(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = pointers.Ptr(false)
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.In,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -991,12 +988,12 @@ func TestHandleIn_ArrayOfStrings_ElementMatches(t *testing.T) {
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
 		compose, custom,
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.In,
-		Values:   values("custom"),
+		Values:   common.Vals("custom"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1010,12 +1007,12 @@ func TestHandleIn_ArrayOfStrings_NoElementMatches(t *testing.T) {
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
 		compose,
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.In,
-		Values:   values("helm"),
+		Values:   common.Vals("helm"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1027,12 +1024,12 @@ func TestHandleIn_ArrayOfStrings_EmptyArray(t *testing.T) {
 	// Empty array → nothing to match against → false
 	device := deviceWithVendor("Acme")
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.In,
-		Values:   values("compose"),
+		Values:   common.Vals("compose"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1048,12 +1045,12 @@ func TestHandleIn_ArrayOfObjects_ReturnsFalse(t *testing.T) {
 	device.Properties.Peripherals = &[]clModels.DevicePeripheral{
 		{Type: gpu, Manufacturer: &manufacturer},
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/peripherals",
 		Operator: clModels.In,
-		Values:   values("gpu"),
+		Values:   common.Vals("gpu"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1064,12 +1061,12 @@ func TestHandleIn_ArrayOfObjects_ReturnsFalse(t *testing.T) {
 func TestHandleIn_KeyNotFound(t *testing.T) {
 	// Pointer to a non-existent field → false with descriptive reason
 	device := deviceWithVendor("Acme")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/nonExistentField",
 		Operator: clModels.In,
-		Values:   values("someValue"),
+		Values:   common.Vals("someValue"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1080,7 +1077,7 @@ func TestHandleIn_KeyNotFound(t *testing.T) {
 func TestHandleIn_NilValues_ReturnsFalse(t *testing.T) {
 	// Spec: values MUST be present for In
 	device := deviceWithVendor("Acme")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -1096,7 +1093,7 @@ func TestHandleIn_NilValues_ReturnsFalse(t *testing.T) {
 func TestHandleIn_EmptyValues_ReturnsFalse(t *testing.T) {
 	// values present but empty slice → invalid per spec
 	device := deviceWithVendor("Acme")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	empty := []any{}
 	me := &clModels.MatchExpression{
@@ -1113,12 +1110,12 @@ func TestHandleIn_EmptyValues_ReturnsFalse(t *testing.T) {
 func TestHandleIn_InvalidPointer_MissingLeadingSlash(t *testing.T) {
 	// RFC 6901: pointer must start with '/' (unless empty string)
 	device := deviceWithVendor("Acme")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "vendor", // missing leading slash
 		Operator: clModels.In,
-		Values:   values("Acme"),
+		Values:   common.Vals("Acme"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1136,12 +1133,12 @@ func TestHandleIn_NestedPointer_Match(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: 4},
 	}
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/architecture",
 		Operator: clModels.In,
-		Values:   values("arm64", "amd64"),
+		Values:   common.Vals("arm64", "amd64"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1155,13 +1152,13 @@ func TestHandleIn_PointerEscaping_Tilde1(t *testing.T) {
 	// does not corrupt normal keys. A key containing '/' would need ~1 encoding.
 	device := deviceWithVendor("Acme")
 	device.Properties.ModelNumber = "M/2000"
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	// /modelNumber resolves to "M/2000" — no escaping needed in the pointer itself
 	me := &clModels.MatchExpression{
 		Key:      "/modelNumber",
 		Operator: clModels.In,
-		Values:   values("M/2000"),
+		Values:   common.Vals("M/2000"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1173,12 +1170,12 @@ func TestHandleIn_PropertiesMapCachedAcrossCalls(t *testing.T) {
 	// resolvePointer lazily initialises propertiesMap; calling HandleIn twice
 	// must produce consistent results (cache is not corrupted between calls).
 	device := deviceWithVendor("EdgeCircuit Systems")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("EdgeCircuit Systems"),
+		Values:   common.Vals("EdgeCircuit Systems"),
 	}
 
 	ok1, _ := engine.HandleIn(me)
@@ -1191,12 +1188,12 @@ func TestHandleIn_PropertiesMapCachedAcrossCalls(t *testing.T) {
 func TestHandleIn_MultipleValuesFirstMatches(t *testing.T) {
 	// Ensure iteration stops correctly when the first candidate matches
 	device := deviceWithVendor("NanoEdge Devices")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("NanoEdge Devices", "EdgeCircuit Systems", "Acme"),
+		Values:   common.Vals("NanoEdge Devices", "EdgeCircuit Systems", "Acme"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1206,12 +1203,12 @@ func TestHandleIn_MultipleValuesFirstMatches(t *testing.T) {
 
 func TestHandleIn_MultipleValuesLastMatches(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	engine := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	engine := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.In,
-		Values:   values("NanoEdge Devices", "EdgeCircuit Systems", "Acme"),
+		Values:   common.Vals("NanoEdge Devices", "EdgeCircuit Systems", "Acme"),
 	}
 
 	ok, reason := engine.HandleIn(me)
@@ -1228,12 +1225,12 @@ func TestHandleIn_MultipleValuesLastMatches(t *testing.T) {
 func TestHandleNotIn_ScalarString_NotInValues_ReturnsTrue(t *testing.T) {
 	// /vendor resolves to "UnknownVendor"; not in values list → true
 	device := deviceWithVendor("UnknownVendor")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1244,12 +1241,12 @@ func TestHandleNotIn_ScalarString_NotInValues_ReturnsTrue(t *testing.T) {
 func TestHandleNotIn_ScalarString_InValues_ReturnsFalse(t *testing.T) {
 	// /vendor resolves to "EdgeCircuit Systems"; present in values → false
 	device := deviceWithVendor("EdgeCircuit Systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1260,12 +1257,12 @@ func TestHandleNotIn_ScalarString_InValues_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_ScalarString_CaseSensitive_NotInValues_ReturnsTrue(t *testing.T) {
 	// "edgecircuit systems" ≠ "EdgeCircuit Systems" → true (case-sensitive)
 	device := deviceWithVendor("edgecircuit systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems"),
+		Values:   common.Vals("EdgeCircuit Systems"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1275,12 +1272,12 @@ func TestHandleNotIn_ScalarString_CaseSensitive_NotInValues_ReturnsTrue(t *testi
 
 func TestHandleNotIn_ScalarString_SingleValue_Match_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("Acme"),
+		Values:   common.Vals("Acme"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1299,12 +1296,12 @@ func TestHandleNotIn_ScalarNumber_NotInValues_ReturnsTrue(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: float32(2)},
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.NotIn,
-		Values:   values(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1321,12 +1318,12 @@ func TestHandleNotIn_ScalarNumber_InValues_ReturnsFalse(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: float32(4)},
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.NotIn,
-		Values:   values(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1340,12 +1337,12 @@ func TestHandleNotIn_ScalarBool_False_NotInValues_ReturnsTrue(t *testing.T) {
 	// device has otelCollector=false; values=[true] → false not in [true] → true
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = pointers.Ptr(false)
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.NotIn,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1356,12 +1353,12 @@ func TestHandleNotIn_ScalarBool_False_NotInValues_ReturnsTrue(t *testing.T) {
 func TestHandleNotIn_ScalarBool_True_InValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = pointers.Ptr(true)
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.NotIn,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1379,12 +1376,12 @@ func TestHandleNotIn_ArrayOfStrings_NoElementInValues_ReturnsTrue(t *testing.T) 
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
 		compose, custom,
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.NotIn,
-		Values:   values("helm"),
+		Values:   common.Vals("helm"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1400,12 +1397,12 @@ func TestHandleNotIn_ArrayOfStrings_OneElementInValues_ReturnsFalse(t *testing.T
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
 		compose, custom,
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.NotIn,
-		Values:   values("custom"),
+		Values:   common.Vals("custom"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1417,12 +1414,12 @@ func TestHandleNotIn_ArrayOfStrings_EmptyArray_ReturnsFalse(t *testing.T) {
 	// Empty array → nothing to match → false (spec: key must exist and no values match)
 	device := deviceWithVendor("Acme")
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.NotIn,
-		Values:   values("compose"),
+		Values:   common.Vals("compose"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1436,12 +1433,12 @@ func TestHandleNotIn_ArrayOfStrings_MultipleValuesNoneMatch_ReturnsTrue(t *testi
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
 		compose,
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.NotIn,
-		Values:   values("helm", "custom"),
+		Values:   common.Vals("helm", "custom"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1458,12 +1455,12 @@ func TestHandleNotIn_ArrayOfObjects_ReturnsFalse(t *testing.T) {
 	device.Properties.Peripherals = &[]clModels.DevicePeripheral{
 		{Type: clModels.Gpu, Manufacturer: &manufacturer},
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/peripherals",
 		Operator: clModels.NotIn,
-		Values:   values("gpu"),
+		Values:   common.Vals("gpu"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1476,12 +1473,12 @@ func TestHandleNotIn_ArrayOfObjects_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_KeyNotFound_ReturnsFalse(t *testing.T) {
 	// Spec: NotIn is true only when the key exists; absent key → false
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/nonExistentField",
 		Operator: clModels.NotIn,
-		Values:   values("someValue"),
+		Values:   common.Vals("someValue"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1493,12 +1490,12 @@ func TestHandleNotIn_AbsentOptionalField_ReturnsFalse(t *testing.T) {
 	// OtelCollector is nil (omitempty) → absent from JSON → key not found → false
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = nil
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.NotIn,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1510,7 +1507,7 @@ func TestHandleNotIn_AbsentOptionalField_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_NilValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -1525,7 +1522,7 @@ func TestHandleNotIn_NilValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_EmptyValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	empty := []any{}
 	me := &clModels.MatchExpression{
@@ -1542,12 +1539,12 @@ func TestHandleNotIn_EmptyValues_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_MixedTypeValues_ReturnsFalse(t *testing.T) {
 	// values MUST be the same data type → mixed types are invalid
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("Acme", float64(42)),
+		Values:   common.Vals("Acme", float64(42)),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1559,12 +1556,12 @@ func TestHandleNotIn_BoolMultipleValues_ReturnsFalse(t *testing.T) {
 	// Boolean values MUST contain exactly one entry
 	device := deviceWithVendor("Acme")
 	device.Properties.OtelCollector = pointers.Ptr(true)
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.NotIn,
-		Values:   values(true, false),
+		Values:   common.Vals(true, false),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1576,12 +1573,12 @@ func TestHandleNotIn_BoolMultipleValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_InvalidPointer_MissingLeadingSlash_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "vendor", // missing leading '/'
 		Operator: clModels.NotIn,
-		Values:   values("Acme"),
+		Values:   common.Vals("Acme"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1601,12 +1598,12 @@ func TestHandleNotIn_NestedPointer_NotInValues_ReturnsTrue(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: 4},
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/architecture",
 		Operator: clModels.NotIn,
-		Values:   values("arm64"),
+		Values:   common.Vals("arm64"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1624,12 +1621,12 @@ func TestHandleNotIn_NestedPointer_InValues_ReturnsFalse(t *testing.T) {
 	}{
 		{Architecture: &arch, Cores: 8},
 	}
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/architecture",
 		Operator: clModels.NotIn,
-		Values:   values("arm64", "amd64"),
+		Values:   common.Vals("arm64", "amd64"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1645,7 +1642,7 @@ func TestHandleNotIn_NestedPointer_OutOfBoundsIndex_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/5/cores",
 		Operator: clModels.NotIn,
-		Values:   values(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1657,12 +1654,12 @@ func TestHandleNotIn_NestedPointer_OutOfBoundsIndex_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_RepeatedCalls_ConsistentResults(t *testing.T) {
 	device := deviceWithVendor("UnknownVendor")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems"),
+		Values:   common.Vals("EdgeCircuit Systems"),
 	}
 
 	ok1, reason1 := e.HandleNotIn(me)
@@ -1676,12 +1673,12 @@ func TestHandleNotIn_RepeatedCalls_ConsistentResults(t *testing.T) {
 func TestHandleNotIn_MultipleValuesFirstMatches_ReturnsFalse(t *testing.T) {
 	// First candidate in values matches the device vendor → false immediately
 	device := deviceWithVendor("EdgeCircuit Systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices", "Acme"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices", "Acme"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1692,12 +1689,12 @@ func TestHandleNotIn_MultipleValuesFirstMatches_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_MultipleValuesLastMatches_ReturnsFalse(t *testing.T) {
 	// Last candidate in values matches → still false
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.NotIn,
-		Values:   values("EdgeCircuit Systems", "NanoEdge Devices", "Acme"),
+		Values:   common.Vals("EdgeCircuit Systems", "NanoEdge Devices", "Acme"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1715,7 +1712,7 @@ func TestHandleNotIn_Peripheral_NestedField_NotInValues_ReturnsTrue(t *testing.T
 	me := &clModels.MatchExpression{
 		Key:      "/peripherals/0/manufacturer",
 		Operator: clModels.NotIn,
-		Values:   values("Logitech"),
+		Values:   common.Vals("Logitech"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1731,7 +1728,7 @@ func TestHandleNotIn_Peripheral_NestedField_InValues_ReturnsFalse(t *testing.T) 
 	me := &clModels.MatchExpression{
 		Key:      "/peripherals/0/manufacturer",
 		Operator: clModels.NotIn,
-		Values:   values("NVIDIA"),
+		Values:   common.Vals("NVIDIA"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1744,12 +1741,12 @@ func TestHandleNotIn_Peripheral_NestedField_InValues_ReturnsFalse(t *testing.T) 
 func TestHandleNotIn_ModelNumber_WithSlash_NotInValues_ReturnsTrue(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	device.Properties.ModelNumber = "M/2000"
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/modelNumber",
 		Operator: clModels.NotIn,
-		Values:   values("M/1000", "M/3000"),
+		Values:   common.Vals("M/1000", "M/3000"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1760,12 +1757,12 @@ func TestHandleNotIn_ModelNumber_WithSlash_NotInValues_ReturnsTrue(t *testing.T)
 func TestHandleNotIn_ModelNumber_WithSlash_InValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	device.Properties.ModelNumber = "M/2000"
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/modelNumber",
 		Operator: clModels.NotIn,
-		Values:   values("M/2000"),
+		Values:   common.Vals("M/2000"),
 	}
 
 	ok, reason := e.HandleNotIn(me)
@@ -1782,7 +1779,7 @@ func TestHandleNotIn_ModelNumber_WithSlash_InValues_ReturnsFalse(t *testing.T) {
 func TestHandleExists_ScalarString_Vendor_Present_ReturnsTrue(t *testing.T) {
 	// /vendor is always present (required field) → Exists must return true.
 	device := deviceWithVendor("EdgeCircuit Systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -2120,12 +2117,12 @@ func TestHandleExists_Nested_PeripheralModel_Absent_ReturnsFalse(t *testing.T) {
 func TestHandleExists_ValuesPresent_ReturnsFalse(t *testing.T) {
 	// Spec: values MUST be omitted for Exists; providing them is invalid.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.Exists,
-		Values:   values("Acme"), // must be rejected
+		Values:   common.Vals("Acme"), // must be rejected
 	}
 
 	ok, reason := e.HandleExists(me)
@@ -2136,7 +2133,7 @@ func TestHandleExists_ValuesPresent_ReturnsFalse(t *testing.T) {
 func TestHandleExists_EmptyValuesSlice_ReturnsFalse(t *testing.T) {
 	// An explicitly empty (non-nil) values slice is still a violation of the spec.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	empty := []any{}
 	me := &clModels.MatchExpression{
@@ -2153,7 +2150,7 @@ func TestHandleExists_EmptyValuesSlice_ReturnsFalse(t *testing.T) {
 func TestHandleExists_NilValues_DoesNotViolateSpec(t *testing.T) {
 	// nil Values is the correct form for Exists → must not be rejected.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -2171,7 +2168,7 @@ func TestHandleExists_NilValues_DoesNotViolateSpec(t *testing.T) {
 func TestHandleExists_InvalidPointer_MissingLeadingSlash_ReturnsError(t *testing.T) {
 	// RFC 6901: pointer must start with '/' (unless empty string).
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "vendor", // missing leading '/'
@@ -2189,7 +2186,7 @@ func TestHandleExists_RepeatedCalls_ConsistentResults(t *testing.T) {
 	// Calling HandleExists twice on the same engine must produce identical results.
 	// Guards against accidental mutation of internal state between calls.
 	device := deviceWithVendor("EdgeCircuit Systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -2230,7 +2227,7 @@ func TestHandleExists_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 func TestHandleDoesNotExists_ScalarString_Vendor_Present_ReturnsFalse(t *testing.T) {
 	// /vendor is a required field — always present in JSON → DoesNotExist must return false.
 	device := deviceWithVendor("EdgeCircuit Systems")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
@@ -2569,12 +2566,12 @@ func TestHandleDoesNotExists_Nested_PeripheralModel_Absent_ReturnsTrue(t *testin
 func TestHandleDoesNotExists_ValuesPresent_ReturnsFalse(t *testing.T) {
 	// Spec: values MUST be omitted for DoesNotExist; providing them is invalid.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.DoesNotExist,
-		Values:   values("Acme"), // must be rejected regardless of key presence
+		Values:   common.Vals("Acme"), // must be rejected regardless of key presence
 	}
 
 	ok, reason := e.HandleDoesNotExists(me)
@@ -2585,7 +2582,7 @@ func TestHandleDoesNotExists_ValuesPresent_ReturnsFalse(t *testing.T) {
 func TestHandleDoesNotExists_EmptyValuesSlice_ReturnsFalse(t *testing.T) {
 	// An explicitly empty (non-nil) values slice is still a spec violation.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	empty := []any{}
 	me := &clModels.MatchExpression{
@@ -2627,7 +2624,7 @@ func TestHandleDoesNotExists_ValuesPresent_KeyAbsent_StillReturnsFalse(t *testin
 	me := &clModels.MatchExpression{
 		Key:      "/storage",
 		Operator: clModels.DoesNotExist,
-		Values:   values("someValue"),
+		Values:   common.Vals("someValue"),
 	}
 
 	ok, reason := e.HandleDoesNotExists(me)
@@ -2640,7 +2637,7 @@ func TestHandleDoesNotExists_ValuesPresent_KeyAbsent_StillReturnsFalse(t *testin
 func TestHandleDoesNotExists_InvalidPointer_MissingLeadingSlash_ReturnsError(t *testing.T) {
 	// RFC 6901: pointer must start with '/' (unless empty string).
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "vendor", // missing leading '/'
@@ -2708,7 +2705,7 @@ func TestHandleGt_ScalarNumber_ValueGreater_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/1/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2725,7 +2722,7 @@ func TestHandleGt_ScalarNumber_ValueEqual_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2741,7 +2738,7 @@ func TestHandleGt_ScalarNumber_ValueLess_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2758,7 +2755,7 @@ func TestHandleGt_ScalarNumber_Float32Threshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float32(2)),
+		Values:   common.Vals(float32(2)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2774,7 +2771,7 @@ func TestHandleGt_ScalarNumber_FractionalThreshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(3.5)),
+		Values:   common.Vals(float64(3.5)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2790,7 +2787,7 @@ func TestHandleGt_ScalarNumber_FractionalThreshold_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(4.5)),
+		Values:   common.Vals(float64(4.5)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2806,7 +2803,7 @@ func TestHandleGt_ScalarNumber_ZeroThreshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2819,12 +2816,12 @@ func TestHandleGt_ScalarNumber_ZeroThreshold_ReturnsTrue(t *testing.T) {
 func TestHandleGt_ResolvedString_ReturnsFalse(t *testing.T) {
 	// /vendor resolves to a string → Gt requires a number → false.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2841,7 +2838,7 @@ func TestHandleGt_ResolvedBool_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2861,7 +2858,7 @@ func TestHandleGt_ResolvedArray_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2878,7 +2875,7 @@ func TestHandleGt_KeyNotFound_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/nonExistentField",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2895,7 +2892,7 @@ func TestHandleGt_OptionalField_Nil_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/memory",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2911,7 +2908,7 @@ func TestHandleGt_Nested_OutOfBoundsIndex_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/5/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2924,7 +2921,7 @@ func TestHandleGt_Nested_OutOfBoundsIndex_ReturnsFalse(t *testing.T) {
 func TestPropertySelectorHandleGt_NilValues_ReturnsFalse(t *testing.T) {
 	// Spec: values MUST be present for Gt.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
@@ -2940,7 +2937,7 @@ func TestPropertySelectorHandleGt_NilValues_ReturnsFalse(t *testing.T) {
 func TestPropertySelectorHandleGt_EmptyValues_ReturnsFalse(t *testing.T) {
 	// Spec: values MUST contain exactly one number for Gt.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	empty := []interface{}{}
 	me := &clModels.MatchExpression{
@@ -2962,7 +2959,7 @@ func TestHandleGt_MultipleValues_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(2), float64(4)),
+		Values:   common.Vals(float64(2), float64(4)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2978,7 +2975,7 @@ func TestHandleGt_NonNumericThreshold_String_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values("4"),
+		Values:   common.Vals("4"),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -2994,7 +2991,7 @@ func TestHandleGt_NonNumericThreshold_Bool_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(true),
+		Values:   common.Vals(true),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -3011,7 +3008,7 @@ func TestHandleGt_InvalidPointer_MissingLeadingSlash_ReturnsFalse(t *testing.T) 
 	me := &clModels.MatchExpression{
 		Key:      "cpus/0/cores", // missing leading '/'
 		Operator: clModels.Gt,
-		Values:   values(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 
 	ok, reason := e.HandleGt(me)
@@ -3028,7 +3025,7 @@ func TestHandleGt_RepeatedCalls_ConsistentResults(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Gt,
-		Values:   values(float64(2)),
+		Values:   common.Vals(float64(2)),
 	}
 
 	ok1, reason1 := e.HandleGt(me)
@@ -3045,8 +3042,8 @@ func TestHandleGt_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: values(float64(2))}
-	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: values(float64(10))}
+	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(2))}
+	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))}
 
 	ok0, _ := e.HandleGt(me0)
 	ok1, _ := e.HandleGt(me1)
@@ -3069,7 +3066,7 @@ func TestHandleLt_ScalarNumber_ValueLess_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3086,7 +3083,7 @@ func TestHandleLt_ScalarNumber_ValueEqual_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3102,7 +3099,7 @@ func TestHandleLt_ScalarNumber_ValueGreater_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(2)),
+		Values:   common.Vals(float64(2)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3119,7 +3116,7 @@ func TestHandleLt_ScalarNumber_Float32Threshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float32(8)),
+		Values:   common.Vals(float32(8)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3135,7 +3132,7 @@ func TestHandleLt_ScalarNumber_FractionalThreshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(4.5)),
+		Values:   common.Vals(float64(4.5)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3151,7 +3148,7 @@ func TestHandleLt_ScalarNumber_FractionalThreshold_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(3.5)),
+		Values:   common.Vals(float64(3.5)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3167,7 +3164,7 @@ func TestHandleLt_ScalarNumber_LargeThreshold_ReturnsTrue(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(1000)),
+		Values:   common.Vals(float64(1000)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3180,12 +3177,12 @@ func TestHandleLt_ScalarNumber_LargeThreshold_ReturnsTrue(t *testing.T) {
 func TestHandleLt_ResolvedString_ReturnsFalse(t *testing.T) {
 	// /vendor resolves to a string → Lt requires a number → false.
 	device := deviceWithVendor("Acme")
-	e := NewPropertySelectorEngine(device).(*PropertySelectorEngine)
+	e := New(device).(*propertySelectorEngine)
 
 	me := &clModels.MatchExpression{
 		Key:      "/vendor",
 		Operator: clModels.Lt,
-		Values:   values(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3202,7 +3199,7 @@ func TestHandleLt_ResolvedBool_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/otelCollector",
 		Operator: clModels.Lt,
-		Values:   values(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3222,7 +3219,7 @@ func TestHandleLt_ResolvedArray_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/supportedDeploymentTypes",
 		Operator: clModels.Lt,
-		Values:   values(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3239,7 +3236,7 @@ func TestHandleLt_KeyNotFound_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/nonExistentField",
 		Operator: clModels.Lt,
-		Values:   values(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3256,7 +3253,7 @@ func TestHandleLt_OptionalField_Nil_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/memory",
 		Operator: clModels.Lt,
-		Values:   values(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3272,7 +3269,7 @@ func TestHandleLt_Nested_OutOfBoundsIndex_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/5/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(100)),
+		Values:   common.Vals(float64(100)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3323,7 +3320,7 @@ func TestHandleLt_MultipleValues_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(8), float64(16)),
+		Values:   common.Vals(float64(8), float64(16)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3339,7 +3336,7 @@ func TestHandleLt_NonNumericThreshold_String_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values("8"),
+		Values:   common.Vals("8"),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3355,7 +3352,7 @@ func TestHandleLt_NonNumericThreshold_Bool_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(false),
+		Values:   common.Vals(false),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3372,7 +3369,7 @@ func TestHandleLt_InvalidPointer_MissingLeadingSlash_ReturnsFalse(t *testing.T) 
 	me := &clModels.MatchExpression{
 		Key:      "cpus/0/cores", // missing leading '/'
 		Operator: clModels.Lt,
-		Values:   values(float64(100)),
+		Values:   common.Vals(float64(100)),
 	}
 
 	ok, reason := e.HandleLt(me)
@@ -3389,7 +3386,7 @@ func TestHandleLt_RepeatedCalls_ConsistentResults(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "/cpus/0/cores",
 		Operator: clModels.Lt,
-		Values:   values(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 
 	ok1, reason1 := e.HandleLt(me)
@@ -3405,8 +3402,8 @@ func TestHandleLt_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: values(float64(6))}
-	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: values(float64(6))}
+	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(6))}
+	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: common.Vals(float64(6))}
 
 	ok0, _ := e.HandleLt(me0)
 	ok1, _ := e.HandleLt(me1)
@@ -3425,8 +3422,8 @@ func TestGtAndLt_Symmetry_SameKeyAndThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: values(float64(4))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: values(float64(4))}
+	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(4))}
+	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(4))}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3440,8 +3437,8 @@ func TestGtAndLt_Symmetry_ValueAboveThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: values(float64(4))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: values(float64(4))}
+	meGt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: common.Vals(float64(4))}
+	meLt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: common.Vals(float64(4))}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3455,8 +3452,8 @@ func TestGtAndLt_Symmetry_ValueBelowThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: values(float64(8))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: values(float64(8))}
+	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(8))}
+	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(8))}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3513,10 +3510,10 @@ func TestHandleContainsAll_ValuesPresent_ReturnsFalse(t *testing.T) {
 	me := clModels.MatchExpression{
 		Key:      "/peripherals",
 		Operator: clModels.ContainsAll,
-		Values:   values("gpu"),
+		Values:   common.Vals("gpu"),
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3539,7 +3536,7 @@ func TestHandleContainsAll_EmptyValuesSlice_ReturnsFalse(t *testing.T) {
 		Values:   &empty,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3561,7 +3558,7 @@ func TestHandleContainsAll_NilValues_DoesNotViolateSpec(t *testing.T) {
 		Values:   nil,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3620,7 +3617,7 @@ func TestHandleContainsAll_ValuesPresent_NilItemSelector_ValuesGuardFiresFirst(t
 	me := clModels.MatchExpression{
 		Key:          "/peripherals",
 		Operator:     clModels.ContainsAll,
-		Values:       values("gpu"),
+		Values:       common.Vals("gpu"),
 		ItemSelector: nil,
 	}
 
@@ -3644,7 +3641,7 @@ func TestHandleContainsAll_KeyNotFound_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3666,7 +3663,7 @@ func TestHandleContainsAll_NilPeripherals_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3687,7 +3684,7 @@ func TestHandleContainsAll_NilInterfaces_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -3708,7 +3705,7 @@ func TestHandleContainsAll_NilCpus_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -3733,7 +3730,7 @@ func TestHandleContainsAll_ResolvedScalarString_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3755,7 +3752,7 @@ func TestHandleContainsAll_ResolvedScalarBool_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3776,7 +3773,7 @@ func TestHandleContainsAll_ResolvedScalarNumber_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3797,7 +3794,7 @@ func TestHandleContainsAll_ResolvedScalarString_ModelNumber_ReturnsFalse(t *test
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3823,7 +3820,7 @@ func TestHandleContainsAll_EmptyPeripheralsArray_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3845,7 +3842,7 @@ func TestHandleContainsAll_EmptyInterfacesArray_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -3870,7 +3867,7 @@ func TestHandleContainsAll_EmptyCpusArray_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -3900,7 +3897,7 @@ func TestHandleContainsAll_ArrayOfScalars_SupportedDeploymentTypes_ReturnsFalse(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("compose")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("compose")},
 			},
 		},
 	}
@@ -3925,7 +3922,7 @@ func TestHandleContainsAll_ArrayOfScalars_SupportedRuntimes_ReturnsFalse(t *test
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("oci")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("oci")},
 			},
 		},
 	}
@@ -3954,7 +3951,7 @@ func TestHandleContainsAll_SingleElementArray_ConditionMatches_ReturnsTrue(t *te
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -3978,7 +3975,7 @@ func TestHandleContainsAll_SingleElementArray_ConditionNoMatch_ReturnsFalse(t *t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
 			},
 		},
 	}
@@ -4003,8 +4000,8 @@ func TestHandleContainsAll_SingleElementArray_MultipleConditionsAllMatch_Returns
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -4029,8 +4026,8 @@ func TestHandleContainsAll_SingleElementArray_MultipleConditionsOneFails_Returns
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("AMD")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("AMD")},
 			},
 		},
 	}
@@ -4055,7 +4052,7 @@ func TestHandleContainsAll_SingleCondition_FirstElementTypeMatches_ReturnsTrue(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -4075,7 +4072,7 @@ func TestHandleContainsAll_SingleCondition_SecondElementTypeMatches_ReturnsTrue(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
 			},
 		},
 	}
@@ -4095,7 +4092,7 @@ func TestHandleContainsAll_SingleCondition_ThirdElementTypeMatches_ReturnsTrue(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("display")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("display")},
 			},
 		},
 	}
@@ -4115,7 +4112,7 @@ func TestHandleContainsAll_SingleCondition_NoElementTypeMatches_ReturnsFalse(t *
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
 			},
 		},
 	}
@@ -4135,7 +4132,7 @@ func TestHandleContainsAll_SingleCondition_ManufacturerMatches_ReturnsTrue(t *te
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
 			},
 		},
 	}
@@ -4155,7 +4152,7 @@ func TestHandleContainsAll_SingleCondition_ManufacturerNoMatch_ReturnsFalse(t *t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Samsung")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Samsung")},
 			},
 		},
 	}
@@ -4175,7 +4172,7 @@ func TestHandleContainsAll_SingleCondition_ModelMatches_ReturnsTrue(t *testing.T
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("U2722D")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("U2722D")},
 			},
 		},
 	}
@@ -4195,7 +4192,7 @@ func TestHandleContainsAll_SingleCondition_ModelNoMatch_ReturnsFalse(t *testing.
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("GTX 1080")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("GTX 1080")},
 			},
 		},
 	}
@@ -4216,7 +4213,7 @@ func TestHandleContainsAll_SingleCondition_TypeCaseSensitive_ReturnsFalse(t *tes
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("GPU")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("GPU")},
 			},
 		},
 	}
@@ -4236,7 +4233,7 @@ func TestHandleContainsAll_SingleCondition_ManufacturerCaseSensitive_ReturnsFals
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("nvidia")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("nvidia")},
 			},
 		},
 	}
@@ -4257,7 +4254,7 @@ func TestHandleContainsAll_SingleCondition_MultipleValuesInExpression_ReturnsTru
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone", "gpu", "speaker")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone", "gpu", "speaker")},
 			},
 		},
 	}
@@ -4282,8 +4279,8 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_FirstElementSatisfie
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -4304,8 +4301,8 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_SecondElementSatisfi
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -4326,8 +4323,8 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_ThirdElementSatisfie
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("display")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("display")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
 			},
 		},
 	}
@@ -4349,8 +4346,8 @@ func TestHandleContainsAll_MultipleConditions_ConditionsSplitAcrossElements_Retu
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -4371,8 +4368,8 @@ func TestHandleContainsAll_MultipleConditions_TypeAndModelSplitAcrossElements_Re
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/model", Operator: clModels.In, Values: values("C920")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("C920")},
 			},
 		},
 	}
@@ -4393,9 +4390,9 @@ func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByFirst
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
-				{Key: "/model", Operator: clModels.In, Values: values("RTX 4090")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("RTX 4090")},
 			},
 		},
 	}
@@ -4416,9 +4413,9 @@ func TestHandleContainsAll_MultipleConditions_ThreeConditionsLastFails_ReturnsFa
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
-				{Key: "/model", Operator: clModels.In, Values: values("GTX 1080")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("GTX 1080")},
 			},
 		},
 	}
@@ -4439,9 +4436,9 @@ func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByThird
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("display")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
-				{Key: "/model", Operator: clModels.In, Values: values("U2722D")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("display")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("U2722D")},
 			},
 		},
 	}
@@ -4462,8 +4459,8 @@ func TestHandleContainsAll_MultipleConditions_NoElementSatisfiesAnyCondition_Ret
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("speaker")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("speaker")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -4484,8 +4481,8 @@ func TestHandleContainsAll_MultipleConditions_FirstConditionMatchesAllElements_S
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu", "camera", "display")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu", "camera", "display")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -4608,7 +4605,7 @@ func TestHandleContainsAll_ItemSelector_NotIn_ElementNotInValues_ReturnsTrue(t *
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: values("microphone", "speaker")},
+				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("microphone", "speaker")},
 			},
 		},
 	}
@@ -4630,7 +4627,7 @@ func TestHandleContainsAll_ItemSelector_NotIn_AllElementsInValues_ReturnsFalse(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: values("gpu", "camera", "display")},
+				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("gpu", "camera", "display")},
 			},
 		},
 	}
@@ -4655,7 +4652,7 @@ func TestHandleContainsAll_ItemSelector_Gt_CoresGreaterThanThreshold_ReturnsTrue
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -4676,7 +4673,7 @@ func TestHandleContainsAll_ItemSelector_Gt_NoCoresGreaterThanThreshold_ReturnsFa
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(10))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))},
 			},
 		},
 	}
@@ -4701,7 +4698,7 @@ func TestHandleContainsAll_ItemSelector_Lt_CoresLessThanThreshold_ReturnsTrue(t 
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(5))},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(5))},
 			},
 		},
 	}
@@ -4722,7 +4719,7 @@ func TestHandleContainsAll_ItemSelector_Lt_NoCoresLessThanThreshold_ReturnsFalse
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(3))},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(3))},
 			},
 		},
 	}
@@ -4744,8 +4741,8 @@ func TestHandleContainsAll_ItemSelector_GtAndIn_CombinedConditions_ReturnsTrue(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -4767,8 +4764,8 @@ func TestHandleContainsAll_ItemSelector_LtAndIn_CombinedConditions_ReturnsFalse(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(3))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(3))},
 			},
 		},
 	}
@@ -4793,7 +4790,7 @@ func TestHandleContainsAll_CpusArray_ArchAmd64_Matches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -4813,7 +4810,7 @@ func TestHandleContainsAll_CpusArray_ArchArm64_Matches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
 			},
 		},
 	}
@@ -4833,7 +4830,7 @@ func TestHandleContainsAll_CpusArray_ArchRiscv64_NoMatch_ReturnsFalse(t *testing
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 			},
 		},
 	}
@@ -4853,7 +4850,7 @@ func TestHandleContainsAll_CpusArray_CoresExactMatch_ReturnsTrue(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.In, Values: values(float64(4))},
+				{Key: "/cores", Operator: clModels.In, Values: common.Vals(float64(4))},
 			},
 		},
 	}
@@ -4873,7 +4870,7 @@ func TestHandleContainsAll_CpusArray_CoresNoMatch_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.In, Values: values(float64(16))},
+				{Key: "/cores", Operator: clModels.In, Values: common.Vals(float64(16))},
 			},
 		},
 	}
@@ -4898,8 +4895,8 @@ func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedBySecondElement_R
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -4920,8 +4917,8 @@ func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedByFirstElement_Re
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -4943,8 +4940,8 @@ func TestHandleContainsAll_CpusArray_ArchAndCores_SplitAcrossElements_ReturnsFal
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -4966,7 +4963,7 @@ func TestHandleContainsAll_CpusArray_ArchExistsAndCoresGt_ReturnsTrue(t *testing
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
 				{Key: "/architecture", Operator: clModels.Exists},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(3))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(3))},
 			},
 		},
 	}
@@ -4994,7 +4991,7 @@ func TestHandleContainsAll_InterfacesArray_EthernetMatches_ReturnsTrue(t *testin
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -5018,7 +5015,7 @@ func TestHandleContainsAll_InterfacesArray_WifiMatches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("wifi")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("wifi")},
 			},
 		},
 	}
@@ -5042,7 +5039,7 @@ func TestHandleContainsAll_InterfacesArray_BluetoothNoMatch_ReturnsFalse(t *test
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("bluetooth")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("bluetooth")},
 			},
 		},
 	}
@@ -5068,7 +5065,7 @@ func TestHandleContainsAll_InterfacesArray_MultipleTypes_OneMatches_ReturnsTrue(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("cellular")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("cellular")},
 			},
 		},
 	}
@@ -5094,7 +5091,7 @@ func TestHandleContainsAll_InterfacesArray_TypeNotInList_ReturnsFalse(t *testing
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: values("ethernet", "wifi")},
+				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("ethernet", "wifi")},
 			},
 		},
 	}
@@ -5119,7 +5116,7 @@ func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_ReturnsFalse(t *te
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -5139,7 +5136,7 @@ func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_Cpus_ReturnsFalse(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -5162,7 +5159,7 @@ func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_Interfaces_Returns
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -5187,7 +5184,7 @@ func TestHandleContainsAll_CaseSensitivity_TypeUpperCase_ReturnsFalse(t *testing
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("GPU")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("GPU")},
 			},
 		},
 	}
@@ -5207,7 +5204,7 @@ func TestHandleContainsAll_CaseSensitivity_ManufacturerLowerCase_ReturnsFalse(t 
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("nvidia")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("nvidia")},
 			},
 		},
 	}
@@ -5227,7 +5224,7 @@ func TestHandleContainsAll_CaseSensitivity_ModelMixedCase_ReturnsFalse(t *testin
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("rtx 4090")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("rtx 4090")},
 			},
 		},
 	}
@@ -5248,7 +5245,7 @@ func TestHandleContainsAll_CaseSensitivity_ArchitectureLowerCase_Matches_Returns
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -5279,7 +5276,7 @@ func TestHandleContainsAll_AbsentOptionalField_ModelNil_InOperator_ReturnsFalse(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("RTX 4090")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("RTX 4090")},
 			},
 		},
 	}
@@ -5413,8 +5410,8 @@ func TestHandleContainsAll_RepeatedCalls_SameResult_ReturnsTrue(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -5438,8 +5435,8 @@ func TestHandleContainsAll_RepeatedCalls_SameResult_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -5462,8 +5459,8 @@ func TestHandleContainsAll_RepeatedCalls_CpusArray_SameResult_ReturnsTrue(t *tes
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -5493,7 +5490,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -5503,7 +5500,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
 			},
 		},
 	}
@@ -5529,7 +5526,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotI
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -5539,7 +5536,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotI
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -5572,7 +5569,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_DoNotInterf
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -5582,7 +5579,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_DoNotInterf
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -5614,7 +5611,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -5624,7 +5621,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 			},
 		},
 	}
@@ -5655,7 +5652,7 @@ func TestHandleContainsAll_ViaEvaluate_SingleContainsAllExpression_ReturnsTrue(t
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5681,14 +5678,14 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_BothTrue_Retur
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 			{
 				Key:      "/peripherals",
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5714,14 +5711,14 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_ContainsAllFai
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 			{
 				Key:      "/peripherals",
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("microphone")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
 					},
 				},
 			},
@@ -5747,14 +5744,14 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_InFails_Return
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Unknown Vendor"),
+				Values:   common.Vals("Unknown Vendor"),
 			},
 			{
 				Key:      "/peripherals",
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5786,15 +5783,15 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_BothTrue_ReturnsTrue(t *
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
-						{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
+						{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 					},
 				},
 			},
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 		},
 	}
@@ -5820,14 +5817,14 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_ContainsAllFails_Returns
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 					},
 				},
 			},
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 		},
 	}
@@ -5883,7 +5880,7 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndExists_ExistsFails_ReturnsF
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5924,7 +5921,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_Return
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5933,7 +5930,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_Return
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 					},
 				},
 			},
@@ -5967,7 +5964,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_Ret
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -5976,7 +5973,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_Ret
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 					},
 				},
 			},
@@ -6003,7 +6000,7 @@ func TestHandleContainsAll_OutOfBoundsIndexInKey_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6025,7 +6022,7 @@ func TestHandleContainsAll_EmptyStringKey_ReturnsWholePropertiesNotArray_Returns
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6057,9 +6054,9 @@ func TestHandleContainsAll_LargePeripheralArray_MatchOnLastElement_ReturnsTrue(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("TargetVendor")},
-				{Key: "/model", Operator: clModels.In, Values: values("TargetModel")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("TargetVendor")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("TargetModel")},
 			},
 		},
 	}
@@ -6089,8 +6086,8 @@ func TestHandleContainsAll_LargePeripheralArray_NoElementMatchesAll_ReturnsFalse
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -6118,7 +6115,7 @@ func TestHandleContainsAll_ItemSelectorKeyAbsentInAllElements_ReturnsFalse(t *te
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("RTX 4090")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("RTX 4090")},
 			},
 		},
 	}
@@ -6175,10 +6172,10 @@ func TestHandleContainsAny_ValuesPresent_ReturnsFalse(t *testing.T) {
 	me := clModels.MatchExpression{
 		Key:      "/peripherals",
 		Operator: clModels.ContainsAny,
-		Values:   values("gpu"),
+		Values:   common.Vals("gpu"),
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6201,7 +6198,7 @@ func TestHandleContainsAny_EmptyValuesSlice_ReturnsFalse(t *testing.T) {
 		Values:   &empty,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6223,7 +6220,7 @@ func TestHandleContainsAny_NilValues_DoesNotViolateSpec(t *testing.T) {
 		Values:   nil,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6282,7 +6279,7 @@ func TestHandleContainsAny_ValuesPresent_NilItemSelector_ValuesGuardFiresFirst(t
 	me := clModels.MatchExpression{
 		Key:          "/peripherals",
 		Operator:     clModels.ContainsAny,
-		Values:       values("gpu"),
+		Values:       common.Vals("gpu"),
 		ItemSelector: nil,
 	}
 
@@ -6306,7 +6303,7 @@ func TestHandleContainsAny_KeyNotFound_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6328,7 +6325,7 @@ func TestHandleContainsAny_NilPeripherals_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6349,7 +6346,7 @@ func TestHandleContainsAny_NilInterfaces_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -6370,7 +6367,7 @@ func TestHandleContainsAny_NilCpus_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -6395,7 +6392,7 @@ func TestHandleContainsAny_ResolvedScalarString_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6417,7 +6414,7 @@ func TestHandleContainsAny_ResolvedScalarBool_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6438,7 +6435,7 @@ func TestHandleContainsAny_ResolvedScalarNumber_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6459,7 +6456,7 @@ func TestHandleContainsAny_ResolvedScalarString_ModelNumber_ReturnsFalse(t *test
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6485,7 +6482,7 @@ func TestHandleContainsAny_EmptyPeripheralsArray_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6509,7 +6506,7 @@ func TestHandleContainsAny_EmptyCpusArray_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -6539,7 +6536,7 @@ func TestHandleContainsAny_ArrayOfScalars_SupportedDeploymentTypes_ReturnsFalse(
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("compose")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("compose")},
 			},
 		},
 	}
@@ -6562,7 +6559,7 @@ func TestHandleContainsAny_ArrayOfScalars_SupportedRuntimes_ReturnsFalse(t *test
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("oci")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("oci")},
 			},
 		},
 	}
@@ -6591,7 +6588,7 @@ func TestHandleContainsAny_SingleElementArray_SingleConditionMatches_ReturnsTrue
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6615,7 +6612,7 @@ func TestHandleContainsAny_SingleElementArray_SingleConditionNoMatch_ReturnsFals
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
 			},
 		},
 	}
@@ -6641,8 +6638,8 @@ func TestHandleContainsAny_SingleElementArray_MultipleConditions_FirstMatches_Re
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -6667,8 +6664,8 @@ func TestHandleContainsAny_SingleElementArray_MultipleConditions_NoneMatch_Retur
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -6693,7 +6690,7 @@ func TestHandleContainsAny_SingleCondition_FirstElementMatches_ReturnsTrue(t *te
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -6713,7 +6710,7 @@ func TestHandleContainsAny_SingleCondition_SecondElementMatches_ReturnsTrue(t *t
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("camera")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("camera")},
 			},
 		},
 	}
@@ -6733,7 +6730,7 @@ func TestHandleContainsAny_SingleCondition_ThirdElementMatches_ReturnsTrue(t *te
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("display")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("display")},
 			},
 		},
 	}
@@ -6753,7 +6750,7 @@ func TestHandleContainsAny_SingleCondition_NoElementMatches_ReturnsFalse(t *test
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
 			},
 		},
 	}
@@ -6773,7 +6770,7 @@ func TestHandleContainsAny_SingleCondition_ManufacturerMatches_ReturnsTrue(t *te
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
 			},
 		},
 	}
@@ -6793,7 +6790,7 @@ func TestHandleContainsAny_SingleCondition_ManufacturerNoMatch_ReturnsFalse(t *t
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Samsung")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Samsung")},
 			},
 		},
 	}
@@ -6813,7 +6810,7 @@ func TestHandleContainsAny_SingleCondition_ModelMatches_ReturnsTrue(t *testing.T
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("C920")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("C920")},
 			},
 		},
 	}
@@ -6833,7 +6830,7 @@ func TestHandleContainsAny_SingleCondition_ModelNoMatch_ReturnsFalse(t *testing.
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("GTX 1080")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("GTX 1080")},
 			},
 		},
 	}
@@ -6865,8 +6862,8 @@ func TestHandleContainsAny_MultipleConditions_FirstExpressionMatchesFirstElement
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -6887,8 +6884,8 @@ func TestHandleContainsAny_MultipleConditions_SecondExpressionMatchesFirstElemen
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -6910,8 +6907,8 @@ func TestHandleContainsAny_MultipleConditions_ExpressionMatchesSecondElement_Ret
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("speaker")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("speaker")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -6934,8 +6931,8 @@ func TestHandleContainsAny_MultipleConditions_ExpressionMatchesThirdElement_Retu
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("speaker")},
-				{Key: "/model", Operator: clModels.In, Values: values("U2722D")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("speaker")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("U2722D")},
 			},
 		},
 	}
@@ -6956,8 +6953,8 @@ func TestHandleContainsAny_MultipleConditions_NoExpressionMatchesAnyElement_Retu
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -6979,9 +6976,9 @@ func TestHandleContainsAny_MultipleConditions_ThreeExpressions_OneMatchesSecondE
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("speaker")},
-				{Key: "/model", Operator: clModels.In, Values: values("GTX 1080")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("speaker")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("GTX 1080")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -7002,9 +6999,9 @@ func TestHandleContainsAny_MultipleConditions_ThreeExpressions_NoneMatch_Returns
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
-				{Key: "/model", Operator: clModels.In, Values: values("GTX 1080")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("GTX 1080")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -7036,8 +7033,8 @@ func TestHandleContainsAny_VsContainsAll_ConditionsSplitAcrossElements_ContainsA
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -7047,8 +7044,8 @@ func TestHandleContainsAny_VsContainsAll_ConditionsSplitAcrossElements_ContainsA
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Logitech")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Logitech")},
 			},
 		},
 	}
@@ -7076,8 +7073,8 @@ func TestHandleContainsAny_VsContainsAll_AllConditionsMatchSameElement_BothTrue(
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -7087,8 +7084,8 @@ func TestHandleContainsAny_VsContainsAll_AllConditionsMatchSameElement_BothTrue(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -7114,8 +7111,8 @@ func TestHandleContainsAny_VsContainsAll_NoConditionMatchesAnyElement_BothFalse(
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -7125,8 +7122,8 @@ func TestHandleContainsAny_VsContainsAll_NoConditionMatchesAnyElement_BothFalse(
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -7284,7 +7281,7 @@ func TestHandleContainsAny_ItemSelector_NotIn_FirstElementNotInValues_ReturnsTru
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: values("microphone", "speaker")},
+				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("microphone", "speaker")},
 			},
 		},
 	}
@@ -7305,7 +7302,7 @@ func TestHandleContainsAny_ItemSelector_NotIn_AllElementsInValues_ReturnsFalse(t
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: values("gpu", "camera", "display")},
+				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("gpu", "camera", "display")},
 			},
 		},
 	}
@@ -7332,7 +7329,7 @@ func TestHandleContainsAny_ItemSelector_Gt_SecondElementCoresGreaterThanThreshol
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -7354,7 +7351,7 @@ func TestHandleContainsAny_ItemSelector_Gt_FirstElementCoresGreaterThanThreshold
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(3))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(3))},
 			},
 		},
 	}
@@ -7375,7 +7372,7 @@ func TestHandleContainsAny_ItemSelector_Gt_NoCoresGreaterThanThreshold_ReturnsFa
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(10))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))},
 			},
 		},
 	}
@@ -7401,7 +7398,7 @@ func TestHandleContainsAny_ItemSelector_Lt_FirstElementCoresLessThanThreshold_Re
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(5))},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(5))},
 			},
 		},
 	}
@@ -7422,7 +7419,7 @@ func TestHandleContainsAny_ItemSelector_Lt_NoCoresLessThanThreshold_ReturnsFalse
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(3))},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(3))},
 			},
 		},
 	}
@@ -7444,8 +7441,8 @@ func TestHandleContainsAny_ItemSelector_GtOrIn_ORSemantics_FirstExpressionMatche
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(10))},
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -7467,8 +7464,8 @@ func TestHandleContainsAny_ItemSelector_GtAndLt_ORSemantics_NeitherMatches_Retur
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(10))},
-				{Key: "/cores", Operator: clModels.Lt, Values: values(float64(2))},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))},
+				{Key: "/cores", Operator: clModels.Lt, Values: common.Vals(float64(2))},
 			},
 		},
 	}
@@ -7493,7 +7490,7 @@ func TestHandleContainsAny_CpusArray_ArchAmd64_Matches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -7513,7 +7510,7 @@ func TestHandleContainsAny_CpusArray_ArchArm64_Matches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
 			},
 		},
 	}
@@ -7533,7 +7530,7 @@ func TestHandleContainsAny_CpusArray_ArchRiscv64_NoMatch_ReturnsFalse(t *testing
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 			},
 		},
 	}
@@ -7556,8 +7553,8 @@ func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_FirstArchMatches_Ret
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(100))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(100))},
 			},
 		},
 	}
@@ -7580,8 +7577,8 @@ func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_SecondArchMatches_Re
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(6))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(6))},
 			},
 		},
 	}
@@ -7603,8 +7600,8 @@ func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_NoneMatch_ReturnsFal
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
-				{Key: "/cores", Operator: clModels.Gt, Values: values(float64(100))},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
+				{Key: "/cores", Operator: clModels.Gt, Values: common.Vals(float64(100))},
 			},
 		},
 	}
@@ -7633,7 +7630,7 @@ func TestHandleContainsAny_InterfacesArray_EthernetMatches_ReturnsTrue(t *testin
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -7657,7 +7654,7 @@ func TestHandleContainsAny_InterfacesArray_WifiMatches_ReturnsTrue(t *testing.T)
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("wifi")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("wifi")},
 			},
 		},
 	}
@@ -7681,7 +7678,7 @@ func TestHandleContainsAny_InterfacesArray_BluetoothNoMatch_ReturnsFalse(t *test
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("bluetooth")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("bluetooth")},
 			},
 		},
 	}
@@ -7708,8 +7705,8 @@ func TestHandleContainsAny_InterfacesArray_MultipleExpressions_OR_SecondMatches_
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("bluetooth")},
-				{Key: "/type", Operator: clModels.In, Values: values("wifi")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("bluetooth")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("wifi")},
 			},
 		},
 	}
@@ -7734,7 +7731,7 @@ func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Peripherals_Return
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -7754,7 +7751,7 @@ func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Cpus_ReturnsFalse(
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -7777,7 +7774,7 @@ func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Interfaces_Returns
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("ethernet")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("ethernet")},
 			},
 		},
 	}
@@ -7802,7 +7799,7 @@ func TestHandleContainsAny_CaseSensitivity_TypeUpperCase_ReturnsFalse(t *testing
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("GPU")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("GPU")},
 			},
 		},
 	}
@@ -7822,7 +7819,7 @@ func TestHandleContainsAny_CaseSensitivity_ManufacturerLowerCase_ReturnsFalse(t 
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("nvidia")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("nvidia")},
 			},
 		},
 	}
@@ -7843,7 +7840,7 @@ func TestHandleContainsAny_CaseSensitivity_ExactMatch_ReturnsTrue(t *testing.T) 
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("NVIDIA")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("NVIDIA")},
 			},
 		},
 	}
@@ -7869,7 +7866,7 @@ func TestHandleContainsAny_RepeatedCalls_SameResult_ReturnsTrue(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -7893,7 +7890,7 @@ func TestHandleContainsAny_RepeatedCalls_SameResult_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("microphone")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
 			},
 		},
 	}
@@ -7916,7 +7913,7 @@ func TestHandleContainsAny_RepeatedCalls_CpusArray_SameResult_ReturnsTrue(t *tes
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("arm64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("arm64")},
 			},
 		},
 	}
@@ -7946,7 +7943,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -7956,7 +7953,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Dell")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Dell")},
 			},
 		},
 	}
@@ -7982,7 +7979,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotI
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -7992,7 +7989,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotI
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/manufacturer", Operator: clModels.In, Values: values("Sony")},
+				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
 	}
@@ -8025,7 +8022,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_Do
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -8035,7 +8032,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_Do
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 			},
 		},
 	}
@@ -8067,7 +8064,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -8077,7 +8074,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/architecture", Operator: clModels.In, Values: values("riscv64")},
+				{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
 			},
 		},
 	}
@@ -8108,7 +8105,7 @@ func TestHandleContainsAny_ViaEvaluate_SingleContainsAnyExpression_ReturnsTrue(t
 				Operator: clModels.ContainsAny,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -8134,14 +8131,14 @@ func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_BothTrue_Retur
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 			{
 				Key:      "/peripherals",
 				Operator: clModels.ContainsAny,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -8167,14 +8164,14 @@ func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_ContainsAnyFai
 			{
 				Key:      "/vendor",
 				Operator: clModels.In,
-				Values:   values("Acme Corp"),
+				Values:   common.Vals("Acme Corp"),
 			},
 			{
 				Key:      "/peripherals",
 				Operator: clModels.ContainsAny,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("microphone")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone")},
 					},
 				},
 			},
@@ -8207,7 +8204,7 @@ func TestHandleContainsAny_ViaEvaluate_TwoContainsAnyExpressions_BothTrue_Return
 				Operator: clModels.ContainsAny,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+						{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 					},
 				},
 			},
@@ -8216,7 +8213,7 @@ func TestHandleContainsAny_ViaEvaluate_TwoContainsAnyExpressions_BothTrue_Return
 				Operator: clModels.ContainsAny,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: values("amd64")},
+						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("amd64")},
 					},
 				},
 			},
@@ -8243,7 +8240,7 @@ func TestHandleContainsAny_OutOfBoundsIndexInKey_ReturnsFalse(t *testing.T) {
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -8265,7 +8262,7 @@ func TestHandleContainsAny_EmptyStringKey_ReturnsWholePropertiesNotArray_Returns
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: values("gpu")},
+				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu")},
 			},
 		},
 	}
@@ -8297,7 +8294,7 @@ func TestHandleContainsAny_LargePeripheralArray_MatchOnLastElement_ReturnsTrue(t
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/model", Operator: clModels.In, Values: values("TargetModel")},
+				{Key: "/model", Operator: clModels.In, Values: common.Vals("TargetModel")},
 			},
 		},
 	}

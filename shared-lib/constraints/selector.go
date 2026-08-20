@@ -1,24 +1,20 @@
-package deviceconstraints
+package constraints
 
 import (
 	"fmt"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
+	"github.com/margo/sandbox/shared-lib/constraints/engine/capacity"
+	le "github.com/margo/sandbox/shared-lib/constraints/engine/label"
+	"github.com/margo/sandbox/shared-lib/constraints/engine/property"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
-	"go.uber.org/zap"
 )
 
-type DeviceSelectorIface interface {
-	SelectEligibleDevice(devices []*clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error)
-	IsDeviceEligible(device *clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) (bool, string, error)
+func New() common.DeviceSelectorIface {
+	return &deviceSelector{}
 }
 
-func NewDeviceSelector(logger *zap.SugaredLogger) DeviceSelectorIface {
-	return &deviceSelectorImplementation{logger: logger}
-}
-
-type deviceSelectorImplementation struct {
-	logger *zap.SugaredLogger
-}
+type deviceSelector struct{}
 
 /*
 SelectEligibleDevice evaluates the provided devices against the specified
@@ -26,14 +22,14 @@ constraints and returns all devices that satisfy every eligibility check.
 An error is returned if a fatal error occurs during evaluation.
 When a non-nil error is returned, the resulting device slice is guaranteed to be empty.
 */
-func (ds *deviceSelectorImplementation) SelectEligibleDevice(
+func (ds *deviceSelector) SelectEligibleDevice(
 	devices []*clModels.DeviceCapabilitiesManifest,
 	checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error) {
 
 	eligibleDevs := make([]*clModels.DeviceCapabilitiesManifest, 0)
 	var gErr error
 	for _, d := range devices {
-		ok, reason, err := ds.IsDeviceEligible(d, checks)
+		ok, _, err := ds.IsDeviceEligible(d, checks)
 		if err == nil && ok {
 			eligibleDevs = append(eligibleDevs, d)
 			continue
@@ -41,14 +37,14 @@ func (ds *deviceSelectorImplementation) SelectEligibleDevice(
 
 		if err != nil {
 			//log error message
-			ds.logger.Errorw("failed to check for eligibility", "device id", d.Properties.Id, "err", err.Error())
+			// ds.logger.Errorw("failed to check for eligibility", "device id", d.Properties.Id, "err", err.Error())
 			gErr = err
 			break
 		}
 
 		if !ok {
 			// log ineligbility
-			ds.logger.Warnw("device is ineligible, moving on to next device", "device id", d.Properties.Id, "reason", reason)
+			// ds.logger.Warnw("device is ineligible, moving on to next device", "device id", d.Properties.Id, "reason", reason)
 			continue
 		}
 	}
@@ -68,7 +64,7 @@ func (ds *deviceSelectorImplementation) SelectEligibleDevice(
 // first failed eligibility check. A non-nil error indicates a fatal failure
 // during evaluation. When an error is returned, the eligibility result and
 // reason are guaranteed to be their zero values (false, "").
-func (ds *deviceSelectorImplementation) IsDeviceEligible(
+func (ds *deviceSelector) IsDeviceEligible(
 	device *clModels.DeviceCapabilitiesManifest,
 	checks *clModels.DeviceConstraints) (bool, string, error) {
 
@@ -76,7 +72,7 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 		return true, "", nil
 	}
 
-	dc := NewDeviceCapabilityChecker(*device)
+	dc := capacity.New(*device)
 	ok, reason, err := dc.CheckEligibility(checks.CapacityRequirements)
 	if err != nil {
 		// Handle error
@@ -91,7 +87,7 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 		return true, "", nil
 	}
 
-	pse := NewPropertySelectorEngine(device)
+	pse := property.New(device)
 
 	finalReason := ""
 	// Out of all Eligibility rules, at least 1 needs to pass to consider that device.
@@ -106,7 +102,7 @@ func (ds *deviceSelectorImplementation) IsDeviceEligible(
 				continue
 			}
 
-			lse := NewLabelSelectorEngine(*device.Labels)
+			lse := le.New(*device.Labels)
 			ok, reason := lse.Evaluate(v.LabelSelector)
 			if !ok {
 				finalReason = reason

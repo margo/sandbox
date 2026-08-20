@@ -1,78 +1,73 @@
-package deviceconstraints
+package property
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/go-openapi/jsonpointer"
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-type PropertySelectorEngineIface interface {
-	SelectorEngineIface
-	HandleContainsAll(clModels.MatchExpression) (bool, string)
-	HandleContainsAny(clModels.MatchExpression) (bool, string)
-}
-
-type PropertySelectorEngine struct {
+type propertySelectorEngine struct {
 	device *clModels.DeviceCapabilitiesManifest
 }
 
-func NewPropertySelectorEngine(device *clModels.DeviceCapabilitiesManifest) PropertySelectorEngineIface {
-	return &PropertySelectorEngine{
+func New(device *clModels.DeviceCapabilitiesManifest) common.PropertySelectorEngineIface {
+	return &propertySelectorEngine{
 		device: device,
 	}
 }
 
-func (ps *PropertySelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
+func (ps *propertySelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
 	result, touched := false, false
 	for _, me := range s.MatchExpressions {
 		switch me.Operator {
 		case clModels.In:
 			ok, reason := ps.HandleIn(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.NotIn:
 			ok, reason := ps.HandleNotIn(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Exists:
 			ok, reason := ps.HandleExists(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.DoesNotExist:
 			ok, reason := ps.HandleDoesNotExists(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Gt:
 			ok, reason := ps.HandleGt(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.Lt:
 			ok, reason := ps.HandleLt(&me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.ContainsAll:
 			ok, reason := ps.HandleContainsAll(me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
 		case clModels.ContainsAny:
 			ok, reason := ps.HandleContainsAny(me)
-			result, touched, reason = buildResult(ok, reason, result, touched)
+			result, touched, reason = common.BuildResult(ok, reason, result, touched)
 			if reason != "" {
 				return false, reason
 			}
@@ -89,7 +84,7 @@ func (ps *PropertySelectorEngine) Evaluate(s *clModels.Selector) (bool, string) 
 //
 // Uses github.com/go-openapi/jsonpointer for RFC 6901 compliant traversal, including
 // correct ~0/~1 unescaping and array index support.
-func (ps *PropertySelectorEngine) resolvePointer(pointer string) (any, bool, error) {
+func (ps *propertySelectorEngine) resolvePointer(pointer string) (any, bool, error) {
 	// RFC 6901: empty string refers to the whole document.
 	if pointer == "" {
 		return ps.device.Properties, true, nil
@@ -140,7 +135,7 @@ func (ps *PropertySelectorEngine) resolvePointer(pointer string) (any, bool, err
 //     equals any entry in me.Values.
 //   - Array of objects:              must use ContainsAll/ContainsAny; In MUST return false.
 //   - Any other type:                MUST return false.
-func (ps *PropertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, string) {
 
 	if reason, ok := validateValues(me); !ok {
 		return false, reason
@@ -221,7 +216,7 @@ func (ps *PropertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 		// Array of scalars: true if at least one element matches any candidate value.
 		for _, elem := range val {
 			for _, c := range candidates {
-				if scalarEqual(elem, c) {
+				if common.ScalarEqual(elem, c) {
 					return true, ""
 				}
 			}
@@ -247,7 +242,7 @@ func (ps *PropertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 //   - Array of strings/numbers:      true when no element of the array equals any entry in me.Values.
 //   - Array of objects:              MUST return false (use ContainsAll/ContainsAny instead).
 //   - Any other type:                MUST return false.
-func (ps *PropertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, string) {
 	if reason, ok := validateValues(me); !ok {
 		return false, reason
 	}
@@ -324,7 +319,7 @@ func (ps *PropertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 		// Array of scalars: true only if NO element matches any candidate value.
 		for _, elem := range val {
 			for _, c := range candidates {
-				if scalarEqual(elem, c) {
+				if common.ScalarEqual(elem, c) {
 					return false, fmt.Sprintf(
 						"property %q contains a value that is present in match expression values",
 						me.Key,
@@ -352,7 +347,7 @@ func (ps *PropertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 // device's properties object (e.g. "/vendor", "/cpus/0/architecture").
 // resolvePointer handles all RFC 6901 traversal including ~0/~1 unescaping
 // and array index support.
-func (ps *PropertySelectorEngine) HandleExists(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleExists(me *clModels.MatchExpression) (bool, string) {
 	// Spec: values MUST be omitted for Exists. Reject early to prevent
 	// silent misuse where a caller passes values expecting them to be evaluated.
 	if me.Values != nil && len(*me.Values) >= 0 {
@@ -390,7 +385,7 @@ func (ps *PropertySelectorEngine) HandleExists(me *clModels.MatchExpression) (bo
 // Note: a hard resolution error (e.g. malformed pointer syntax) is surfaced
 // explicitly rather than silently returning true, which would be a false positive
 // and could incorrectly allow a device to pass a constraint it should not.
-func (ps *PropertySelectorEngine) HandleDoesNotExists(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleDoesNotExists(me *clModels.MatchExpression) (bool, string) {
 	// Spec: values MUST be omitted for DoesNotExist. Reject early to prevent
 	// silent misuse where a caller passes values expecting them to be evaluated.
 	if me.Values != nil && len(*me.Values) >= 0 {
@@ -427,7 +422,7 @@ func (ps *PropertySelectorEngine) HandleDoesNotExists(me *clModels.MatchExpressi
 // The key (me.Key) MUST be a JSON Pointer (RFC 6901) relative to the device's
 // properties object (e.g. "/cpus/0/cores"). After JSON round-trip through
 // resolvePointer, all numbers are normalised to float64.
-func (ps *PropertySelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, string) {
 	// Validate that values contains exactly one number before touching the device.
 	threshold, reason, ok := validateNumericValues(me)
 	if !ok {
@@ -449,7 +444,7 @@ func (ps *PropertySelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, 
 	// The resolved value MUST be numeric. After the JSON round-trip inside
 	// resolvePointer all numbers arrive as float64; float32 is also accepted
 	// defensively for values that bypass the round-trip.
-	val, ok := toFloat64(resolved)
+	val, ok := common.ToFloat64(resolved)
 	if !ok {
 		return false, fmt.Sprintf(
 			"property %q resolved to a non-numeric type (%T); Gt requires a number",
@@ -477,7 +472,7 @@ func (ps *PropertySelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, 
 //
 // This is the strict complement of HandleGt. The same numeric coercion and
 // validation rules apply; only the final comparison direction differs.
-func (ps *PropertySelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, string) {
 	// Validate that values contains exactly one number before touching the device.
 	threshold, reason, ok := validateNumericValues(me)
 	if !ok {
@@ -499,7 +494,7 @@ func (ps *PropertySelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, 
 	// The resolved value MUST be numeric. After the JSON round-trip inside
 	// resolvePointer all numbers arrive as float64; float32 is also accepted
 	// defensively for values that bypass the round-trip.
-	val, ok := toFloat64(resolved)
+	val, ok := common.ToFloat64(resolved)
 	if !ok {
 		return false, fmt.Sprintf(
 			"property %q resolved to a non-numeric type (%T); Lt requires a number",
@@ -531,7 +526,7 @@ func (ps *PropertySelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, 
 //     so "/type" under "/peripherals" becomes "/peripherals/0/type".
 //     This means resolvePointer always receives a complete RFC 6901 pointer
 //     rooted at properties, and recursion works naturally.
-func (ps *PropertySelectorEngine) HandleContainsAll(me clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleContainsAll(me clModels.MatchExpression) (bool, string) {
 	// Spec: values MUST be omitted for ContainsAll.
 	if me.Values != nil && len(*me.Values) >= 0 {
 		return false, "invalid match expression: values MUST be omitted for ContainsAll"
@@ -629,7 +624,7 @@ func (ps *PropertySelectorEngine) HandleContainsAll(me clModels.MatchExpression)
 // for OR semantics. Instead, each rewritten child expression is dispatched
 // individually via evaluateSingleExpression, and we short-circuit on the first
 // true result for a given element.
-func (ps *PropertySelectorEngine) HandleContainsAny(me clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) HandleContainsAny(me clModels.MatchExpression) (bool, string) {
 	// Spec: values MUST be omitted for ContainsAny.
 	if me.Values != nil && len(*me.Values) >= 0 {
 		return false, "invalid match expression: values MUST be omitted for ContainsAny"
@@ -709,7 +704,7 @@ func (ps *PropertySelectorEngine) HandleContainsAny(me clModels.MatchExpression)
 // This is needed by HandleContainsAny to apply OR logic across itemSelector
 // expressions, since Evaluate() always ANDs its matchExpressions and cannot
 // be reused for OR semantics.
-func (ps *PropertySelectorEngine) evaluateSingleExpression(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) evaluateSingleExpression(me *clModels.MatchExpression) (bool, string) {
 	switch me.Operator {
 	case clModels.In:
 		return ps.HandleIn(me)
@@ -807,7 +802,7 @@ func validateNumericValues(me *clModels.MatchExpression) (float64, string, bool)
 	}
 
 	// Spec: the single value MUST be parsable as a number.
-	threshold, ok := toFloat64(candidates[0])
+	threshold, ok := common.ToFloat64(candidates[0])
 	if !ok {
 		return 0, fmt.Sprintf(
 			"invalid match expression: values[0] MUST be a number for %s, got %T",

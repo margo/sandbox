@@ -17,7 +17,9 @@ import (
 
 // buildDevice constructs a minimal DeviceCapabilitiesManifest with the given
 // identity fields. All optional fields are left nil.
-func buildDevice(id, vendor, modelNumber, serialNumber string) *clModels.DeviceCapabilitiesManifest {
+func buildDevice(
+	id, vendor, modelNumber, serialNumber string,
+) *clModels.DeviceCapabilitiesManifest {
 	d := &clModels.DeviceCapabilitiesManifest{
 		ApiVersion: "margo.org/v1",
 		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
@@ -53,21 +55,33 @@ func withCPU(
 }
 
 // withMemory sets the device's memory field.
-func withMemory(device *clModels.DeviceCapabilitiesManifest, memory string) *clModels.DeviceCapabilitiesManifest {
+func withMemory(
+	device *clModels.DeviceCapabilitiesManifest,
+	memory string,
+) *clModels.DeviceCapabilitiesManifest {
 	device.Properties.Memory = &memory
 	return device
 }
 
 // withStorage sets the device's storage field.
-func withStorage(device *clModels.DeviceCapabilitiesManifest, storage string) *clModels.DeviceCapabilitiesManifest {
+func withStorage(
+	device *clModels.DeviceCapabilitiesManifest,
+	storage string,
+) *clModels.DeviceCapabilitiesManifest {
 	device.Properties.Storage = &storage
 	return device
 }
 
 // withLabels converts a map[string]interface{} into the generated union-type
 // label map and attaches it to the device.
-func withLabels(device *clModels.DeviceCapabilitiesManifest, labels map[string]interface{}) *clModels.DeviceCapabilitiesManifest {
-	result := make(map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties, len(labels))
+func withLabels(
+	device *clModels.DeviceCapabilitiesManifest,
+	labels map[string]interface{},
+) *clModels.DeviceCapabilitiesManifest {
+	result := make(
+		map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties,
+		len(labels),
+	)
 	for k, v := range labels {
 		raw, err := json.Marshal(v)
 		if err != nil {
@@ -228,32 +242,48 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name:   "device has exactly required CPU cores → eligible",
-			device: withCPU(buildDevice("dev-101", "Stark Industries", "MK-I", "SN-0101"), 4, amd64),
+			name: "device has exactly required CPU cores → eligible",
+			device: withCPU(
+				buildDevice("dev-101", "Stark Industries", "MK-I", "SN-0101"),
+				4,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
 			}, nil),
 			wantEligible: true,
 		},
 		{
-			name:   "device has more than required CPU cores → eligible",
-			device: withCPU(buildDevice("dev-102", "Stark Industries", "MK-II", "SN-0102"), 8, amd64),
+			name: "device has more than required CPU cores → eligible",
+			device: withCPU(
+				buildDevice("dev-102", "Stark Industries", "MK-II", "SN-0102"),
+				8,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
 			}, nil),
 			wantEligible: true,
 		},
 		{
-			name:   "device has less than required CPU cores → not eligible",
-			device: withCPU(buildDevice("dev-103", "Stark Industries", "MK-III", "SN-0103"), 2, amd64),
+			name: "device has less than required CPU cores → not eligible",
+			device: withCPU(
+				buildDevice("dev-103", "Stark Industries", "MK-III", "SN-0103"),
+				2,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
 			}, nil),
 			wantEligible: false,
 		},
 		{
-			name:   "required architecture amd64, device has amd64 → eligible",
-			device: withCPU(buildDevice("dev-104", "Stark Industries", "MK-IV", "SN-0104"), 4, amd64),
+			name: "required architecture amd64, device has amd64 → eligible",
+			device: withCPU(
+				buildDevice("dev-104", "Stark Industries", "MK-IV", "SN-0104"),
+				4,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{
 					Cores:         4,
@@ -263,8 +293,12 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 			wantEligible: true,
 		},
 		{
-			name:   "required architecture arm64, device has amd64 → not eligible",
-			device: withCPU(buildDevice("dev-105", "Stark Industries", "MK-V", "SN-0105"), 4, amd64),
+			name: "required architecture arm64, device has amd64 → not eligible",
+			device: withCPU(
+				buildDevice("dev-105", "Stark Industries", "MK-V", "SN-0105"),
+				4,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{
 					Cores:         4,
@@ -274,8 +308,12 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 			wantEligible: false,
 		},
 		{
-			name:   "required architecture arm64, device has arm64 → eligible",
-			device: withCPU(buildDevice("dev-106", "Stark Industries", "MK-VI", "SN-0106"), 4, arm64),
+			name: "required architecture arm64, device has arm64 → eligible",
+			device: withCPU(
+				buildDevice("dev-106", "Stark Industries", "MK-VI", "SN-0106"),
+				4,
+				arm64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{
 					Cores:         4,
@@ -285,8 +323,12 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 			wantEligible: true,
 		},
 		{
-			name:   "multiple architectures required [amd64, arm64], device has amd64 → eligible",
-			device: withCPU(buildDevice("dev-107", "Stark Industries", "MK-VII", "SN-0107"), 4, amd64),
+			name: "multiple architectures required [amd64, arm64], device has amd64 → eligible",
+			device: withCPU(
+				buildDevice("dev-107", "Stark Industries", "MK-VII", "SN-0107"),
+				4,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: &clModels.DeploymentCpuRequirement{
 					Cores: 4,
@@ -299,8 +341,12 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 			wantEligible: true,
 		},
 		{
-			name:   "CapacityRequirements.Cpu is nil → eligible regardless of device CPU",
-			device: withCPU(buildDevice("dev-108", "Stark Industries", "MK-VIII", "SN-0108"), 1, amd64),
+			name: "CapacityRequirements.Cpu is nil → eligible regardless of device CPU",
+			device: withCPU(
+				buildDevice("dev-108", "Stark Industries", "MK-VIII", "SN-0108"),
+				1,
+				amd64,
+			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
 				Cpu: nil,
 			}, nil),
@@ -493,7 +539,6 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 		wantErr      bool
 	}{
 		// ── Combined capacity cases ──────────────────────────────────────────────
-
 		{
 			// 1. All three (CPU, memory, storage) satisfied → eligible
 			name: "all three capacity requirements satisfied → eligible",
@@ -697,7 +742,6 @@ func TestIsDeviceEligible_LabelSelector_ExistsDoesNotExist(t *testing.T) {
 		wantErr      bool
 	}{
 		// ── Exists operator ──────────────────────────────────────────────────────
-
 		{
 			// 1. Label exists on device → eligible
 			name: "Exists: label starkindustries.org/region exists on device → eligible",
@@ -905,11 +949,13 @@ func TestIsDeviceEligible_PropertySelector_ExistsDoesNotExistInNotIn(t *testing.
 		wantErr      bool
 	}{
 		// ── Exists operator ──────────────────────────────────────────────────────
-
 		{
 			// 1. /memory exists (device has memory set) → eligible
-			name:   "Exists: /memory exists on device → eligible",
-			device: withMemory(buildDevice("dev-701", "Stark Industries", "MK-I", "SN-0701"), "4Gi"),
+			name: "Exists: /memory exists on device → eligible",
+			device: withMemory(
+				buildDevice("dev-701", "Stark Industries", "MK-I", "SN-0701"),
+				"4Gi",
+			),
 			checks: makeChecks([]clModels.MatchExpression{
 				buildMatchExpression("/memory", clModels.Exists, nil),
 			}),
@@ -969,8 +1015,11 @@ func TestIsDeviceEligible_PropertySelector_ExistsDoesNotExistInNotIn(t *testing.
 		},
 		{
 			// 7. /memory is set → not eligible
-			name:   "DoesNotExist: /memory is set on device → not eligible",
-			device: withMemory(buildDevice("dev-707", "Stark Industries", "MK-VII", "SN-0707"), "2Gi"),
+			name: "DoesNotExist: /memory is set on device → not eligible",
+			device: withMemory(
+				buildDevice("dev-707", "Stark Industries", "MK-VII", "SN-0707"),
+				"2Gi",
+			),
 			checks: makeChecks([]clModels.MatchExpression{
 				buildMatchExpression("/memory", clModels.DoesNotExist, nil),
 			}),
@@ -984,7 +1033,11 @@ func TestIsDeviceEligible_PropertySelector_ExistsDoesNotExistInNotIn(t *testing.
 			name:   "In: /vendor matches one of the allowed values → eligible",
 			device: buildDevice("dev-708", "Stark Industries", "MK-VIII", "SN-0708"),
 			checks: makeChecks([]clModels.MatchExpression{
-				buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries", "Wayne Enterprises"}),
+				buildMatchExpression(
+					"/vendor",
+					clModels.In,
+					[]interface{}{"Stark Industries", "Wayne Enterprises"},
+				),
 			}),
 			wantEligible: true,
 		},
@@ -993,16 +1046,28 @@ func TestIsDeviceEligible_PropertySelector_ExistsDoesNotExistInNotIn(t *testing.
 			name:   "In: /vendor does not match any allowed value → not eligible",
 			device: buildDevice("dev-709", "Oscorp", "MK-IX", "SN-0709"),
 			checks: makeChecks([]clModels.MatchExpression{
-				buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries", "Wayne Enterprises"}),
+				buildMatchExpression(
+					"/vendor",
+					clModels.In,
+					[]interface{}{"Stark Industries", "Wayne Enterprises"},
+				),
 			}),
 			wantEligible: false,
 		},
 		{
 			// 10. /cpus/0/architecture = "amd64", values=["amd64","arm64"] → eligible
-			name:   "In: /cpus/0/architecture amd64 matches allowed architectures → eligible",
-			device: withCPU(buildDevice("dev-710", "Stark Industries", "MK-X", "SN-0710"), 4, amd64),
+			name: "In: /cpus/0/architecture amd64 matches allowed architectures → eligible",
+			device: withCPU(
+				buildDevice("dev-710", "Stark Industries", "MK-X", "SN-0710"),
+				4,
+				amd64,
+			),
 			checks: makeChecks([]clModels.MatchExpression{
-				buildMatchExpression("/cpus/0/architecture", clModels.In, []interface{}{"amd64", "arm64"}),
+				buildMatchExpression(
+					"/cpus/0/architecture",
+					clModels.In,
+					[]interface{}{"amd64", "arm64"},
+				),
 			}),
 			wantEligible: true,
 		},
@@ -1011,7 +1076,11 @@ func TestIsDeviceEligible_PropertySelector_ExistsDoesNotExistInNotIn(t *testing.
 			name:   "In: /cpus/0/architecture arm does not match allowed architectures → not eligible",
 			device: withCPU(buildDevice("dev-711", "Stark Industries", "MK-XI", "SN-0711"), 4, arm),
 			checks: makeChecks([]clModels.MatchExpression{
-				buildMatchExpression("/cpus/0/architecture", clModels.In, []interface{}{"amd64", "arm64"}),
+				buildMatchExpression(
+					"/cpus/0/architecture",
+					clModels.In,
+					[]interface{}{"amd64", "arm64"},
+				),
 			}),
 			wantEligible: false,
 		},
@@ -1125,9 +1194,21 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/os must be "Zephyr RTOS" → fails
-					labelRule(buildMatchExpression("example.com/os", clModels.In, []interface{}{"Zephyr RTOS"})),
+					labelRule(
+						buildMatchExpression(
+							"example.com/os",
+							clModels.In,
+							[]interface{}{"Zephyr RTOS"},
+						),
+					),
 					// Rule 2: /vendor must be "Stark Industries" → passes
-					propertyRule(buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries"})),
+					propertyRule(
+						buildMatchExpression(
+							"/vendor",
+							clModels.In,
+							[]interface{}{"Stark Industries"},
+						),
+					),
 				},
 			),
 			wantEligible: true,
@@ -1148,9 +1229,21 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/os must be "Zephyr RTOS" → fails
-					labelRule(buildMatchExpression("example.com/os", clModels.In, []interface{}{"Zephyr RTOS"})),
+					labelRule(
+						buildMatchExpression(
+							"example.com/os",
+							clModels.In,
+							[]interface{}{"Zephyr RTOS"},
+						),
+					),
 					// Rule 2: /vendor must be "Stark Industries" → fails (device is "Oscorp")
-					propertyRule(buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries"})),
+					propertyRule(
+						buildMatchExpression(
+							"/vendor",
+							clModels.In,
+							[]interface{}{"Stark Industries"},
+						),
+					),
 				},
 			),
 			wantEligible: false,
@@ -1175,11 +1268,19 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 					// Single combined rule: label AND property must both pass
 					combinedRule(
 						[]clModels.MatchExpression{
-							buildMatchExpression("example.com/hypervisor", clModels.In, []interface{}{"hyper-v"}),
+							buildMatchExpression(
+								"example.com/hypervisor",
+								clModels.In,
+								[]interface{}{"hyper-v"},
+							),
 						},
 						[]clModels.MatchExpression{
 							// vendor must be "EdgeCircuit Systems" but device is "Oscorp" → fails
-							buildMatchExpression("/vendor", clModels.In, []interface{}{"EdgeCircuit Systems", "NanoEdge Devices"}),
+							buildMatchExpression(
+								"/vendor",
+								clModels.In,
+								[]interface{}{"EdgeCircuit Systems", "NanoEdge Devices"},
+							),
 						},
 					),
 				},
@@ -1194,7 +1295,11 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			device: withLabels(
 				withStorage(
 					withMemory(
-						withCPU(buildDevice("dev-804", "NanoEdge Devices", "MK-IV", "SN-0804"), 8, arm64),
+						withCPU(
+							buildDevice("dev-804", "NanoEdge Devices", "MK-IV", "SN-0804"),
+							8,
+							arm64,
+						),
 						"4Gi",
 					),
 					"50Gi",
@@ -1214,11 +1319,29 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/os must be "Zephyr RTOS" → fails
-					labelRule(buildMatchExpression("example.com/os", clModels.In, []interface{}{"Zephyr RTOS"})),
+					labelRule(
+						buildMatchExpression(
+							"example.com/os",
+							clModels.In,
+							[]interface{}{"Zephyr RTOS"},
+						),
+					),
 					// Rule 2: /vendor must be "Stark Industries" → fails
-					propertyRule(buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries"})),
+					propertyRule(
+						buildMatchExpression(
+							"/vendor",
+							clModels.In,
+							[]interface{}{"Stark Industries"},
+						),
+					),
 					// Rule 3: label example.com/wasm.runtime must be "WAMR" → passes
-					labelRule(buildMatchExpression("example.com/wasm.runtime", clModels.In, []interface{}{"WAMR"})),
+					labelRule(
+						buildMatchExpression(
+							"example.com/wasm.runtime",
+							clModels.In,
+							[]interface{}{"WAMR"},
+						),
+					),
 				},
 			),
 			// NOTE: capacity check uses reqAmd64 but device has arm64 → capacity fails first
@@ -1248,10 +1371,18 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 					// Rule 2 (combined): deprecated label DoesNotExist AND vendor NotIn excluded list
 					combinedRule(
 						[]clModels.MatchExpression{
-							buildMatchExpression("example.com/deprecated", clModels.DoesNotExist, nil),
+							buildMatchExpression(
+								"example.com/deprecated",
+								clModels.DoesNotExist,
+								nil,
+							),
 						},
 						[]clModels.MatchExpression{
-							buildMatchExpression("/vendor", clModels.NotIn, []interface{}{"Stark Industries", "Wayne Enterprises"}),
+							buildMatchExpression(
+								"/vendor",
+								clModels.NotIn,
+								[]interface{}{"Stark Industries", "Wayne Enterprises"},
+							),
 						},
 					),
 				},
@@ -1266,7 +1397,11 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			device: withLabels(
 				withStorage(
 					withMemory(
-						withCPU(buildDevice("dev-806", "Stark Industries", "MK-VI", "SN-0806"), 8, amd64),
+						withCPU(
+							buildDevice("dev-806", "Stark Industries", "MK-VI", "SN-0806"),
+							8,
+							amd64,
+						),
 						"8Gi",
 					),
 					"2Gi", // only 2Gi but 10Gi required
@@ -1285,11 +1420,21 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 				EligibilityRules: &[]clModels.EligibilityRule{
 					// Rule 1: both label conditions pass
 					labelRule(
-						buildMatchExpression("example.com/hypervisor", clModels.In, []interface{}{"hyper-v"}),
+						buildMatchExpression(
+							"example.com/hypervisor",
+							clModels.In,
+							[]interface{}{"hyper-v"},
+						),
 						buildMatchExpression("example.com/env", clModels.Exists, nil),
 					),
 					// Rule 2: vendor property passes
-					propertyRule(buildMatchExpression("/vendor", clModels.In, []interface{}{"Stark Industries"})),
+					propertyRule(
+						buildMatchExpression(
+							"/vendor",
+							clModels.In,
+							[]interface{}{"Stark Industries"},
+						),
+					),
 				},
 			},
 			wantEligible: false,
@@ -1313,7 +1458,13 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 					// Rule 1: requires label → fails because device has no labels
 					labelRule(buildMatchExpression("example.com/hypervisor", clModels.Exists, nil)),
 					// Rule 2: property-only rule → passes
-					propertyRule(buildMatchExpression("/vendor", clModels.In, []interface{}{"EdgeCircuit Systems"})),
+					propertyRule(
+						buildMatchExpression(
+							"/vendor",
+							clModels.In,
+							[]interface{}{"EdgeCircuit Systems"},
+						),
+					),
 				},
 			),
 			wantEligible: true,
@@ -1565,12 +1716,20 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 					propertyRule(
 						containsAllExpr("/peripherals", []clModels.MatchExpression{
 							buildMatchExpression("/type", clModels.In, []interface{}{"gpu"}),
-							buildMatchExpression("/manufacturer", clModels.In, []interface{}{"NVIDIA"}),
+							buildMatchExpression(
+								"/manufacturer",
+								clModels.In,
+								[]interface{}{"NVIDIA"},
+							),
 						}),
 					),
 					// Rule 2: label starkindustries.org/edge-certified must exist → passes
 					labelRule(
-						buildMatchExpression("starkindustries.org/edge-certified", clModels.Exists, nil),
+						buildMatchExpression(
+							"starkindustries.org/edge-certified",
+							clModels.Exists,
+							nil,
+						),
 					),
 				},
 			),
@@ -1602,7 +1761,11 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 					[]clModels.MatchExpression{
 						containsAllExpr("/peripherals", []clModels.MatchExpression{
 							buildMatchExpression("/type", clModels.In, []interface{}{"gpu"}),
-							buildMatchExpression("/manufacturer", clModels.In, []interface{}{"NVIDIA"}),
+							buildMatchExpression(
+								"/manufacturer",
+								clModels.In,
+								[]interface{}{"NVIDIA"},
+							),
 						}),
 					},
 				),
@@ -1632,7 +1795,11 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 					[]clModels.MatchExpression{
 						containsAllExpr("/peripherals", []clModels.MatchExpression{
 							buildMatchExpression("/type", clModels.In, []interface{}{"gpu"}),
-							buildMatchExpression("/manufacturer", clModels.In, []interface{}{"NVIDIA"}),
+							buildMatchExpression(
+								"/manufacturer",
+								clModels.In,
+								[]interface{}{"NVIDIA"},
+							),
 						}),
 					},
 				),
@@ -1650,7 +1817,11 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 			device: withLabels(
 				withInterfaces(
 					withPeripherals(
-						withCPU(buildDevice("dev-910", "Stark Industries", "MK-X", "SN-0910"), 8, amd64),
+						withCPU(
+							buildDevice("dev-910", "Stark Industries", "MK-X", "SN-0910"),
+							8,
+							amd64,
+						),
 						[]clModels.DevicePeripheral{
 							{Type: clModels.Gpu, Manufacturer: pointers.Ptr("AMD")},
 						},
@@ -1672,7 +1843,11 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 					propertyRule(
 						containsAllExpr("/peripherals", []clModels.MatchExpression{
 							buildMatchExpression("/type", clModels.In, []interface{}{"gpu"}),
-							buildMatchExpression("/manufacturer", clModels.In, []interface{}{"NVIDIA"}),
+							buildMatchExpression(
+								"/manufacturer",
+								clModels.In,
+								[]interface{}{"NVIDIA"},
+							),
 						}),
 					),
 					// Rule 2: ContainsAll requires Cellular interface → fails (only Wifi)
@@ -1684,12 +1859,20 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 					// Rule 3: ContainsAny (gpu OR display) AND label region Exists → passes
 					combinedRule(
 						[]clModels.MatchExpression{
-							buildMatchExpression("starkindustries.org/region", clModels.Exists, nil),
+							buildMatchExpression(
+								"starkindustries.org/region",
+								clModels.Exists,
+								nil,
+							),
 						},
 						[]clModels.MatchExpression{
 							containsAnyExpr("/peripherals", []clModels.MatchExpression{
 								buildMatchExpression("/type", clModels.In, []interface{}{"gpu"}),
-								buildMatchExpression("/type", clModels.In, []interface{}{"display"}),
+								buildMatchExpression(
+									"/type",
+									clModels.In,
+									[]interface{}{"display"},
+								),
 							}),
 						},
 					),

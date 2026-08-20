@@ -23,7 +23,9 @@ type deviceCapabilities clModels.DeviceCapabilitiesManifest
 // CheckEligibility validates that a device meets all capacity requirements
 // defined in checks (CPU, memory, storage). Returns true if all checks pass,
 // along with a human-readable reason string if any check fails.
-func (dc *deviceCapabilities) CheckEligibility(checks *clModels.CapacityRequirements) (bool, string, error) {
+func (dc *deviceCapabilities) CheckEligibility(
+	checks *clModels.CapacityRequirements,
+) (bool, string, error) {
 
 	// No requirements to check — device always qualifies.
 	if checks == nil {

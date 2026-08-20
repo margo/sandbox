@@ -2145,8 +2145,16 @@ func TestHandleLt_And_HandleGt_AreInverse_LabelBelowThreshold(t *testing.T) {
 		"latency": common.NumLabel(3),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
+	meLt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(10)),
+	}
+	meGt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(10)),
+	}
 
 	ltOk, _ := engine.HandleLt(meLt)
 	gtOk, _ := engine.HandleGt(meGt)
@@ -2161,8 +2169,16 @@ func TestHandleLt_And_HandleGt_AreInverse_LabelAboveThreshold(t *testing.T) {
 		"latency": common.NumLabel(20),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
+	meLt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(10)),
+	}
+	meGt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(10)),
+	}
 
 	ltOk, _ := engine.HandleLt(meLt)
 	gtOk, _ := engine.HandleGt(meGt)
@@ -2177,8 +2193,16 @@ func TestHandleLt_And_HandleGt_BothFalse_WhenLabelEqualsThreshold(t *testing.T) 
 		"latency": common.NumLabel(10),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
+	meLt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(10)),
+	}
+	meGt := &clModels.MatchExpression{
+		Key:      "latency",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(10)),
+	}
 
 	ltOk, ltReason := engine.HandleLt(meLt)
 	gtOk, gtReason := engine.HandleGt(meGt)
@@ -2244,14 +2268,42 @@ func TestEvaluate_Stark_AIInferenceWorkload_AllConstraintsSatisfied_ReturnsTrue(
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production", "staging")},
-			{Key: "starkindustries.org/region", Operator: clModels.In, Values: common.Vals("us-east-1", "us-west-2")},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production", "staging"),
+			},
+			{
+				Key:      "starkindustries.org/region",
+				Operator: clModels.In,
+				Values:   common.Vals("us-east-1", "us-west-2"),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.In, Values: common.Vals(true)},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(32))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
-			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: common.Vals("arm64", "amd64")},
+			{
+				Key:      "starkindustries.org/cpu-cores",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(8)),
+			},
+			{
+				Key:      "starkindustries.org/memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(32)),
+			},
+			{
+				Key:      "starkindustries.org/latency-ms",
+				Operator: clModels.Lt,
+				Values:   common.Vals(float64(10)),
+			},
+			{
+				Key:      "starkindustries.org/runtimes",
+				Operator: clModels.In,
+				Values:   common.Vals("oci", "wasm"),
+			},
+			{
+				Key:      "starkindustries.org/supported-arch",
+				Operator: clModels.In,
+				Values:   common.Vals("arm64", "amd64"),
+			},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2280,12 +2332,32 @@ func TestEvaluate_Stark_ComplianceWorkload_DataResidencyAndGpuMemory_ReturnsTrue
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.NotIn, Values: common.Vals("dev", "staging")},
-			{Key: "starkindustries.org/region", Operator: clModels.NotIn, Values: common.Vals("eu-west-1", "eu-central-1")},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.NotIn,
+				Values:   common.Vals("dev", "staging"),
+			},
+			{
+				Key:      "starkindustries.org/region",
+				Operator: clModels.NotIn,
+				Values:   common.Vals("eu-west-1", "eu-central-1"),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(16))},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
-			{Key: "starkindustries.org/storage-tb", Operator: clModels.Gt, Values: common.Vals(float64(1))},
+			{
+				Key:      "starkindustries.org/gpu-memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(16)),
+			},
+			{
+				Key:      "starkindustries.org/cpu-cores",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(8)),
+			},
+			{
+				Key:      "starkindustries.org/storage-tb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(1)),
+			},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2310,9 +2382,21 @@ func TestEvaluate_Stark_IoTWorkload_CpuCoresExceedLimit_ReturnsFalse(t *testing.
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Lt, Values: common.Vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(4))},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production"),
+			},
+			{
+				Key:      "starkindustries.org/cpu-cores",
+				Operator: clModels.Lt,
+				Values:   common.Vals(float64(8)),
+			},
+			{
+				Key:      "starkindustries.org/memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(4)),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.NotIn, Values: common.Vals(true)},
 		},
 	}
@@ -2341,11 +2425,31 @@ func TestEvaluate_Stark_BatchWorkload_MissingArchitecture_ReturnsFalse(t *testin
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(4))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(16))},
-			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: common.Vals("arm64", "x86")},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production"),
+			},
+			{
+				Key:      "starkindustries.org/cpu-cores",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(4)),
+			},
+			{
+				Key:      "starkindustries.org/memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(16)),
+			},
+			{
+				Key:      "starkindustries.org/supported-arch",
+				Operator: clModels.In,
+				Values:   common.Vals("arm64", "x86"),
+			},
+			{
+				Key:      "starkindustries.org/runtimes",
+				Operator: clModels.In,
+				Values:   common.Vals("oci", "wasm"),
+			},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2372,9 +2476,21 @@ func TestEvaluate_Stark_MaintenanceLabelInjected_DoesNotExistFails(t *testing.T)
 	labels["starkindustries.org/maintenance"] = common.StrLabel("scheduled") // runtime injection
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(32))},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production"),
+			},
+			{
+				Key:      "starkindustries.org/cpu-cores",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(8)),
+			},
+			{
+				Key:      "starkindustries.org/memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(32)),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
@@ -2400,10 +2516,22 @@ func TestEvaluate_Stark_GpuMemoryAtExactBoundary_StrictGt_ReturnsFalse(t *testin
 	labels := buildStarkDeviceLabels() // gpu-memory-gb = 24
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production"),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(24))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
+			{
+				Key:      "starkindustries.org/gpu-memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(24)),
+			},
+			{
+				Key:      "starkindustries.org/latency-ms",
+				Operator: clModels.Lt,
+				Values:   common.Vals(float64(10)),
+			},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2423,11 +2551,27 @@ func TestEvaluate_Stark_GpuMemoryOneAboveBoundary_StrictGt_ReturnsTrue(t *testin
 	labels := buildStarkDeviceLabels() // gpu-memory-gb = 24
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
+			{
+				Key:      "starkindustries.org/env",
+				Operator: clModels.In,
+				Values:   common.Vals("production"),
+			},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(23))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
+			{
+				Key:      "starkindustries.org/gpu-memory-gb",
+				Operator: clModels.Gt,
+				Values:   common.Vals(float64(23)),
+			},
+			{
+				Key:      "starkindustries.org/latency-ms",
+				Operator: clModels.Lt,
+				Values:   common.Vals(float64(10)),
+			},
+			{
+				Key:      "starkindustries.org/runtimes",
+				Operator: clModels.In,
+				Values:   common.Vals("oci", "wasm"),
+			},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2494,7 +2638,11 @@ func TestEvaluate_In_NumSlice_AllPresent(t *testing.T) {
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "speeds", Operator: clModels.In, Values: common.Vals(float64(1.0), float64(2.0), float64(3.0))},
+			{
+				Key:      "speeds",
+				Operator: clModels.In,
+				Values:   common.Vals(float64(1.0), float64(2.0), float64(3.0)),
+			},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)

@@ -48,7 +48,11 @@ func Parse(s string) (Quantity, error) {
 	n, err := strconv.ParseInt(matches[1], 10, 64)
 	if err != nil {
 		// Unreachable in practice — the regex guarantees [0-9]+ — but guard anyway.
-		return Quantity{}, fmt.Errorf("invalid quantity %q: failed to parse integer part: %w", s, err)
+		return Quantity{}, fmt.Errorf(
+			"invalid quantity %q: failed to parse integer part: %w",
+			s,
+			err,
+		)
 	}
 
 	multiplier, ok := multipliers[matches[2]]

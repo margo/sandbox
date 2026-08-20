@@ -23,8 +23,14 @@ type SelectorEngineIface interface {
 }
 
 type DeviceSelectorIface interface {
-	SelectEligibleDevice(devices []*clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error)
-	IsDeviceEligible(device *clModels.DeviceCapabilitiesManifest, checks *clModels.DeviceConstraints) (bool, string, error)
+	SelectEligibleDevice(
+		devices []*clModels.DeviceCapabilitiesManifest,
+		checks *clModels.DeviceConstraints,
+	) ([]*clModels.DeviceCapabilitiesManifest, error)
+	IsDeviceEligible(
+		device *clModels.DeviceCapabilitiesManifest,
+		checks *clModels.DeviceConstraints,
+	) (bool, string, error)
 }
 
 // CapacityEligibilityCheckerIface defines the contract for checking whether a device

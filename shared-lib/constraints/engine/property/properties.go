@@ -72,7 +72,10 @@ func (ps *propertySelectorEngine) Evaluate(s *clModels.Selector) (bool, string) 
 				return false, reason
 			}
 		default:
-			return false, fmt.Sprintf("unknown or unsupported propertySelector operator - %s", me.Operator)
+			return false, fmt.Sprintf(
+				"unknown or unsupported propertySelector operator - %s",
+				me.Operator,
+			)
 		}
 	}
 	return result, ""
@@ -100,12 +103,18 @@ func (ps *propertySelectorEngine) resolvePointer(pointer string) (any, bool, err
 	// HandleIn and other handlers expect after JSON decoding.
 	b, err := json.Marshal(ps.device.Properties)
 	if err != nil {
-		return nil, false, fmt.Errorf("resolvePointer: failed to marshal device properties: %w", err)
+		return nil, false, fmt.Errorf(
+			"resolvePointer: failed to marshal device properties: %w",
+			err,
+		)
 	}
 
 	var doc map[string]any
 	if err := json.Unmarshal(b, &doc); err != nil {
-		return nil, false, fmt.Errorf("resolvePointer: failed to unmarshal device properties to map: %w", err)
+		return nil, false, fmt.Errorf(
+			"resolvePointer: failed to unmarshal device properties to map: %w",
+			err,
+		)
 	}
 
 	// Parse the pointer string.
@@ -146,7 +155,10 @@ func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 		return false, fmt.Sprintf("property selector: failed to resolve key %q: %v", me.Key, err)
 	}
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	candidates := *me.Values
@@ -167,7 +179,11 @@ func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("property %q value %q not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"property %q value %q not found in match expression values",
+			me.Key,
+			val,
+		)
 
 	// --- scalar number (JSON numbers unmarshal as float64) ---
 	case float64:
@@ -183,7 +199,11 @@ func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 				}
 			}
 		}
-		return false, fmt.Sprintf("property %q value %v not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"property %q value %v not found in match expression values",
+			me.Key,
+			val,
+		)
 
 	// --- scalar bool ---
 	case bool:
@@ -192,12 +212,19 @@ func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("property %q value %v not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"property %q value %v not found in match expression values",
+			me.Key,
+			val,
+		)
 
 	// --- array (JSON arrays unmarshal as []any) ---
 	case []any:
 		if len(val) == 0 {
-			return false, fmt.Sprintf("property %q is an empty array, nothing to match against", me.Key)
+			return false, fmt.Sprintf(
+				"property %q is an empty array, nothing to match against",
+				me.Key,
+			)
 		}
 
 		// Peek at the first non-nil element to determine the array element type.
@@ -229,7 +256,8 @@ func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, 
 	default:
 		return false, fmt.Sprintf(
 			"property %q resolved to an unsupported type (%T); In requires string, number, bool, or array thereof",
-			me.Key, resolved,
+			me.Key,
+			resolved,
 		)
 	}
 }
@@ -253,7 +281,10 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 	}
 	if !exists {
 		// Spec: NotIn is true only when the key exists and none of its values match.
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	candidates := *me.Values
@@ -271,7 +302,11 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 	case string:
 		for _, c := range candidates {
 			if s, ok := c.(string); ok && s == val {
-				return false, fmt.Sprintf("property %q value %q is present in match expression values", me.Key, val)
+				return false, fmt.Sprintf(
+					"property %q value %q is present in match expression values",
+					me.Key,
+					val,
+				)
 			}
 		}
 		return true, ""
@@ -282,11 +317,19 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 			switch cv := c.(type) {
 			case float64:
 				if cv == val {
-					return false, fmt.Sprintf("property %q value %v is present in match expression values", me.Key, val)
+					return false, fmt.Sprintf(
+						"property %q value %v is present in match expression values",
+						me.Key,
+						val,
+					)
 				}
 			case float32:
 				if float64(cv) == val {
-					return false, fmt.Sprintf("property %q value %v is present in match expression values", me.Key, val)
+					return false, fmt.Sprintf(
+						"property %q value %v is present in match expression values",
+						me.Key,
+						val,
+					)
 				}
 			}
 		}
@@ -296,7 +339,11 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 	case bool:
 		for _, c := range candidates {
 			if b, ok := c.(bool); ok && b == val {
-				return false, fmt.Sprintf("property %q value %v is present in match expression values", me.Key, val)
+				return false, fmt.Sprintf(
+					"property %q value %v is present in match expression values",
+					me.Key,
+					val,
+				)
 			}
 		}
 		return true, ""
@@ -304,7 +351,10 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 	// --- array (JSON arrays unmarshal as []any) ---
 	case []any:
 		if len(val) == 0 {
-			return false, fmt.Sprintf("property %q is an empty array, nothing to match against", me.Key)
+			return false, fmt.Sprintf(
+				"property %q is an empty array, nothing to match against",
+				me.Key,
+			)
 		}
 
 		// Arrays of objects must use ContainsAll/ContainsAny per the spec.
@@ -332,7 +382,8 @@ func (ps *propertySelectorEngine) HandleNotIn(me *clModels.MatchExpression) (boo
 	default:
 		return false, fmt.Sprintf(
 			"property %q resolved to an unsupported type (%T); NotIn requires string, number, bool, or array thereof",
-			me.Key, resolved,
+			me.Key,
+			resolved,
 		)
 	}
 }
@@ -365,7 +416,10 @@ func (ps *propertySelectorEngine) HandleExists(me *clModels.MatchExpression) (bo
 
 	// Key is absent: Exists must evaluate to false.
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	// Key is present: Exists evaluates to true regardless of the value at that key.
@@ -405,7 +459,10 @@ func (ps *propertySelectorEngine) HandleDoesNotExists(me *clModels.MatchExpressi
 
 	// Key is present: DoesNotExist must evaluate to false.
 	if exists {
-		return false, fmt.Sprintf("property selector: key %q is present in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q is present in device properties",
+			me.Key,
+		)
 	}
 
 	// Key is absent: DoesNotExist evaluates to true.
@@ -438,7 +495,10 @@ func (ps *propertySelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, 
 		return false, fmt.Sprintf("property selector: failed to resolve key %q: %v", me.Key, err)
 	}
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	// The resolved value MUST be numeric. After the JSON round-trip inside
@@ -488,7 +548,10 @@ func (ps *propertySelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, 
 		return false, fmt.Sprintf("property selector: failed to resolve key %q: %v", me.Key, err)
 	}
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	// The resolved value MUST be numeric. After the JSON round-trip inside
@@ -546,14 +609,18 @@ func (ps *propertySelectorEngine) HandleContainsAll(me clModels.MatchExpression)
 		return false, fmt.Sprintf("property selector: failed to resolve key %q: %v", me.Key, err)
 	}
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	arr, ok := resolved.([]any)
 	if !ok {
 		return false, fmt.Sprintf(
 			"property %q resolved to a non-array type (%T); ContainsAll requires an array of objects",
-			me.Key, resolved,
+			me.Key,
+			resolved,
 		)
 	}
 	if len(arr) == 0 {
@@ -582,7 +649,10 @@ func (ps *propertySelectorEngine) HandleContainsAll(me clModels.MatchExpression)
 	for i := range arr {
 		// Build a rewritten selector with absolute keys for this element index.
 		rewritten := clModels.Selector{
-			MatchExpressions: make([]clModels.MatchExpression, len(me.ItemSelector.MatchExpressions)),
+			MatchExpressions: make(
+				[]clModels.MatchExpression,
+				len(me.ItemSelector.MatchExpressions),
+			),
 		}
 		for j, child := range me.ItemSelector.MatchExpressions {
 			rewritten.MatchExpressions[j] = child // copy
@@ -644,14 +714,18 @@ func (ps *propertySelectorEngine) HandleContainsAny(me clModels.MatchExpression)
 		return false, fmt.Sprintf("property selector: failed to resolve key %q: %v", me.Key, err)
 	}
 	if !exists {
-		return false, fmt.Sprintf("property selector: key %q not found in device properties", me.Key)
+		return false, fmt.Sprintf(
+			"property selector: key %q not found in device properties",
+			me.Key,
+		)
 	}
 
 	arr, ok := resolved.([]any)
 	if !ok {
 		return false, fmt.Sprintf(
 			"property %q resolved to a non-array type (%T); ContainsAny requires an array of objects",
-			me.Key, resolved,
+			me.Key,
+			resolved,
 		)
 	}
 	if len(arr) == 0 {
@@ -704,7 +778,9 @@ func (ps *propertySelectorEngine) HandleContainsAny(me clModels.MatchExpression)
 // This is needed by HandleContainsAny to apply OR logic across itemSelector
 // expressions, since Evaluate() always ANDs its matchExpressions and cannot
 // be reused for OR semantics.
-func (ps *propertySelectorEngine) evaluateSingleExpression(me *clModels.MatchExpression) (bool, string) {
+func (ps *propertySelectorEngine) evaluateSingleExpression(
+	me *clModels.MatchExpression,
+) (bool, string) {
 	switch me.Operator {
 	case clModels.In:
 		return ps.HandleIn(me)
@@ -723,7 +799,10 @@ func (ps *propertySelectorEngine) evaluateSingleExpression(me *clModels.MatchExp
 	case clModels.ContainsAny:
 		return ps.HandleContainsAny(*me)
 	default:
-		return false, fmt.Sprintf("unknown or unsupported propertySelector operator - %s", me.Operator)
+		return false, fmt.Sprintf(
+			"unknown or unsupported propertySelector operator - %s",
+			me.Operator,
+		)
 	}
 }
 
@@ -747,12 +826,17 @@ func validateValues(me *clModels.MatchExpression) (string, bool) {
 	case bool:
 		dominantType = "bool"
 	default:
-		return fmt.Sprintf("invalid match expression: unsupported value type %T in values", candidates[0]), false
+		return fmt.Sprintf(
+			"invalid match expression: unsupported value type %T in values",
+			candidates[0],
+		), false
 	}
 
 	// Boolean: only one value allowed
 	if dominantType == "bool" && len(candidates) != 1 {
-		return "invalid match expression: values MUST contain exactly one boolean for " + string(me.Operator), false
+		return "invalid match expression: values MUST contain exactly one boolean for " + string(
+			me.Operator,
+		), false
 	}
 
 	// All elements must be the same type
@@ -766,12 +850,18 @@ func validateValues(me *clModels.MatchExpression) (string, bool) {
 		case bool:
 			elemType = "bool"
 		default:
-			return fmt.Sprintf("invalid match expression: unsupported value type %T at values[%d]", c, i), false
+			return fmt.Sprintf(
+				"invalid match expression: unsupported value type %T at values[%d]",
+				c,
+				i,
+			), false
 		}
 		if elemType != dominantType {
 			return fmt.Sprintf(
 				"invalid match expression: values MUST be the same data type, got %s at values[0] but %s at values[%d]",
-				dominantType, elemType, i,
+				dominantType,
+				elemType,
+				i,
 			), false
 		}
 	}

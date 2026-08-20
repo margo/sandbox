@@ -201,7 +201,8 @@ func TestResolvePointer_ArrayField_ReturnsSlice(t *testing.T) {
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	d.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	e := engine(d)
 
@@ -986,7 +987,8 @@ func TestHandleIn_ArrayOfStrings_ElementMatches(t *testing.T) {
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	engine := New(device).(*propertySelectorEngine)
 
@@ -1374,7 +1376,8 @@ func TestHandleNotIn_ArrayOfStrings_NoElementInValues_ReturnsTrue(t *testing.T) 
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	e := New(device).(*propertySelectorEngine)
 
@@ -1395,7 +1398,8 @@ func TestHandleNotIn_ArrayOfStrings_OneElementInValues_ReturnsFalse(t *testing.T
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	e := New(device).(*propertySelectorEngine)
 
@@ -2400,7 +2404,9 @@ func TestHandleDoesNotExists_NonExistentKey_ReturnsTrue(t *testing.T) {
 
 // --- Array fields (present vs nil) ---
 
-func TestHandleDoesNotExists_ArrayField_SupportedDeploymentTypes_Present_ReturnsFalse(t *testing.T) {
+func TestHandleDoesNotExists_ArrayField_SupportedDeploymentTypes_Present_ReturnsFalse(
+	t *testing.T,
+) {
 	device := baseDevice()
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	device.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
@@ -3042,8 +3048,16 @@ func TestHandleGt_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(2))}
-	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: common.Vals(float64(10))}
+	me0 := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(2)),
+	}
+	me1 := &clModels.MatchExpression{
+		Key:      "/cpus/1/cores",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(10)),
+	}
 
 	ok0, _ := e.HandleGt(me0)
 	ok1, _ := e.HandleGt(me1)
@@ -3402,8 +3416,16 @@ func TestHandleLt_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	me0 := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(6))}
-	me1 := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: common.Vals(float64(6))}
+	me0 := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(6)),
+	}
+	me1 := &clModels.MatchExpression{
+		Key:      "/cpus/1/cores",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(6)),
+	}
 
 	ok0, _ := e.HandleLt(me0)
 	ok1, _ := e.HandleLt(me1)
@@ -3422,8 +3444,16 @@ func TestGtAndLt_Symmetry_SameKeyAndThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(4))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(4))}
+	meGt := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(4)),
+	}
+	meLt := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(4)),
+	}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3437,8 +3467,16 @@ func TestGtAndLt_Symmetry_ValueAboveThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Gt, Values: common.Vals(float64(4))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/1/cores", Operator: clModels.Lt, Values: common.Vals(float64(4))}
+	meGt := &clModels.MatchExpression{
+		Key:      "/cpus/1/cores",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(4)),
+	}
+	meLt := &clModels.MatchExpression{
+		Key:      "/cpus/1/cores",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(4)),
+	}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3452,8 +3490,16 @@ func TestGtAndLt_Symmetry_ValueBelowThreshold(t *testing.T) {
 	d := cpuDevice()
 	e := engine(d)
 
-	meGt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Gt, Values: common.Vals(float64(8))}
-	meLt := &clModels.MatchExpression{Key: "/cpus/0/cores", Operator: clModels.Lt, Values: common.Vals(float64(8))}
+	meGt := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Gt,
+		Values:   common.Vals(float64(8)),
+	}
+	meLt := &clModels.MatchExpression{
+		Key:      "/cpus/0/cores",
+		Operator: clModels.Lt,
+		Values:   common.Vals(float64(8)),
+	}
 
 	okGt, _ := e.HandleGt(meGt)
 	okLt, _ := e.HandleLt(meLt)
@@ -3888,7 +3934,8 @@ func TestHandleContainsAll_ArrayOfScalars_SupportedDeploymentTypes_ReturnsFalse(
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	d.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	e := engine(d)
 
@@ -4011,7 +4058,9 @@ func TestHandleContainsAll_SingleElementArray_MultipleConditionsAllMatch_Returns
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_SingleElementArray_MultipleConditionsOneFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_SingleElementArray_MultipleConditionsOneFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Only one peripheral; second condition fails → false.
 	d := baseDevice()
 	manufacturer := "NVIDIA"
@@ -4254,7 +4303,11 @@ func TestHandleContainsAll_SingleCondition_MultipleValuesInExpression_ReturnsTru
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: common.Vals("microphone", "gpu", "speaker")},
+				{
+					Key:      "/type",
+					Operator: clModels.In,
+					Values:   common.Vals("microphone", "gpu", "speaker"),
+				},
 			},
 		},
 	}
@@ -4268,7 +4321,9 @@ func TestHandleContainsAll_SingleCondition_MultipleValuesInExpression_ReturnsTru
 // Group 9 — Multiple conditions: AND semantics
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAll_MultipleConditions_TwoConditions_FirstElementSatisfiesAll_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_TwoConditions_FirstElementSatisfiesAll_ReturnsTrue(
+	t *testing.T,
+) {
 	// /type In ["gpu"] AND /manufacturer In ["NVIDIA"]
 	// First element {gpu,NVIDIA,RTX4090} satisfies both → true.
 	d := containsAllPeripheralDevice()
@@ -4290,7 +4345,9 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_FirstElementSatisfie
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_TwoConditions_SecondElementSatisfiesAll_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_TwoConditions_SecondElementSatisfiesAll_ReturnsTrue(
+	t *testing.T,
+) {
 	// /type In ["camera"] AND /manufacturer In ["Logitech"]
 	// Second element {camera,Logitech,C920} satisfies both → true.
 	d := containsAllPeripheralDevice()
@@ -4312,7 +4369,9 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_SecondElementSatisfi
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_TwoConditions_ThirdElementSatisfiesAll_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_TwoConditions_ThirdElementSatisfiesAll_ReturnsTrue(
+	t *testing.T,
+) {
 	// /type In ["display"] AND /manufacturer In ["Dell"]
 	// Third element {display,Dell,U2722D} satisfies both → true.
 	d := containsAllPeripheralDevice()
@@ -4334,7 +4393,9 @@ func TestHandleContainsAll_MultipleConditions_TwoConditions_ThirdElementSatisfie
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_ConditionsSplitAcrossElements_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_ConditionsSplitAcrossElements_ReturnsFalse(
+	t *testing.T,
+) {
 	// /type In ["gpu"] AND /manufacturer In ["Logitech"]
 	// gpu→NVIDIA, camera→Logitech: conditions are satisfied by DIFFERENT elements.
 	// ContainsAll requires a SINGLE element to satisfy ALL conditions → false.
@@ -4357,7 +4418,9 @@ func TestHandleContainsAll_MultipleConditions_ConditionsSplitAcrossElements_Retu
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_TypeAndModelSplitAcrossElements_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_TypeAndModelSplitAcrossElements_ReturnsFalse(
+	t *testing.T,
+) {
 	// /type In ["gpu"] AND /model In ["C920"]
 	// gpu→RTX4090, camera→C920: no single element satisfies both → false.
 	d := containsAllPeripheralDevice()
@@ -4379,7 +4442,9 @@ func TestHandleContainsAll_MultipleConditions_TypeAndModelSplitAcrossElements_Re
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByFirstElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByFirstElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// /type In ["gpu"] AND /manufacturer In ["NVIDIA"] AND /model In ["RTX 4090"]
 	// First element satisfies all three → true.
 	d := containsAllPeripheralDevice()
@@ -4425,7 +4490,9 @@ func TestHandleContainsAll_MultipleConditions_ThreeConditionsLastFails_ReturnsFa
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByThirdElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByThirdElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// /type In ["display"] AND /manufacturer In ["Dell"] AND /model In ["U2722D"]
 	// Third element satisfies all three → true.
 	d := containsAllPeripheralDevice()
@@ -4448,7 +4515,9 @@ func TestHandleContainsAll_MultipleConditions_ThreeConditionsAllSatisfiedByThird
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_NoElementSatisfiesAnyCondition_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_NoElementSatisfiesAnyCondition_ReturnsFalse(
+	t *testing.T,
+) {
 	// /type In ["speaker"] AND /manufacturer In ["Sony"]
 	// No element has type=speaker or manufacturer=Sony → false.
 	d := containsAllPeripheralDevice()
@@ -4470,7 +4539,9 @@ func TestHandleContainsAll_MultipleConditions_NoElementSatisfiesAnyCondition_Ret
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_MultipleConditions_FirstConditionMatchesAllElements_SecondMatchesNone_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_MultipleConditions_FirstConditionMatchesAllElements_SecondMatchesNone_ReturnsFalse(
+	t *testing.T,
+) {
 	// /type In ["gpu","camera","display"] (matches all) AND /manufacturer In ["Sony"] (matches none)
 	// No single element satisfies both → false.
 	d := containsAllPeripheralDevice()
@@ -4481,7 +4552,11 @@ func TestHandleContainsAll_MultipleConditions_FirstConditionMatchesAllElements_S
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.In, Values: common.Vals("gpu", "camera", "display")},
+				{
+					Key:      "/type",
+					Operator: clModels.In,
+					Values:   common.Vals("gpu", "camera", "display"),
+				},
 				{Key: "/manufacturer", Operator: clModels.In, Values: common.Vals("Sony")},
 			},
 		},
@@ -4605,7 +4680,11 @@ func TestHandleContainsAll_ItemSelector_NotIn_ElementNotInValues_ReturnsTrue(t *
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("microphone", "speaker")},
+				{
+					Key:      "/type",
+					Operator: clModels.NotIn,
+					Values:   common.Vals("microphone", "speaker"),
+				},
 			},
 		},
 	}
@@ -4627,7 +4706,11 @@ func TestHandleContainsAll_ItemSelector_NotIn_AllElementsInValues_ReturnsFalse(t
 		Operator: clModels.ContainsAll,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("gpu", "camera", "display")},
+				{
+					Key:      "/type",
+					Operator: clModels.NotIn,
+					Values:   common.Vals("gpu", "camera", "display"),
+				},
 			},
 		},
 	}
@@ -4884,7 +4967,9 @@ func TestHandleContainsAll_CpusArray_CoresNoMatch_ReturnsFalse(t *testing.T) {
 // Group 16 — Cpus array: multiple conditions
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedBySecondElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedBySecondElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// /architecture In ["arm64"] AND /cores Gt [6]
 	// Second element: arm64 ✓, cores=8 > 6 ✓ → true.
 	d := cpuDevice()
@@ -4906,7 +4991,9 @@ func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedBySecondElement_R
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedByFirstElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_CpusArray_ArchAndCores_BothSatisfiedByFirstElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// /architecture In ["amd64"] AND /cores Lt [6]
 	// First element: amd64 ✓, cores=4 < 6 ✓ → true.
 	d := cpuDevice()
@@ -5146,7 +5233,9 @@ func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_Cpus_ReturnsFalse(
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_Interfaces_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_InvalidPointer_MissingLeadingSlash_Interfaces_ReturnsFalse(
+	t *testing.T,
+) {
 	// "interfaces" without leading slash → resolvePointer returns error → false.
 	d := baseDevice()
 	d.Properties.Interfaces = &[]clModels.DeviceCommunicationInterface{
@@ -5311,7 +5400,9 @@ func TestHandleContainsAll_AbsentOptionalField_ModelNil_DoesNotExist_ReturnsTrue
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_DoesNotExist_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_DoesNotExist_ReturnsTrue(
+	t *testing.T,
+) {
 	// CPU entry with no Architecture set → "architecture" key absent in JSON.
 	// itemSelector: /architecture DoesNotExist → key absent → true for that element → true.
 	d := baseDevice()
@@ -5338,7 +5429,9 @@ func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_DoesNotExist_Retu
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_ExistsOperator_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_ExistsOperator_ReturnsFalse(
+	t *testing.T,
+) {
 	// CPU entry with no Architecture set → "architecture" key absent.
 	// itemSelector: /architecture Exists → key absent → false for that element.
 	// Only one element in array → no element satisfies → false.
@@ -5366,7 +5459,9 @@ func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_ExistsOperator_Re
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_MixedElements_SomeWithModelSomeWithout_ModelExists_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_MixedElements_SomeWithModelSomeWithout_ModelExists_ReturnsTrue(
+	t *testing.T,
+) {
 	// Two peripherals: first has no model, second has model set.
 	// itemSelector: /model Exists → second element satisfies → true.
 	d := baseDevice()
@@ -5514,7 +5609,9 @@ func TestHandleContainsAll_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 	assert.Empty(t, reason2)
 }
 
-func TestHandleContainsAll_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotInterfere(t *testing.T) {
+func TestHandleContainsAll_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotInterfere(
+	t *testing.T,
+) {
 	// expr1: /peripherals → /type In ["gpu"]          → true
 	// expr2: /peripherals → /manufacturer In ["Sony"] → false
 	// Results must be independent.
@@ -5593,7 +5690,9 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_DoNotInterf
 	assert.Empty(t, reason2)
 }
 
-func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_FirstTrueSecondFalse(t *testing.T) {
+func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_FirstTrueSecondFalse(
+	t *testing.T,
+) {
 	// expr1: /peripherals → /type In ["gpu"]              → true
 	// expr2: /cpus        → /architecture In ["riscv64"]  → false
 	d := containsAllPeripheralDevice()
@@ -5664,7 +5763,9 @@ func TestHandleContainsAll_ViaEvaluate_SingleContainsAllExpression_ReturnsTrue(t
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_BothTrue_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_BothTrue_ReturnsTrue(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed together:
 	// 1. /vendor In ["Acme Corp"]                              → true
 	// 2. /peripherals ContainsAll {/type In ["gpu"]}           → true
@@ -5697,7 +5798,9 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_BothTrue_Retur
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_ContainsAllFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_ContainsAllFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed together:
 	// 1. /vendor In ["Acme Corp"]                                    → true
 	// 2. /peripherals ContainsAll {/type In ["microphone"]}          → false
@@ -5730,7 +5833,9 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_ContainsAllFai
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_InFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_ContainsAllAndInExpression_InFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed together:
 	// 1. /vendor In ["Unknown Vendor"]                         → false
 	// 2. /peripherals ContainsAll {/type In ["gpu"]}           → true
@@ -5801,7 +5906,9 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_BothTrue_ReturnsTrue(t *
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_ContainsAllFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_ContainsAllFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed:
 	// 1. /cpus ContainsAll {/architecture In ["riscv64"]} → false
 	// 2. /vendor In ["Acme Corp"]                         → true
@@ -5817,7 +5924,11 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndGt_ContainsAllFails_Returns
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
+						{
+							Key:      "/architecture",
+							Operator: clModels.In,
+							Values:   common.Vals("riscv64"),
+						},
 					},
 				},
 			},
@@ -5900,7 +6011,9 @@ func TestHandleContainsAll_ViaEvaluate_ContainsAllAndExists_ExistsFails_ReturnsF
 // Group 25 — Evaluate integration: multiple ContainsAll in one Selector
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_ReturnsTrue(
+	t *testing.T,
+) {
 	// Selector with two ContainsAll expressions ANDed:
 	// 1. /peripherals ContainsAll {/type In ["gpu"]}           → true
 	// 2. /cpus        ContainsAll {/architecture In ["amd64"]} → true
@@ -5942,7 +6055,9 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_Return
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Selector with two ContainsAll expressions ANDed:
 	// 1. /peripherals ContainsAll {/type In ["gpu"]}              → true
 	// 2. /cpus        ContainsAll {/architecture In ["riscv64"]}  → false
@@ -5973,7 +6088,11 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_Ret
 				Operator: clModels.ContainsAll,
 				ItemSelector: &clModels.Selector{
 					MatchExpressions: []clModels.MatchExpression{
-						{Key: "/architecture", Operator: clModels.In, Values: common.Vals("riscv64")},
+						{
+							Key:      "/architecture",
+							Operator: clModels.In,
+							Values:   common.Vals("riscv64"),
+						},
 					},
 				},
 			},
@@ -6010,7 +6129,9 @@ func TestHandleContainsAll_OutOfBoundsIndexInKey_ReturnsFalse(t *testing.T) {
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAll_EmptyStringKey_ReturnsWholePropertiesNotArray_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAll_EmptyStringKey_ReturnsWholePropertiesNotArray_ReturnsFalse(
+	t *testing.T,
+) {
 	// RFC 6901: empty string refers to the whole document (properties struct).
 	// The whole properties struct is not an array of objects →
 	// ContainsAll must return false.
@@ -6527,7 +6648,8 @@ func TestHandleContainsAny_ArrayOfScalars_SupportedDeploymentTypes_ReturnsFalse(
 	compose := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose
 	custom := clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCustom
 	d.Properties.SupportedDeploymentTypes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes{
-		compose, custom,
+		compose,
+		custom,
 	}
 	e := engine(d)
 
@@ -6551,7 +6673,9 @@ func TestHandleContainsAny_ArrayOfScalars_SupportedRuntimes_ReturnsFalse(t *test
 	// ContainsAny requires an array of objects → must return false.
 	d := baseDevice()
 	oci := clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci
-	d.Properties.SupportedRuntimes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes{oci}
+	d.Properties.SupportedRuntimes = &[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes{
+		oci,
+	}
 	e := engine(d)
 
 	me := clModels.MatchExpression{
@@ -6622,7 +6746,9 @@ func TestHandleContainsAny_SingleElementArray_SingleConditionNoMatch_ReturnsFals
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_SingleElementArray_MultipleConditions_FirstMatches_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_SingleElementArray_MultipleConditions_FirstMatches_ReturnsTrue(
+	t *testing.T,
+) {
 	// Only one peripheral (gpu/NVIDIA); itemSelector has two expressions.
 	// OR logic: first expression (/type In ["gpu"]) matches → true immediately.
 	// Second expression (/manufacturer In ["Logitech"]) would fail but is never needed.
@@ -6649,7 +6775,9 @@ func TestHandleContainsAny_SingleElementArray_MultipleConditions_FirstMatches_Re
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_SingleElementArray_MultipleConditions_NoneMatch_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_SingleElementArray_MultipleConditions_NoneMatch_ReturnsFalse(
+	t *testing.T,
+) {
 	// Only one peripheral (gpu/NVIDIA); neither expression matches → false.
 	// /type In ["camera"] → false; /manufacturer In ["Logitech"] → false.
 	d := baseDevice()
@@ -6850,7 +6978,9 @@ func TestHandleContainsAny_SingleCondition_ModelNoMatch_ReturnsFalse(t *testing.
 // This is the direct contrast with ContainsAll, which requires ALL expressions
 // to be satisfied by a single element.
 
-func TestHandleContainsAny_MultipleConditions_FirstExpressionMatchesFirstElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_FirstExpressionMatchesFirstElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["gpu"] OR /manufacturer In ["Sony"]
 	// First element {gpu,NVIDIA}: /type In ["gpu"] ✓ → true immediately.
 	// Second expression is never evaluated for this element.
@@ -6873,7 +7003,9 @@ func TestHandleContainsAny_MultipleConditions_FirstExpressionMatchesFirstElement
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_SecondExpressionMatchesFirstElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_SecondExpressionMatchesFirstElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["microphone"] OR /manufacturer In ["NVIDIA"]
 	// First element {gpu,NVIDIA}: /type In ["microphone"] ✗, /manufacturer In ["NVIDIA"] ✓ → true.
 	d := containsAnyPeripheralDevice()
@@ -6895,7 +7027,9 @@ func TestHandleContainsAny_MultipleConditions_SecondExpressionMatchesFirstElemen
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_ExpressionMatchesSecondElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_ExpressionMatchesSecondElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["speaker"] OR /manufacturer In ["Logitech"]
 	// First element {gpu,NVIDIA}: both fail.
 	// Second element {camera,Logitech}: /manufacturer In ["Logitech"] ✓ → true.
@@ -6918,7 +7052,9 @@ func TestHandleContainsAny_MultipleConditions_ExpressionMatchesSecondElement_Ret
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_ExpressionMatchesThirdElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_ExpressionMatchesThirdElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["speaker"] OR /model In ["U2722D"]
 	// First element {gpu,NVIDIA,RTX4090}: both fail.
 	// Second element {camera,Logitech,C920}: both fail.
@@ -6942,7 +7078,9 @@ func TestHandleContainsAny_MultipleConditions_ExpressionMatchesThirdElement_Retu
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_NoExpressionMatchesAnyElement_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_NoExpressionMatchesAnyElement_ReturnsFalse(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["microphone"] OR /manufacturer In ["Sony"]
 	// No element has type=microphone or manufacturer=Sony → false.
 	d := containsAnyPeripheralDevice()
@@ -6964,7 +7102,9 @@ func TestHandleContainsAny_MultipleConditions_NoExpressionMatchesAnyElement_Retu
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_ThreeExpressions_OneMatchesSecondElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_ThreeExpressions_OneMatchesSecondElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["speaker"] OR /model In ["GTX 1080"] OR /manufacturer In ["Logitech"]
 	// First element: all fail.
 	// Second element {camera,Logitech,C920}: /manufacturer In ["Logitech"] ✓ → true.
@@ -6988,7 +7128,9 @@ func TestHandleContainsAny_MultipleConditions_ThreeExpressions_OneMatchesSecondE
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_MultipleConditions_ThreeExpressions_NoneMatch_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_MultipleConditions_ThreeExpressions_NoneMatch_ReturnsFalse(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["microphone"] OR /model In ["GTX 1080"] OR /manufacturer In ["Sony"]
 	// No element satisfies any of the three expressions → false.
 	d := containsAnyPeripheralDevice()
@@ -7018,7 +7160,9 @@ func TestHandleContainsAny_MultipleConditions_ThreeExpressions_NoneMatch_Returns
 // These tests use the same device and expressions to explicitly demonstrate
 // the OR vs AND difference between ContainsAny and ContainsAll.
 
-func TestHandleContainsAny_VsContainsAll_ConditionsSplitAcrossElements_ContainsAnyTrue_ContainsAllFalse(t *testing.T) {
+func TestHandleContainsAny_VsContainsAll_ConditionsSplitAcrossElements_ContainsAnyTrue_ContainsAllFalse(
+	t *testing.T,
+) {
 	// itemSelector: /type In ["gpu"] AND/OR /manufacturer In ["Logitech"]
 	// gpu→NVIDIA, camera→Logitech: conditions are satisfied by DIFFERENT elements.
 	//
@@ -7187,7 +7331,9 @@ func TestHandleContainsAny_ItemSelector_Exists_FieldAbsentInAllElements_ReturnsF
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_ItemSelector_Exists_FieldPresentOnSecondElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_Exists_FieldPresentOnSecondElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// First peripheral has no model; second has model set.
 	// OR logic: /model Exists fails for first element, passes for second → true.
 	d := baseDevice()
@@ -7219,7 +7365,9 @@ func TestHandleContainsAny_ItemSelector_Exists_FieldPresentOnSecondElement_Retur
 // Group 12 — Operator variety inside itemSelector: DoesNotExist
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAny_ItemSelector_DoesNotExist_FieldAbsentInFirstElement_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_DoesNotExist_FieldAbsentInFirstElement_ReturnsTrue(
+	t *testing.T,
+) {
 	// First peripheral has no model → /model DoesNotExist passes → true immediately.
 	d := baseDevice()
 	m1 := "NVIDIA"
@@ -7246,7 +7394,9 @@ func TestHandleContainsAny_ItemSelector_DoesNotExist_FieldAbsentInFirstElement_R
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_ItemSelector_DoesNotExist_FieldPresentInAllElements_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_DoesNotExist_FieldPresentInAllElements_ReturnsFalse(
+	t *testing.T,
+) {
 	// All peripherals have manufacturer set → /manufacturer DoesNotExist fails for all → false.
 	d := containsAnyPeripheralDevice()
 	e := engine(d)
@@ -7281,7 +7431,11 @@ func TestHandleContainsAny_ItemSelector_NotIn_FirstElementNotInValues_ReturnsTru
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("microphone", "speaker")},
+				{
+					Key:      "/type",
+					Operator: clModels.NotIn,
+					Values:   common.Vals("microphone", "speaker"),
+				},
 			},
 		},
 	}
@@ -7302,7 +7456,11 @@ func TestHandleContainsAny_ItemSelector_NotIn_AllElementsInValues_ReturnsFalse(t
 		Operator: clModels.ContainsAny,
 		ItemSelector: &clModels.Selector{
 			MatchExpressions: []clModels.MatchExpression{
-				{Key: "/type", Operator: clModels.NotIn, Values: common.Vals("gpu", "camera", "display")},
+				{
+					Key:      "/type",
+					Operator: clModels.NotIn,
+					Values:   common.Vals("gpu", "camera", "display"),
+				},
 			},
 		},
 	}
@@ -7316,7 +7474,9 @@ func TestHandleContainsAny_ItemSelector_NotIn_AllElementsInValues_ReturnsFalse(t
 // Group 14 — Operator variety inside itemSelector: Gt
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAny_ItemSelector_Gt_SecondElementCoresGreaterThanThreshold_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_Gt_SecondElementCoresGreaterThanThreshold_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /cores Gt [6]
 	// First element cores=4: 4 > 6 → false.
@@ -7339,7 +7499,9 @@ func TestHandleContainsAny_ItemSelector_Gt_SecondElementCoresGreaterThanThreshol
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_ItemSelector_Gt_FirstElementCoresGreaterThanThreshold_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_Gt_FirstElementCoresGreaterThanThreshold_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /cores Gt [3]
 	// First element cores=4: 4 > 3 → true → ContainsAny true immediately.
@@ -7386,7 +7548,9 @@ func TestHandleContainsAny_ItemSelector_Gt_NoCoresGreaterThanThreshold_ReturnsFa
 // Group 15 — Operator variety inside itemSelector: Lt
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAny_ItemSelector_Lt_FirstElementCoresLessThanThreshold_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_Lt_FirstElementCoresLessThanThreshold_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /cores Lt [5]
 	// First element cores=4: 4 < 5 → true → ContainsAny true immediately.
@@ -7429,7 +7593,9 @@ func TestHandleContainsAny_ItemSelector_Lt_NoCoresLessThanThreshold_ReturnsFalse
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_ItemSelector_GtOrIn_ORSemantics_FirstExpressionMatches_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_GtOrIn_ORSemantics_FirstExpressionMatches_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /cores Gt [10] OR /architecture In ["amd64"]
 	// First element: /cores Gt [10] → 4 > 10 ✗; /architecture In ["amd64"] → ✓ → true.
@@ -7452,7 +7618,9 @@ func TestHandleContainsAny_ItemSelector_GtOrIn_ORSemantics_FirstExpressionMatche
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_ItemSelector_GtAndLt_ORSemantics_NeitherMatches_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_ItemSelector_GtAndLt_ORSemantics_NeitherMatches_ReturnsFalse(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /cores Gt [10] OR /cores Lt [2]
 	// No element has cores > 10 or cores < 2 → false.
@@ -7540,7 +7708,9 @@ func TestHandleContainsAny_CpusArray_ArchRiscv64_NoMatch_ReturnsFalse(t *testing
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_FirstArchMatches_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_FirstArchMatches_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /architecture In ["amd64"] OR /cores Gt [100]
 	// First element: /architecture In ["amd64"] ✓ → true immediately.
@@ -7564,7 +7734,9 @@ func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_FirstArchMatches_Ret
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_SecondArchMatches_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_CpusArray_MultipleExpressions_OR_SecondArchMatches_ReturnsTrue(
+	t *testing.T,
+) {
 	// cpuDevice: [{amd64,4},{arm64,8}]
 	// itemSelector: /architecture In ["riscv64"] OR /cores Gt [6]
 	// First element: /architecture In ["riscv64"] ✗; /cores Gt [6] → 4 > 6 ✗.
@@ -7688,7 +7860,9 @@ func TestHandleContainsAny_InterfacesArray_BluetoothNoMatch_ReturnsFalse(t *test
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_InterfacesArray_MultipleExpressions_OR_SecondMatches_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_InterfacesArray_MultipleExpressions_OR_SecondMatches_ReturnsTrue(
+	t *testing.T,
+) {
 	// /interfaces=[{ethernet},{wifi}]
 	// itemSelector: /type In ["bluetooth"] OR /type In ["wifi"]
 	// First element: both fail.
@@ -7720,7 +7894,9 @@ func TestHandleContainsAny_InterfacesArray_MultipleExpressions_OR_SecondMatches_
 // Group 18 — Invalid pointer format
 // ---------------------------------------------------------------------------
 
-func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Peripherals_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Peripherals_ReturnsFalse(
+	t *testing.T,
+) {
 	// RFC 6901: pointer must start with '/'.
 	// "peripherals" without leading slash → resolvePointer returns error → false.
 	d := containsAnyPeripheralDevice()
@@ -7761,7 +7937,9 @@ func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Cpus_ReturnsFalse(
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Interfaces_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_InvalidPointer_MissingLeadingSlash_Interfaces_ReturnsFalse(
+	t *testing.T,
+) {
 	// "interfaces" without leading slash → resolvePointer returns error → false.
 	d := baseDevice()
 	d.Properties.Interfaces = &[]clModels.DeviceCommunicationInterface{
@@ -7967,7 +8145,9 @@ func TestHandleContainsAny_TwoIndependentExpressions_BothTrue_DoNotInterfere(t *
 	assert.Empty(t, reason2)
 }
 
-func TestHandleContainsAny_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotInterfere(t *testing.T) {
+func TestHandleContainsAny_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotInterfere(
+	t *testing.T,
+) {
 	// expr1: /peripherals → /type In ["gpu"]          → true
 	// expr2: /peripherals → /manufacturer In ["Sony"] → false
 	// Results must be independent.
@@ -8003,7 +8183,9 @@ func TestHandleContainsAny_TwoIndependentExpressions_FirstTrueSecondFalse_DoNotI
 	assert.NotEmpty(t, reason2)
 }
 
-func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_DoNotInterfere(t *testing.T) {
+func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_DoNotInterfere(
+	t *testing.T,
+) {
 	// expr1: /peripherals → /type In ["gpu"]            → true
 	// expr2: /cpus        → /architecture In ["amd64"]  → true
 	// Different arrays on the same engine must not interfere.
@@ -8046,7 +8228,9 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_Do
 	assert.Empty(t, reason2)
 }
 
-func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_FirstTrueSecondFalse(t *testing.T) {
+func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_FirstTrueSecondFalse(
+	t *testing.T,
+) {
 	// expr1: /peripherals → /type In ["gpu"]              → true
 	// expr2: /cpus        → /architecture In ["riscv64"]  → false
 	d := containsAnyPeripheralDevice()
@@ -8117,7 +8301,9 @@ func TestHandleContainsAny_ViaEvaluate_SingleContainsAnyExpression_ReturnsTrue(t
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_BothTrue_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_BothTrue_ReturnsTrue(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed together:
 	// 1. /vendor In ["Acme Corp"]                              → true
 	// 2. /peripherals ContainsAny {/type In ["gpu"]}           → true
@@ -8150,7 +8336,9 @@ func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_BothTrue_Retur
 	assert.Empty(t, reason)
 }
 
-func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_ContainsAnyFails_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_ContainsAnyFails_ReturnsFalse(
+	t *testing.T,
+) {
 	// Selector with two expressions ANDed together:
 	// 1. /vendor In ["Acme Corp"]                                    → true
 	// 2. /peripherals ContainsAny {/type In ["microphone"]}          → false
@@ -8183,7 +8371,9 @@ func TestHandleContainsAny_ViaEvaluate_ContainsAnyAndInExpression_ContainsAnyFai
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_ViaEvaluate_TwoContainsAnyExpressions_BothTrue_ReturnsTrue(t *testing.T) {
+func TestHandleContainsAny_ViaEvaluate_TwoContainsAnyExpressions_BothTrue_ReturnsTrue(
+	t *testing.T,
+) {
 	// Selector with two ContainsAny expressions ANDed:
 	// 1. /peripherals ContainsAny {/type In ["gpu"]}           → true
 	// 2. /cpus        ContainsAny {/architecture In ["amd64"]} → true
@@ -8250,7 +8440,9 @@ func TestHandleContainsAny_OutOfBoundsIndexInKey_ReturnsFalse(t *testing.T) {
 	assert.NotEmpty(t, reason)
 }
 
-func TestHandleContainsAny_EmptyStringKey_ReturnsWholePropertiesNotArray_ReturnsFalse(t *testing.T) {
+func TestHandleContainsAny_EmptyStringKey_ReturnsWholePropertiesNotArray_ReturnsFalse(
+	t *testing.T,
+) {
 	// RFC 6901: empty string refers to the whole document (properties struct).
 	// The whole properties struct is not an array of objects →
 	// ContainsAny must return false.

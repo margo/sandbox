@@ -12,7 +12,9 @@ type labelSelectorEngine struct {
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 }
 
-func New(labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties) common.LabelSelectorEngineIface {
+func New(
+	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties,
+) common.LabelSelectorEngineIface {
 	return &labelSelectorEngine{
 		labels: labels,
 	}
@@ -59,7 +61,10 @@ func (ls *labelSelectorEngine) Evaluate(s *clModels.Selector) (bool, string) {
 				return false, reason
 			}
 		default:
-			return false, fmt.Sprintf("unknown or unsupported labelSelector operator - %s", me.Operator)
+			return false, fmt.Sprintf(
+				"unknown or unsupported labelSelector operator - %s",
+				me.Operator,
+			)
 		}
 	}
 
@@ -85,7 +90,11 @@ func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("label %s value %q not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"label %s value %q not found in match expression values",
+			me.Key,
+			val,
+		)
 	}
 
 	// float32 / number
@@ -102,7 +111,11 @@ func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 				}
 			}
 		}
-		return false, fmt.Sprintf("label %s value %v not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"label %s value %v not found in match expression values",
+			me.Key,
+			val,
+		)
 	}
 
 	// bool
@@ -112,13 +125,20 @@ func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("label %s value %v not found in match expression values", me.Key, val)
+		return false, fmt.Sprintf(
+			"label %s value %v not found in match expression values",
+			me.Key,
+			val,
+		)
 	}
 
 	// []string — every element of me.Values must appear in the label's array
 	if labelArr, err := v.AsDeviceCapabilitiesManifestLabels3(); err == nil {
 		if len(labelArr) == 0 {
-			return false, fmt.Sprintf("label %s value is empty array, nothing to match against", me.Key)
+			return false, fmt.Sprintf(
+				"label %s value is empty array, nothing to match against",
+				me.Key,
+			)
 		}
 		// Build set from label's array
 		labelSet := set.New()
@@ -129,7 +149,11 @@ func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 		for _, candidate := range mv {
 			if s, ok := candidate.(string); ok {
 				if !labelSet.Contains(s) {
-					return false, fmt.Sprintf("match expression value %q not found in label %s", s, me.Key)
+					return false, fmt.Sprintf(
+						"match expression value %q not found in label %s",
+						s,
+						me.Key,
+					)
 				}
 			}
 		}
@@ -155,7 +179,11 @@ func (ls *labelSelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, str
 				continue
 			}
 			if !labelSet.Contains(f) {
-				return false, fmt.Sprintf("match expression value %v not found in label %s", f, me.Key)
+				return false, fmt.Sprintf(
+					"match expression value %v not found in label %s",
+					f,
+					me.Key,
+				)
 			}
 		}
 		return true, ""
@@ -180,7 +208,11 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 	if val, err := v.AsDeviceCapabilitiesManifestLabels0(); err == nil {
 		for _, candidate := range mv {
 			if s, ok := candidate.(string); ok && s == val {
-				return false, fmt.Sprintf("label %s value %q is present in match expression values", me.Key, val)
+				return false, fmt.Sprintf(
+					"label %s value %q is present in match expression values",
+					me.Key,
+					val,
+				)
 			}
 		}
 		return true, ""
@@ -192,11 +224,19 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 			switch c := candidate.(type) {
 			case float64:
 				if float32(c) == val {
-					return false, fmt.Sprintf("label %s value %v is present in match expression values", me.Key, val)
+					return false, fmt.Sprintf(
+						"label %s value %v is present in match expression values",
+						me.Key,
+						val,
+					)
 				}
 			case float32:
 				if c == val {
-					return false, fmt.Sprintf("label %s value %v is present in match expression values", me.Key, val)
+					return false, fmt.Sprintf(
+						"label %s value %v is present in match expression values",
+						me.Key,
+						val,
+					)
 				}
 			}
 		}
@@ -207,7 +247,11 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 	if val, err := v.AsDeviceCapabilitiesManifestLabels2(); err == nil {
 		for _, candidate := range mv {
 			if b, ok := candidate.(bool); ok && b == val {
-				return false, fmt.Sprintf("label %s value %v is present in match expression values", me.Key, val)
+				return false, fmt.Sprintf(
+					"label %s value %v is present in match expression values",
+					me.Key,
+					val,
+				)
 			}
 		}
 		return true, ""
@@ -216,7 +260,10 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 	// []string — none of me.Values may appear in the label's array
 	if labelArr, err := v.AsDeviceCapabilitiesManifestLabels3(); err == nil {
 		if len(labelArr) == 0 {
-			return false, fmt.Sprintf("label %s value is empty array, nothing to match against", me.Key)
+			return false, fmt.Sprintf(
+				"label %s value is empty array, nothing to match against",
+				me.Key,
+			)
 		}
 		// Build set from label's array
 		labelSet := set.New()
@@ -227,7 +274,11 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 		for _, candidate := range mv {
 			if s, ok := candidate.(string); ok {
 				if labelSet.Contains(s) {
-					return false, fmt.Sprintf("match expression value %q is present in label %s", s, me.Key)
+					return false, fmt.Sprintf(
+						"match expression value %q is present in label %s",
+						s,
+						me.Key,
+					)
 				}
 			}
 		}
@@ -253,7 +304,11 @@ func (ls *labelSelectorEngine) HandleNotIn(me *clModels.MatchExpression) (bool, 
 				continue
 			}
 			if labelSet.Contains(f) {
-				return false, fmt.Sprintf("match expression value %v is present in label %s", f, me.Key)
+				return false, fmt.Sprintf(
+					"match expression value %v is present in label %s",
+					f,
+					me.Key,
+				)
 			}
 		}
 		return true, ""
@@ -289,7 +344,10 @@ func (ls *labelSelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, str
 		return false, "invalid match expression, values[0] must be an integer for Gt"
 	}
 	if threshold != float64(int64(threshold)) {
-		return false, fmt.Sprintf("invalid match expression, values[0] must be an integer for Gt, got %v", threshold)
+		return false, fmt.Sprintf(
+			"invalid match expression, values[0] must be an integer for Gt, got %v",
+			threshold,
+		)
 	}
 
 	v, ok := ls.labels[me.Key]
@@ -302,10 +360,18 @@ func (ls *labelSelectorEngine) HandleGt(me *clModels.MatchExpression) (bool, str
 		if float64(val) > threshold {
 			return true, ""
 		}
-		return false, fmt.Sprintf("label %s value %v is not greater than %v", me.Key, val, int64(threshold))
+		return false, fmt.Sprintf(
+			"label %s value %v is not greater than %v",
+			me.Key,
+			val,
+			int64(threshold),
+		)
 	}
 
-	return false, fmt.Sprintf("label %s has an unsupported value type for Gt, must be a number", me.Key)
+	return false, fmt.Sprintf(
+		"label %s has an unsupported value type for Gt, must be a number",
+		me.Key,
+	)
 }
 
 func (ls *labelSelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, string) {
@@ -321,7 +387,10 @@ func (ls *labelSelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, str
 		return false, "invalid match expression, values[0] must be an integer for Lt"
 	}
 	if threshold != float64(int64(threshold)) {
-		return false, fmt.Sprintf("invalid match expression, values[0] must be an integer for Lt, got %v", threshold)
+		return false, fmt.Sprintf(
+			"invalid match expression, values[0] must be an integer for Lt, got %v",
+			threshold,
+		)
 	}
 
 	v, ok := ls.labels[me.Key]
@@ -334,8 +403,16 @@ func (ls *labelSelectorEngine) HandleLt(me *clModels.MatchExpression) (bool, str
 		if float64(val) < threshold {
 			return true, ""
 		}
-		return false, fmt.Sprintf("label %s value %v is not less than %v", me.Key, val, int64(threshold))
+		return false, fmt.Sprintf(
+			"label %s value %v is not less than %v",
+			me.Key,
+			val,
+			int64(threshold),
+		)
 	}
 
-	return false, fmt.Sprintf("label %s has an unsupported value type for Lt, must be a number", me.Key)
+	return false, fmt.Sprintf(
+		"label %s has an unsupported value type for Lt, must be a number",
+		me.Key,
+	)
 }

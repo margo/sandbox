@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	"github.com/margo/sandbox/shared-lib/constraints/common"
+	"github.com/margo/sandbox/shared-lib/quantity"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // New creates a new CapacityEligibilityCheckerIface backed by
@@ -146,19 +146,20 @@ func (dc *deviceCapabilities) HasEnoughStorage(storage *string) (bool, error) {
 	return ok, nil
 }
 
-// satisfies parses both required and actual values as Kubernetes resource quantities
-// and returns true if actual >= required.
+// Satisfies parses required and actual quantity strings and returns true when
+// actual >= required.
+//
+// Returns an error if either string fails to parse.
 func satisfies(required, actual string) (bool, error) {
-	req, err := resource.ParseQuantity(required)
+	req, err := quantity.Parse(required)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to parse required quantity: %w", err)
 	}
 
-	act, err := resource.ParseQuantity(actual)
+	act, err := quantity.Parse(actual)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to parse actual quantity: %w", err)
 	}
 
-	// Cmp returns -1, 0, or 1; >= 0 means actual meets or exceeds required.
-	return act.Cmp(req) >= 0, nil
+	return act.AtLeast(req), nil
 }

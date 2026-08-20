@@ -1,25 +1,17 @@
-package deviceconstraints
+package capacity
 
 import (
 	"fmt"
 	"slices"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// DeviceCheckerIface defines the contract for checking whether a device
-// meets specific hardware capacity requirements.
-type DeviceCheckerIface interface {
-	HasEnoughCPUCores(arch *[]string, cores float32) bool
-	HasEnoughMemory(mem *string) (bool, error)
-	HasEnoughStorage(storage *string) (bool, error)
-	CheckEligibility(checks *clModels.CapacityRequirements) (bool, string, error)
-}
-
-// NewDeviceCapabilityChecker creates a new DeviceCheckerIface backed by
+// New creates a new CapacityEligibilityCheckerIface backed by
 // the provided DeviceCapabilitiesManifest.
-func NewDeviceCapabilityChecker(i clModels.DeviceCapabilitiesManifest) DeviceCheckerIface {
+func New(i clModels.DeviceCapabilitiesManifest) common.CapacityEligibilityCheckerIface {
 	dc := deviceCapabilities(i)
 	return &dc
 }

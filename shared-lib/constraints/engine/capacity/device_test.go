@@ -1,4 +1,4 @@
-package deviceconstraints
+package capacity
 
 import (
 	"testing"
@@ -123,7 +123,7 @@ func TestHasEnoughCPUCores(t *testing.T) {
 				deviceCPUs = nil
 			}
 			d := makeDevice(deviceCPUs, nil, nil)
-			checker := NewDeviceCapabilityChecker(d)
+			checker := New(d)
 			assert.Equal(t, tc.want, checker.HasEnoughCPUCores(tc.arch, tc.cores))
 		})
 	}
@@ -200,7 +200,7 @@ func TestHasEnoughMemory(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d := makeDevice(nil, tc.deviceMemory, nil)
-			checker := NewDeviceCapabilityChecker(d)
+			checker := New(d)
 			ok, err := checker.HasEnoughMemory(tc.required)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -283,7 +283,7 @@ func TestHasEnoughStorage(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d := makeDevice(nil, nil, tc.deviceStorage)
-			checker := NewDeviceCapabilityChecker(d)
+			checker := New(d)
 			ok, err := checker.HasEnoughStorage(tc.required)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -434,7 +434,7 @@ func TestCheckEligibility(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d := makeDevice(cpus, tc.memory, tc.storage)
-			checker := NewDeviceCapabilityChecker(d)
+			checker := New(d)
 			ok, reason, err := checker.CheckEligibility(tc.checks)
 
 			if tc.wantErr {

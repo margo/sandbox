@@ -1,10 +1,11 @@
-package deviceconstraints
+package label
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/margo/sandbox/shared-lib/constraints/common"
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
@@ -13,20 +14,20 @@ import (
 func newEngine(
 	t *testing.T,
 	labels map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties,
-) SelectorEngineIface {
+) common.LabelSelectorEngineIface {
 	t.Helper()
-	return NewLabelSelectorEngine(labels)
+	return New(labels)
 }
 
 // ── In ───────────────────────────────────────────────────────────────────────
 
 func TestEvaluate_In_String_Match(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production", "staging")},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production", "staging")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -36,11 +37,11 @@ func TestEvaluate_In_String_Match(t *testing.T) {
 
 func TestEvaluate_In_String_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("dev"),
+		"env": common.StrLabel("dev"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production", "staging")},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production", "staging")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -50,11 +51,11 @@ func TestEvaluate_In_String_NoMatch(t *testing.T) {
 
 func TestEvaluate_In_Number_Match(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "cores", Operator: clModels.In, Values: vals(float64(4), float64(8))},
+			{Key: "cores", Operator: clModels.In, Values: common.Vals(float64(4), float64(8))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -64,11 +65,11 @@ func TestEvaluate_In_Number_Match(t *testing.T) {
 
 func TestEvaluate_In_Bool_Match(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(true),
+		"gpu": common.BoolLabel(true),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "gpu", Operator: clModels.In, Values: vals(true)},
+			{Key: "gpu", Operator: clModels.In, Values: common.Vals(true)},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -80,7 +81,7 @@ func TestEvaluate_In_MissingKey(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production")},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -90,7 +91,7 @@ func TestEvaluate_In_MissingKey(t *testing.T) {
 
 func TestEvaluate_In_NilValues(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
@@ -106,11 +107,11 @@ func TestEvaluate_In_NilValues(t *testing.T) {
 
 func TestEvaluate_NotIn_String_NotPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("dev"),
+		"env": common.StrLabel("dev"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.NotIn, Values: vals("production", "staging")},
+			{Key: "env", Operator: clModels.NotIn, Values: common.Vals("production", "staging")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -120,11 +121,11 @@ func TestEvaluate_NotIn_String_NotPresent(t *testing.T) {
 
 func TestEvaluate_NotIn_String_Present(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.NotIn, Values: vals("production")},
+			{Key: "env", Operator: clModels.NotIn, Values: common.Vals("production")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -134,11 +135,11 @@ func TestEvaluate_NotIn_String_Present(t *testing.T) {
 
 func TestEvaluate_NotIn_Bool_Present(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "gpu", Operator: clModels.NotIn, Values: vals(false)},
+			{Key: "gpu", Operator: clModels.NotIn, Values: common.Vals(false)},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -148,11 +149,11 @@ func TestEvaluate_NotIn_Bool_Present(t *testing.T) {
 
 func TestEvaluate_NotIn_StringSlice_NonePresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"x", "y"}),
+		"tags": common.StrSliceLabel([]string{"x", "y"}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "tags", Operator: clModels.NotIn, Values: vals("a", "b")},
+			{Key: "tags", Operator: clModels.NotIn, Values: common.Vals("a", "b")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -162,11 +163,11 @@ func TestEvaluate_NotIn_StringSlice_NonePresent(t *testing.T) {
 
 func TestEvaluate_NotIn_StringSlice_OnePresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "y"}),
+		"tags": common.StrSliceLabel([]string{"a", "y"}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "tags", Operator: clModels.NotIn, Values: vals("a", "b")},
+			{Key: "tags", Operator: clModels.NotIn, Values: common.Vals("a", "b")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -178,7 +179,7 @@ func TestEvaluate_NotIn_StringSlice_OnePresent(t *testing.T) {
 
 func TestEvaluate_Exists_KeyPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"region": strLabel("us-east"),
+		"region": common.StrLabel("us-east"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
@@ -218,7 +219,7 @@ func TestEvaluate_DoesNotExist_KeyAbsent(t *testing.T) {
 
 func TestEvaluate_DoesNotExist_KeyPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"deprecated": boolLabel(true),
+		"deprecated": common.BoolLabel(true),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
@@ -234,11 +235,11 @@ func TestEvaluate_DoesNotExist_KeyPresent(t *testing.T) {
 
 func TestEvaluate_Gt_Above(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "memory", Operator: clModels.Gt, Values: vals(float64(8))},
+			{Key: "memory", Operator: clModels.Gt, Values: common.Vals(float64(8))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -248,11 +249,11 @@ func TestEvaluate_Gt_Above(t *testing.T) {
 
 func TestEvaluate_Gt_Equal(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(8),
+		"memory": common.NumLabel(8),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "memory", Operator: clModels.Gt, Values: vals(float64(8))},
+			{Key: "memory", Operator: clModels.Gt, Values: common.Vals(float64(8))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -262,11 +263,11 @@ func TestEvaluate_Gt_Equal(t *testing.T) {
 
 func TestEvaluate_Gt_Below(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(4),
+		"memory": common.NumLabel(4),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "memory", Operator: clModels.Gt, Values: vals(float64(8))},
+			{Key: "memory", Operator: clModels.Gt, Values: common.Vals(float64(8))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -276,11 +277,11 @@ func TestEvaluate_Gt_Below(t *testing.T) {
 
 func TestEvaluate_Gt_NonIntegerThreshold(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "memory", Operator: clModels.Gt, Values: vals(float64(8.5))},
+			{Key: "memory", Operator: clModels.Gt, Values: common.Vals(float64(8.5))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -290,7 +291,7 @@ func TestEvaluate_Gt_NonIntegerThreshold(t *testing.T) {
 
 func TestEvaluate_Gt_NilValues(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
@@ -304,11 +305,11 @@ func TestEvaluate_Gt_NilValues(t *testing.T) {
 
 func TestEvaluate_Gt_StringLabel_Unsupported(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.Gt, Values: vals(float64(1))},
+			{Key: "env", Operator: clModels.Gt, Values: common.Vals(float64(1))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -320,11 +321,11 @@ func TestEvaluate_Gt_StringLabel_Unsupported(t *testing.T) {
 
 func TestEvaluate_Lt_Below(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))},
+			{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -334,11 +335,11 @@ func TestEvaluate_Lt_Below(t *testing.T) {
 
 func TestEvaluate_Lt_Equal(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(10),
+		"latency": common.NumLabel(10),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))},
+			{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -348,11 +349,11 @@ func TestEvaluate_Lt_Equal(t *testing.T) {
 
 func TestEvaluate_Lt_Above(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(20),
+		"latency": common.NumLabel(20),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))},
+			{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -362,11 +363,11 @@ func TestEvaluate_Lt_Above(t *testing.T) {
 
 func TestEvaluate_Lt_NonIntegerThreshold(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "latency", Operator: clModels.Lt, Values: vals(float64(9.9))},
+			{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(9.9))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -378,11 +379,11 @@ func TestEvaluate_Lt_NonIntegerThreshold(t *testing.T) {
 
 func TestEvaluate_UnknownOperator(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: "Between", Values: vals("a", "z")},
+			{Key: "env", Operator: "Between", Values: common.Vals("a", "z")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -405,12 +406,12 @@ func TestEvaluate_EmptyMatchExpressions(t *testing.T) {
 
 func TestEvaluate_MultipleExpressions_AllPass(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":    strLabel("production"),
-		"region": strLabel("us-east"),
+		"env":    common.StrLabel("production"),
+		"region": common.StrLabel("us-east"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production")},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production")},
 			{Key: "region", Operator: clModels.Exists},
 		},
 	}
@@ -421,13 +422,13 @@ func TestEvaluate_MultipleExpressions_AllPass(t *testing.T) {
 
 func TestEvaluate_MultipleExpressions_OneFails(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":    strLabel("production"),
-		"region": strLabel("eu-west"),
+		"env":    common.StrLabel("production"),
+		"region": common.StrLabel("eu-west"),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production")},
-			{Key: "region", Operator: clModels.In, Values: vals("us-east")},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production")},
+			{Key: "region", Operator: clModels.In, Values: common.Vals("us-east")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -437,15 +438,15 @@ func TestEvaluate_MultipleExpressions_OneFails(t *testing.T) {
 
 func TestEvaluate_MultipleExpressions_MixedOperators(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":    strLabel("production"),
-		"cores":  numLabel(16),
-		"legacy": boolLabel(false),
+		"env":    common.StrLabel("production"),
+		"cores":  common.NumLabel(16),
+		"legacy": common.BoolLabel(false),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "env", Operator: clModels.In, Values: vals("production", "staging")},
-			{Key: "cores", Operator: clModels.Gt, Values: vals(float64(8))},
-			{Key: "legacy", Operator: clModels.NotIn, Values: vals(true)},
+			{Key: "env", Operator: clModels.In, Values: common.Vals("production", "staging")},
+			{Key: "cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
+			{Key: "legacy", Operator: clModels.NotIn, Values: common.Vals(true)},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -455,12 +456,12 @@ func TestEvaluate_MultipleExpressions_MixedOperators(t *testing.T) {
 
 func TestHandleIn_String_ExactMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.In,
-		Values:   vals("production", "staging"),
+		Values:   common.Vals("production", "staging"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -469,12 +470,12 @@ func TestHandleIn_String_ExactMatch(t *testing.T) {
 
 func TestHandleIn_String_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("dev"),
+		"env": common.StrLabel("dev"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.In,
-		Values:   vals("production", "staging"),
+		Values:   common.Vals("production", "staging"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -483,12 +484,12 @@ func TestHandleIn_String_NoMatch(t *testing.T) {
 
 func TestHandleIn_String_SingleValueMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tier": strLabel("gold"),
+		"tier": common.StrLabel("gold"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tier",
 		Operator: clModels.In,
-		Values:   vals("gold"),
+		Values:   common.Vals("gold"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -497,12 +498,12 @@ func TestHandleIn_String_SingleValueMatch(t *testing.T) {
 
 func TestHandleIn_String_CaseSensitive(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("Production"), // capital P
+		"env": common.StrLabel("Production"), // capital P
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.In,
-		Values:   vals("production"), // lowercase p
+		Values:   common.Vals("production"), // lowercase p
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -513,12 +514,12 @@ func TestHandleIn_String_CaseSensitive(t *testing.T) {
 
 func TestHandleIn_Number_MatchViaFloat64(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.In,
-		Values:   vals(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -527,12 +528,12 @@ func TestHandleIn_Number_MatchViaFloat64(t *testing.T) {
 
 func TestHandleIn_Number_MatchViaFloat32(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.In,
-		Values:   vals(float32(4)),
+		Values:   common.Vals(float32(4)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -541,12 +542,12 @@ func TestHandleIn_Number_MatchViaFloat32(t *testing.T) {
 
 func TestHandleIn_Number_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(2),
+		"cores": common.NumLabel(2),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.In,
-		Values:   vals(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -555,12 +556,12 @@ func TestHandleIn_Number_NoMatch(t *testing.T) {
 
 func TestHandleIn_Number_ZeroValue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(0),
+		"cores": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.In,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -571,12 +572,12 @@ func TestHandleIn_Number_ZeroValue(t *testing.T) {
 
 func TestHandleIn_Bool_TrueMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(true),
+		"gpu": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.In,
-		Values:   vals(true, false),
+		Values:   common.Vals(true, false),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -585,12 +586,12 @@ func TestHandleIn_Bool_TrueMatch(t *testing.T) {
 
 func TestHandleIn_Bool_FalseMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.In,
-		Values:   vals(false),
+		Values:   common.Vals(false),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -599,12 +600,12 @@ func TestHandleIn_Bool_FalseMatch(t *testing.T) {
 
 func TestHandleIn_Bool_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.In,
-		Values:   vals(true),
+		Values:   common.Vals(true),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -613,12 +614,12 @@ func TestHandleIn_Bool_NoMatch(t *testing.T) {
 
 func TestHandleIn_StringSlice_ExactSetMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"x", "y"}),
+		"tags": common.StrSliceLabel([]string{"x", "y"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.In,
-		Values:   vals("x", "y"),
+		Values:   common.Vals("x", "y"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -627,12 +628,12 @@ func TestHandleIn_StringSlice_ExactSetMatch(t *testing.T) {
 
 func TestHandleIn_StringSlice_EmptyLabelSlice(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{}),
+		"tags": common.StrSliceLabel([]string{}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.In,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 
 	ok, reason := newEngine(t, labels).HandleIn(me)
@@ -642,12 +643,12 @@ func TestHandleIn_StringSlice_EmptyLabelSlice(t *testing.T) {
 
 func TestHandleIn_NumSlice_PartialMatch_Fails(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 9.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 9.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.In,
-		Values:   vals(float64(1.0), float64(2.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -656,12 +657,12 @@ func TestHandleIn_NumSlice_PartialMatch_Fails(t *testing.T) {
 
 func TestHandleIn_NumSlice_MatchViaFloat32Candidate(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{3.0}),
+		"speeds": common.NumSliceLabel([]float32{3.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.In,
-		Values:   vals(float32(3.0)),
+		Values:   common.Vals(float32(3.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -672,7 +673,7 @@ func TestHandleIn_NumSlice_MatchViaFloat32Candidate(t *testing.T) {
 
 func TestHandleIn_NilValues_ReturnsError(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
@@ -689,7 +690,7 @@ func TestHandleIn_MissingKey_ReturnsError(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "missing",
 		Operator: clModels.In,
-		Values:   vals("x"),
+		Values:   common.Vals("x"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -698,12 +699,12 @@ func TestHandleIn_MissingKey_ReturnsError(t *testing.T) {
 
 func TestHandleIn_EmptyValues_StringLabel_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.In,
-		Values:   vals(), // empty but non-nil
+		Values:   common.Vals(), // empty but non-nil
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -712,13 +713,13 @@ func TestHandleIn_EmptyValues_StringLabel_NoMatch(t *testing.T) {
 
 func TestHandleIn_WrongCandidateType_StringLabel_NoMatch(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	// candidate is an int, not a string — type assertion inside HandleIn will skip it
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.In,
-		Values:   vals(42),
+		Values:   common.Vals(42),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -729,12 +730,12 @@ func TestHandleIn_WrongCandidateType_StringLabel_NoMatch(t *testing.T) {
 
 func TestHandleNotIn_String_NotPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("dev"),
+		"env": common.StrLabel("dev"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.NotIn,
-		Values:   vals("production", "staging"),
+		Values:   common.Vals("production", "staging"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -743,12 +744,12 @@ func TestHandleNotIn_String_NotPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_String_Present_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.NotIn,
-		Values:   vals("production", "staging"),
+		Values:   common.Vals("production", "staging"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -757,12 +758,12 @@ func TestHandleNotIn_String_Present_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_String_SingleValue_NotPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tier": strLabel("silver"),
+		"tier": common.StrLabel("silver"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tier",
 		Operator: clModels.NotIn,
-		Values:   vals("gold"),
+		Values:   common.Vals("gold"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -771,12 +772,12 @@ func TestHandleNotIn_String_SingleValue_NotPresent(t *testing.T) {
 
 func TestHandleNotIn_String_SingleValue_Present(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tier": strLabel("gold"),
+		"tier": common.StrLabel("gold"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tier",
 		Operator: clModels.NotIn,
-		Values:   vals("gold"),
+		Values:   common.Vals("gold"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -786,12 +787,12 @@ func TestHandleNotIn_String_SingleValue_Present(t *testing.T) {
 func TestHandleNotIn_String_CaseSensitive_DifferentCase_ReturnsTrue(t *testing.T) {
 	// "Production" != "production" — should NOT match, so NotIn passes
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("Production"),
+		"env": common.StrLabel("Production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.NotIn,
-		Values:   vals("production"),
+		Values:   common.Vals("production"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -801,12 +802,12 @@ func TestHandleNotIn_String_CaseSensitive_DifferentCase_ReturnsTrue(t *testing.T
 func TestHandleNotIn_String_EmptyValues_ReturnsTrue(t *testing.T) {
 	// non-nil but empty values slice — nothing to match against, so NotIn passes
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.NotIn,
-		Values:   vals(),
+		Values:   common.Vals(),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -817,12 +818,12 @@ func TestHandleNotIn_String_EmptyValues_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_Number_NotPresent_ViaFloat64_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(2),
+		"cores": common.NumLabel(2),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -831,12 +832,12 @@ func TestHandleNotIn_Number_NotPresent_ViaFloat64_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_Number_Present_ViaFloat64_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(4), float64(8)),
+		Values:   common.Vals(float64(4), float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -845,12 +846,12 @@ func TestHandleNotIn_Number_Present_ViaFloat64_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_Number_Present_ViaFloat32_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.NotIn,
-		Values:   vals(float32(4)),
+		Values:   common.Vals(float32(4)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -859,12 +860,12 @@ func TestHandleNotIn_Number_Present_ViaFloat32_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_Number_ZeroValue_Present_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(0),
+		"cores": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -873,12 +874,12 @@ func TestHandleNotIn_Number_ZeroValue_Present_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_Number_ZeroValue_NotPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(0),
+		"cores": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(1), float64(2)),
+		Values:   common.Vals(float64(1), float64(2)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -889,12 +890,12 @@ func TestHandleNotIn_Number_ZeroValue_NotPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_Bool_False_NotInValues_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.NotIn,
-		Values:   vals(true),
+		Values:   common.Vals(true),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -903,12 +904,12 @@ func TestHandleNotIn_Bool_False_NotInValues_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_Bool_True_Present_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(true),
+		"gpu": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.NotIn,
-		Values:   vals(true),
+		Values:   common.Vals(true),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -917,12 +918,12 @@ func TestHandleNotIn_Bool_True_Present_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_Bool_False_Present_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.NotIn,
-		Values:   vals(false),
+		Values:   common.Vals(false),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -931,12 +932,12 @@ func TestHandleNotIn_Bool_False_Present_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_Bool_BothValues_Present_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(true),
+		"gpu": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.NotIn,
-		Values:   vals(true, false),
+		Values:   common.Vals(true, false),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -947,12 +948,12 @@ func TestHandleNotIn_Bool_BothValues_Present_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_StringSlice_NonePresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"x", "y"}),
+		"tags": common.StrSliceLabel([]string{"x", "y"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.NotIn,
-		Values:   vals("a", "b", "c"),
+		Values:   common.Vals("a", "b", "c"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -961,12 +962,12 @@ func TestHandleNotIn_StringSlice_NonePresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_StringSlice_OnePresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "z"}),
+		"tags": common.StrSliceLabel([]string{"a", "z"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.NotIn,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -975,12 +976,12 @@ func TestHandleNotIn_StringSlice_OnePresent_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_StringSlice_AllPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.NotIn,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -990,12 +991,12 @@ func TestHandleNotIn_StringSlice_AllPresent_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_StringSlice_EmptyLabelSlice_ReturnsFalse(t *testing.T) {
 	// updated code: empty label slice is an explicit error
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{}),
+		"tags": common.StrSliceLabel([]string{}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.NotIn,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -1005,12 +1006,12 @@ func TestHandleNotIn_StringSlice_EmptyLabelSlice_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_StringSlice_EmptyValuesSlice_NoneCanMatch_ReturnsTrue(t *testing.T) {
 	// non-nil but empty values — candidateSet is empty, no label value can be found in it
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.NotIn,
-		Values:   vals(),
+		Values:   common.Vals(),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -1021,12 +1022,12 @@ func TestHandleNotIn_StringSlice_EmptyValuesSlice_NoneCanMatch_ReturnsTrue(t *te
 
 func TestHandleNotIn_NumSlice_NonePresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{5.0, 6.0}),
+		"speeds": common.NumSliceLabel([]float32{5.0, 6.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(1.0), float64(2.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -1035,12 +1036,12 @@ func TestHandleNotIn_NumSlice_NonePresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_NumSlice_OnePresent_ViaFloat64_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 9.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 9.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(1.0), float64(2.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -1049,12 +1050,12 @@ func TestHandleNotIn_NumSlice_OnePresent_ViaFloat64_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_NumSlice_OnePresent_ViaFloat32_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{3.0}),
+		"speeds": common.NumSliceLabel([]float32{3.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.NotIn,
-		Values:   vals(float32(3.0)),
+		Values:   common.Vals(float32(3.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -1063,12 +1064,12 @@ func TestHandleNotIn_NumSlice_OnePresent_ViaFloat32_ReturnsFalse(t *testing.T) {
 
 func TestHandleNotIn_NumSlice_AllPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.NotIn,
-		Values:   vals(float64(1.0), float64(2.0), float64(3.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0), float64(3.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -1078,12 +1079,12 @@ func TestHandleNotIn_NumSlice_AllPresent_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_NumSlice_EmptyValuesSlice_ReturnsTrue(t *testing.T) {
 	// empty candidateSet — no label value can be found in it
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.NotIn,
-		Values:   vals(),
+		Values:   common.Vals(),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -1094,7 +1095,7 @@ func TestHandleNotIn_NumSlice_EmptyValuesSlice_ReturnsTrue(t *testing.T) {
 
 func TestHandleNotIn_NilValues_ReturnsError(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
@@ -1111,7 +1112,7 @@ func TestHandleNotIn_MissingKey_ReturnsError(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "missing",
 		Operator: clModels.NotIn,
-		Values:   vals("x"),
+		Values:   common.Vals("x"),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.False(t, ok)
@@ -1121,12 +1122,12 @@ func TestHandleNotIn_MissingKey_ReturnsError(t *testing.T) {
 func TestHandleNotIn_WrongCandidateType_StringLabel_ReturnsTrue(t *testing.T) {
 	// candidate is int — type assertion skips it, so label value never found → NotIn passes
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.NotIn,
-		Values:   vals(42),
+		Values:   common.Vals(42),
 	}
 	ok, reason := newEngine(t, labels).HandleNotIn(me)
 	assert.True(t, ok)
@@ -1139,7 +1140,7 @@ func TestHandleNotIn_WrongCandidateType_StringLabel_ReturnsTrue(t *testing.T) {
 
 func TestHandleExists_StringLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
@@ -1152,7 +1153,7 @@ func TestHandleExists_StringLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleExists_NumberLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(8),
+		"cores": common.NumLabel(8),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
@@ -1165,7 +1166,7 @@ func TestHandleExists_NumberLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleExists_BoolLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
@@ -1178,7 +1179,7 @@ func TestHandleExists_BoolLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleExists_StringSliceLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
@@ -1191,7 +1192,7 @@ func TestHandleExists_StringSliceLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 
 func TestHandleExists_NumSliceLabel_KeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
@@ -1227,7 +1228,7 @@ func TestHandleExists_EmptyLabelsMap_ReturnsFalse(t *testing.T) {
 func TestHandleExists_SimilarKeyName_DoesNotMatch(t *testing.T) {
 	// "env" is present but "ENV" is not — key lookup is exact/case-sensitive
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "ENV",
@@ -1240,9 +1241,9 @@ func TestHandleExists_SimilarKeyName_DoesNotMatch(t *testing.T) {
 
 func TestHandleExists_MultipleLabels_TargetKeyPresent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":    strLabel("production"),
-		"region": strLabel("us-east"),
-		"cores":  numLabel(4),
+		"env":    common.StrLabel("production"),
+		"region": common.StrLabel("us-east"),
+		"cores":  common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "region",
@@ -1255,8 +1256,8 @@ func TestHandleExists_MultipleLabels_TargetKeyPresent_ReturnsTrue(t *testing.T) 
 
 func TestHandleExists_MultipleLabels_TargetKeyAbsent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":   strLabel("production"),
-		"cores": numLabel(4),
+		"env":   common.StrLabel("production"),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "region",
@@ -1296,7 +1297,7 @@ func TestHandleDoesNotExists_KeyAbsent_ReturnsTrue(t *testing.T) {
 
 func TestHandleDoesNotExists_StringLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"deprecated": strLabel("true"),
+		"deprecated": common.StrLabel("true"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "deprecated",
@@ -1309,7 +1310,7 @@ func TestHandleDoesNotExists_StringLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 
 func TestHandleDoesNotExists_NumberLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(4),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
@@ -1322,7 +1323,7 @@ func TestHandleDoesNotExists_NumberLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 
 func TestHandleDoesNotExists_BoolLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(false),
+		"gpu": common.BoolLabel(false),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
@@ -1335,7 +1336,7 @@ func TestHandleDoesNotExists_BoolLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 
 func TestHandleDoesNotExists_StringSliceLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
@@ -1348,7 +1349,7 @@ func TestHandleDoesNotExists_StringSliceLabel_KeyPresent_ReturnsFalse(t *testing
 
 func TestHandleDoesNotExists_NumSliceLabel_KeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
@@ -1373,7 +1374,7 @@ func TestHandleDoesNotExists_EmptyLabelsMap_ReturnsTrue(t *testing.T) {
 func TestHandleDoesNotExists_SimilarKeyName_AbsentKey_ReturnsTrue(t *testing.T) {
 	// "env" exists but "ENV" does not — key lookup is exact/case-sensitive
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "ENV",
@@ -1386,8 +1387,8 @@ func TestHandleDoesNotExists_SimilarKeyName_AbsentKey_ReturnsTrue(t *testing.T) 
 
 func TestHandleDoesNotExists_MultipleLabels_TargetKeyAbsent_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":   strLabel("production"),
-		"cores": numLabel(4),
+		"env":   common.StrLabel("production"),
+		"cores": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "deprecated",
@@ -1400,8 +1401,8 @@ func TestHandleDoesNotExists_MultipleLabels_TargetKeyAbsent_ReturnsTrue(t *testi
 
 func TestHandleDoesNotExists_MultipleLabels_TargetKeyPresent_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env":        strLabel("production"),
-		"deprecated": boolLabel(true),
+		"env":        common.StrLabel("production"),
+		"deprecated": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "deprecated",
@@ -1415,7 +1416,7 @@ func TestHandleDoesNotExists_MultipleLabels_TargetKeyPresent_ReturnsFalse(t *tes
 func TestHandleDoesNotExists_ReasonContainsKeyName(t *testing.T) {
 	// Verify the error message explicitly names the present key
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"vendor.acme/tier": strLabel("gold"),
+		"vendor.acme/tier": common.StrLabel("gold"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "vendor.acme/tier",
@@ -1430,7 +1431,7 @@ func TestHandleDoesNotExists_ReasonContainsKeyName(t *testing.T) {
 
 func TestHandleExists_And_HandleDoesNotExists_AreInverse_KeyPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{Key: "env"}
 	engine := newEngine(t, labels)
@@ -1462,7 +1463,7 @@ func TestHandleExists_And_HandleDoesNotExists_AreInverse_KeyAbsent(t *testing.T)
 
 func TestHandleGt_NilValues_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
@@ -1476,12 +1477,12 @@ func TestHandleGt_NilValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_EmptyValues_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(),
+		Values:   common.Vals(),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1490,12 +1491,12 @@ func TestHandleGt_EmptyValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_ThresholdIsFloat_NotInteger_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(float64(8.5)),
+		Values:   common.Vals(float64(8.5)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1504,12 +1505,12 @@ func TestHandleGt_ThresholdIsFloat_NotInteger_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_ThresholdIsString_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals("8"),
+		Values:   common.Vals("8"),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1518,12 +1519,12 @@ func TestHandleGt_ThresholdIsString_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_ThresholdIsBool_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(true),
+		Values:   common.Vals(true),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1532,12 +1533,12 @@ func TestHandleGt_ThresholdIsBool_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_ThresholdIsNil_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(nil),
+		Values:   common.Vals(nil),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1553,7 +1554,7 @@ func TestHandleGt_MissingKey_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1565,7 +1566,7 @@ func TestHandleGt_EmptyLabelsMap_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.Gt,
-		Values:   vals(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1578,12 +1579,12 @@ func TestHandleGt_EmptyLabelsMap_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_Number_LabelAboveThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(16),
+		"memory": common.NumLabel(16),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.True(t, ok)
@@ -1592,12 +1593,12 @@ func TestHandleGt_Number_LabelAboveThreshold_ReturnsTrue(t *testing.T) {
 
 func TestHandleGt_Number_LabelEqualToThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(8),
+		"memory": common.NumLabel(8),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1606,12 +1607,12 @@ func TestHandleGt_Number_LabelEqualToThreshold_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_Number_LabelBelowThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"memory": numLabel(4),
+		"memory": common.NumLabel(4),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "memory",
 		Operator: clModels.Gt,
-		Values:   vals(float64(8)),
+		Values:   common.Vals(float64(8)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1620,12 +1621,12 @@ func TestHandleGt_Number_LabelBelowThreshold_ReturnsFalse(t *testing.T) {
 
 func TestHandleGt_Number_ZeroLabelAboveNegativeThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"offset": numLabel(0),
+		"offset": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "offset",
 		Operator: clModels.Gt,
-		Values:   vals(float64(-1)),
+		Values:   common.Vals(float64(-1)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.True(t, ok)
@@ -1634,12 +1635,12 @@ func TestHandleGt_Number_ZeroLabelAboveNegativeThreshold_ReturnsTrue(t *testing.
 
 func TestHandleGt_Number_ZeroLabelEqualToZeroThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"offset": numLabel(0),
+		"offset": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "offset",
 		Operator: clModels.Gt,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1648,12 +1649,12 @@ func TestHandleGt_Number_ZeroLabelEqualToZeroThreshold_ReturnsFalse(t *testing.T
 
 func TestHandleGt_Number_LargeValue_AboveThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"storage": numLabel(1024),
+		"storage": common.NumLabel(1024),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "storage",
 		Operator: clModels.Gt,
-		Values:   vals(float64(512)),
+		Values:   common.Vals(float64(512)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.True(t, ok)
@@ -1663,12 +1664,12 @@ func TestHandleGt_Number_LargeValue_AboveThreshold_ReturnsTrue(t *testing.T) {
 func TestHandleGt_Number_ReasonContainsKeyAndValues(t *testing.T) {
 	// Verify the failure message names both the key and the threshold
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(2),
+		"cores": common.NumLabel(2),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.Gt,
-		Values:   vals(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1682,12 +1683,12 @@ func TestHandleGt_Number_ReasonContainsKeyAndValues(t *testing.T) {
 
 func TestHandleGt_StringLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.Gt,
-		Values:   vals(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1697,12 +1698,12 @@ func TestHandleGt_StringLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleGt_BoolLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"gpu": boolLabel(true),
+		"gpu": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "gpu",
 		Operator: clModels.Gt,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1712,12 +1713,12 @@ func TestHandleGt_BoolLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleGt_StringSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.Gt,
-		Values:   vals(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1727,12 +1728,12 @@ func TestHandleGt_StringSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleGt_NumSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.Gt,
-		Values:   vals(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1747,12 +1748,12 @@ func TestHandleGt_NumSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 func TestHandleGt_OnlyFirstValueUsedAsThreshold_SecondIgnored(t *testing.T) {
 	// label=10, Values[0]=5 (passes), Values[1]=20 (would fail if used — but it's ignored)
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(10),
+		"cores": common.NumLabel(10),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.Gt,
-		Values:   vals(float64(5), float64(20)),
+		Values:   common.Vals(float64(5), float64(20)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.True(t, ok)
@@ -1762,12 +1763,12 @@ func TestHandleGt_OnlyFirstValueUsedAsThreshold_SecondIgnored(t *testing.T) {
 func TestHandleGt_OnlyFirstValueUsedAsThreshold_FirstFails(t *testing.T) {
 	// label=3, Values[0]=5 (fails), Values[1]=1 (would pass if used — but it's ignored)
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"cores": numLabel(3),
+		"cores": common.NumLabel(3),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.Gt,
-		Values:   vals(float64(5), float64(1)),
+		Values:   common.Vals(float64(5), float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleGt(me)
 	assert.False(t, ok)
@@ -1780,7 +1781,7 @@ func TestHandleGt_OnlyFirstValueUsedAsThreshold_FirstFails(t *testing.T) {
 
 func TestHandleLt_NilValues_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
@@ -1794,12 +1795,12 @@ func TestHandleLt_NilValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_EmptyValues_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(),
+		Values:   common.Vals(),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1808,12 +1809,12 @@ func TestHandleLt_EmptyValues_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_ThresholdIsFloat_NotInteger_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(9.9)),
+		Values:   common.Vals(float64(9.9)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1822,12 +1823,12 @@ func TestHandleLt_ThresholdIsFloat_NotInteger_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_ThresholdIsString_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals("10"),
+		Values:   common.Vals("10"),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1836,12 +1837,12 @@ func TestHandleLt_ThresholdIsString_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_ThresholdIsBool_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(false),
+		Values:   common.Vals(false),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1850,12 +1851,12 @@ func TestHandleLt_ThresholdIsBool_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_ThresholdIsNil_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(nil),
+		Values:   common.Vals(nil),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1864,12 +1865,12 @@ func TestHandleLt_ThresholdIsNil_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_ThresholdIsSlice_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals([]float64{10.0}),
+		Values:   common.Vals([]float64{10.0}),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1885,7 +1886,7 @@ func TestHandleLt_MissingKey_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1897,7 +1898,7 @@ func TestHandleLt_EmptyLabelsMap_ReturnsFalse(t *testing.T) {
 	me := &clModels.MatchExpression{
 		Key:      "cores",
 		Operator: clModels.Lt,
-		Values:   vals(float64(4)),
+		Values:   common.Vals(float64(4)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1910,12 +1911,12 @@ func TestHandleLt_EmptyLabelsMap_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_Number_LabelBelowThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(5),
+		"latency": common.NumLabel(5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.True(t, ok)
@@ -1924,12 +1925,12 @@ func TestHandleLt_Number_LabelBelowThreshold_ReturnsTrue(t *testing.T) {
 
 func TestHandleLt_Number_LabelEqualToThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(10),
+		"latency": common.NumLabel(10),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1938,12 +1939,12 @@ func TestHandleLt_Number_LabelEqualToThreshold_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_Number_LabelAboveThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(20),
+		"latency": common.NumLabel(20),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1952,12 +1953,12 @@ func TestHandleLt_Number_LabelAboveThreshold_ReturnsFalse(t *testing.T) {
 
 func TestHandleLt_Number_ZeroLabelBelowPositiveThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"offset": numLabel(0),
+		"offset": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "offset",
 		Operator: clModels.Lt,
-		Values:   vals(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.True(t, ok)
@@ -1966,12 +1967,12 @@ func TestHandleLt_Number_ZeroLabelBelowPositiveThreshold_ReturnsTrue(t *testing.
 
 func TestHandleLt_Number_ZeroLabelEqualToZeroThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"offset": numLabel(0),
+		"offset": common.NumLabel(0),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "offset",
 		Operator: clModels.Lt,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -1980,12 +1981,12 @@ func TestHandleLt_Number_ZeroLabelEqualToZeroThreshold_ReturnsFalse(t *testing.T
 
 func TestHandleLt_Number_NegativeLabelBelowZeroThreshold_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"temperature": numLabel(-5),
+		"temperature": common.NumLabel(-5),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "temperature",
 		Operator: clModels.Lt,
-		Values:   vals(float64(0)),
+		Values:   common.Vals(float64(0)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.True(t, ok)
@@ -1994,12 +1995,12 @@ func TestHandleLt_Number_NegativeLabelBelowZeroThreshold_ReturnsTrue(t *testing.
 
 func TestHandleLt_Number_NegativeLabelAboveNegativeThreshold_ReturnsFalse(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"temperature": numLabel(-1),
+		"temperature": common.NumLabel(-1),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "temperature",
 		Operator: clModels.Lt,
-		Values:   vals(float64(-5)),
+		Values:   common.Vals(float64(-5)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2008,12 +2009,12 @@ func TestHandleLt_Number_NegativeLabelAboveNegativeThreshold_ReturnsFalse(t *tes
 
 func TestHandleLt_Number_LargeThreshold_LabelWellBelow_ReturnsTrue(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"storage": numLabel(128),
+		"storage": common.NumLabel(128),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "storage",
 		Operator: clModels.Lt,
-		Values:   vals(float64(1024)),
+		Values:   common.Vals(float64(1024)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.True(t, ok)
@@ -2023,12 +2024,12 @@ func TestHandleLt_Number_LargeThreshold_LabelWellBelow_ReturnsTrue(t *testing.T)
 func TestHandleLt_Number_ReasonContainsKeyAndThreshold(t *testing.T) {
 	// Verify the failure message names both the key and the threshold
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(20),
+		"latency": common.NumLabel(20),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2042,12 +2043,12 @@ func TestHandleLt_Number_ReasonContainsKeyAndThreshold(t *testing.T) {
 
 func TestHandleLt_StringLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"env": strLabel("production"),
+		"env": common.StrLabel("production"),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "env",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10)),
+		Values:   common.Vals(float64(10)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2057,12 +2058,12 @@ func TestHandleLt_StringLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleLt_BoolLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"active": boolLabel(true),
+		"active": common.BoolLabel(true),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "active",
 		Operator: clModels.Lt,
-		Values:   vals(float64(1)),
+		Values:   common.Vals(float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2072,12 +2073,12 @@ func TestHandleLt_BoolLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleLt_StringSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.Lt,
-		Values:   vals(float64(5)),
+		Values:   common.Vals(float64(5)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2087,12 +2088,12 @@ func TestHandleLt_StringSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 
 func TestHandleLt_NumSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.Lt,
-		Values:   vals(float64(5)),
+		Values:   common.Vals(float64(5)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2107,12 +2108,12 @@ func TestHandleLt_NumSliceLabel_ReturnsFalse_UnsupportedType(t *testing.T) {
 func TestHandleLt_OnlyFirstValueUsedAsThreshold_SecondIgnored_Passes(t *testing.T) {
 	// label=3, Values[0]=10 (passes), Values[1]=1 (would fail if used — but it's ignored)
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(3),
+		"latency": common.NumLabel(3),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10), float64(1)),
+		Values:   common.Vals(float64(10), float64(1)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.True(t, ok)
@@ -2122,12 +2123,12 @@ func TestHandleLt_OnlyFirstValueUsedAsThreshold_SecondIgnored_Passes(t *testing.
 func TestHandleLt_OnlyFirstValueUsedAsThreshold_SecondIgnored_Fails(t *testing.T) {
 	// label=15, Values[0]=10 (fails), Values[1]=20 (would pass if used — but it's ignored)
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(15),
+		"latency": common.NumLabel(15),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "latency",
 		Operator: clModels.Lt,
-		Values:   vals(float64(10), float64(20)),
+		Values:   common.Vals(float64(10), float64(20)),
 	}
 	ok, reason := newEngine(t, labels).HandleLt(me)
 	assert.False(t, ok)
@@ -2141,11 +2142,11 @@ func TestHandleLt_OnlyFirstValueUsedAsThreshold_SecondIgnored_Fails(t *testing.T
 func TestHandleLt_And_HandleGt_AreInverse_LabelBelowThreshold(t *testing.T) {
 	// label=3, threshold=10 → Lt passes, Gt fails
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(3),
+		"latency": common.NumLabel(3),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: vals(float64(10))}
+	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
+	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
 
 	ltOk, _ := engine.HandleLt(meLt)
 	gtOk, _ := engine.HandleGt(meGt)
@@ -2157,11 +2158,11 @@ func TestHandleLt_And_HandleGt_AreInverse_LabelBelowThreshold(t *testing.T) {
 func TestHandleLt_And_HandleGt_AreInverse_LabelAboveThreshold(t *testing.T) {
 	// label=20, threshold=10 → Lt fails, Gt passes
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(20),
+		"latency": common.NumLabel(20),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: vals(float64(10))}
+	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
+	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
 
 	ltOk, _ := engine.HandleLt(meLt)
 	gtOk, _ := engine.HandleGt(meGt)
@@ -2173,11 +2174,11 @@ func TestHandleLt_And_HandleGt_AreInverse_LabelAboveThreshold(t *testing.T) {
 func TestHandleLt_And_HandleGt_BothFalse_WhenLabelEqualsThreshold(t *testing.T) {
 	// label=10, threshold=10 → neither Lt nor Gt passes (strict inequalities)
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"latency": numLabel(10),
+		"latency": common.NumLabel(10),
 	}
 	engine := newEngine(t, labels)
-	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: vals(float64(10))}
-	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: vals(float64(10))}
+	meLt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Lt, Values: common.Vals(float64(10))}
+	meGt := &clModels.MatchExpression{Key: "latency", Operator: clModels.Gt, Values: common.Vals(float64(10))}
 
 	ltOk, ltReason := engine.HandleLt(meLt)
 	gtOk, gtReason := engine.HandleGt(meGt)
@@ -2209,16 +2210,16 @@ func TestHandleLt_And_HandleGt_BothFalse_WhenLabelEqualsThreshold(t *testing.T) 
 
 func buildStarkDeviceLabels() map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	return map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"starkindustries.org/env":            strLabel("production"),
-		"starkindustries.org/region":         strLabel("us-east-1"),
-		"starkindustries.org/gpu":            boolLabel(true),
-		"starkindustries.org/cpu-cores":      numLabel(16),
-		"starkindustries.org/memory-gb":      numLabel(64),
-		"starkindustries.org/latency-ms":     numLabel(4),
-		"starkindustries.org/supported-arch": strSliceLabel([]string{"arm64", "amd64"}),
-		"starkindustries.org/runtimes":       strSliceLabel([]string{"oci", "wasm"}),
-		"starkindustries.org/gpu-memory-gb":  numLabel(24),
-		"starkindustries.org/storage-tb":     numLabel(2),
+		"starkindustries.org/env":            common.StrLabel("production"),
+		"starkindustries.org/region":         common.StrLabel("us-east-1"),
+		"starkindustries.org/gpu":            common.BoolLabel(true),
+		"starkindustries.org/cpu-cores":      common.NumLabel(16),
+		"starkindustries.org/memory-gb":      common.NumLabel(64),
+		"starkindustries.org/latency-ms":     common.NumLabel(4),
+		"starkindustries.org/supported-arch": common.StrSliceLabel([]string{"arm64", "amd64"}),
+		"starkindustries.org/runtimes":       common.StrSliceLabel([]string{"oci", "wasm"}),
+		"starkindustries.org/gpu-memory-gb":  common.NumLabel(24),
+		"starkindustries.org/storage-tb":     common.NumLabel(2),
 	}
 }
 
@@ -2243,14 +2244,14 @@ func TestEvaluate_Stark_AIInferenceWorkload_AllConstraintsSatisfied_ReturnsTrue(
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production", "staging")},
-			{Key: "starkindustries.org/region", Operator: clModels.In, Values: vals("us-east-1", "us-west-2")},
-			{Key: "starkindustries.org/gpu", Operator: clModels.In, Values: vals(true)},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: vals(float64(32))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: vals(float64(10))},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: vals("oci", "wasm")},
-			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: vals("arm64", "amd64")},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production", "staging")},
+			{Key: "starkindustries.org/region", Operator: clModels.In, Values: common.Vals("us-east-1", "us-west-2")},
+			{Key: "starkindustries.org/gpu", Operator: clModels.In, Values: common.Vals(true)},
+			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
+			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(32))},
+			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
+			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
+			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: common.Vals("arm64", "amd64")},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2279,12 +2280,12 @@ func TestEvaluate_Stark_ComplianceWorkload_DataResidencyAndGpuMemory_ReturnsTrue
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.NotIn, Values: vals("dev", "staging")},
-			{Key: "starkindustries.org/region", Operator: clModels.NotIn, Values: vals("eu-west-1", "eu-central-1")},
+			{Key: "starkindustries.org/env", Operator: clModels.NotIn, Values: common.Vals("dev", "staging")},
+			{Key: "starkindustries.org/region", Operator: clModels.NotIn, Values: common.Vals("eu-west-1", "eu-central-1")},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: vals(float64(16))},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: vals(float64(8))},
-			{Key: "starkindustries.org/storage-tb", Operator: clModels.Gt, Values: vals(float64(1))},
+			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(16))},
+			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
+			{Key: "starkindustries.org/storage-tb", Operator: clModels.Gt, Values: common.Vals(float64(1))},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2309,10 +2310,10 @@ func TestEvaluate_Stark_IoTWorkload_CpuCoresExceedLimit_ReturnsFalse(t *testing.
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Lt, Values: vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: vals(float64(4))},
-			{Key: "starkindustries.org/gpu", Operator: clModels.NotIn, Values: vals(true)},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
+			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Lt, Values: common.Vals(float64(8))},
+			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(4))},
+			{Key: "starkindustries.org/gpu", Operator: clModels.NotIn, Values: common.Vals(true)},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2340,11 +2341,11 @@ func TestEvaluate_Stark_BatchWorkload_MissingArchitecture_ReturnsFalse(t *testin
 	labels := buildStarkDeviceLabels()
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: vals(float64(4))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: vals(float64(16))},
-			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: vals("arm64", "x86")},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: vals("oci", "wasm")},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
+			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(4))},
+			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(16))},
+			{Key: "starkindustries.org/supported-arch", Operator: clModels.In, Values: common.Vals("arm64", "x86")},
+			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2368,12 +2369,12 @@ func TestEvaluate_Stark_BatchWorkload_MissingArchitecture_ReturnsFalse(t *testin
 
 func TestEvaluate_Stark_MaintenanceLabelInjected_DoesNotExistFails(t *testing.T) {
 	labels := buildStarkDeviceLabels()
-	labels["starkindustries.org/maintenance"] = strLabel("scheduled") // runtime injection
+	labels["starkindustries.org/maintenance"] = common.StrLabel("scheduled") // runtime injection
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production")},
-			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: vals(float64(8))},
-			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: vals(float64(32))},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
+			{Key: "starkindustries.org/cpu-cores", Operator: clModels.Gt, Values: common.Vals(float64(8))},
+			{Key: "starkindustries.org/memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(32))},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
@@ -2399,10 +2400,10 @@ func TestEvaluate_Stark_GpuMemoryAtExactBoundary_StrictGt_ReturnsFalse(t *testin
 	labels := buildStarkDeviceLabels() // gpu-memory-gb = 24
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production")},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: vals(float64(24))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: vals(float64(10))},
+			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(24))},
+			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2422,11 +2423,11 @@ func TestEvaluate_Stark_GpuMemoryOneAboveBoundary_StrictGt_ReturnsTrue(t *testin
 	labels := buildStarkDeviceLabels() // gpu-memory-gb = 24
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "starkindustries.org/env", Operator: clModels.In, Values: vals("production")},
+			{Key: "starkindustries.org/env", Operator: clModels.In, Values: common.Vals("production")},
 			{Key: "starkindustries.org/gpu", Operator: clModels.Exists},
-			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: vals(float64(23))},
-			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: vals(float64(10))},
-			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: vals("oci", "wasm")},
+			{Key: "starkindustries.org/gpu-memory-gb", Operator: clModels.Gt, Values: common.Vals(float64(23))},
+			{Key: "starkindustries.org/latency-ms", Operator: clModels.Lt, Values: common.Vals(float64(10))},
+			{Key: "starkindustries.org/runtimes", Operator: clModels.In, Values: common.Vals("oci", "wasm")},
 			{Key: "starkindustries.org/maintenance", Operator: clModels.DoesNotExist},
 		},
 	}
@@ -2439,11 +2440,11 @@ func TestEvaluate_Stark_GpuMemoryOneAboveBoundary_StrictGt_ReturnsTrue(t *testin
 // "c" is NOT in the label set {a,b} → FAIL
 func TestEvaluate_In_StringSlice_AllPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "tags", Operator: clModels.In, Values: vals("a", "b", "c")},
+			{Key: "tags", Operator: clModels.In, Values: common.Vals("a", "b", "c")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2455,11 +2456,11 @@ func TestEvaluate_In_StringSlice_AllPresent(t *testing.T) {
 // "b" is NOT in the label set {a,z} → FAIL (unchanged result, but renamed for clarity)
 func TestEvaluate_In_StringSlice_MissingElement(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "z"}),
+		"tags": common.StrSliceLabel([]string{"a", "z"}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "tags", Operator: clModels.In, Values: vals("a", "b")},
+			{Key: "tags", Operator: clModels.In, Values: common.Vals("a", "b")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2472,11 +2473,11 @@ func TestEvaluate_In_StringSlice_MissingElement(t *testing.T) {
 // All me.Values present in label set {a,b,c} → PASS
 func TestEvaluate_In_StringSlice_AllMeValuesInLabel(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b", "c"}),
+		"tags": common.StrSliceLabel([]string{"a", "b", "c"}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "tags", Operator: clModels.In, Values: vals("a", "b")},
+			{Key: "tags", Operator: clModels.In, Values: common.Vals("a", "b")},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2489,11 +2490,11 @@ func TestEvaluate_In_StringSlice_AllMeValuesInLabel(t *testing.T) {
 // 3.0 is NOT in label set {1.0,2.0} → FAIL
 func TestEvaluate_In_NumSlice_AllPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "speeds", Operator: clModels.In, Values: vals(float64(1.0), float64(2.0), float64(3.0))},
+			{Key: "speeds", Operator: clModels.In, Values: common.Vals(float64(1.0), float64(2.0), float64(3.0))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2506,11 +2507,11 @@ func TestEvaluate_In_NumSlice_AllPresent(t *testing.T) {
 // All me.Values present in label set {1.0,2.0,3.0} → PASS
 func TestEvaluate_In_NumSlice_AllMeValuesInLabel(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0, 3.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0, 3.0}),
 	}
 	s := &clModels.Selector{
 		MatchExpressions: []clModels.MatchExpression{
-			{Key: "speeds", Operator: clModels.In, Values: vals(float64(1.0), float64(2.0))},
+			{Key: "speeds", Operator: clModels.In, Values: common.Vals(float64(1.0), float64(2.0))},
 		},
 	}
 	ok, reason := newEngine(t, labels).Evaluate(s)
@@ -2523,12 +2524,12 @@ func TestEvaluate_In_NumSlice_AllMeValuesInLabel(t *testing.T) {
 // "c" is NOT in label set {a,b} → FAIL
 func TestHandleIn_StringSlice_AllElementsPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b"}),
+		"tags": common.StrSliceLabel([]string{"a", "b"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.In,
-		Values:   vals("a", "b", "c"),
+		Values:   common.Vals("a", "b", "c"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -2540,12 +2541,12 @@ func TestHandleIn_StringSlice_AllElementsPresent(t *testing.T) {
 // All me.Values in label set {a,b,c} → PASS
 func TestHandleIn_StringSlice_AllMeValuesInLabel(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "b", "c"}),
+		"tags": common.StrSliceLabel([]string{"a", "b", "c"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.In,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)
@@ -2557,12 +2558,12 @@ func TestHandleIn_StringSlice_AllMeValuesInLabel(t *testing.T) {
 // "b" is NOT in label set {a,z} → FAIL; error names "b" (the failing me.Values element)
 func TestHandleIn_StringSlice_PartialMatch_Fails(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"tags": strSliceLabel([]string{"a", "z"}),
+		"tags": common.StrSliceLabel([]string{"a", "z"}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "tags",
 		Operator: clModels.In,
-		Values:   vals("a", "b"),
+		Values:   common.Vals("a", "b"),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -2574,12 +2575,12 @@ func TestHandleIn_StringSlice_PartialMatch_Fails(t *testing.T) {
 // 3.0 is NOT in label set {1.0,2.0} → FAIL
 func TestHandleIn_NumSlice_AllElementsPresent(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.In,
-		Values:   vals(float64(1.0), float64(2.0), float64(3.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0), float64(3.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.False(t, ok)
@@ -2591,12 +2592,12 @@ func TestHandleIn_NumSlice_AllElementsPresent(t *testing.T) {
 // All me.Values in label set {1.0,2.0,3.0} → PASS
 func TestHandleIn_NumSlice_AllMeValuesInLabel(t *testing.T) {
 	labels := map[string]clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties{
-		"speeds": numSliceLabel([]float32{1.0, 2.0, 3.0}),
+		"speeds": common.NumSliceLabel([]float32{1.0, 2.0, 3.0}),
 	}
 	me := &clModels.MatchExpression{
 		Key:      "speeds",
 		Operator: clModels.In,
-		Values:   vals(float64(1.0), float64(2.0)),
+		Values:   common.Vals(float64(1.0), float64(2.0)),
 	}
 	ok, reason := newEngine(t, labels).HandleIn(me)
 	assert.True(t, ok)

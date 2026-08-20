@@ -1,10 +1,10 @@
-package deviceconstraints
+package common
 
 import (
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-func buildResult(ok bool, reason string, result, touched bool) (bool, bool, string) {
+func BuildResult(ok bool, reason string, result, touched bool) (bool, bool, string) {
 	if ok {
 		if touched {
 			result = result && ok
@@ -21,7 +21,7 @@ func buildResult(ok bool, reason string, result, touched bool) (bool, bool, stri
 // JSON-decoded numbers are always float64, but me.Values may contain float32
 // from the generated model, so both numeric types are handled.
 // Returns the float64 value and true on success, or 0 and false for non-numeric types.
-func toFloat64(v any) (float64, bool) {
+func ToFloat64(v any) (float64, bool) {
 	switch n := v.(type) {
 	case float64:
 		return n, true
@@ -35,7 +35,7 @@ func toFloat64(v any) (float64, bool) {
 // scalarEqual compares two any values expected to be scalars
 // (string, float64, float32, bool). JSON-decoded numbers are always float64,
 // but me.Values may contain float32 from the generated model, so both are handled.
-func scalarEqual(a, b any) bool {
+func ScalarEqual(a, b any) bool {
 	switch av := a.(type) {
 	case string:
 		bv, ok := b.(string)
@@ -64,34 +64,34 @@ func scalarEqual(a, b any) bool {
 	}
 }
 
-func strLabel(v string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+func StrLabel(v string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 	_ = p.FromDeviceCapabilitiesManifestLabels0(v)
 	return p
 }
 
-func numLabel(v float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+func NumLabel(v float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 	_ = p.FromDeviceCapabilitiesManifestLabels1(v)
 	return p
 }
 
-func boolLabel(v bool) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+func BoolLabel(v bool) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 	_ = p.FromDeviceCapabilitiesManifestLabels2(v)
 	return p
 }
 
-func strSliceLabel(v []string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+func StrSliceLabel(v []string) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 	_ = p.FromDeviceCapabilitiesManifestLabels3(v)
 	return p
 }
 
-func numSliceLabel(v []float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
+func NumSliceLabel(v []float32) clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties {
 	var p clModels.DeviceCapabilitiesManifest_Labels_AdditionalProperties
 	_ = p.FromDeviceCapabilitiesManifestLabels4(v)
 	return p
 }
 
-func vals(v ...interface{}) *[]interface{} { return &v }
+func Vals(v ...any) *[]any { return &v }

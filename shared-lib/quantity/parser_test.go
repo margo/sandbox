@@ -252,8 +252,18 @@ func TestQuantity_AtLeast(t *testing.T) {
 
 		// ── actual == required ───────────────────────────────────────────────
 		{name: "1Gi >= 1Gi → true (equal)", actual: "1Gi", required: "1Gi", wantAtLeast: true},
-		{name: "512Mi >= 512Mi → true (equal)", actual: "512Mi", required: "512Mi", wantAtLeast: true},
-		{name: "1024Mi >= 1Gi → true (cross-suffix equal)", actual: "1024Mi", required: "1Gi", wantAtLeast: true},
+		{
+			name:        "512Mi >= 512Mi → true (equal)",
+			actual:      "512Mi",
+			required:    "512Mi",
+			wantAtLeast: true,
+		},
+		{
+			name:        "1024Mi >= 1Gi → true (cross-suffix equal)",
+			actual:      "1024Mi",
+			required:    "1Gi",
+			wantAtLeast: true,
+		},
 		{name: "0Ki >= 0Mi → true (both zero)", actual: "0Ki", required: "0Mi", wantAtLeast: true},
 
 		// ── actual < required ────────────────────────────────────────────────

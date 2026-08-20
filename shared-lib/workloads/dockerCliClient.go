@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/margo/sandbox/shared-lib/file"
 	"go.uber.org/multierr"
 )
 
@@ -201,27 +200,6 @@ func (c *DockerComposeCliClient) forceRemoveProjectContainers(
 	return errs
 }
 
-func (c *DockerComposeCliClient) DeployComposeFromURL(
-	ctx context.Context,
-	projectName string,
-	composeFileURL string,
-	envVars map[string]string,
-) error {
-	if strings.TrimSpace(projectName) == "" {
-		return fmt.Errorf("project name cannot be empty")
-	}
-
-	if strings.TrimSpace(composeFileURL) == "" {
-		return fmt.Errorf("compose file URL cannot be empty")
-	}
-
-	composeFile, err := c.fetchComposeFileFromURL(ctx, composeFileURL, projectName)
-	if err != nil {
-		return fmt.Errorf("failed to fetch compose file: %w", err)
-	}
-
-	return c.DeployCompose(ctx, projectName, composeFile, envVars)
-}
 
 func (c *DockerComposeCliClient) RemoveCompose(ctx context.Context, projectName string) error {
 	if strings.TrimSpace(projectName) == "" {
@@ -547,117 +525,93 @@ func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) 
 	return filepath.Join(projectDir, composeFileNames[0])
 }
 
-func (c *DockerComposeCliClient) fetchComposeFileFromURL(
-	_ context.Context,
-	url string,
-	projectName string,
-) (string, error) {
 
-	downloadResult, err := file.DownloadFileUsingHttp(
-		"GET",
-		url,
-		nil,
-		nil,
-		nil,
-		&file.DownloadOptions{
-			Timeout:        time.Second * 10,
-			OutputPath:     c.generateAbsProjectFilepath(projectName),
-			CreateDirs:     true,
-			OverwriteExist: true,
-			ResumeDownload: false,
-		})
-	if err != nil {
-		return "", fmt.Errorf("failed to download file: %w", err)
-	}
-
-	return downloadResult.FilePath, nil
-}
-
+// DownloadCompose pulls a compose archive from OCI registry, extracts it,
+// and returns the path to the compose file.
+// repository: oci://harbor.machine:8443/library/nextcloud-compose-archive
+// revision:   1.0.0
 func (c *DockerComposeCliClient) DownloadCompose(
-	ctx context.Context,
-	packageLocation string,
-	keyLocation *string,
-	projectName string,
+    ctx context.Context,
+    repository string,
+    revision string,
+    projectName string,
 ) (string, error) {
+    if strings.TrimSpace(repository) == "" {
+        return "", fmt.Errorf("repository cannot be empty")
+    }
+    if strings.TrimSpace(revision) == "" {
+        return "", fmt.Errorf("revision cannot be empty")
+    }
 
-	isHTTP := strings.HasPrefix(packageLocation, "http://") ||
-		strings.HasPrefix(packageLocation, "https://")
-	if isHTTP {
+    projectDir := filepath.Join(c.workingDir, projectName)
+    if err := os.MkdirAll(projectDir, 0750); err != nil {
+        return "", fmt.Errorf("failed to create project directory: %w", err)
+    }
 
-		isTarGz := strings.HasSuffix(packageLocation, ".tar.gz") ||
-			strings.HasSuffix(packageLocation, ".tgz")
-		if isTarGz {
-			return c.downloadAndExtractTarGz(
-				ctx,
-				packageLocation,
-				keyLocation,
-				projectName,
-			)
-		}
+    // Strip oci:// prefix — oras expects host/repo:tag format
+    ociRef := fmt.Sprintf("%s:%s", strings.TrimPrefix(repository, "oci://"), revision)
 
-		return c.fetchComposeFileFromURL(ctx, packageLocation, projectName)
-	}
+    // Pull the OCI artifact (tar.gz) into projectDir
+    cmd := exec.CommandContext(ctx, "oras", "pull",
+        ociRef,
+        "--output", projectDir,
+        "--insecure",
+    )
+    cmd.Env = prepareDockerEnv(c.params, nil)
 
-	// Assume it's inline YAML content or local path
-	return packageLocation, nil
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        return "", fmt.Errorf("failed to pull compose archive from OCI %s: %w, output: %s",
+            ociRef, err, string(output))
+    }
+
+    // Find the pulled tar.gz and extract compose.yaml from it
+    entries, err := os.ReadDir(projectDir)
+    if err != nil {
+        return "", fmt.Errorf("failed to read project directory after OCI pull: %w", err)
+    }
+
+    for _, entry := range entries {
+        name := entry.Name()
+        if strings.HasSuffix(name, ".tar.gz") || strings.HasSuffix(name, ".tgz") {
+            archivePath := filepath.Join(projectDir, name)
+            extractDir := filepath.Join(projectDir, ".extracted")
+
+            composeFile, err := c.extractAndFindCompose(archivePath, extractDir)
+            if err != nil {
+                return "", fmt.Errorf("failed to extract compose file from archive: %w", err)
+            }
+
+            // Move compose file to project root with its original name
+            finalPath := filepath.Join(projectDir, filepath.Base(composeFile))
+            if err := os.Rename(composeFile, finalPath); err != nil {
+                if copyErr := c.copyFile(composeFile, finalPath); copyErr != nil {
+                    return "", fmt.Errorf("failed to move compose file: %w",
+                        multierr.Combine(err, copyErr))
+                }
+            }
+
+            // Cleanup archive and extract dir
+            _ = os.Remove(archivePath)
+            _ = os.RemoveAll(extractDir)
+
+            return finalPath, nil
+        }
+    }
+
+    // If no tar.gz found, check if compose file was pulled directly
+    for _, name := range composeFileNames {
+        candidate := filepath.Join(projectDir, name)
+        if _, err := os.Stat(candidate); err == nil {
+            return candidate, nil
+        }
+    }
+
+    return "", fmt.Errorf("no compose file or tar.gz archive found after OCI pull from %s", ociRef)
 }
 
-func (c *DockerComposeCliClient) downloadAndExtractTarGz(
-	ctx context.Context,
-	archiveURL string,
-	keyLocation *string,
-	projectName string,
-) (string, error) {
-	projectDir := filepath.Join(c.workingDir, projectName)
-	archivePath := filepath.Join(projectDir, ".archive.tar.gz")
-	extractDir := filepath.Join(projectDir, ".extracted")
 
-	defer func() {
-		_ = multierr.Combine(
-			ignoreNotExist(os.Remove(archivePath)),
-			os.RemoveAll(extractDir),
-		)
-	}()
 
-	if err := os.MkdirAll(projectDir, 0750); err != nil {
-		return "", fmt.Errorf("failed to create project directory: %w", err)
-	}
-
-	if _, err := file.DownloadFileUsingHttp(
-		"GET",
-		archiveURL,
-		nil, nil, nil,
-		&file.DownloadOptions{
-			Timeout:        30 * time.Second,
-			OutputPath:     archivePath,
-			CreateDirs:     false,
-			OverwriteExist: true,
-			ResumeDownload: false,
-		},
-	); err != nil {
-		return "", fmt.Errorf("failed to download archive: %w", err)
-	}
-
-	composeFile, err := c.extractAndFindCompose(archivePath, extractDir)
-	if err != nil {
-		return "", err
-	}
-
-	// Preserve original filename (compose.yaml, docker-compose.yml, etc.)
-	finalComposePath := filepath.Join(projectDir, filepath.Base(composeFile))
-
-	if err := os.Rename(composeFile, finalComposePath); err != nil {
-
-		if copyErr := c.copyFile(composeFile, finalComposePath); copyErr != nil {
-			return "", fmt.Errorf(
-				"failed to move compose file: %w",
-				multierr.Combine(err, copyErr),
-			)
-		}
-	}
-
-	return finalComposePath, nil
-}
 
 func (c *DockerComposeCliClient) extractAndFindCompose(
 	archivePath, destDir string,
@@ -776,12 +730,4 @@ func (c *DockerComposeCliClient) copyFile(src, dst string) error {
 	}
 
 	return dest.Sync()
-}
-
-// ignoreNotExist returns nil if err is a "not exist" error, otherwise returns err.
-func ignoreNotExist(err error) error {
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return err
 }

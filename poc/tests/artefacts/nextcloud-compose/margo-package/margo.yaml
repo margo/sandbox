@@ -34,22 +34,20 @@ deploymentProfiles:
       capacityRequirements:
         cpu:
           cores: 1
-        memory: 1024Mi
-        storage: 5Gi
+          architectures: ["amd64"]
+        memory: 4Gi
+        storage: 10Gi
       eligibilityRules:
         - propertySelector:
             matchExpressions:
-            - key: /vendor
-              operator: In
-              values:
-              - "EdgeCircuit Systems"
-              - "NanoEdge Devices"
-          labelSelector:
-            matchExpressions:
-            - key: example.com/hyper-v.host
-              operator: In
-              values:
-              - true
+              - key: /supportedDeploymentTypes
+                operator: In
+                values:
+                  - "compose"
+              - key: /supportedRuntimes
+                operator: In
+                values:
+                  - "oci"
 parameters:
   mysqlDatabase:
     value: nextcloud

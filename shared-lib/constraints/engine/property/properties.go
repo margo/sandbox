@@ -127,10 +127,7 @@ func (ps *propertySelectorEngine) resolvePointer(pointer string) (any, bool, err
 	// It returns (value, kind, error); kind is the reflect.Kind of the resolved node.
 	val, _, err := jp.Get(doc)
 	if err != nil {
-		// go-openapi/jsonpointer returns an error when a token is not found.
-		// Treat this as "key absent" rather than a hard error, consistent with
-		// the previous behaviour and the spec ("key not found → false, not an error").
-		return nil, false, nil
+		return nil, false, err
 	}
 
 	return val, true, nil
@@ -145,7 +142,6 @@ func (ps *propertySelectorEngine) resolvePointer(pointer string) (any, bool, err
 //   - Array of objects:              must use ContainsAll/ContainsAny; In MUST return false.
 //   - Any other type:                MUST return false.
 func (ps *propertySelectorEngine) HandleIn(me *clModels.MatchExpression) (bool, string) {
-
 	if reason, ok := validateValues(me); !ok {
 		return false, reason
 	}

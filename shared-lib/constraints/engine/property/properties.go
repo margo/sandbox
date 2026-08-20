@@ -3,6 +3,7 @@ package property
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-openapi/jsonpointer"
 	"github.com/margo/sandbox/shared-lib/constraints/common"
@@ -127,6 +128,12 @@ func (ps *propertySelectorEngine) resolvePointer(pointer string) (any, bool, err
 	// It returns (value, kind, error); kind is the reflect.Kind of the resolved node.
 	val, _, err := jp.Get(doc)
 	if err != nil {
+		// go-openapi/jsonpointer returns an error when a token is not found.
+		// Treat this as "key absent" rather than a hard error, consistent with
+		// the previous behaviour and the spec ("key not found → false, not an error").
+		if strings.ContainsAny(err.Error(), "object has no key") {
+			return nil, false, nil
+		}
 		return nil, false, err
 	}
 

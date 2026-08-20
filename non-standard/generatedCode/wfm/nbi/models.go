@@ -15,8 +15,8 @@ import (
 // Defines values for AppDeploymentProfileType.
 const (
 	AppDeploymentProfileTypeCompose AppDeploymentProfileType = "compose"
+	AppDeploymentProfileTypeCustom  AppDeploymentProfileType = "custom"
 	AppDeploymentProfileTypeHelm    AppDeploymentProfileType = "helm"
-	AppDeploymentProfileTypeNil     AppDeploymentProfileType = "<nil>"
 )
 
 // Valid indicates whether the value is a known member of the AppDeploymentProfileType enum.

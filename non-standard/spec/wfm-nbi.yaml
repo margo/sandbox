@@ -664,13 +664,6 @@ components:
         # id:
         #   description: Unique identifier for the deployment profile
         #   type: string
-        requiredResources:
-          # x-go-field-tags: 'json:"requiredResources" yaml:"requiredResources"'
-          x-oapi-codegen-extra-tags:
-            json: "requiredResources"
-            yaml: "requiredResources"
-          $ref: '#/components/schemas/RequiredResources'
-          description: Required resources for this deployment profile
         type:
           # x-go-field-tags: 'json:"type" yaml:"type"'
           x-oapi-codegen-extra-tags:
@@ -1059,87 +1052,6 @@ components:
       - name
       - schema
       type: object
-
-    RequiredResources:
-      properties:
-        cpu:
-          # x-go-field-tags: 'json:"cpu" yaml:"cpu"'
-          x-oapi-codegen-extra-tags:
-            json: "cpu"
-            yaml: "cpu"
-          properties:
-            architectures:
-              # x-go-field-tags: 'json:"architectures" yaml:"architectures"'
-              x-oapi-codegen-extra-tags:
-                json: "architectures"
-                yaml: "architectures"
-              description: Supported CPU architectures
-              items:
-                type: string
-              type: array
-            cores:
-              # x-go-field-tags: 'json:"cores" yaml:"cores"'
-              x-oapi-codegen-extra-tags:
-                json: "cores"
-                yaml: "cores"
-              description: Required CPU cores
-              type: number
-          type: object
-        interfaces:
-          # x-go-field-tags: 'json:"interfaces" yaml:"interfaces"'
-          x-oapi-codegen-extra-tags:
-            json: "interfaces"
-            yaml: "interfaces"
-          items:
-            properties:
-              type:
-                # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags:
-                  json: "type"
-                  yaml: "type"
-                description: Interface type (e.g., ethernet, bluetooth)
-                type: string
-            type: object
-          type: array
-        memory:
-          # x-go-field-tags: 'json:"memory" yaml:"memory"'
-          x-oapi-codegen-extra-tags:
-            json: "memory"
-            yaml: "memory"
-          description: Required memory (e.g., "1024Mi")
-          type: string
-        peripherals:
-          # x-go-field-tags: 'json:"peripherals" yaml:"peripherals"'
-          x-oapi-codegen-extra-tags:
-            json: "peripherals"
-            yaml: "peripherals"
-          items:
-            properties:
-              manufacturer:
-                # x-go-field-tags: 'json:"manufacturer" yaml:"manufacturer"'
-                x-oapi-codegen-extra-tags:
-                  json: "manufacturer"
-                  yaml: "manufacturer"
-                description: Manufacturer requirement
-                type: string
-              type:
-                # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags:
-                  json: "type"
-                  yaml: "type"
-                description: Type of peripheral
-                type: string
-            type: object
-          type: array
-        storage:
-          # x-go-field-tags: 'json:"storage" yaml:"storage"'
-          x-oapi-codegen-extra-tags:
-            json: "storage"
-            yaml: "storage"
-          description: Required storage (e.g., "10Gi")
-          type: string
-      type: object
-
 
     # Application Package Schemas
     ApplicationPackageManifestRequest:

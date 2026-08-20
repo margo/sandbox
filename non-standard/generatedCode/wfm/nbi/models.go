@@ -377,7 +377,6 @@ type AppDeploymentProfile struct {
 
 	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
 	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
-	RequiredResources *RequiredResources `json:"requiredResources,omitempty"`
 
 	// Type Type of deployment profile
 	Type AppDeploymentProfileType `json:"type" yaml:"type"`
@@ -1157,34 +1156,6 @@ type PaginationMetadata struct {
 
 	// RemainingItemCount Number of items remaining
 	RemainingItemCount *int `json:"remainingItemCount,omitempty"`
-}
-
-// RequiredResources defines model for RequiredResources.
-type RequiredResources struct {
-	Cpu *struct {
-		// Architectures Supported CPU architectures
-		Architectures *[]string `json:"architectures" yaml:"architectures"`
-
-		// Cores Required CPU cores
-		Cores *float32 `json:"cores" yaml:"cores"`
-	} `json:"cpu" yaml:"cpu"`
-	Interfaces *[]struct {
-		// Type Interface type (e.g., ethernet, bluetooth)
-		Type *string `json:"type" yaml:"type"`
-	} `json:"interfaces" yaml:"interfaces"`
-
-	// Memory Required memory (e.g., "1024Mi")
-	Memory      *string `json:"memory" yaml:"memory"`
-	Peripherals *[]struct {
-		// Manufacturer Manufacturer requirement
-		Manufacturer *string `json:"manufacturer" yaml:"manufacturer"`
-
-		// Type Type of peripheral
-		Type *string `json:"type" yaml:"type"`
-	} `json:"peripherals" yaml:"peripherals"`
-
-	// Storage Required storage (e.g., "10Gi")
-	Storage *string `json:"storage" yaml:"storage"`
 }
 
 // Selector A set of match expressions evaluated with AND semantics.

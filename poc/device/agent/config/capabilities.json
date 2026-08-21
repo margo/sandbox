@@ -17,7 +17,7 @@
         "vendor": "Northstar Industrial Devices",
         "modelNumber": "332ANZE1-N1",
         "serialNumber": "PF45343-AA",
-        "cpu": [
+        "cpus": [
             {
                 "cores": 24,
                 "architecture": "amd64"

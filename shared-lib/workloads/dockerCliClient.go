@@ -4,9 +4,11 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +20,6 @@ import (
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 type DockerComposeCliClient struct {
@@ -601,7 +602,6 @@ func (c *DockerComposeCliClient) DownloadCompose(
 	}
 	defer func() {
 		if closeErr := store.Close(); closeErr != nil {
-			// log but don't override the main error
 			_ = closeErr
 		}
 	}()
@@ -612,14 +612,20 @@ func (c *DockerComposeCliClient) DownloadCompose(
 		return "", fmt.Errorf("failed to create remote repository for %s: %w", rawRef, err)
 	}
 
-	// Configure auth client — anonymous with retry
+	// Configure auth client with insecure TLS for self-signed certs (PoC/dev environment)
 	repo.Client = &auth.Client{
-		Client: retry.DefaultClient,
-		Cache:  auth.NewCache(),
+		Client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, //nolint:gosec // PoC environment with self-signed certs
+				},
+			},
+		},
+		Cache: auth.NewCache(),
 	}
 
-	// Allow plain HTTP (insecure) — set to false for production with TLS
-	repo.PlainHTTP = true
+	// Harbor on 8443 uses HTTPS — do NOT set PlainHTTP
+	repo.PlainHTTP = false
 
 	// Pull the artifact at the given tag/revision into the file store
 	_, err = oras.Copy(ctx, repo, revision, store, revision, oras.DefaultCopyOptions)

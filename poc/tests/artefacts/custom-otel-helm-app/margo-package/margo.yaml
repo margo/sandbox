@@ -46,8 +46,6 @@ deploymentProfiles:
                 operator: In
                 values:
                   - "oci"
-
-    
 parameters:
   # Frontend service configuration
   otlpEndpoint:

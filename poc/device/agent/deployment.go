@@ -323,159 +323,159 @@ func (dm *DeploymentManager) deployOrUpdate(
 }
 
 func (dm *DeploymentManager) deployOrUpdateHelm(
-    ctx context.Context,
-    deploymentId string,
-    appDeployment sbi.AppDeploymentManifest,
+	ctx context.Context,
+	deploymentId string,
+	appDeployment sbi.AppDeploymentManifest,
 ) error {
-    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-        dm.log.Infow("deploying app component",
-            "appId", deploymentId,
-            "componentName", component.Name,
-        )
+	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+		dm.log.Infow("deploying app component",
+			"appId", deploymentId,
+			"componentName", component.Name,
+		)
 
-        releaseName := fmt.Sprintf("%s-%s", component.Name, deploymentId[:8])
+		releaseName := fmt.Sprintf("%s-%s", component.Name, deploymentId[:8])
 
-        values := map[string]interface{}{}
-        if appDeployment.Spec.Parameters != nil {
-            componentValues, err := pkg.ConvertAllAppDeploymentParamsToValues(
-                *appDeployment.Spec.Parameters,
-            )
-            if err != nil {
-                return fmt.Errorf("failed to convert deployment profiles: %w", err)
-            }
-            if v, exists := componentValues[component.Name]; exists {
-                values = v
-            }
-        }
+		values := map[string]interface{}{}
+		if appDeployment.Spec.Parameters != nil {
+			componentValues, err := pkg.ConvertAllAppDeploymentParamsToValues(
+				*appDeployment.Spec.Parameters,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to convert deployment profiles: %w", err)
+			}
+			if v, exists := componentValues[component.Name]; exists {
+				values = v
+			}
+		}
 
-        values["fullnameOverride"] = releaseName
+		values["fullnameOverride"] = releaseName
 
-        release, err := dm.helmClient.GetReleaseStatus(ctx, releaseName, "")
-        if err != nil {
-            dm.log.Infow("release not found, will install",
-                "releaseName", releaseName,
-                "deploymentId", deploymentId,
-                "err", err.Error(),
-            )
-        }
+		release, err := dm.helmClient.GetReleaseStatus(ctx, releaseName, "")
+		if err != nil {
+			dm.log.Infow("release not found, will install",
+				"releaseName", releaseName,
+				"deploymentId", deploymentId,
+				"err", err.Error(),
+			)
+		}
 
-        if release != nil {
-            dm.log.Infow("Updating existing Helm release",
-                "releaseName", releaseName,
-                "deploymentId", deploymentId,
-            )
-            err = dm.helmClient.UpdateChart(
-                ctx,
-                releaseName,
-                component.Properties.Repository,
-                "",
-                values,
-            )
-            if err != nil {
-                return fmt.Errorf("failed to upgrade existing release: %v", err)
-            }
-            return nil
-        }
+		if release != nil {
+			dm.log.Infow("Updating existing Helm release",
+				"releaseName", releaseName,
+				"deploymentId", deploymentId,
+			)
+			err = dm.helmClient.UpdateChart(
+				ctx,
+				releaseName,
+				component.Properties.Repository,
+				"",
+				values,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to upgrade existing release: %v", err)
+			}
+			return nil
+		}
 
-        dm.log.Infow("Installing new Helm release",
-            "releaseName", releaseName,
-            "deploymentId", deploymentId,
-        )
+		dm.log.Infow("Installing new Helm release",
+			"releaseName", releaseName,
+			"deploymentId", deploymentId,
+		)
 
-        revision := component.Properties.Revision  // now a string, not *string
-        wait := component.Properties.Wait != nil && *component.Properties.Wait
+		revision := component.Properties.Revision // now a string, not *string
+		wait := component.Properties.Wait != nil && *component.Properties.Wait
 
-        err = dm.helmClient.InstallChart(
-            ctx,
-            releaseName,
-            component.Properties.Repository,
-            "",
-            revision,
-            wait,
-            values,
-        )
-        if err != nil {
-            return err
-        }
-        dm.log.Infow("Helm deployment successful",
-            "appId", deploymentId,
-            "releaseName", releaseName,
-        )
-    }
-    return nil
+		err = dm.helmClient.InstallChart(
+			ctx,
+			releaseName,
+			component.Properties.Repository,
+			"",
+			revision,
+			wait,
+			values,
+		)
+		if err != nil {
+			return err
+		}
+		dm.log.Infow("Helm deployment successful",
+			"appId", deploymentId,
+			"releaseName", releaseName,
+		)
+	}
+	return nil
 }
 
 func (dm *DeploymentManager) deployOrUpdateCompose(
-    ctx context.Context,
-    deploymentId string,
-    appDeployment sbi.AppDeploymentManifest,
+	ctx context.Context,
+	deploymentId string,
+	appDeployment sbi.AppDeploymentManifest,
 ) error {
-    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-        dm.log.Infow("deploying app component",
-            "appId", deploymentId,
-            "componentName", component.Name,
-        )
-        dm.log.Infow("view of the compose component", "component", pretty.Sprint(component))
+	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+		dm.log.Infow("deploying app component",
+			"appId", deploymentId,
+			"componentName", component.Name,
+		)
+		dm.log.Infow("view of the compose component", "component", pretty.Sprint(component))
 
-        projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
-        projectName = strings.ReplaceAll(projectName, "_", "-")
+		projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
+		projectName = strings.ReplaceAll(projectName, "_", "-")
 
-        values := map[string]interface{}{}
-        if appDeployment.Spec.Parameters != nil {
-            componentValues, err := pkg.ConvertAllAppDeploymentParamsToValues(
-                *appDeployment.Spec.Parameters,
-            )
-            if err != nil {
-                return fmt.Errorf("failed to parse compose parameters: %w", err)
-            }
-            if v, exists := componentValues[component.Name]; exists {
-                values = v
-            }
-        }
+		values := map[string]interface{}{}
+		if appDeployment.Spec.Parameters != nil {
+			componentValues, err := pkg.ConvertAllAppDeploymentParamsToValues(
+				*appDeployment.Spec.Parameters,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to parse compose parameters: %w", err)
+			}
+			if v, exists := componentValues[component.Name]; exists {
+				values = v
+			}
+		}
 
-        composeFilename, err := dm.composeClient.DownloadCompose(
-            ctx,
-            component.Properties.Repository,
-            component.Properties.Revision,
-            projectName,
-        )
-        if err != nil {
-            return fmt.Errorf("failed to get compose content: %v", err)
-        }
-        dm.log.Debugw("compose file downloaded", "composeFilename", composeFilename)
+		composeFilename, err := dm.composeClient.DownloadCompose(
+			ctx,
+			component.Properties.Repository,
+			component.Properties.Revision,
+			projectName,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get compose content: %v", err)
+		}
+		dm.log.Debugw("compose file downloaded", "composeFilename", composeFilename)
 
-        envVars := dm.convertParametersToEnvVars(values, component.Name)
+		envVars := dm.convertParametersToEnvVars(values, component.Name)
 
-        exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName)
-        if err != nil {
-            return fmt.Errorf("failed to check compose project existence: %v", err)
-        }
+		exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName)
+		if err != nil {
+			return fmt.Errorf("failed to check compose project existence: %v", err)
+		}
 
-        if exists {
-            dm.log.Infow("Updating existing Docker Compose project",
-                "projectName", projectName,
-                "deploymentId", deploymentId,
-            )
-            err = dm.composeClient.UpdateCompose(ctx, projectName, composeFilename, envVars)
-        } else {
-            dm.log.Infow("Deploying new Docker Compose project",
-                "projectName", projectName,
-                "deploymentId", deploymentId,
-            )
-            err = dm.composeClient.DeployCompose(ctx, projectName, composeFilename, envVars)
-        }
+		if exists {
+			dm.log.Infow("Updating existing Docker Compose project",
+				"projectName", projectName,
+				"deploymentId", deploymentId,
+			)
+			err = dm.composeClient.UpdateCompose(ctx, projectName, composeFilename, envVars)
+		} else {
+			dm.log.Infow("Deploying new Docker Compose project",
+				"projectName", projectName,
+				"deploymentId", deploymentId,
+			)
+			err = dm.composeClient.DeployCompose(ctx, projectName, composeFilename, envVars)
+		}
 
-        if err != nil {
-            return fmt.Errorf("docker compose operation failed: %v", err)
-        }
+		if err != nil {
+			return fmt.Errorf("docker compose operation failed: %v", err)
+		}
 
-        dm.log.Infow("Docker Compose deployment successful",
-            "appId", deploymentId,
-            "componentName", component.Name,
-            "projectName", projectName,
-        )
-    }
-    return nil
+		dm.log.Infow("Docker Compose deployment successful",
+			"appId", deploymentId,
+			"componentName", component.Name,
+			"projectName", projectName,
+		)
+	}
+	return nil
 }
 
 func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
@@ -621,84 +621,83 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 }
 
 func (dm *DeploymentManager) removeHelm(
-    ctx context.Context,
-    deploymentId string,
-    appDeployment sbi.AppDeploymentManifest,
+	ctx context.Context,
+	deploymentId string,
+	appDeployment sbi.AppDeploymentManifest,
 ) error {
-    if dm.helmClient == nil {
-        dm.log.Warnw("Helm client not initialized, skipping", "deploymentId", deploymentId)
-        return nil
-    }
+	if dm.helmClient == nil {
+		dm.log.Warnw("Helm client not initialized, skipping", "deploymentId", deploymentId)
+		return nil
+	}
 
-    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-        releaseName := fmt.Sprintf("%s-%s", component.Name, deploymentId[:8])
-        dm.log.Infow("Removing Helm release",
-            "releaseName", releaseName,
-            "componentName", component.Name,
-            "deploymentId", deploymentId,
-        )
+	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+		releaseName := fmt.Sprintf("%s-%s", component.Name, deploymentId[:8])
+		dm.log.Infow("Removing Helm release",
+			"releaseName", releaseName,
+			"componentName", component.Name,
+			"deploymentId", deploymentId,
+		)
 
-        if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
-            dm.log.Warnw("Failed to uninstall Helm chart",
-                "releaseName", releaseName,
-                "componentName", component.Name,
-                "error", err,
-            )
-        } else {
-            dm.log.Infow("Helm release removed successfully",
-                "releaseName", releaseName,
-                "componentName", component.Name,
-            )
-        }
-    }
-    return nil
+		if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
+			dm.log.Warnw("Failed to uninstall Helm chart",
+				"releaseName", releaseName,
+				"componentName", component.Name,
+				"error", err,
+			)
+		} else {
+			dm.log.Infow("Helm release removed successfully",
+				"releaseName", releaseName,
+				"componentName", component.Name,
+			)
+		}
+	}
+	return nil
 }
 
-
 func (dm *DeploymentManager) removeCompose(
-    ctx context.Context,
-    deploymentId string,
-    appDeployment sbi.AppDeploymentManifest,
+	ctx context.Context,
+	deploymentId string,
+	appDeployment sbi.AppDeploymentManifest,
 ) error {
-    if dm.composeClient == nil {
-        dm.log.Warnw("Compose client not initialized, skipping", "deploymentId", deploymentId)
-        return nil
-    }
+	if dm.composeClient == nil {
+		dm.log.Warnw("Compose client not initialized, skipping", "deploymentId", deploymentId)
+		return nil
+	}
 
-    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-        projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
-        projectName = strings.ReplaceAll(projectName, "_", "-")
+	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+		projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
+		projectName = strings.ReplaceAll(projectName, "_", "-")
 
-        dm.log.Infow("Removing Docker Compose project",
-            "projectName", projectName,
-            "componentName", component.Name,
-            "deploymentId", deploymentId,
-        )
+		dm.log.Infow("Removing Docker Compose project",
+			"projectName", projectName,
+			"componentName", component.Name,
+			"deploymentId", deploymentId,
+		)
 
-        if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
-            dm.log.Warnw("Failed to remove Docker Compose project",
-                "projectName", projectName,
-                "componentName", component.Name,
-                "error", err,
-            )
-        } else {
-            dm.log.Infow("Docker Compose project removed successfully",
-                "projectName", projectName,
-                "componentName", component.Name,
-            )
-        }
-    }
-    return nil
+		if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
+			dm.log.Warnw("Failed to remove Docker Compose project",
+				"projectName", projectName,
+				"componentName", component.Name,
+				"error", err,
+			)
+		} else {
+			dm.log.Infow("Docker Compose project removed successfully",
+				"projectName", projectName,
+				"componentName", component.Name,
+			)
+		}
+	}
+	return nil
 }
 
 func (dm *DeploymentManager) extractComponentNames(
-    appDeployment sbi.AppDeploymentManifest,
+	appDeployment sbi.AppDeploymentManifest,
 ) []string {
-    names := make([]string, 0, len(appDeployment.Spec.DeploymentProfile.Components))
-    for _, comp := range appDeployment.Spec.DeploymentProfile.Components {
-        names = append(names, comp.Name)  // direct access, no union unwrapping needed
-    }
-    return names
+	names := make([]string, 0, len(appDeployment.Spec.DeploymentProfile.Components))
+	for _, comp := range appDeployment.Spec.DeploymentProfile.Components {
+		names = append(names, comp.Name) // direct access, no union unwrapping needed
+	}
+	return names
 }
 
 func GetAddress[T any](a T) *T {

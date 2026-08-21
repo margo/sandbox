@@ -43,6 +43,47 @@ type Publisher struct {
 	Protocol      string `json:"Protocol"`
 }
 
+// DockerConnectionViaHttp defines HTTP connection parameters for Docker daemon.
+type DockerConnectionViaHttp struct {
+    Protocol   string
+    Host       string
+    Port       uint16
+    CaCertPath string
+    CertPath   string
+    KeyPath    string
+}
+
+// DockerConnectionViaSocket defines Unix socket connection parameters for Docker daemon.
+type DockerConnectionViaSocket struct {
+    SocketPath string
+}
+
+// DockerConnectivityParams defines how to connect to the Docker daemon.
+type DockerConnectivityParams struct {
+    ViaHttp   *DockerConnectionViaHttp
+    ViaSocket *DockerConnectionViaSocket
+}
+
+// ComposeStatus represents the status of a Docker Compose deployment.
+type ComposeStatus struct {
+    Name      string          `json:"name"`
+    Status    string          `json:"status"`
+    Services  []ServiceStatus `json:"services"`
+    CreatedAt time.Time       `json:"created_at"`
+    UpdatedAt time.Time       `json:"updated_at"`
+}
+
+// ServiceStatus represents the status of a single service in a Compose deployment.
+type ServiceStatus struct {
+    Name        string   `json:"name"`
+    Status      string   `json:"status"`
+    Image       string   `json:"image"`
+    Ports       []string `json:"ports"`
+    ContainerID string   `json:"container_id"`
+    Health      string   `json:"health"`
+}
+
+
 func NewDockerComposeCliClient(
 	params DockerConnectivityParams,
 	workingDir string,

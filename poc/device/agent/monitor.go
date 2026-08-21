@@ -76,76 +76,64 @@ func (hm *DeploymentMonitor) checkAllDeployments() {
 }
 
 func (hm *DeploymentMonitor) checkDeployment(appID string) {
-	record, err := hm.database.GetDeployment(appID)
-	if err != nil || record.CurrentState == nil {
-		return
-	}
+    record, err := hm.database.GetDeployment(appID)
+    if err != nil || record.CurrentState == nil {
+        return
+    }
 
-	ds, err := hm.database.GetDeviceSettings()
-	if err != nil {
-		hm.log.Warnw(
-			"Failed to get device settings, cannot proceed",
-			"err",
-			err.Error())
+    ds, err := hm.database.GetDeviceSettings()
+    if err != nil {
+        hm.log.Warnw(
+            "Failed to get device settings, cannot proceed",
+            "err",
+            err.Error())
+        return
+    }
 
-		return
-	}
+    appDeployment := record.CurrentState.AppDeploymentManifest
 
-	// Get the app deployment manifest directly
-	appDeployment := record.CurrentState.AppDeploymentManifest
+    if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
+        return
+    }
 
-	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
-		return
-	}
+    // Only monitor Helm deployments
+    if appDeployment.Spec.DeploymentProfile.Type != sbi.AppDeploymentProfileTypeHelm {
+        return
+    }
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-		helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
-		if err != nil {
-			hm.log.Warnw(
-				"Failed to convert component to Helm component",
-				"appID",
-				appID,
-				"error",
-				err,
-			)
-			continue
-		}
+    for _, component := range appDeployment.Spec.DeploymentProfile.Components {
+        releaseName := fmt.Sprintf("%s-%s", component.Name, appID[:8])
 
-		releaseName := fmt.Sprintf("%s-%s", helmComp.Name, appID[:8])
+        status, err := hm.helmClient.GetReleaseStatus(ctx, releaseName, "")
+        if err != nil {
+            errMsg := err.Error()
+            hm.database.SetComponentStatus(appID, component.Name, sbi.ComponentStatus{
+                Name:  component.Name,
+                State: sbi.ComponentStatusStateFailed,
+                Error: &struct {
+                    Code    *string `json:"code,omitempty"`
+                    Message *string `json:"message,omitempty"`
+                    Source  *string `json:"source,omitempty"`
+                }{
+                    Code:    GetAddress("HELM_STATUS_ERROR"),
+                    Message: &errMsg,
+                    Source:  &ds.DeviceClientId,
+                },
+            })
+            continue
+        }
 
-		status, err := hm.helmClient.GetReleaseStatus(ctx, releaseName, "")
-		if err != nil {
-			errMsg := err.Error()
-			componentStatus := sbi.ComponentStatus{
-				Name:  helmComp.Name,
-				State: sbi.ComponentStatusStateFailed,
-				Error: &struct {
-					Code    *string `json:"code,omitempty"`
-					Message *string `json:"message,omitempty"`
-					Source  *string `json:"source,omitempty"`
-				}{
-					Code:    GetAddress("HELM_STATUS_ERROR"),
-					Message: &errMsg,
-					Source:  &ds.DeviceClientId,
-				},
-			}
-			hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
-			continue
-		}
-
-		componentState := hm.convertHelmStatus(status.Status)
-		componentStatus := sbi.ComponentStatus{
-			Name:  helmComp.Name,
-			State: componentState,
-			Error: nil,
-		}
-
-		hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
-	}
+        hm.database.SetComponentStatus(appID, component.Name, sbi.ComponentStatus{
+            Name:  component.Name,
+            State: hm.convertHelmStatus(status.Status),
+            Error: nil,
+        })
+    }
 }
+
 
 func (hm *DeploymentMonitor) convertHelmStatus(status release.Status) sbi.ComponentStatusState {
 	switch status {

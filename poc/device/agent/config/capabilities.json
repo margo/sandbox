@@ -23,8 +23,8 @@
                 "architecture": "amd64"
             }
         ],
-        "memory": "59 Gi",
-        "storage": "1862 Gi",
+        "memory": "59Gi",
+        "storage": "1862Gi",
         "peripherals": [
             {
                 "type": "gpu",

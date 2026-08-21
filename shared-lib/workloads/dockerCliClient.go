@@ -599,7 +599,12 @@ func (c *DockerComposeCliClient) DownloadCompose(
 	if err != nil {
 		return "", fmt.Errorf("failed to create oras file store: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		if closeErr := store.Close(); closeErr != nil {
+			// log but don't override the main error
+			_ = closeErr
+		}
+	}()
 
 	// Create remote repository reference
 	repo, err := remote.NewRepository(rawRef)

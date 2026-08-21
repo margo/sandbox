@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // quantityPattern is the canonical regex for a valid resource quantity string.
 // It matches a non-negative integer followed by an IEC binary suffix.
-var quantityPattern = regexp.MustCompile(`^([0-9]+)(Ki|Mi|Gi|Ti|Pi|Ei)$`)
+var quantityPattern = regexp.MustCompile(`^([0-9]+)[ ]*(Ki|Mi|Gi|Ti|Pi|Ei)$`)
 
 // multipliers maps each IEC binary suffix to its byte equivalent.
 // Ordered slice is not needed here because the regex already isolates the
@@ -37,10 +38,10 @@ type Quantity struct {
 // Parse parses a quantity string into a Quantity.
 // Returns an error if the string does not match ^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$.
 func Parse(s string) (Quantity, error) {
-	matches := quantityPattern.FindStringSubmatch(s)
+	matches := quantityPattern.FindStringSubmatch(strings.TrimSpace(s))
 	if matches == nil {
 		return Quantity{}, fmt.Errorf(
-			"invalid quantity %q: must match ^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", s,
+			"invalid quantity %q: must match ^([0-9]+)\\s*(Ki|Mi|Gi|Ti|Pi|Ei)$", s,
 		)
 	}
 

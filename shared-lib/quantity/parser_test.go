@@ -16,6 +16,14 @@ func TestParse_ValidInputs(t *testing.T) {
 		input     string
 		wantBytes int64
 	}{
+		// ── Space-separated scalar and unit ─────────────────────────────────────
+		{"1 Ki", 1 << 10},
+		{"512 Mi", 512 * (1 << 20)},
+		{"10 Gi", 10 * (1 << 30)},
+		{"2 Ti", 2 * (1 << 40)},
+		{"4 Pi", 4 * (1 << 50)},
+		{"1 Ei", 1 << 60},
+		{"0 Gi", 0},
 		// ── Ki ──────────────────────────────────────────────────────────────
 		{"1Ki", 1 << 10},
 		{"512Ki", 512 * (1 << 10)},
@@ -89,10 +97,6 @@ func TestParse_InvalidInputs(t *testing.T) {
 		{name: "leading plus sign", input: "+1Gi"},
 		{name: "hex value", input: "0xFFGi"},
 		{name: "empty numeric part", input: "Gi"},
-		{name: "space before number", input: " 1Gi"},
-		{name: "space after number", input: "1 Gi"},
-		{name: "space inside", input: "1 Gi"},
-
 		// ── Completely invalid strings ───────────────────────────────────────
 		{name: "empty string", input: ""},
 		{name: "only suffix", input: "Mi"},
@@ -154,14 +158,18 @@ func TestQuantity_Bytes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuantity_String(t *testing.T) {
-	inputs := []string{"1Ki", "512Mi", "10Gi", "2Ti", "4Pi", "1Ei"}
+	inputs := []string{
+		// original compact forms
+		"1Ki", "512Mi", "10Gi", "2Ti", "4Pi", "1Ei",
+		// space-separated forms — String() must return the original input exactly
+		"1 Ki", "512 Mi", "10 Gi", "2 Ti", "4 Pi", "1 Ei",
+	}
 
 	for _, input := range inputs {
 		input := input
 		t.Run(input, func(t *testing.T) {
 			q, err := Parse(input)
 			require.NoError(t, err)
-			// String() must return the original unparsed value exactly.
 			assert.Equal(t, input, q.String())
 		})
 	}

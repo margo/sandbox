@@ -100,12 +100,16 @@ Reusable Go libraries providing common functionality across MARGO components.
 - **Workload management** (`workloads/`) - Helm and Docker Compose clients
 - **Archive** (`archive/`) - Unpacking or packing archives(tar.gz) etc..
 - **Pointer operations** (`pointers/`) - Some helper functions to deep clone, safely get pointer to temp variables etc...
+- **Device Constraint Selector Engine** (`constraints/`) - Reusable device eligibility checking library for the checks defined in [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/proposals/sup_device_specific_runtime_affinity_matching.md)
+- **Go Set Library** (`set/`) - A general purpose set implementation for Go, with commonly used operations in Go.
+- **IEC Quantity Parser** (`quantity/`) - A general purpose minimalist IEC mini quantity notation parser & comparer. 
 
 ### 🛠️ Development Tools (`scripts/`)
 Scripts and utilities for development, testing, and deployment automation.
 
 **Tools:**
 - **Setup script** (`wfm.sh`, `device-agent.sh`) - Automated environment setup (Harbor, device's Workload Fleet Management Client, Symphony etc.)
+- **Label Generator Script** (`create-device-labels.sh`) - This script helps users generate labels for a device as per the guidelines defined here: [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/proposals/sup_device_specific_runtime_affinity_matching.md)
 - **EasyCLI** (`wfm-cli.sh`) - EasyCLI is an interactive menu with options to upload/apply/delete app packages, deploy/delete instances.
 
 

@@ -24,29 +24,21 @@ When a non-nil error is returned, the resulting device slice is guaranteed to be
 */
 func (ds *deviceSelector) SelectEligibleDevice(
 	devices []*clModels.DeviceCapabilitiesManifest,
-	checks *clModels.DeviceConstraints) ([]*clModels.DeviceCapabilitiesManifest, error) {
-
+	checks *clModels.DeviceConstraints,
+) ([]*clModels.DeviceCapabilitiesManifest, error) {
 	eligibleDevs := make([]*clModels.DeviceCapabilitiesManifest, 0)
 	var gErr error
 	for _, d := range devices {
 		ok, _, err := ds.IsDeviceEligible(d, checks)
-		if err == nil && ok {
-			eligibleDevs = append(eligibleDevs, d)
-			continue
-		}
-
 		if err != nil {
-			//log error message
-			// ds.logger.Errorw("failed to check for eligibility", "device id", d.Properties.Id, "err", err.Error())
 			gErr = err
 			break
 		}
 
 		if !ok {
-			// log ineligbility
-			// ds.logger.Warnw("device is ineligible, moving on to next device", "device id", d.Properties.Id, "reason", reason)
 			continue
 		}
+		eligibleDevs = append(eligibleDevs, d)
 	}
 
 	// In case of error, do not continue checking for other devices. Halt.
@@ -66,8 +58,8 @@ func (ds *deviceSelector) SelectEligibleDevice(
 // reason are guaranteed to be their zero values (false, "").
 func (ds *deviceSelector) IsDeviceEligible(
 	device *clModels.DeviceCapabilitiesManifest,
-	checks *clModels.DeviceConstraints) (bool, string, error) {
-
+	checks *clModels.DeviceConstraints,
+) (bool, string, error) {
 	if checks == nil {
 		return true, "", nil
 	}

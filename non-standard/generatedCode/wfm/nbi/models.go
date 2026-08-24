@@ -24,6 +24,8 @@ func (e AppDeploymentProfileType) Valid() bool {
 	switch e {
 	case AppDeploymentProfileTypeCompose:
 		return true
+	case AppDeploymentProfileTypeCustom:
+		return true
 	case AppDeploymentProfileTypeHelm:
 		return true
 	default:
@@ -247,6 +249,24 @@ const (
 	Riscv64 DeploymentCpuRequirementArchitectures = "riscv64"
 )
 
+// Valid indicates whether the value is a known member of the DeploymentCpuRequirementArchitectures enum.
+func (e DeploymentCpuRequirementArchitectures) Valid() bool {
+	switch e {
+	case Amd64:
+		return true
+	case Arm:
+		return true
+	case Arm64:
+		return true
+	case Other:
+		return true
+	case Riscv64:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeploymentExecutionProfileType.
 const (
 	DeploymentExecutionProfileTypeCompose DeploymentExecutionProfileType = "compose"
@@ -259,6 +279,8 @@ func (e DeploymentExecutionProfileType) Valid() bool {
 	switch e {
 	case DeploymentExecutionProfileTypeCompose:
 		return true
+	case DeploymentExecutionProfileTypeCustom:
+		return true
 	case DeploymentExecutionProfileTypeHelm:
 		return true
 	default:
@@ -266,24 +288,26 @@ func (e DeploymentExecutionProfileType) Valid() bool {
 	}
 }
 
-// Defines values for DeviceConstraintOperator.
-const (
-	DeviceConstraintOperatorContainsAll  DeviceConstraintOperator = "ContainsAll"
-	DeviceConstraintOperatorContainsAny  DeviceConstraintOperator = "ContainsAny"
-	DeviceConstraintOperatorDoesNotExist DeviceConstraintOperator = "DoesNotExist"
-	DeviceConstraintOperatorExists       DeviceConstraintOperator = "Exists"
-	DeviceConstraintOperatorGt           DeviceConstraintOperator = "Gt"
-	DeviceConstraintOperatorIn           DeviceConstraintOperator = "In"
-	DeviceConstraintOperatorLt           DeviceConstraintOperator = "Lt"
-	DeviceConstraintOperatorNotIn        DeviceConstraintOperator = "NotIn"
-)
-
 // Defines values for DeviceManifestRespEligible.
 const (
 	False   DeviceManifestRespEligible = "false"
 	True    DeviceManifestRespEligible = "true"
 	Unknown DeviceManifestRespEligible = "unknown"
 )
+
+// Valid indicates whether the value is a known member of the DeviceManifestRespEligible enum.
+func (e DeviceManifestRespEligible) Valid() bool {
+	switch e {
+	case False:
+		return true
+	case True:
+		return true
+	case Unknown:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for DeviceOnboardStatus.
 const (
@@ -318,6 +342,30 @@ const (
 	NotIn        MatchExpressionOperator = "NotIn"
 )
 
+// Valid indicates whether the value is a known member of the MatchExpressionOperator enum.
+func (e MatchExpressionOperator) Valid() bool {
+	switch e {
+	case ContainsAll:
+		return true
+	case ContainsAny:
+		return true
+	case DoesNotExist:
+		return true
+	case Exists:
+		return true
+	case Gt:
+		return true
+	case In:
+		return true
+	case Lt:
+		return true
+	case NotIn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OciAuthenticationType.
 const (
 	Basic OciAuthenticationType = "basic"
@@ -338,16 +386,6 @@ func (e OciAuthenticationType) Valid() bool {
 		return false
 	}
 }
-
-// Defines values for SimpleSelectorOperator.
-const (
-	SimpleSelectorOperatorDoesNotExist SimpleSelectorOperator = "DoesNotExist"
-	SimpleSelectorOperatorExists       SimpleSelectorOperator = "Exists"
-	SimpleSelectorOperatorGt           SimpleSelectorOperator = "Gt"
-	SimpleSelectorOperatorIn           SimpleSelectorOperator = "In"
-	SimpleSelectorOperatorLt           SimpleSelectorOperator = "Lt"
-	SimpleSelectorOperatorNotIn        SimpleSelectorOperator = "NotIn"
-)
 
 // APIResponse defines model for APIResponse.
 type APIResponse struct {
@@ -375,8 +413,8 @@ type AppDeploymentProfile struct {
 	// Description Description of the deployment profile
 	Description *string `json:"description" yaml:"description"`
 
-	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
-	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
+	// DeviceConstraints Description of the device capabilties required for this particular application
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints" yaml:"deviceConstraints"`
 
 	// Type Type of deployment profile
 	Type AppDeploymentProfileType `json:"type" yaml:"type"`
@@ -891,7 +929,7 @@ type DeploymentExecutionProfile struct {
 	// Components Components of the deployment profile
 	Components []DeploymentExecutionProfile_Components_Item `json:"components"`
 
-	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+	// DeviceConstraints Description of the device capabilties required for this particular application
 	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
 
 	// Type Type of deployment profile
@@ -929,7 +967,7 @@ type DeploymentParameters map[string]DeploymentParameterValue
 
 // DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
 type DeviceConstraints struct {
-	// CapacityRequirements Minimum device capacity required by the deployment profile.
+	// CapacityRequirements Minimum CPU, memory, and storage requirements for the deployment profile.
 	CapacityRequirements *CapacityRequirements `json:"capacityRequirements,omitempty"`
 
 	// EligibilityRules Optional rules used to match the deployment with device properties and supplier-defined labels reported in the device capabilities.
@@ -990,10 +1028,10 @@ type DeviceState struct {
 
 // EligibilityRule A rule matching properties and supplier-defined labels reported through the device capabilities.
 type EligibilityRule struct {
-	// LabelSelector A set of match expressions evaluated with AND semantics.
+	// LabelSelector Selector evaluated against the labels reported in the device capabilities.
 	LabelSelector *Selector `json:"labelSelector,omitempty"`
 
-	// PropertySelector A set of match expressions evaluated with AND semantics.
+	// PropertySelector Selector evaluated against the properties reported in the device capabilities.
 	PropertySelector *Selector `json:"propertySelector,omitempty"`
 }
 
@@ -1288,7 +1326,7 @@ func (t *AppDeploymentProfile_Components_Item) MergeCustomApplicationDeploymentP
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(t.union, b)
+	merged, err := runtime.JSONMerge(t.union, b)
 	t.union = merged
 	return err
 }
@@ -1548,7 +1586,7 @@ func (t *DeploymentExecutionProfile_Components_Item) MergeCustomDeploymentProfil
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(t.union, b)
+	merged, err := runtime.JSONMerge(t.union, b)
 	t.union = merged
 	return err
 }

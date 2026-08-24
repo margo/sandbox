@@ -662,10 +662,12 @@ components:
         labels:
           type: object
           additionalProperties: { type: string }
-          description: Labels for the resource   
+          description: Labels for the resource
     applicationDeploymentProfileComponent:
       type: object
-      description: Application Deployment Profile Component (helm or compose)
+      description: >-
+        A component within a deployment profile. Uses the unified ComponentProperties
+        shape — both Helm and Compose components share the same OCI coordinate structure.
       required: [name, properties]
       patternProperties:
         '^x-[a-z][a-z0-9-]*-extensions$':
@@ -684,19 +686,28 @@ components:
           properties:
             repository:
               type: string
-              description: OCI repository URL of the component (Helm chart or Compose package archive)
+              pattern: '^oci://.+'
+              description: >-
+                OCI repository URI for the component package
+                (e.g., oci://registry.example.com/org/component-name).
+                MUST be a valid OCI reference using the oci:// scheme.
             revision:
               type: string
-              description: Version of the component
-            timeout:
-              type: string
-              description: Timeout for the component installation
+              pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:_([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+              description: >-
+                OCI tag identifying the component version. MUST be a valid SemVer 2.0
+                string without leading v. Build metadata uses _ as separator instead of +.
             wait:
               type: boolean
-              description: Wait for the component to be ready before proceeding
-
-    
-    
+              description: >-
+                Whether to wait for component installation to complete before proceeding.
+                Default is true. Only applies when multiple components are provided.
+            timeout:
+              type: string
+              pattern: '^\d+m\d+s$'
+              description: >-
+                Maximum time to wait for component installation to complete.
+                Format is ##m##s (e.g., 5m0s, 8m30s).
     appDeploymentProfile:
       type: object
       description: Application Deployment Profile
@@ -716,9 +727,8 @@ components:
         components:
           type: array
           items:
-            $ref: '#/components/schemas/applicationDeploymentProfileComponent'  
+            $ref: '#/components/schemas/applicationDeploymentProfileComponent'
           description: Components of the deployment profile
-
     appParameterTarget:
       type: object
       description: Application Parameter Target

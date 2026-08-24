@@ -457,21 +457,21 @@ type AppParameterValue struct {
 	Value interface{} `json:"value"`
 }
 
-// ApplicationDeploymentProfileComponent Application Deployment Profile Component (helm or compose)
+// ApplicationDeploymentProfileComponent A component within a deployment profile. Uses the unified ComponentProperties shape — both Helm and Compose components share the same OCI coordinate structure.
 type ApplicationDeploymentProfileComponent struct {
 	// Name Name of the component
 	Name       string `json:"name"`
 	Properties struct {
-		// Repository OCI repository URL of the component (Helm chart or Compose package archive)
+		// Repository OCI repository URI for the component package (e.g., oci://registry.example.com/org/component-name). MUST be a valid OCI reference using the oci:// scheme.
 		Repository string `json:"repository"`
 
-		// Revision Version of the component
+		// Revision OCI tag identifying the component version. MUST be a valid SemVer 2.0 string without leading v. Build metadata uses _ as separator instead of +.
 		Revision string `json:"revision"`
 
-		// Timeout Timeout for the component installation
+		// Timeout Maximum time to wait for component installation to complete. Format is ##m##s (e.g., 5m0s, 8m30s).
 		Timeout *string `json:"timeout,omitempty"`
 
-		// Wait Wait for the component to be ready before proceeding
+		// Wait Whether to wait for component installation to complete before proceeding. Default is true. Only applies when multiple components are provided.
 		Wait *bool `json:"wait,omitempty"`
 	} `json:"properties"`
 }

@@ -13,7 +13,7 @@ push_nextcloud_to_oci() {
   cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
 
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --insecure
+    -u "$REGISTRY_USER" --password-stdin 
 
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
@@ -41,7 +41,6 @@ push_nextcloud_to_oci() {
   echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
-    --insecure \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
@@ -63,7 +62,7 @@ push_custom_otel_to_oci() {
   cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
 
   echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin --insecure
+    -u "$REGISTRY_USER" --password-stdin 
 
   if [ ! -f "margo.yaml" ]; then
     echo "❌ margo.yaml not found in $app_dir"
@@ -83,7 +82,6 @@ push_custom_otel_to_oci() {
   echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
-    --insecure \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
@@ -123,7 +121,7 @@ build_custom_otel_container_images() {
   helm package helm/
 
   echo "Pushing chart to Harbor (HTTPS)..."
-  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" --insecure-skip-tls-verify
+  helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" 
 
 
   HELM_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"

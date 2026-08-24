@@ -6,7 +6,7 @@ export PATH="$PATH:$HOME/go/bin"
 #WFM_SBI_SPEC=("spec/wfm-sbi.yaml")
 
 TMP_SPEC="snapshot.spec.yaml"
-SPEC_URL="https://raw.githubusercontent.com/margo/specification/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0-rc.2.yaml"
+SPEC_URL="https://raw.githubusercontent.com/margo/specification/refs/heads/pre-draft/system-design/specification/margo-management-interface/workload-management-api-1.0.0-rc.2.yaml"
 curl -sSL -o "$TMP_SPEC" \
   "$SPEC_URL"
 WFM_SBI_SPEC="$TMP_SPEC"

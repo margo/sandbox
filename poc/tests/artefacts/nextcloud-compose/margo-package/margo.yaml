@@ -26,7 +26,10 @@ deploymentProfiles:
     components:
       - name: nextcloud-stack
         properties:
-          packageLocation: https://raw.githubusercontent.com/docker/awesome-compose/refs/heads/master/nextcloud-redis-mariadb/compose.yaml
+          repository: {{NEXTCLOUD_COMPOSE_REPOSITORY}} # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
+          revision: {{NEXTCLOUD_COMPOSE_REVISION}}
+          wait: true
+          timeout: 5m
 parameters:
   mysqlDatabase:
     value: nextcloud

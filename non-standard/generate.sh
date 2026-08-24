@@ -48,8 +48,8 @@ check_prerequisites() {
 
 install_tools() {
     log_info "Installing oapi-codegen..."
-    # TODO: fix the codegen version
-    go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
+    go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+    export PATH="$PATH:$(go env GOPATH)/bin"
     log_success "oapi-codegen installed"
 }
 

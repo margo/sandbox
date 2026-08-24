@@ -87,14 +87,17 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 			"Failed to get device settings, cannot proceed",
 			"err",
 			err.Error())
-
 		return
 	}
 
-	// Get the app deployment manifest directly
 	appDeployment := record.CurrentState.AppDeploymentManifest
 
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
+		return
+	}
+
+	// Only monitor Helm deployments
+	if appDeployment.Spec.DeploymentProfile.Type != sbi.AppDeploymentProfileTypeHelm {
 		return
 	}
 
@@ -102,25 +105,13 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 	defer cancel()
 
 	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-		helmComp, err := component.AsHelmApplicationDeploymentProfileComponent()
-		if err != nil {
-			hm.log.Warnw(
-				"Failed to convert component to Helm component",
-				"appID",
-				appID,
-				"error",
-				err,
-			)
-			continue
-		}
-
-		releaseName := fmt.Sprintf("%s-%s", helmComp.Name, appID[:8])
+		releaseName := fmt.Sprintf("%s-%s", component.Name, appID[:8])
 
 		status, err := hm.helmClient.GetReleaseStatus(ctx, releaseName, "")
 		if err != nil {
 			errMsg := err.Error()
-			componentStatus := sbi.ComponentStatus{
-				Name:  helmComp.Name,
+			hm.database.SetComponentStatus(appID, component.Name, sbi.ComponentStatus{
+				Name:  component.Name,
 				State: sbi.ComponentStatusStateFailed,
 				Error: &struct {
 					Code    *string `json:"code,omitempty"`
@@ -131,19 +122,15 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 					Message: &errMsg,
 					Source:  &ds.DeviceClientId,
 				},
-			}
-			hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
+			})
 			continue
 		}
 
-		componentState := hm.convertHelmStatus(status.Status)
-		componentStatus := sbi.ComponentStatus{
-			Name:  helmComp.Name,
-			State: componentState,
+		hm.database.SetComponentStatus(appID, component.Name, sbi.ComponentStatus{
+			Name:  component.Name,
+			State: hm.convertHelmStatus(status.Status),
 			Error: nil,
-		}
-
-		hm.database.SetComponentStatus(appID, helmComp.Name, componentStatus)
+		})
 	}
 }
 

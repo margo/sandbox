@@ -81,6 +81,7 @@ install_prerequisites() {
   echo "📦 Pushing pre-existing test-bed application packages to OCI Registry..."
   push_nextcloud_to_oci
   push_custom_otel_to_oci
+  push_nextcloud_compose_to_oci
   echo "✅ Setup completed!"
   echo "-----------------------------------------------------------------------"
 }

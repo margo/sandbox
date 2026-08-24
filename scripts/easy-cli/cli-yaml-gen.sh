@@ -65,10 +65,8 @@ generate_instance_yaml_from_oci() {
 
   local repository=$(get_oci_repository_path "$package_name" "$temp_dir/margo.yaml")
 
-  if [ "$profile_type" = "helm" ]; then
-    generate_helm_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml"
-  elif [ "$profile_type" = "compose" ]; then
-    generate_compose_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml"
+  if [ "$profile_type" = "helm" ] || [ "$profile_type" = "compose" ]; then
+    generate_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml" "$profile_type"
   else
     echo "❌ Unsupported deployment type: $profile_type" >&2
     cd - >/dev/null
@@ -81,15 +79,23 @@ generate_instance_yaml_from_oci() {
   return 0
 }
 
-generate_helm_instance() {
+generate_instance() {
   local app_identifier="$1"
   local package_id="$2"
   local device_id="$3"
   local repository="$4"
   local output_file="$5"
   local margo_file="$6"
+  local profile_type="$7"  # "helm" or "compose"
 
   local instance_name=$(echo "${app_identifier}-instance" | cut -c1-53)
+  local component_name=$(echo "${app_identifier}" | cut -c1-40)
+  local default_rev
+  if [ "$profile_type" = "helm" ]; then
+    default_rev="0.1.0"
+  else
+    default_rev="1.0.0"
+  fi
 
   cat > "$output_file" <<EOF
 # This is an input template allowing the WFM user to modify deployment instance specific parameters(currently read-only).
@@ -105,7 +111,7 @@ spec:
   deviceRef:
     id: ${device_id}
   deploymentProfile:
-    type: helm
+    type: ${profile_type}
     components:
 EOF
 
@@ -135,7 +141,7 @@ EOF
     }' "$margo_file" | {
       local current_name=""
       local current_repo=""
-      local current_rev="0.1.0"
+      local current_rev="$default_rev"
 
       while IFS=: read -r key value; do
         case "$key" in
@@ -158,125 +164,80 @@ EOF
 COMPONENT
               current_name=""
               current_repo=""
-              current_rev="0.1.0"
+              current_rev="$default_rev"
             fi
             ;;
         esac
       done
     }
   else
-    local component_name=$(echo "$app_identifier" | cut -c1-40)
-    local chart_version=$(grep -E "^\s*version:" "$margo_file" | head -1 | sed 's/.*version:\s*//' | tr -d '"' | tr -d "'" | xargs)
-    chart_version="${chart_version:-0.1.0}"
+    local fallback_rev="$default_rev"
+    if [ "$profile_type" = "helm" ]; then
+      local version_field
+      version_field=$(grep -E "^\s*version:" "$margo_file" | head -1 \
+        | sed 's/.*version:\s*//' | tr -d '"' | tr -d "'" | xargs)
+      [ -n "$version_field" ] && fallback_rev="$version_field"
+    fi
 
     cat >> "$output_file" <<COMPONENT
       - name: ${component_name}
         properties:
           repository: ${repository}
-          revision: ${chart_version}
+          revision: ${fallback_rev}
           wait: true
           timeout: 5m
 COMPONENT
   fi
 
+  # Profile-specific parameters
   if grep -q "parameters:" "$margo_file"; then
     echo "  parameters:" >> "$output_file"
 
-    if grep -qi "otel\|otlp" "$margo_file"; then
-      cat >> "$output_file" <<EOF
+    if [ "$profile_type" = "helm" ]; then
+      # helm: emit otlp endpoint if otel/otlp present in margo.yaml
+      if grep -qi "otel\|otlp" "$margo_file"; then
+        cat >> "$output_file" <<EOF
     otlpEndpoint:
       value: "http://otel-collector-opentelemetry-collector.observability:4318"
       targets:
       - pointer: env.OTEL_EXPORTER_OTLP_ENDPOINT
         components: ["${component_name}"]
 EOF
-    fi
-  fi
-}
+      fi
 
-generate_compose_instance() {
-  local app_identifier="$1"
-  local package_id="$2"
-  local device_id="$3"
-  local repository="$4"
-  local output_file="$5"
-  local margo_file="$6"
+    elif [ "$profile_type" = "compose" ]; then
+      # compose: find parameter name and port value from PORTS.* pointer in margo.yaml
+      local port_param port_value port_number
 
-  local instance_name=$(echo "${app_identifier}-instance" | cut -c1-53)
-  local stack_name=$(echo "${app_identifier}-stack" | cut -c1-40)
+      port_param=$(awk '
+        /^parameters:/ { in_params=1; next }
+        in_params && /^  [a-zA-Z]/ { current=$1; gsub(/:/, "", current) }
+        in_params && /pointer:.*PORTS\./ { print current; exit }
+      ' "$margo_file")
 
-  cat > "$output_file" <<EOF
-# This is an input template allowing the WFM user to modify deployment instance specific parameters(currently read-only).
-# This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
-apiVersion: non-margo.org
-kind: ApplicationDeployment
-metadata:
-  name: ${instance_name}
-spec:
-  appPackageRef:
-    id: ${package_id}
-  deviceRef:
-    id: ${device_id}
-  deploymentProfile:
-    type: compose
-    components:
-EOF
+      port_number=$(awk '
+        /pointer:.*PORTS\./ {
+          match($0, /PORTS\.([0-9]+)/, arr)
+          print arr[1]
+          exit
+        }
+      ' "$margo_file")
 
-  if grep -q "components:" "$margo_file"; then
-    awk '/components:/,/^[^ ]/ {
-      if (/- name:/) {
-        name = $0
-        sub(/.*name:/, "", name)
-        gsub(/^[ \t]+|[ \t]+$/, "", name)
-        gsub(/"/, "", name)
-        print "COMPONENT_NAME:" name
-      }
-      if (/packageLocation:/) {
-        location = $0
-        sub(/.*packageLocation:/, "", location)
-        gsub(/^[ \t]+|[ \t]+$/, "", location)
-        gsub(/"/, "", location)
-        print "PACKAGE_LOCATION:" location
-      }
-    }' "$margo_file" | {
-      local current_name=""
-      while IFS=: read -r key value; do
-        case "$key" in
-          COMPONENT_NAME)
-            current_name="$value"
-            ;;
-          PACKAGE_LOCATION)
-            if [ -n "$current_name" ]; then
-              cat >> "$output_file" <<COMPONENT
-      - name: ${current_name}
-        properties:
-          packageLocation: ${value}
-COMPONENT
-              current_name=""
-            fi
-            ;;
-        esac
-      done
-    }
-  else
-    cat >> "$output_file" <<COMPONENT
-      - name: ${stack_name}
-        properties:
-          packageLocation: ${repository}
-COMPONENT
-  fi
+      if [ -n "$port_param" ]; then
+        port_value=$(awk "/^  ${port_param}:/,/targets:/ { if (/value:/) print }" "$margo_file" \
+          | head -1 | sed 's/.*value:\s*//' | tr -d '"' | tr -d "'" | xargs)
+      fi
 
-  if grep -q "parameters:" "$margo_file"; then
-    echo "  parameters:" >> "$output_file"
+      port_value="${port_value:-${port_number:-80}}"
+      port_number="${port_number:-80}"
+      port_param="${port_param:-servicePort}"
 
-    local default_port=$(grep -E "^\s*port:" "$margo_file" | head -1 | sed 's/.*port:\s*//' | tr -d '"' | tr -d "'" | xargs)
-    if [ -n "$default_port" ]; then
       cat >> "$output_file" <<EOF
-    servicePort:
-      value: ${default_port}
+    ${port_param}:
+      value: ${port_value}
       targets:
-        - pointer: PORTS.80
-          components: ["${stack_name}"]
+        - pointer: PORTS.${port_number}
+          components: ["${component_name}"]
 EOF
     fi
   fi

@@ -771,6 +771,7 @@ components:
               type: boolean
           required:
           - repository
+          - revision
           type: object
       required:
       - name
@@ -793,19 +794,19 @@ components:
             json: "properties"
             yaml: "properties"
           properties:
-            keyLocation:
-              # x-go-field-tags: 'json:"keyLocation" yaml:"keyLocation"'
+            repository:
+              # x-go-field-tags: 'json:"repository" yaml:"repository"'
               x-oapi-codegen-extra-tags:
-                json: "keyLocation"
-                yaml: "keyLocation"
-              description: Key location of the component
+                json: "repository"
+                yaml: "repository"
+              description: Repository of the component
               type: string
-            packageLocation:
-              # x-go-field-tags: 'json:"packageLocation" yaml:"packageLocation"'
+            revision:
+              # x-go-field-tags: 'json:"revision" yaml:"revision"'
               x-oapi-codegen-extra-tags:
-                json: "packageLocation"
-                yaml: "packageLocation"
-              description: Package location of the component
+                json: "revision"
+                yaml: "revision"
+              description: Revision of the component
               type: string
             timeout:
               # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
@@ -822,7 +823,8 @@ components:
               description: Wait for the component to be ready
               type: boolean
           required:
-          - packageLocation
+          - repository
+          - revision
           type: object
       required:
       - name
@@ -1356,7 +1358,7 @@ components:
           description: Name of the component
         properties:
           type: object
-          required: [repository]
+          required: [repository, revision]
           properties:
             repository:
               type: string
@@ -1381,14 +1383,14 @@ components:
           description: Name of the component
         properties:
           type: object
-          required: [packageLocation]
+          required: [repository, revision]
           properties:
-            packageLocation:
+            repository:
               type: string
-              description: Package location of the component
-            keyLocation:
+              description: Repository of the component
+            revision:
               type: string
-              description: Key location of the component
+              description: Revision of the component
             timeout:
               type: string
               description: Timeout for the component

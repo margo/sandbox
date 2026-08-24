@@ -38,7 +38,6 @@ get_package_metadata_from_oci() {
   cd "$temp_dir"
 
   oras pull "${harbor_url}/${full_repo}:latest" \
-    --insecure \
     -u "${REGISTRY_USER}:${REGISTRY_PASS}" \
     margo.yaml 2>/dev/null
 

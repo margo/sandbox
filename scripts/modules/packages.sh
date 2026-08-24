@@ -159,8 +159,7 @@ push_nextcloud_compose_to_oci() {
   echo "$REGISTRY_PASS" | oras login \
     "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
     -u "$REGISTRY_USER" \
-    --password-stdin \
-    --insecure
+    --password-stdin 
 
   if [ ! -f "compose.yaml" ]; then
     echo "❌ compose.yaml not found in $app_dir"
@@ -204,7 +203,6 @@ push_nextcloud_compose_to_oci() {
     oras push \
       "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
-      --insecure \
       "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
   )
 

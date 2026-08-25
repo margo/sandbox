@@ -14,8 +14,7 @@ import (
 )
 
 type DeviceClientSettings struct {
-	deviceClientId string
-
+	deviceClientId                                  string
 	deviceRootIdentity                              types.DeviceRootIdentity
 	authEnabled                                     bool
 	wfmEndpointsForClient                           []string
@@ -47,7 +46,7 @@ func WithEnableHelmDeployment() Option {
 
 		auth.supportedRuntimes = append(
 			auth.supportedRuntimes,
-			sbi.Oci,
+			sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci,
 		)
 	}
 }

@@ -523,7 +523,7 @@ func (cli *NbiApiClient) DeleteDeployment(deploymentId string) error {
 	}
 }
 
-func (cli *NbiApiClient) ListDevices() (*DeviceListResp, error) {
+func (cli *NbiApiClient) ListDevices(appPkgId *string) (*DeviceListResp, error) {
 	client, err := cli.createNonStdNbiClient()
 	if err != nil {
 		return nil, err
@@ -532,7 +532,14 @@ func (cli *NbiApiClient) ListDevices() (*DeviceListResp, error) {
 	ctx, cancel := cli.createContext()
 	defer cancel()
 
-	resp, err := client.ListDevices(ctx, nil)
+	var params *nonStdWfmNbi.ListDevicesParams = nil
+	if appPkgId != nil && *appPkgId != "" {
+		params = &nonStdWfmNbi.ListDevicesParams{
+			AppPackageId: appPkgId,
+		}
+	}
+
+	resp, err := client.ListDevices(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list devices request failed: %w", err)
 	}

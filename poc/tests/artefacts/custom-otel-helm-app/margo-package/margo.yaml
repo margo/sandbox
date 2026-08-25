@@ -28,18 +28,24 @@ deploymentProfiles:
           revision: {{HELM_REVISION}} # e.g., 0.1.0
           wait: true
           timeout: 5m
-    requiredResources:
-      cpu:
-        cores: 1
-        architectures:
-          - amd64
-          - x86_64
-      memory: 512Mi
-      storage: 1Gi
-      peripherals:
-        - type: display
-      interfaces:
-        - type: ethernet
+    deviceConstraints:
+      capacityRequirements:
+        cpu:
+          cores: 1
+          architectures: ["amd64"]
+        memory: 4Gi
+        storage: 10Gi
+      eligibilityRules:
+        - propertySelector:
+            matchExpressions:
+              - key: /supportedDeploymentTypes
+                operator: In
+                values:
+                  - "helm"
+              - key: /supportedRuntimes
+                operator: In
+                values:
+                  - "oci"
 parameters:
   # Frontend service configuration
   otlpEndpoint:

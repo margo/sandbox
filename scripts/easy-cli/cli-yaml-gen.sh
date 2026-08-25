@@ -13,7 +13,6 @@ generate_instance_yaml_from_oci() {
   cd "$temp_dir"
 
   if ! oras pull "${harbor_url}/${OCI_ORGANIZATION}/${package_name}:latest" \
-      --insecure \
       -u "${REGISTRY_USER}:${REGISTRY_PASS}" >/dev/null 2>&1; then
     echo "❌ Failed to pull package from OCI" >&2
     cd - >/dev/null

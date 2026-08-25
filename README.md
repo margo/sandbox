@@ -55,7 +55,7 @@ Here is [Setup Guide](./docs/setup-guide.md) to get you started quickly.
 The repository is divided into three main parts. You can find more details here on [Repository Structure](./docs/repo-structure.md):
 
 - `shared-lib`: Reusable libraries and utilities (Open Source Components)
-- `standard`: Implementation of the components as per Margo specification, a snapshot of the the implemented spec is copied from the official sources in this directory for traceability, in case the original source gets changed later on.
+- `standard`: Implementation of the components as per Margo specification, a snapshot of the implemented spec is copied from the official sources in this directory for traceability, in case the original source gets changed later on.
 - `non-standard`: Enabling components, which are not defined by Margo, but required for an overall implementation
 
 ---
@@ -95,7 +95,7 @@ The repository is divided into three main parts. You can find more details here 
 
 ### Design and Mapping to Margo Architecture
 Margo envisions a [Distributed system design](https://specification.margo.org/overview/envisioned-system-design/#overview) for Industry 4.0 applications, which chiefly includes Application Supplier infrastructure, Fleet Manager and Devices which run Applications.
-The Fleet Manager responsible for deploying Applications as running Workloads is refered to as a 'Workload Fleet Manager' or WFM.
+The Fleet Manager responsible for deploying Applications as running Workloads is referred to as a 'Workload Fleet Manager' or WFM.
 
 Other Margo definitions are available in [Margo Technical Lexicon](https://specification.margo.org/personas-and-definitions/technical-lexicon/)
 
@@ -110,16 +110,15 @@ This includes the following elements -
 - In case you want to contribute to its repo, then a developer's guide has been can be found [here](https://github.com/margo/symphony/blob/development/MARGO_DEV_GUIDE.md).
 
 #### Repositories and Registry
-- Harbor provide application registry and images/helm-charts repository functionalities.
-- Application supplier's packages , images/helm-charts are stored in Harbor.
-  and docker images/helm artifacts related to these applications are stored in Harbor registry.
-- Application packages are pulled/pushed/deleted from Harbor repository.
+- Harbor provides application registry and images/helm-charts repository functionalities.
+- Application suppliers' packages, images/helm-charts (related to the before mentioned packages or not) are stored in Harbor.
+- Application packages are pulled/pushed/deleted from the Harbor registry.
 - WFM stores application packages in its database and are used during LCM (Life Cycle Management) operation.
 - The Workload Fleet Management Client pulls docker images/helm artifacts from Harbor whenever workloads are getting deployed corresponding to the application packages during instance deployment.
 
 #### Telemetry and Monitoring
-- Sandbox deploys OpenTelemetry Collector at WFM client for instrumentation as per Margo observability specification.
-- OpenTelemetry Collector sends telemetry data to observability backends from WFM client. Promtail is also deployed on WFM client for logs aggregation. Promtail agent fetches and pushes logs to Loki on WFM.
+- Sandbox deploys OpenTelemetry Collector on the WFM client for instrumentation as per Margo observability specification.
+- OpenTelemetry Collector sends telemetry data to observability backends from WFM client. Promtail is also deployed on WFM client for log aggregation. Promtail agent fetches and pushes logs to Loki on WFM.
 - Observability backends should be external to WFM client. In Sandbox implementation, these backends are deployed on WFM. These include Prometheus, Jaeger, Loki and Grafana.
 - Loki is deployed for log aggregation and Grafana dashboard for visualization.
 - Jaeger is deployed for tracing.

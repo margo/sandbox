@@ -168,7 +168,10 @@ func (c *DockerComposeCliClient) DeployCompose(
 	pullCmd.Dir = projectDir
 	pullCmd.Env = prepareDockerEnv(c.params, envVars)
 
-	_, _ = pullCmd.CombinedOutput()
+	// Discard pull output — warnings on stderr are expected and must not affect result
+	pullCmd.Stdout = io.Discard
+	pullCmd.Stderr = io.Discard
+	_ = pullCmd.Run()
 
 	upCmd := exec.CommandContext(ctx, c.dockerBinary, "compose",
 		"-f", composeFileName,
@@ -178,14 +181,16 @@ func (c *DockerComposeCliClient) DeployCompose(
 	upCmd.Dir = projectDir
 	upCmd.Env = prepareDockerEnv(c.params, envVars)
 
-	upOutput, err := upCmd.CombinedOutput()
+	// Separate stdout and stderr — warnings must not pollute error message
+	var upStderr strings.Builder
+	upCmd.Stdout = io.Discard
+	upCmd.Stderr = &upStderr
 
-	if err != nil {
-		return fmt.Errorf("failed to start containers: %s", string(upOutput))
+	if err := upCmd.Run(); err != nil {
+		return fmt.Errorf("failed to start containers: %s", upStderr.String())
 	}
 
 	if _, err := c.GetComposeStatus(ctx, composeFile, projectName); err != nil {
-
 		return fmt.Errorf("deployment verification failed: %w", err)
 	}
 
@@ -329,17 +334,23 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	cmd.Dir = filepath.Dir(absComposeFile)
 	cmd.Env = prepareDockerEnv(c.params, nil)
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	// Separate stdout and stderr — stderr warnings must NOT pollute JSON stdout
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf(
-			"failed to get compose status: %w, output: %s",
+			"failed to get compose status: %w, stderr: %s",
 			err,
-			string(output),
+			stderr.String(),
 		)
 	}
 
-	// Handle empty output (no containers)
-	if len(strings.TrimSpace(string(output))) == 0 {
+	output := stdout.String()
+
+	// Handle empty output (no containers) — correct fast path, unaffected by stderr warnings
+	if len(strings.TrimSpace(output)) == 0 {
 		return &ComposeStatus{
 			Name:      projectName,
 			Status:    "stopped",
@@ -352,8 +363,8 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 	// Parse JSON output - try array first, then line-by-line
 	var containers []ComposeContainer
 
-	if err := json.Unmarshal(output, &containers); err != nil {
-		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if err := json.Unmarshal([]byte(output), &containers); err != nil {
+		lines := strings.Split(strings.TrimSpace(output), "\n")
 		containers = make([]ComposeContainer, 0, len(lines))
 
 		for _, line := range lines {
@@ -372,7 +383,7 @@ func (c *DockerComposeCliClient) GetComposeStatus(
 		if len(containers) == 0 {
 			return nil, fmt.Errorf(
 				"failed to parse any container JSON from output: %s",
-				string(output),
+				output,
 			)
 		}
 	}

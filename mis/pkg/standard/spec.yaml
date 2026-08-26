@@ -1,0 +1,172 @@
+openapi: 3.1.0
+info:
+  title: Margo Identity and Authorization Framework (MIAF)
+  version: 1.0.0
+  summary: Discovery and Trust Bundle Endpoints
+  description: |
+    OpenAPI definition for the MIAF Discovery Document endpoint and
+    Trust Bundle retrieval endpoint.
+
+    Both endpoints:
+
+    - MUST be served over HTTPS
+    - Use no application-layer authentication
+    - Allow HTTP caching via ETag and Last-Modified
+    - Must tolerate future extensibility
+
+servers:
+  - url: https://mis.example.com
+
+paths:
+
+  /.well-known/margo:
+    get:
+      operationId: getDiscoveryDocument
+      summary: Retrieve MIAF discovery document
+      description: |
+        Optional entry point for a Trust Domain.
+
+        The discovery document identifies the Trust Domain and provides
+        the Trust Bundle URI from which the authoritative SPIFFE Bundle
+        Map can be retrieved.
+      tags:
+        - Discovery
+
+      responses:
+        "200":
+          description: Discovery document retrieved.
+          headers:
+            ETag:
+              description: Entity tag for cache validation.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp.
+              schema:
+                type: string
+                format: date-time
+
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryDocument"
+
+              examples:
+                example:
+                  summary: Example discovery document
+                  value:
+                    trustDomain: northstar-ida.com
+                    trustBundleUri: https://mis.northstar-ida.com/.well-known/spiffe/bundle.json
+
+        "304":
+          description: Cached copy remains valid.
+
+        "404":
+          description: Discovery document not available.
+
+  /{bundlePath}:
+    get:
+      operationId: getTrustBundle
+      summary: Retrieve SPIFFE Bundle Map
+      description: |
+        Returns a SPIFFE Bundle Map resource.
+
+        The entry keyed by the local trustDomain contains the
+        authoritative Trust Bundle for that domain.
+
+        The actual URL is provided by the discovery document's
+        trustBundleUri field.
+
+      tags:
+        - Trust Bundle
+
+      parameters:
+        - name: bundlePath
+          in: path
+          required: true
+          description: |
+            Placeholder path representing the location identified by
+            trustBundleUri.
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: Bundle Map successfully retrieved.
+          headers:
+            ETag:
+              description: Entity tag for cache validation.
+              schema:
+                type: string
+
+            Last-Modified:
+              description: Last modification timestamp.
+              schema:
+                type: string
+                format: date-time
+
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BundleMap"
+
+        "304":
+          description: Cached copy remains valid.
+
+        "404":
+          description: Bundle unavailable.
+
+components:
+
+  schemas:
+
+    DiscoveryDocument:
+      type: object
+      required:
+        - trustDomain
+        - trustBundleUri
+
+      properties:
+
+        trustDomain:
+          type: string
+          description: |
+            Identifier of the Trust Domain.
+
+            All SPIFFE IDs issued by the MIS belong to this Trust Domain.
+          examples:
+            - factory.example
+            - northstar-ida.com
+
+        trustBundleUri:
+          type: string
+          format: uri
+          pattern: "^https://.*"
+          description: |
+            Absolute HTTPS URL pointing to the SPIFFE Bundle Map resource.
+
+            The referenced Bundle Map MUST contain an entry for
+            trustDomain that represents the authoritative Trust Bundle
+            for that domain.
+
+      additionalProperties: true
+      description: |
+        The discovery document is intentionally extensible.
+        Clients MUST ignore unknown fields.
+
+    BundleMap:
+      type: object
+      description: |
+        SPIFFE Bundle Map.
+
+        MIAF adopts the SPIFFE Bundle Map specification by reference.
+        The structure is intentionally modeled as an open object because
+        this specification does not redefine the SPIFFE schema.
+      additionalProperties: true
+
+tags:
+  - name: Discovery
+    description: Discovery document operations
+
+  - name: Trust Bundle
+    description: Trust Bundle retrieval operations

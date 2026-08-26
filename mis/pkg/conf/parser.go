@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/margo/sandbox/mis/pkg/logger"
+	"github.com/margo/sandbox/mis/pkg/log"
 )
 
 type Config struct {
@@ -36,16 +36,17 @@ type HTTPSConfig struct {
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in reading config file, err : %s", err.Error())
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in unmarshalling config, err : %s", err.Error())
 	}
 
 	err = validateConfig(&cfg)
 	if err != nil {
+		return nil, fmt.Errorf("invalid config: %s", err.Error())
 	}
 
 	return &cfg, nil
@@ -74,7 +75,7 @@ func validateConfig(cfg *Config) error {
 		cfg.Log = &LogConfig{Level: "info"}
 	} else if cfg.Log.Level == "" {
 		cfg.Log.Level = "info"
-	} else if _, ok := logger.ValidLogLevels[cfg.Log.Level]; !ok {
+	} else if _, ok := log.ValidLogLevels[cfg.Log.Level]; !ok {
 		errs = append(
 			errs,
 			fmt.Errorf(

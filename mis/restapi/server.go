@@ -1,7 +1,10 @@
 package discovery
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -89,5 +92,48 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Complete this
+	tb, err := m.op.GetTrustBundle()
+	if err != nil {
+		logger.Error("failed to get trust bundle", "err", err.Error())
+		// TODO: Should we use some other error here?
+
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	rawBundle, err := tb.Marshal()
+	if err != nil {
+		logger.Error("failed to marshal trust bundle", "err", err.Error())
+		// TODO: Should we use some other error here?
+
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	result := types.MargoTrustBundleMap{
+		TrustDomains: types.MargoTrustBundle{
+			m.cnf.TrustDomain: rawBundle,
+		},
+	}
+
+	jr, err := json.Marshal(result)
+	if err != nil {
+		logger.Error("failed to prepare resulting trust bundle map", "err", err.Error())
+		// TODO: Should we use some other error here?
+
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	hash := sha256.Sum256(jr)
+	etag := fmt.Sprintf("\"%s\"", hex.EncodeToString(hash[:]))
+
+	if r.Header.Get("If-None-Match") == etag {
+		logger.Info("etag matched, cached copy still valid")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jr)
 }

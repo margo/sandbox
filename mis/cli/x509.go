@@ -38,10 +38,6 @@ type x509Flags struct {
 
 	// OutputDir is the directory where the generated SVID and private key will be saved.
 	OutputDir string
-
-	CAcert string // Path to CA certificate used to sign the SVID
-
-	CAkey string // Path to CA private key corresponding to CAcert
 }
 
 // flags holds the parsed values for the x509 subcommand flags.
@@ -64,8 +60,6 @@ Output files (will be overwritten if they already exist):
 Required Flags:
   --spiffeID   The SPIFFE ID to embed in the SVID.
 			   Must follow the format: spiffe://<trust-domain>/<path>
-  --CAcert     Path to the CA certificate used to sign the SVID.
-  --CAkey      Path to the CA private key corresponding to --CAcert.
 
 Optional Flags:
   --dns        DNS Subject Alternative Name (SAN) to include in the SVID.
@@ -78,14 +72,10 @@ Examples:
   # Mint an X.509 SVID using current directory as output
   svidctl mint x509 \
 	--spiffeID spiffe://example.org/myservice \
-	--CAcert /etc/certs/ca.pem \
-	--CAkey /etc/certs/ca-key.pem
 
   # Mint an X.509 SVID with DNS SANs, custom TTL, and output directory
   svidctl mint x509 \
 	--spiffeID spiffe://example.org/myservice \
-	--CAcert /etc/certs/ca.pem \
-	--CAkey /etc/certs/ca-key.pem \
 	--dns myservice.example.com \
 	--ttl 3600 \
 	--outputDir /tmp/svids`,
@@ -112,8 +102,6 @@ Examples:
 			flags.TTL,
 			time.Duration(flags.TTL)*time.Second,
 		)
-		fmt.Printf("  CA Cert    : %s\n", flags.CAcert)
-		fmt.Printf("  CA Key     : %s\n", flags.CAkey)
 		fmt.Printf("  Output Dir : %s\n", flags.OutputDir)
 
 		// TODO: Integrate X.509 SVID minting logic here
@@ -155,18 +143,8 @@ Example: spiffe://example.org/myservice`,
 		"Directory where payload-cert.pem and payload-key.pem will be saved (default: current working directory). Existing files will be overwritten.",
 	)
 
-	x509Cmd.Flags().StringVar(
-		&flags.CAcert, "CAcert", "",
-		"Path to the CA certificate used to sign the X.509 SVID (required, must exist on disk)",
-	)
-
-	x509Cmd.Flags().StringVar(
-		&flags.CAkey, "CAkey", "",
-		"Path to the CA private key corresponding to --CAcert (required, must exist on disk)",
-	)
-
 	// Mark required flags; cobra will enforce these before RunE is called
-	for _, flag := range []string{"spiffeID", "CAcert", "CAkey"} {
+	for _, flag := range []string{"spiffeID"} {
 		if err := x509Cmd.MarkFlagRequired(flag); err != nil {
 			panic(fmt.Sprintf("failed to mark %q flag as required: %v", flag, err))
 		}
@@ -200,14 +178,6 @@ func validateX509Flags(f x509Flags) error {
 			"DNS name at index %d is empty: DNS names must be non-empty strings",
 			i,
 		)
-	}
-
-	// Validate CA cert and key files exist on disk
-	if err := validateFileExists(f.CAcert, "CAcert"); err != nil {
-		return err
-	}
-	if err := validateFileExists(f.CAkey, "CAkey"); err != nil {
-		return err
 	}
 
 	return nil
@@ -278,26 +248,6 @@ func validateOutputDir(dir string) error {
 	// Clean up the temp file immediately
 	_ = testFile.Close()
 	_ = os.Remove(testFile.Name())
-
-	return nil
-}
-
-// validateFileExists checks that the given path points to an existing regular file.
-func validateFileExists(path, flagName string) error {
-	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("%s cannot be empty", flagName)
-	}
-
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("%s %q does not exist on disk", flagName, path)
-	}
-	if err != nil {
-		return fmt.Errorf("%s %q is not accessible: %w", flagName, path, err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("%s %q is a directory, expected a file", flagName, path)
-	}
 
 	return nil
 }

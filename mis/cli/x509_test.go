@@ -11,15 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---------------------------------------------------------------------------
-// validateSpiffeID
-// ---------------------------------------------------------------------------
+// ── validateSpiffeID ──────────────────────────────────────────────────────────
 
 func TestValidateSpiffeID(t *testing.T) {
 	tests := []struct {
 		name    string
 		id      string
-		wantErr string // substring expected in error; empty means no error
+		wantErr string
 	}{
 		{
 			name: "valid spiffe ID",
@@ -40,7 +38,7 @@ func TestValidateSpiffeID(t *testing.T) {
 			wantErr: "spiffeID cannot be empty",
 		},
 		{
-			name:    "wrong scheme — https",
+			name:    "wrong scheme",
 			id:      "https://example.org/myservice",
 			wantErr: `scheme must be "spiffe"`,
 		},
@@ -60,7 +58,7 @@ func TestValidateSpiffeID(t *testing.T) {
 			wantErr: "path cannot be empty",
 		},
 		{
-			name:    "path is root slash only",
+			name:    "root path only",
 			id:      "spiffe://example.org/",
 			wantErr: "path cannot be empty",
 		},
@@ -79,9 +77,7 @@ func TestValidateSpiffeID(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// validateOutputDir
-// ---------------------------------------------------------------------------
+// ── validateOutputDir ─────────────────────────────────────────────────────────
 
 func TestValidateOutputDir(t *testing.T) {
 	t.Run("valid writable directory", func(t *testing.T) {
@@ -102,14 +98,14 @@ func TestValidateOutputDir(t *testing.T) {
 	})
 
 	t.Run("non-existent directory", func(t *testing.T) {
-		err := validateOutputDir("/tmp/this-path-should-never-exist-svidctl-test")
+		err := validateOutputDir("/tmp/this-path-should-not-exist-svidctl-test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not exist")
 	})
 
 	t.Run("path is a file not a directory", func(t *testing.T) {
 		dir := t.TempDir()
-		file, err := os.CreateTemp(dir, "not-a-dir-*")
+		file, err := os.CreateTemp(dir, "testfile-*")
 		require.NoError(t, err)
 		file.Close()
 
@@ -122,8 +118,9 @@ func TestValidateOutputDir(t *testing.T) {
 		if os.Getuid() == 0 {
 			t.Skip("skipping permission test: running as root")
 		}
+
 		dir := t.TempDir()
-		require.NoError(t, os.Chmod(dir, 0o555)) // read+execute only
+		require.NoError(t, os.Chmod(dir, 0o555)) // read + execute only
 		t.Cleanup(func() { os.Chmod(dir, 0o755) })
 
 		err := validateOutputDir(dir)
@@ -132,94 +129,43 @@ func TestValidateOutputDir(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// validateFileExists
-// ---------------------------------------------------------------------------
-
-func TestValidateFileExists(t *testing.T) {
-	t.Run("valid existing file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "ca.pem")
-		require.NoError(t, os.WriteFile(path, []byte("cert"), 0o644))
-
-		assert.NoError(t, validateFileExists(path, "CAcert"))
-	})
-
-	t.Run("empty path", func(t *testing.T) {
-		err := validateFileExists("", "CAcert")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "CAcert cannot be empty")
-	})
-
-	t.Run("whitespace only path", func(t *testing.T) {
-		err := validateFileExists("   ", "CAkey")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "CAkey cannot be empty")
-	})
-
-	t.Run("non-existent file", func(t *testing.T) {
-		err := validateFileExists("/tmp/ghost-cert-svidctl.pem", "CAcert")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not exist on disk")
-	})
-
-	t.Run("path points to a directory", func(t *testing.T) {
-		dir := t.TempDir()
-		err := validateFileExists(dir, "CAcert")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "is a directory, expected a file")
-	})
-
-	t.Run("flag name appears in error message", func(t *testing.T) {
-		err := validateFileExists("", "CAkey")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "CAkey")
-	})
-}
-
-// ---------------------------------------------------------------------------
-// validateX509Flags
-// ---------------------------------------------------------------------------
+// ── validateX509Flags ─────────────────────────────────────────────────────────
 
 func TestValidateX509Flags(t *testing.T) {
-	// helpers to build valid on-disk fixtures once per test
-	makeDir := func(t *testing.T) string {
+	validDir := func(t *testing.T) string {
 		t.Helper()
 		return t.TempDir()
-	}
-	makeFile := func(t *testing.T, dir, name string) string {
-		t.Helper()
-		path := filepath.Join(dir, name)
-		require.NoError(t, os.WriteFile(path, []byte("data"), 0o644))
-		return path
 	}
 
 	validFlags := func(t *testing.T) x509Flags {
 		t.Helper()
-		dir := makeDir(t)
 		return x509Flags{
-			SpiffeID:  "spiffe://example.org/svc",
+			SpiffeID:  "spiffe://example.org/myservice",
 			TTL:       3600,
-			OutputDir: dir,
-			CAcert:    makeFile(t, dir, "ca.pem"),
-			CAkey:     makeFile(t, dir, "ca-key.pem"),
+			OutputDir: validDir(t),
 			DNSNames:  []string{},
 		}
 	}
 
-	t.Run("all valid flags", func(t *testing.T) {
+	t.Run("valid flags — no DNS SANs", func(t *testing.T) {
 		assert.NoError(t, validateX509Flags(validFlags(t)))
+	})
+
+	t.Run("valid flags — with DNS SANs", func(t *testing.T) {
+		f := validFlags(t)
+		f.DNSNames = []string{"myservice.example.com", "api.example.com"}
+		assert.NoError(t, validateX509Flags(f))
 	})
 
 	t.Run("invalid spiffe ID", func(t *testing.T) {
 		f := validFlags(t)
-		f.SpiffeID = "https://example.org/svc"
+		f.SpiffeID = "https://example.org/myservice"
 		err := validateX509Flags(f)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `scheme must be "spiffe"`)
 	})
 
-	t.Run("TTL zero", func(t *testing.T) {
+	t.Run("zero TTL", func(t *testing.T) {
 		f := validFlags(t)
 		f.TTL = 0
 		err := validateX509Flags(f)
@@ -227,9 +173,9 @@ func TestValidateX509Flags(t *testing.T) {
 		assert.Contains(t, err.Error(), "must be a positive integer")
 	})
 
-	t.Run("TTL negative", func(t *testing.T) {
+	t.Run("negative TTL", func(t *testing.T) {
 		f := validFlags(t)
-		f.TTL = -1
+		f.TTL = -100
 		err := validateX509Flags(f)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must be a positive integer")
@@ -237,7 +183,7 @@ func TestValidateX509Flags(t *testing.T) {
 
 	t.Run("non-existent output directory", func(t *testing.T) {
 		f := validFlags(t)
-		f.OutputDir = "/tmp/no-such-dir-svidctl"
+		f.OutputDir = "/tmp/non-existent-svidctl-dir"
 		err := validateX509Flags(f)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not exist")
@@ -245,39 +191,35 @@ func TestValidateX509Flags(t *testing.T) {
 
 	t.Run("empty DNS name in list", func(t *testing.T) {
 		f := validFlags(t)
-		f.DNSNames = []string{"valid.example.com", "  ", "other.example.com"}
+		f.DNSNames = []string{"valid.example.com", "   ", "other.example.com"}
 		err := validateX509Flags(f)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "DNS name at index 1 is empty")
 	})
 
-	t.Run("valid DNS names", func(t *testing.T) {
+	t.Run("all DNS names empty", func(t *testing.T) {
 		f := validFlags(t)
-		f.DNSNames = []string{"svc.example.com", "svc-internal.example.com"}
+		f.DNSNames = []string{""}
+		err := validateX509Flags(f)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "DNS name at index 0 is empty")
+	})
+
+	t.Run("default TTL is valid", func(t *testing.T) {
+		f := validFlags(t)
+		f.TTL = defaultTTL
 		assert.NoError(t, validateX509Flags(f))
 	})
 
-	t.Run("missing CAcert file", func(t *testing.T) {
-		f := validFlags(t)
-		f.CAcert = "/tmp/ghost-ca.pem"
-		err := validateX509Flags(f)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not exist on disk")
-	})
+	t.Run("output dir is a file", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "notadir.pem")
+		require.NoError(t, os.WriteFile(file, []byte("x"), 0o644))
 
-	t.Run("missing CAkey file", func(t *testing.T) {
 		f := validFlags(t)
-		f.CAkey = "/tmp/ghost-ca-key.pem"
+		f.OutputDir = file
 		err := validateX509Flags(f)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not exist on disk")
-	})
-
-	t.Run("CAcert is a directory", func(t *testing.T) {
-		f := validFlags(t)
-		f.CAcert = makeDir(t)
-		err := validateX509Flags(f)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "is a directory, expected a file")
+		assert.Contains(t, err.Error(), "is not a directory")
 	})
 }

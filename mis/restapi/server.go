@@ -62,16 +62,6 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// hash := sha256.Sum256(rawResp)
-	// etag := fmt.Sprintf("\"%s\"", hex.EncodeToString(hash[:]))
-
-	// if r.Header.Get("If-None-Match") == etag {
-	// 	logger.Info("etag matched, cached copy still valid")
-	// 	w.WriteHeader(http.StatusNotModified)
-	// 	return
-	// }
-	// w.Header().Set("ETag", etag)
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(rawResp)

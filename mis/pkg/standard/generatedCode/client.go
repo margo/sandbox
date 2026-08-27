@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -90,42 +89,28 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
-	// GetDiscoveryDocument Retrieve MIAF discovery document
+	// GetWellKnownMargo Retrieve the Trust Domain discovery document
 	//
-	// Optional entry point for a Trust Domain.
+	// Optional entry point to a Trust Domain that points a client to the Trust Bundle URI. Each document describes exactly one Trust Domain. An origin serving exactly one Trust Domain SHOULD expose the document at this well-known path; an origin serving several Trust Domains MAY use other absolute HTTPS URLs. When discovery is not used, the Trust Bundle URI is supplied by operator-provided configuration.
 	//
-	// The discovery document identifies the Trust Domain and provides
-	// the Trust Bundle URI from which the authoritative SPIFFE Bundle
-	// Map can be retrieved.
-	//
-	// Corresponds with GET /.well-known/margo (the `GetDiscoveryDocument` operationId).
-	GetDiscoveryDocument(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with GET /.well-known/margo (the `GetWellKnownMargo` operationId).
+	GetWellKnownMargo(ctx context.Context, params *GetWellKnownMargoParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetTrustBundle Retrieve SPIFFE Bundle Map
+	// GetWellKnownSpiffeBundleJson Retrieve the SPIFFE bundle
 	//
-	// Returns a SPIFFE Bundle Map resource.
+	// Returns the Trust Domain's SPIFFE bundle, holding the authoritative set of public trust anchors for that Trust Domain. The path shown here is illustrative; the authoritative location is the trustBundleUri value from the discovery document (or operator configuration). The endpoint follows the SPIFFE Federation bundle endpoint model (one URL per Trust Domain). The response MUST conform to the SPIFFE bundle format (https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE_Trust_Domain_and_Bundle.md#4-spiffe-bundle-format).
 	//
-	// The entry keyed by the local trustDomain contains the
-	// authoritative Trust Bundle for that domain.
-	//
-	// The actual URL is provided by the discovery document's
-	// trustBundleUri field.
-	//
-	// Corresponds with GET /{bundlePath} (the `GetTrustBundle` operationId).
-	GetTrustBundle(ctx context.Context, bundlePath string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with GET /.well-known/spiffe/bundle.json (the `GetWellKnownSpiffeBundleJson` operationId).
+	GetWellKnownSpiffeBundleJson(ctx context.Context, params *GetWellKnownSpiffeBundleJsonParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-// GetDiscoveryDocument Retrieve MIAF discovery document
+// GetWellKnownMargo Retrieve the Trust Domain discovery document
 //
-// Optional entry point for a Trust Domain.
+// Optional entry point to a Trust Domain that points a client to the Trust Bundle URI. Each document describes exactly one Trust Domain. An origin serving exactly one Trust Domain SHOULD expose the document at this well-known path; an origin serving several Trust Domains MAY use other absolute HTTPS URLs. When discovery is not used, the Trust Bundle URI is supplied by operator-provided configuration.
 //
-// The discovery document identifies the Trust Domain and provides
-// the Trust Bundle URI from which the authoritative SPIFFE Bundle
-// Map can be retrieved.
-//
-// Corresponds with GET /.well-known/margo (the `GetDiscoveryDocument` operationId).
-func (c *Client) GetDiscoveryDocument(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetDiscoveryDocumentRequest(c.Server)
+// Corresponds with GET /.well-known/margo (the `GetWellKnownMargo` operationId).
+func (c *Client) GetWellKnownMargo(ctx context.Context, params *GetWellKnownMargoParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWellKnownMargoRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -136,19 +121,13 @@ func (c *Client) GetDiscoveryDocument(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
-// GetTrustBundle Retrieve SPIFFE Bundle Map
+// GetWellKnownSpiffeBundleJson Retrieve the SPIFFE bundle
 //
-// Returns a SPIFFE Bundle Map resource.
+// Returns the Trust Domain's SPIFFE bundle, holding the authoritative set of public trust anchors for that Trust Domain. The path shown here is illustrative; the authoritative location is the trustBundleUri value from the discovery document (or operator configuration). The endpoint follows the SPIFFE Federation bundle endpoint model (one URL per Trust Domain). The response MUST conform to the SPIFFE bundle format (https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE_Trust_Domain_and_Bundle.md#4-spiffe-bundle-format).
 //
-// The entry keyed by the local trustDomain contains the
-// authoritative Trust Bundle for that domain.
-//
-// The actual URL is provided by the discovery document's
-// trustBundleUri field.
-//
-// Corresponds with GET /{bundlePath} (the `GetTrustBundle` operationId).
-func (c *Client) GetTrustBundle(ctx context.Context, bundlePath string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetTrustBundleRequest(c.Server, bundlePath)
+// Corresponds with GET /.well-known/spiffe/bundle.json (the `GetWellKnownSpiffeBundleJson` operationId).
+func (c *Client) GetWellKnownSpiffeBundleJson(ctx context.Context, params *GetWellKnownSpiffeBundleJsonParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWellKnownSpiffeBundleJsonRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +138,8 @@ func (c *Client) GetTrustBundle(ctx context.Context, bundlePath string, reqEdito
 	return c.Client.Do(req)
 }
 
-// NewGetDiscoveryDocumentRequest constructs an http.Request for the GetDiscoveryDocument method
-func NewGetDiscoveryDocumentRequest(server string) (*http.Request, error) {
+// NewGetWellKnownMargoRequest constructs an http.Request for the GetWellKnownMargo method
+func NewGetWellKnownMargoRequest(server string, params *GetWellKnownMargoParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -183,26 +162,34 @@ func NewGetDiscoveryDocumentRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
-// NewGetTrustBundleRequest constructs an http.Request for the GetTrustBundle method
-func NewGetTrustBundleRequest(server string, bundlePath string) (*http.Request, error) {
+// NewGetWellKnownSpiffeBundleJsonRequest constructs an http.Request for the GetWellKnownSpiffeBundleJson method
+func NewGetWellKnownSpiffeBundleJsonRequest(server string, params *GetWellKnownSpiffeBundleJsonParams) (*http.Request, error) {
 	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "bundlePath", bundlePath, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/%s", pathParam0)
+	operationPath := fmt.Sprintf("/.well-known/spiffe/bundle.json")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -215,6 +202,21 @@ func NewGetTrustBundleRequest(server string, bundlePath string) (*http.Request, 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -264,62 +266,58 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
-	// GetDiscoveryDocumentWithResponse Retrieve MIAF discovery document
+	// GetWellKnownMargoWithResponse Retrieve the Trust Domain discovery document
 	//
-	// Optional entry point for a Trust Domain.
-	//
-	// The discovery document identifies the Trust Domain and provides
-	// the Trust Bundle URI from which the authoritative SPIFFE Bundle
-	// Map can be retrieved.
+	// Optional entry point to a Trust Domain that points a client to the Trust Bundle URI. Each document describes exactly one Trust Domain. An origin serving exactly one Trust Domain SHOULD expose the document at this well-known path; an origin serving several Trust Domains MAY use other absolute HTTPS URLs. When discovery is not used, the Trust Bundle URI is supplied by operator-provided configuration.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with GET /.well-known/margo (the `GetDiscoveryDocument` operationId).
-	GetDiscoveryDocumentWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDiscoveryDocumentResponse, error)
+	// Corresponds with GET /.well-known/margo (the `GetWellKnownMargo` operationId).
+	GetWellKnownMargoWithResponse(ctx context.Context, params *GetWellKnownMargoParams, reqEditors ...RequestEditorFn) (*GetWellKnownMargoResponse, error)
 
-	// GetTrustBundleWithResponse Retrieve SPIFFE Bundle Map
+	// GetWellKnownSpiffeBundleJsonWithResponse Retrieve the SPIFFE bundle
 	//
-	// Returns a SPIFFE Bundle Map resource.
-	//
-	// The entry keyed by the local trustDomain contains the
-	// authoritative Trust Bundle for that domain.
-	//
-	// The actual URL is provided by the discovery document's
-	// trustBundleUri field.
+	// Returns the Trust Domain's SPIFFE bundle, holding the authoritative set of public trust anchors for that Trust Domain. The path shown here is illustrative; the authoritative location is the trustBundleUri value from the discovery document (or operator configuration). The endpoint follows the SPIFFE Federation bundle endpoint model (one URL per Trust Domain). The response MUST conform to the SPIFFE bundle format (https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE_Trust_Domain_and_Bundle.md#4-spiffe-bundle-format).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with GET /{bundlePath} (the `GetTrustBundle` operationId).
-	GetTrustBundleWithResponse(ctx context.Context, bundlePath string, reqEditors ...RequestEditorFn) (*GetTrustBundleResponse, error)
+	// Corresponds with GET /.well-known/spiffe/bundle.json (the `GetWellKnownSpiffeBundleJson` operationId).
+	GetWellKnownSpiffeBundleJsonWithResponse(ctx context.Context, params *GetWellKnownSpiffeBundleJsonParams, reqEditors ...RequestEditorFn) (*GetWellKnownSpiffeBundleJsonResponse, error)
 }
 
-// GetDiscoveryDocumentResponse200Headers the declared response headers of an HTTP 200 response for GetDiscoveryDocument
-type GetDiscoveryDocumentResponse200Headers struct {
-	ETag         *string
-	LastModified *time.Time
+// GetWellKnownMargoResponse200Headers the declared response headers of an HTTP 200 response for GetWellKnownMargo
+type GetWellKnownMargoResponse200Headers struct {
+	ETag *string
 }
 
-type GetDiscoveryDocumentResponse struct {
+type GetWellKnownMargoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *DiscoveryDocument
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ProblemDetail
 	// Headers200 the parsed response headers for an HTTP 200 response
-	Headers200 *GetDiscoveryDocumentResponse200Headers
+	Headers200 *GetWellKnownMargoResponse200Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r GetDiscoveryDocumentResponse) GetJSON200() *DiscoveryDocument {
+func (r GetWellKnownMargoResponse) GetJSON200() *DiscoveryDocument {
 	return r.JSON200
 }
 
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r GetWellKnownMargoResponse) GetApplicationproblemJSON404() *ProblemDetail {
+	return r.ApplicationproblemJSON404
+}
+
 // GetBody returns the raw response body bytes
-func (r GetDiscoveryDocumentResponse) GetBody() []byte {
+func (r GetWellKnownMargoResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r GetDiscoveryDocumentResponse) Status() string {
+func (r GetWellKnownMargoResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -327,7 +325,7 @@ func (r GetDiscoveryDocumentResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetDiscoveryDocumentResponse) StatusCode() int {
+func (r GetWellKnownMargoResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -335,40 +333,46 @@ func (r GetDiscoveryDocumentResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r GetDiscoveryDocumentResponse) ContentType() string {
+func (r GetWellKnownMargoResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-// GetTrustBundleResponse200Headers the declared response headers of an HTTP 200 response for GetTrustBundle
-type GetTrustBundleResponse200Headers struct {
-	ETag         *string
-	LastModified *time.Time
+// GetWellKnownSpiffeBundleJsonResponse200Headers the declared response headers of an HTTP 200 response for GetWellKnownSpiffeBundleJson
+type GetWellKnownSpiffeBundleJsonResponse200Headers struct {
+	ETag *string
 }
 
-type GetTrustBundleResponse struct {
+type GetWellKnownSpiffeBundleJsonResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *BundleMap
+	JSON200 *SpiffeBundle
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ProblemDetail
 	// Headers200 the parsed response headers for an HTTP 200 response
-	Headers200 *GetTrustBundleResponse200Headers
+	Headers200 *GetWellKnownSpiffeBundleJsonResponse200Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r GetTrustBundleResponse) GetJSON200() *BundleMap {
+func (r GetWellKnownSpiffeBundleJsonResponse) GetJSON200() *SpiffeBundle {
 	return r.JSON200
 }
 
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r GetWellKnownSpiffeBundleJsonResponse) GetApplicationproblemJSON404() *ProblemDetail {
+	return r.ApplicationproblemJSON404
+}
+
 // GetBody returns the raw response body bytes
-func (r GetTrustBundleResponse) GetBody() []byte {
+func (r GetWellKnownSpiffeBundleJsonResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r GetTrustBundleResponse) Status() string {
+func (r GetWellKnownSpiffeBundleJsonResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -376,7 +380,7 @@ func (r GetTrustBundleResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetTrustBundleResponse) StatusCode() int {
+func (r GetWellKnownSpiffeBundleJsonResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -384,62 +388,52 @@ func (r GetTrustBundleResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r GetTrustBundleResponse) ContentType() string {
+func (r GetWellKnownSpiffeBundleJsonResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-// GetDiscoveryDocumentWithResponse Retrieve MIAF discovery document
+// GetWellKnownMargoWithResponse Retrieve the Trust Domain discovery document
 //
-// Optional entry point for a Trust Domain.
-//
-// The discovery document identifies the Trust Domain and provides
-// the Trust Bundle URI from which the authoritative SPIFFE Bundle
-// Map can be retrieved.
+// Optional entry point to a Trust Domain that points a client to the Trust Bundle URI. Each document describes exactly one Trust Domain. An origin serving exactly one Trust Domain SHOULD expose the document at this well-known path; an origin serving several Trust Domains MAY use other absolute HTTPS URLs. When discovery is not used, the Trust Bundle URI is supplied by operator-provided configuration.
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with GET /.well-known/margo (the `GetDiscoveryDocument` operationId).
-func (c *ClientWithResponses) GetDiscoveryDocumentWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDiscoveryDocumentResponse, error) {
-	rsp, err := c.GetDiscoveryDocument(ctx, reqEditors...)
+// Corresponds with GET /.well-known/margo (the `GetWellKnownMargo` operationId).
+func (c *ClientWithResponses) GetWellKnownMargoWithResponse(ctx context.Context, params *GetWellKnownMargoParams, reqEditors ...RequestEditorFn) (*GetWellKnownMargoResponse, error) {
+	rsp, err := c.GetWellKnownMargo(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetDiscoveryDocumentResponse(rsp)
+	return ParseGetWellKnownMargoResponse(rsp)
 }
 
-// GetTrustBundleWithResponse Retrieve SPIFFE Bundle Map
+// GetWellKnownSpiffeBundleJsonWithResponse Retrieve the SPIFFE bundle
 //
-// Returns a SPIFFE Bundle Map resource.
-//
-// The entry keyed by the local trustDomain contains the
-// authoritative Trust Bundle for that domain.
-//
-// The actual URL is provided by the discovery document's
-// trustBundleUri field.
+// Returns the Trust Domain's SPIFFE bundle, holding the authoritative set of public trust anchors for that Trust Domain. The path shown here is illustrative; the authoritative location is the trustBundleUri value from the discovery document (or operator configuration). The endpoint follows the SPIFFE Federation bundle endpoint model (one URL per Trust Domain). The response MUST conform to the SPIFFE bundle format (https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE_Trust_Domain_and_Bundle.md#4-spiffe-bundle-format).
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with GET /{bundlePath} (the `GetTrustBundle` operationId).
-func (c *ClientWithResponses) GetTrustBundleWithResponse(ctx context.Context, bundlePath string, reqEditors ...RequestEditorFn) (*GetTrustBundleResponse, error) {
-	rsp, err := c.GetTrustBundle(ctx, bundlePath, reqEditors...)
+// Corresponds with GET /.well-known/spiffe/bundle.json (the `GetWellKnownSpiffeBundleJson` operationId).
+func (c *ClientWithResponses) GetWellKnownSpiffeBundleJsonWithResponse(ctx context.Context, params *GetWellKnownSpiffeBundleJsonParams, reqEditors ...RequestEditorFn) (*GetWellKnownSpiffeBundleJsonResponse, error) {
+	rsp, err := c.GetWellKnownSpiffeBundleJson(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetTrustBundleResponse(rsp)
+	return ParseGetWellKnownSpiffeBundleJsonResponse(rsp)
 }
 
-// ParseGetDiscoveryDocumentResponse parses an HTTP response from a GetDiscoveryDocumentWithResponse call
-func ParseGetDiscoveryDocumentResponse(rsp *http.Response) (*GetDiscoveryDocumentResponse, error) {
+// ParseGetWellKnownMargoResponse parses an HTTP response from a GetWellKnownMargoWithResponse call
+func ParseGetWellKnownMargoResponse(rsp *http.Response) (*GetWellKnownMargoResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetDiscoveryDocumentResponse{
+	response := &GetWellKnownMargoResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -455,14 +449,18 @@ func ParseGetDiscoveryDocumentResponse(rsp *http.Response) (*GetDiscoveryDocumen
 	case rsp.StatusCode == 304:
 		break // No content-type
 
-	case rsp.StatusCode == 404:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ProblemDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
 
 	}
 
 	switch {
 	case rsp.StatusCode == 200:
-		var headers GetDiscoveryDocumentResponse200Headers
+		var headers GetWellKnownMargoResponse200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
@@ -470,35 +468,28 @@ func ParseGetDiscoveryDocumentResponse(rsp *http.Response) (*GetDiscoveryDocumen
 			}
 			headers.ETag = &value
 		}
-		if values := rsp.Header.Values("Last-Modified"); len(values) > 0 {
-			var value time.Time
-			if err := runtime.BindStyledParameterWithOptions("simple", "Last-Modified", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "date-time"}); err != nil {
-				return nil, err
-			}
-			headers.LastModified = &value
-		}
 		response.Headers200 = &headers
 	}
 
 	return response, nil
 }
 
-// ParseGetTrustBundleResponse parses an HTTP response from a GetTrustBundleWithResponse call
-func ParseGetTrustBundleResponse(rsp *http.Response) (*GetTrustBundleResponse, error) {
+// ParseGetWellKnownSpiffeBundleJsonResponse parses an HTTP response from a GetWellKnownSpiffeBundleJsonWithResponse call
+func ParseGetWellKnownSpiffeBundleJsonResponse(rsp *http.Response) (*GetWellKnownSpiffeBundleJsonResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetTrustBundleResponse{
+	response := &GetWellKnownSpiffeBundleJsonResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest BundleMap
+		var dest SpiffeBundle
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -507,27 +498,24 @@ func ParseGetTrustBundleResponse(rsp *http.Response) (*GetTrustBundleResponse, e
 	case rsp.StatusCode == 304:
 		break // No content-type
 
-	case rsp.StatusCode == 404:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ProblemDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
 
 	}
 
 	switch {
 	case rsp.StatusCode == 200:
-		var headers GetTrustBundleResponse200Headers
+		var headers GetWellKnownSpiffeBundleJsonResponse200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			}
 			headers.ETag = &value
-		}
-		if values := rsp.Header.Values("Last-Modified"); len(values) > 0 {
-			var value time.Time
-			if err := runtime.BindStyledParameterWithOptions("simple", "Last-Modified", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "date-time"}); err != nil {
-				return nil, err
-			}
-			headers.LastModified = &value
 		}
 		response.Headers200 = &headers
 	}

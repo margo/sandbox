@@ -33,7 +33,6 @@ paths:
                 summary: Onboarding a manifest-style ApplicationPackage
                 value:
                   apiVersion: non-margo.org
-                  kind: ApplicationPackage
                   metadata:
                     name: my-web-app-pkg
                     labels:
@@ -41,10 +40,11 @@ paths:
                     annotations:
                       description: "A web application for managing user accounts"
                   spec:
-                    sourceType: GIT_REPO
+                    sourceType: OCI_REPO
                     source:
-                      url: "https://github.com/user/my-app.git"
-                      branch: "main"
+                      registryUrl: oci://<oci-registry-ip>:<oci-registry-port>
+                      repository: library/app-pkg-name
+                      tag: latest
       responses:
         '202':
           description: ApplicationPackage onboarding request accepted successfully
@@ -211,8 +211,6 @@ paths:
               basic:
                 summary: Create a manifest-style ApplicationDeployment
                 value:
-                  apiVersion: non-margo.org
-                  kind: ApplicationDeployment
                   metadata:
                     name: digitron-orchestrator-deployment
                   spec:
@@ -419,9 +417,13 @@ components:
       description: Application Description manifest
       properties:
         apiVersion:
-          default: margo.org/v1-alpha1
-          description: API version
+          default: v1
+          description:  Version of the ApplicationDescription contract.
+              Independent of OpenAPI spec version and API route version.
           type: string
+          enum:
+            - v1
+          example: v1
           # x-go-field-tags: 'json:"apiVersion" yaml:"apiVersion"'
           x-oapi-codegen-extra-tags:
             json: "apiVersion"
@@ -442,14 +444,6 @@ components:
           x-oapi-codegen-extra-tags:
             json: "deploymentProfiles"
             yaml: "deploymentProfiles"
-        kind:
-          default: ApplicationDescription
-          description: Resource kind
-          type: string
-          # x-go-field-tags: 'json:"kind" yaml:"kind"'
-          x-oapi-codegen-extra-tags:
-            json: "kind"
-            yaml: "kind"
         id:
           type: string
           description: Unique identifier for the application
@@ -474,7 +468,6 @@ components:
             yaml: "parameters"
       required:
       - apiVersion
-      - kind
       - metadata
       - deploymentProfiles
       type: object
@@ -639,8 +632,7 @@ components:
           description: Components in this deployment profile
           items:
             oneOf:
-            - $ref: '#/components/schemas/HelmApplicationDeploymentProfileComponent'
-            - $ref: '#/components/schemas/ComposeApplicationDeploymentProfileComponent'
+            - $ref: '#/components/schemas/ApplicationDeploymentProfileComponent'
           type: array
         description:
           # x-go-field-tags: 'json:"description" yaml:"description"'
@@ -725,61 +717,8 @@ components:
       - components
       type: object
 
-    HelmApplicationDeploymentProfileComponent:
-      description: Helm Application Deployment Profile Component
-      properties:
-        name:
-          # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags:
-            json: "name"
-            yaml: "name"
-          description: Name of the component
-          type: string
-        properties:
-          # x-go-field-tags: 'json:"properties" yaml:"properties"'
-          x-oapi-codegen-extra-tags:
-            json: "properties"
-            yaml: "properties"
-          properties:
-            repository:
-              # x-go-field-tags: 'json:"repository" yaml:"repository"'
-              x-oapi-codegen-extra-tags:
-                json: "repository"
-                yaml: "repository"
-              description: Repository of the component
-              type: string
-            revision:
-              # x-go-field-tags: 'json:"revision" yaml:"revision"'
-              x-oapi-codegen-extra-tags:
-                json: "revision"
-                yaml: "revision"
-              description: Revision of the component
-              type: string
-            timeout:
-              # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
-              x-oapi-codegen-extra-tags:
-                json: "timeout"
-                yaml: "timeout"
-              description: Timeout for the component
-              type: string
-            wait:
-              # x-go-field-tags: 'json:"wait" yaml:"wait"'
-              x-oapi-codegen-extra-tags:
-                json: "wait"
-                yaml: "wait"
-              description: Wait for the component to be ready
-              type: boolean
-          required:
-          - repository
-          - revision
-          type: object
-      required:
-      - name
-      - properties
-      type: object
-
-    ComposeApplicationDeploymentProfileComponent:
-      description: Compose Application Deployment Profile Component
+    ApplicationDeploymentProfileComponent:
+      description: Application Deployment Profile Component
       properties:
         name:
           # x-go-field-tags: 'json:"name" yaml:"name"'
@@ -1079,16 +1018,12 @@ components:
     ApplicationPackageManifestRequest:
       type: object
       description: Application Package manifest
-      required: [apiVersion, kind, metadata, spec]
+      required: [apiVersion, metadata, spec]
       properties:
         apiVersion:
           type: string
           default: non-margo.org
           description: API version
-        kind:
-          type: string
-          default: ApplicationPackage
-          description: Resource kind
         metadata:
           type: object
           required: [name]
@@ -1115,16 +1050,12 @@ components:
     ApplicationPackageManifestResp:
       type: object
       description: Application Package manifest
-      required: [apiVersion, kind, metadata, spec]
+      required: [apiVersion, metadata, spec]
       properties:
         apiVersion:
           type: string
           default: non-margo.org
           description: API version
-        kind:
-          type: string
-          default: ApplicationPackage
-          description: Resource kind
         id:
           type: string
           readOnly: true
@@ -1145,14 +1076,11 @@ components:
     ApplicationPackageListResp:
       type: object
       description: List of Application Packages
-      required: [apiVersion, kind, items]
+      required: [apiVersion, items]
       properties:
         apiVersion:
           type: string
           description: API version
-        kind:
-          type: string
-          default: ApplicationPackageList
         metadata:
           type: object
           $ref: '#/components/schemas/PaginationMetadata'
@@ -1164,16 +1092,8 @@ components:
     ApplicationDeploymentManifestRequest:
       type: object
       description: Application Deployment request
-      required: [apiVersion, kind, metadata, spec]
+      required: [metadata, spec]
       properties:
-        apiVersion:
-          type: string
-          default: non-margo.org
-          description: API version
-        kind:
-          type: string
-          default: ApplicationDeployment
-          description: Resource kind
         id:
           type: string
           readOnly: true
@@ -1210,16 +1130,8 @@ components:
     ApplicationDeploymentManifestResp:
       type: object
       description: Application Deployment manifest
-      required: [apiVersion, kind, metadata, spec]
+      required: [metadata, spec]
       properties:
-        apiVersion:
-          type: string
-          default: non-margo.org
-          description: API version
-        kind:
-          type: string
-          default: ApplicationDeployment
-          description: Resource kind
         id:
           type: string
           readOnly: true
@@ -1238,16 +1150,8 @@ components:
     ApplicationDeploymentListResp:
       type: object
       description: List of Application Deployments
-      required: [apiVersion, kind, metadata, items]
+      required: [metadata, items]
       properties:
-        apiVersion:
-          type: string
-          default: non-margo.org
-          description: API version
-        kind:
-          type: string
-          default: ApplicationDeploymentList
-          description: Resource kind
         metadata:
           type: object
           $ref: '#/components/schemas/PaginationMetadata'
@@ -1344,13 +1248,12 @@ components:
           type: array
           items:
             oneOf:
-              - $ref: '#/components/schemas/HelmDeploymentProfileComponent'
-              - $ref: '#/components/schemas/ComposeDeploymentProfileComponent'
+              - $ref: '#/components/schemas/DeploymentProfileComponent'
           description: Components of the deployment profile
 
-    HelmDeploymentProfileComponent:
+    DeploymentProfileComponent:
       type: object
-      description: Helm Application Deployment Profile Component
+      description: Application Deployment Profile Component
       required: [name, properties]
       properties:
         name:
@@ -1373,30 +1276,6 @@ components:
               type: boolean
               description: Wait for the component to be ready
 
-    ComposeDeploymentProfileComponent:
-      type: object
-      description: Compose Application Deployment Profile Component
-      required: [name, properties]
-      properties:
-        name:
-          type: string
-          description: Name of the component
-        properties:
-          type: object
-          required: [repository, revision]
-          properties:
-            repository:
-              type: string
-              description: Repository of the component
-            revision:
-              type: string
-              description: Revision of the component
-            timeout:
-              type: string
-              description: Timeout for the component
-            wait:
-              type: boolean
-              description: Wait for the component to be ready
 
     DeploymentParameterTarget:
       type: object
@@ -1464,61 +1343,13 @@ components:
         sourceType:
           type: string
           enum:
-            - GIT_REPO
             - OCI_REPO
           description: Type of source for the application package
         source:
           oneOf:
-            - $ref: '#/components/schemas/GitRepo'
             - $ref: '#/components/schemas/OciRepo'
           description: Source configuration based on sourceType
 
-    GitRepo:
-      type: object
-      description: Git repository source configuration
-      properties:
-        url:
-          type: string
-          format: uri
-          description: Git repository URL (only HTTPS is supported)
-          pattern: '^(https?://|git@).*\.git$'
-          example: "https://github.com/user/my-app.git"
-        branch:
-          type: string
-          description: Git branch to use
-          pattern: '^[a-zA-Z0-9/_\-\.]+$'
-          minLength: 1
-          maxLength: 100
-          example: "main"
-        tag:
-          type: string
-          description: Git tag to use (alternative to branch)
-          pattern: '^[a-zA-Z0-9/_\-\.]+$'
-          minLength: 1
-          maxLength: 100
-          example: "v1.0.0"
-        username:
-          type: string
-          description: Git username for authentication
-          minLength: 1
-          maxLength: 100
-          example: "git-user"
-        accessToken:
-          type: string
-          description: Git access token for authentication
-          format: password
-          minLength: 1
-          maxLength: 200
-        subPath:
-          type: string
-          description: Subdirectory within the repository containing the application description yaml (ex margo.yaml)
-          pattern: '^[a-zA-Z0-9/_\-\.]+$'
-          maxLength: 200
-          example: "apps/web-service"
-      required: [url]
-      oneOf:
-        - required: [branch]
-        - required: [tag]
 
     OciRepo:
       type: object
@@ -1594,14 +1425,8 @@ components:
     DeviceListResp:
       type: object
       description: List of Devices
-      required: [apiVersion, kind, items]
+      required: [items]
       properties:
-        apiVersion:
-          type: string
-          description: API version
-        kind:
-          type: string
-          default: DeviceList
         metadata:
           type: object
           $ref: '#/components/schemas/PaginationMetadata'
@@ -1614,16 +1439,8 @@ components:
     DeviceManifestResp:
       type: object
       description: Device manifest
-      required: [apiVersion, kind, metadata, spec, state]
+      required: [metadata, spec, state]
       properties:
-        apiVersion:
-          type: string
-          default: non-margo.org
-          description: API version
-        kind:
-          type: string
-          default: Device
-          description: Resource kind
         id:
           type: string
           description: Unique device identifier

@@ -6,7 +6,15 @@ package cli
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/margo/sandbox/mis/pkg/conf"
+	"github.com/margo/sandbox/mis/pkg/log"
+	"github.com/margo/sandbox/mis/restapi"
+	"github.com/margo/sandbox/mis/unix"
 	"github.com/spf13/cobra"
 )
 
@@ -41,14 +49,48 @@ Examples:
 
 		fmt.Printf("Starting REST API server with config: %s\n", configFile)
 
-		// TODO: Integrate server startup logic here
-		// cnf, err := conf.LoadConfig(configFile)
-		// if err != nil {
-		// 	return err
-		// }
-		// logger := log.New(cnf.Log.Level)
+		cnf, err := conf.LoadConfig(configFile)
+		if err != nil {
+			return err
+		}
+		logger := log.New(cnf.Log.Level)
 
-		// Example: server.Start(cnf, logger)
+		normativeServer := restapi.New(cnf, logger)
+		mintServer := unix.New(cnf, logger)
+
+		// For Graceful shutdown
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+		go func() {
+			if err := normativeServer.Start(); err != nil && err != http.ErrServerClosed {
+				panic(fmt.Sprintf("normative server error: %v", err))
+			}
+		}()
+
+		go func() {
+			if err := mintServer.Start(); err != nil && err != http.ErrServerClosed {
+				panic(fmt.Sprintf("mint server error: %v", err))
+			}
+		}()
+
+		<-quit
+		logger.Info("Shutting down normative server & mint server...")
+		err = normativeServer.Stop()
+		if err != nil {
+			fmt.Printf(
+				"Failed to shutdown normative server, probably force closed it, err: %s",
+				err.Error(),
+			)
+		}
+
+		err = mintServer.Stop()
+		if err != nil {
+			fmt.Printf(
+				"Failed to shutdown mint server, probably force closed it, err: %s",
+				err.Error(),
+			)
+		}
 
 		return nil
 	},

@@ -1,6 +1,7 @@
 package unix
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -14,16 +15,17 @@ import (
 	"github.com/margo/sandbox/mis/pkg/helpers"
 	"github.com/margo/sandbox/mis/pkg/types"
 	"github.com/margo/sandbox/mis/unix/operations"
+	"github.com/pkg/errors"
 )
 
 const (
-	socketPath      = "/tmp/mint.sock"
-	shutdownTimeout = 10 * time.Second
+	socketPath = "/tmp/mint.sock"
 )
 
 type MintRestAPI struct {
 	cnf    *conf.Config
 	logger *slog.Logger
+	server *http.Server
 }
 
 func New(c *conf.Config, logger *slog.Logger) *MintRestAPI {
@@ -51,6 +53,7 @@ func (m *MintRestAPI) Start() error {
 		log.Fatalf("failed to set socket permissions: %v", err)
 	}
 
+	// Non normative endpoints go here
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /mint/svid/x509", m.MintX509SVIDHandler)
 
@@ -61,7 +64,32 @@ func (m *MintRestAPI) Start() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	m.server = server
+
 	return server.Serve(listener)
+}
+
+func (m *MintRestAPI) Stop() error {
+	if m.server == nil {
+		return nil
+	}
+	// Allow existing requests to finish56
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+	defer cancel()
+
+	err := m.server.Shutdown(ctx)
+	if err == nil {
+		return nil
+	}
+
+	// Force close
+	if cerr := m.server.Close(); cerr != nil {
+		return errors.Wrap(err, cerr.Error())
+	}
+	return err
 }
 
 // MintX509SVIDHandler handles POST /mint/svid/x509
@@ -108,43 +136,3 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 
 	helpers.WriteJSON(w, http.StatusOK, resp)
 }
-
-// package main
-
-// import (
-// 	"context"
-// 	"log"
-// 	"net"
-// 	"net/http"
-// 	"os"
-// 	"os/signal"
-// 	"syscall"
-// 	"time"
-
-// 	"yourmodule/handlers"
-// )
-
-// func main() {
-
-// 	// Graceful shutdown
-// 	quit := make(chan os.Signal, 1)
-// 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-// 	go func() {
-// 		log.Printf("Server listening on unix://%s", socketPath)
-// 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-// 			log.Fatalf("server error: %v", err)
-// 		}
-// 	}()
-
-// 	<-quit
-// 	log.Println("Shutting down server...")
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-// 	defer cancel()
-
-// 	if err := server.Shutdown(ctx); err != nil {
-// 		log.Fatalf("forced shutdown: %v", err)
-// 	}
-// 	log.Println("Server stopped")
-// }

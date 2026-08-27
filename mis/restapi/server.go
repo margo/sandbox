@@ -1,23 +1,28 @@
 package restapi
 
 import (
+	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/margo/sandbox/mis/pkg/conf"
 	"github.com/margo/sandbox/mis/pkg/helpers"
 	gc "github.com/margo/sandbox/mis/pkg/standard/generatedCode"
 	"github.com/margo/sandbox/mis/pkg/types"
 	ro "github.com/margo/sandbox/mis/restapi/operations"
+	"github.com/pkg/errors"
 )
 
 type MisRestAPI struct {
 	cnf    *conf.Config
 	logger *slog.Logger
 	op     types.MISIface
+	server *http.Server
 }
 
 func New(c *conf.Config, logger *slog.Logger) *MisRestAPI {
@@ -29,14 +34,54 @@ func New(c *conf.Config, logger *slog.Logger) *MisRestAPI {
 }
 
 func (m *MisRestAPI) Start() error {
+	// HTTP Paths Go here. Using go 1.22 Routing enhancements
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /.well-known/margo", m.loggingMiddleware(m.getDiscoveryDocument))
 	mux.HandleFunc("GET /{path}", m.loggingMiddleware(m.getTrustBundle))
+
+	// Creating a bundle file with concatenated Server & CA
 	bundle, err := helpers.CreateBundleFile(m.cnf.HTTPS.Cert, m.cnf.HTTPS.CA)
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServeTLS(m.cnf.HTTPS.Addr, bundle, m.cnf.HTTPS.Key, mux)
+	server := &http.Server{
+		Addr:    m.cnf.HTTPS.Addr,
+		Handler: mux,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS13, // As decided in spec
+		},
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// for graceful shutdown while STOPPING
+	m.server = server
+
+	return server.ListenAndServeTLS(bundle, m.cnf.HTTPS.Key)
+}
+
+func (m *MisRestAPI) Stop() error {
+	if m.server == nil {
+		return nil
+	}
+	// Allow existing requests to finish56
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+	defer cancel()
+
+	err := m.server.Shutdown(ctx)
+	if err == nil {
+		return nil
+	}
+
+	// Force close
+	if cerr := m.server.Close(); cerr != nil {
+		return errors.Wrap(err, cerr.Error())
+	}
+	return err
 }
 
 func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request) {

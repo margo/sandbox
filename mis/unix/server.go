@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	socketPath = "/tmp/mint.sock"
+	MintUnixSocketPath = "/tmp/mint.sock"
 )
 
 type MintRestAPI struct {
@@ -38,18 +38,18 @@ func New(c *conf.Config, logger *slog.Logger) *MintRestAPI {
 // Starts the unix socket HTTP server for CLI client to connect to & mint certificates
 func (m *MintRestAPI) Start() error {
 	// Clean up stale socket file
-	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(MintUnixSocketPath); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("failed to remove existing socket: %v", err)
 	}
 
-	listener, err := net.Listen("unix", socketPath)
+	listener, err := net.Listen("unix", MintUnixSocketPath)
 	if err != nil {
-		log.Fatalf("failed to listen on unix socket %s: %v", socketPath, err)
+		log.Fatalf("failed to listen on unix socket %s: %v", MintUnixSocketPath, err)
 	}
 	defer listener.Close()
 
 	// Restrict socket permissions (owner read/write only)
-	if err := os.Chmod(socketPath, 0o600); err != nil {
+	if err := os.Chmod(MintUnixSocketPath, 0o600); err != nil {
 		log.Fatalf("failed to set socket permissions: %v", err)
 	}
 

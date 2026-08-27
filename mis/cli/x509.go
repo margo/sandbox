@@ -5,12 +5,19 @@ package cli
 // Handles argument parsing, validation, and delegates to the integration layer.
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
+	"github.com/margo/sandbox/mis/pkg/types"
+	"github.com/margo/sandbox/mis/unix"
+	"github.com/margo/sandbox/mis/unix/client"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +27,9 @@ const (
 
 	// spiffeScheme is the required URI scheme for a valid SPIFFE ID.
 	spiffeScheme = "spiffe"
+
+	CertName    string = "payload-cert.pem"
+	CertKeyName string = "payload-key.pem"
 )
 
 // x509Flags holds all parsed flag values for the x509 subcommand.
@@ -104,10 +114,67 @@ Examples:
 		)
 		fmt.Printf("  Output Dir : %s\n", flags.OutputDir)
 
-		// TODO: Integrate X.509 SVID minting logic here
+		mintx509SVID(&flags)
 
 		return nil
 	},
+}
+
+func mintx509SVID(flags *x509Flags) {
+	cl := client.New(unix.MintUnixSocketPath)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+
+	ttl := time.Duration(flags.TTL) * time.Second
+	params := &types.MintSVIDRequest{
+		DNS:      flags.DNSNames,
+		SpiffeID: flags.SpiffeID,
+		TTL:      &ttl,
+	}
+	response, err := cl.MintX509SVID(ctx, params)
+	if err != nil {
+		log.Fatalf("failed to mint x509 SVIDs, err : %s", err.Error())
+	}
+	// base64.StdEncoding.EncodeToString
+
+	// Create files for certificate & key
+	// Create folder:
+	err = os.MkdirAll(flags.OutputDir, 0o750)
+	if err != nil {
+		log.Fatalf("failed to create output directory, err: %s", err.Error())
+	}
+
+	certContent, err := base64.StdEncoding.DecodeString(response.Certificate)
+	if err != nil {
+		log.Fatalf(
+			"failed to create decode cert file, err: %s",
+			err.Error(),
+		)
+	}
+	certKeyContent, err := base64.StdEncoding.DecodeString(response.Key)
+	if err != nil {
+		log.Fatalf(
+			"failed to create decode cert key file, err: %s",
+			err.Error(),
+		)
+	}
+
+	err = os.WriteFile(path.Join(flags.OutputDir, CertName), certContent, 0o644)
+	if err != nil {
+		log.Fatalf(
+			"failed to create cert file, %s, err: %s",
+			path.Join(flags.OutputDir, CertName),
+			err.Error(),
+		)
+	}
+	err = os.WriteFile(path.Join(flags.OutputDir, CertKeyName), certKeyContent, 0o400)
+	if err != nil {
+		log.Fatalf(
+			"failed to create cert key file, %s, err: %s",
+			path.Join(flags.OutputDir, CertKeyName),
+			err.Error(),
+		)
+	}
 }
 
 func init() {

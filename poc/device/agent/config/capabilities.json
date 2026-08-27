@@ -1,6 +1,4 @@
 {
-    "apiVersion": "device.margo.org/v1alpha1",
-    "kind": "DeviceCapabilitiesManifest",
     "labels": {
         "northstarida.com/hypervisor": "hyper-v",
         "northstarida.com/wasm.runtime": [

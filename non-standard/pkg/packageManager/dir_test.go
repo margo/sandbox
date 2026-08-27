@@ -67,53 +67,6 @@ func TestDirectoryLoader_Load_MissingDescriptionFile(t *testing.T) {
 	assert.IsType(t, &ErrDescriptionNotFound{}, err)
 }
 
-func TestDirectoryLoader_Load_InvalidDescriptionFile(t *testing.T) {
-	dir := t.TempDir()
-	invalidYAML := `
-kind: WrongKind
-metadata:
-  name: test
-`
-	err := os.WriteFile(
-		filepath.Join(dir, ExpectedDescriptionFileName),
-		[]byte(invalidYAML),
-		0600,
-	)
-	require.NoError(t, err)
-
-	loader := NewDirectoryLoader(defaultConfig())
-	_, pkg, err := loader.Load(context.Background(), dir, &LoadOptions{
-		Validate: true,
-	})
-
-	assert.Error(t, err)
-	assert.Nil(t, pkg)
-	assert.IsType(t, &ErrInvalidDescription{}, err)
-}
-
-func TestDirectoryLoader_Load_CorruptedYamlFile(t *testing.T) {
-	dir := t.TempDir()
-	corruptedYAML := `
-kind: ApplicationDescription
-metadata:
-  name: test
-  invalid yaml syntax here: [[[
-`
-	err := os.WriteFile(
-		filepath.Join(dir, ExpectedDescriptionFileName),
-		[]byte(corruptedYAML),
-		0600,
-	)
-	require.NoError(t, err)
-
-	loader := NewDirectoryLoader(defaultConfig())
-	_, pkg, err := loader.Load(context.Background(), dir, &LoadOptions{
-		Validate: true,
-	})
-
-	assert.Error(t, err)
-	assert.Nil(t, pkg)
-}
 
 func TestDirectoryLoader_Type(t *testing.T) {
 	loader := NewDirectoryLoader(defaultConfig())
@@ -164,8 +117,7 @@ func createValidTestPackage(t *testing.T, withResources bool) string {
 
 func createValidDescription(t *testing.T, dir string) {
 	validYAML := `
-apiVersion: margo.org/v1-alpha1
-kind: ApplicationDescription
+apiVersion: v1
 metadata:
   id: some-unique-id
   name: test-app

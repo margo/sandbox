@@ -5,8 +5,7 @@ package sbi
 
 import (
 	"encoding/json"
-
-	"github.com/oapi-codegen/runtime"
+	"fmt"
 )
 
 // Defines values for ComponentStatusState.
@@ -39,48 +38,6 @@ func (e ComponentStatusState) Valid() bool {
 	}
 }
 
-// Defines values for DeploymentCpuRequirementArchitectures.
-const (
-	DeploymentCpuRequirementArchitecturesAmd64   DeploymentCpuRequirementArchitectures = "amd64"
-	DeploymentCpuRequirementArchitecturesArm     DeploymentCpuRequirementArchitectures = "arm"
-	DeploymentCpuRequirementArchitecturesArm64   DeploymentCpuRequirementArchitectures = "arm64"
-	DeploymentCpuRequirementArchitecturesOther   DeploymentCpuRequirementArchitectures = "other"
-	DeploymentCpuRequirementArchitecturesRiscv64 DeploymentCpuRequirementArchitectures = "riscv64"
-)
-
-// Valid indicates whether the value is a known member of the DeploymentCpuRequirementArchitectures enum.
-func (e DeploymentCpuRequirementArchitectures) Valid() bool {
-	switch e {
-	case DeploymentCpuRequirementArchitecturesAmd64:
-		return true
-	case DeploymentCpuRequirementArchitecturesArm:
-		return true
-	case DeploymentCpuRequirementArchitecturesArm64:
-		return true
-	case DeploymentCpuRequirementArchitecturesOther:
-		return true
-	case DeploymentCpuRequirementArchitecturesRiscv64:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeploymentStatusManifestKind.
-const (
-	DeploymentStatusManifestKindDeploymentStatusManifest DeploymentStatusManifestKind = "DeploymentStatusManifest"
-)
-
-// Valid indicates whether the value is a known member of the DeploymentStatusManifestKind enum.
-func (e DeploymentStatusManifestKind) Valid() bool {
-	switch e {
-	case DeploymentStatusManifestKindDeploymentStatusManifest:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for DeploymentStatusManifestStatusState.
 const (
 	DeploymentStatusManifestStatusStateFailed     DeploymentStatusManifestStatusState = "failed"
@@ -105,21 +62,6 @@ func (e DeploymentStatusManifestStatusState) Valid() bool {
 	case DeploymentStatusManifestStatusStateRemoved:
 		return true
 	case DeploymentStatusManifestStatusStateRemoving:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeviceCapabilitiesManifestKind.
-const (
-	DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest DeviceCapabilitiesManifestKind = "DeviceCapabilitiesManifest"
-)
-
-// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestKind enum.
-func (e DeviceCapabilitiesManifestKind) Valid() bool {
-	switch e {
-	case DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest:
 		return true
 	default:
 		return false
@@ -246,36 +188,21 @@ func (e DevicePeripheralType) Valid() bool {
 	}
 }
 
-// Defines values for MatchExpressionOperator.
+// Defines values for ProblemDetailBackoffStrategy.
 const (
-	ContainsAll  MatchExpressionOperator = "ContainsAll"
-	ContainsAny  MatchExpressionOperator = "ContainsAny"
-	DoesNotExist MatchExpressionOperator = "DoesNotExist"
-	Exists       MatchExpressionOperator = "Exists"
-	Gt           MatchExpressionOperator = "Gt"
-	In           MatchExpressionOperator = "In"
-	Lt           MatchExpressionOperator = "Lt"
-	NotIn        MatchExpressionOperator = "NotIn"
+	Exponential ProblemDetailBackoffStrategy = "exponential"
+	Fixed       ProblemDetailBackoffStrategy = "fixed"
+	None        ProblemDetailBackoffStrategy = "none"
 )
 
-// Valid indicates whether the value is a known member of the MatchExpressionOperator enum.
-func (e MatchExpressionOperator) Valid() bool {
+// Valid indicates whether the value is a known member of the ProblemDetailBackoffStrategy enum.
+func (e ProblemDetailBackoffStrategy) Valid() bool {
 	switch e {
-	case ContainsAll:
+	case Exponential:
 		return true
-	case ContainsAny:
+	case Fixed:
 		return true
-	case DoesNotExist:
-		return true
-	case Exists:
-		return true
-	case Gt:
-		return true
-	case In:
-		return true
-	case Lt:
-		return true
-	case NotIn:
+	case None:
 		return true
 	default:
 		return false
@@ -298,33 +225,6 @@ func (e AppDeploymentProfileType) Valid() bool {
 	default:
 		return false
 	}
-}
-
-// Defines values for PostApiV1OnboardingJSONBodyKind.
-const (
-	OnboardingRequest PostApiV1OnboardingJSONBodyKind = "OnboardingRequest"
-)
-
-// Valid indicates whether the value is a known member of the PostApiV1OnboardingJSONBodyKind enum.
-func (e PostApiV1OnboardingJSONBodyKind) Valid() bool {
-	switch e {
-	case OnboardingRequest:
-		return true
-	default:
-		return false
-	}
-}
-
-// CapacityRequirements Minimum device capacity required by the deployment profile.
-type CapacityRequirements struct {
-	// Cpu CPU element specifying the CPU requirements for the deployment.
-	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
-
-	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
-	Memory *string `json:"memory,omitempty"`
-
-	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
-	Storage *string `json:"storage,omitempty"`
 }
 
 // ComponentStatus defines model for ComponentStatus.
@@ -352,7 +252,7 @@ type DeploymentBundleRef struct {
 	// SizeBytes Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the bundle archive. Provided for bandwidth estimation and update planning. MUST NOT be used for integrity; digest verification remains mandatory.
 	SizeBytes *float32 `json:"sizeBytes,omitempty"`
 
-	// Url Content-addressable retrieval endpoint of the form /api/v1/clients/{clientId}/bundles/{digest} where {digest} equals bundle.digest.
+	// Url Content-addressable retrieval endpoint of the form /api/v1/bundles/{digest} where {digest} equals bundle.digest.
 	Url *string `json:"url,omitempty"`
 }
 
@@ -379,17 +279,15 @@ type DeploymentManifestRef struct {
 	// SizeBytes Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the deployment YAML. Provided for planning or progress display. MUST NOT be used for integrity; digest verification remains mandatory.
 	SizeBytes *float32 `json:"sizeBytes,omitempty"`
 
-	// Url Content-addressable endpoint of the form /api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable
+	// Url Content-addressable endpoint of the form /api/v1/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable
 	Url string `json:"url"`
 }
 
 // DeploymentStatusManifest defines model for DeploymentStatusManifest.
 type DeploymentStatusManifest struct {
-	ApiVersion   string                       `json:"apiVersion"`
-	Components   []ComponentStatus            `json:"components"`
-	DeploymentId string                       `json:"deploymentId"`
-	DeviceId     *DeviceId                    `json:"deviceId,omitempty"`
-	Kind         DeploymentStatusManifestKind `json:"kind"`
+	Components   []ComponentStatus `json:"components"`
+	DeploymentId string            `json:"deploymentId"`
+	DeviceId     *DeviceId         `json:"deviceId,omitempty"`
 	Status       struct {
 		Error *struct {
 			Code    *string `json:"code,omitempty"`
@@ -400,19 +298,11 @@ type DeploymentStatusManifest struct {
 	} `json:"status"`
 }
 
-// DeploymentStatusManifestKind defines model for DeploymentStatusManifest.Kind.
-type DeploymentStatusManifestKind string
-
 // DeploymentStatusManifestStatusState defines model for DeploymentStatusManifest.Status.State.
 type DeploymentStatusManifestStatusState string
 
 // DeviceCapabilitiesManifest defines model for DeviceCapabilitiesManifest.
 type DeviceCapabilitiesManifest struct {
-	ApiVersion string                         `json:"apiVersion"`
-	Kind       DeviceCapabilitiesManifestKind `json:"kind"`
-
-	// Labels Optional supplier-defined key/value pair metadata used for device matching via eligibilityRules label selectors. Values MUST be a string, number, boolean, or an array of strings or numbers. Margo does not assign semantics to any particular label key or value. Label keys are case-sensitive. Implementations SHOULD use stable, collision-resistant label names, prefixing with an organization domain is recommended.
-	Labels     *map[string]DeviceCapabilitiesManifest_Labels_AdditionalProperties `json:"labels,omitempty"`
 	Properties struct {
 		Cpus *[]struct {
 			Architecture *DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
@@ -430,29 +320,6 @@ type DeviceCapabilitiesManifest struct {
 		SupportedRuntimes        *[]DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
 		Vendor                   string                                                          `json:"vendor"`
 	} `json:"properties"`
-}
-
-// DeviceCapabilitiesManifestKind defines model for DeviceCapabilitiesManifest.Kind.
-type DeviceCapabilitiesManifestKind string
-
-// DeviceCapabilitiesManifestLabels0 defines model for DeviceCapabilitiesManifest.Labels.0.
-type DeviceCapabilitiesManifestLabels0 = string
-
-// DeviceCapabilitiesManifestLabels1 defines model for DeviceCapabilitiesManifest.Labels.1.
-type DeviceCapabilitiesManifestLabels1 = float32
-
-// DeviceCapabilitiesManifestLabels2 defines model for DeviceCapabilitiesManifest.Labels.2.
-type DeviceCapabilitiesManifestLabels2 = bool
-
-// DeviceCapabilitiesManifestLabels3 defines model for DeviceCapabilitiesManifest.Labels.3.
-type DeviceCapabilitiesManifestLabels3 = []string
-
-// DeviceCapabilitiesManifestLabels4 defines model for DeviceCapabilitiesManifest.Labels.4.
-type DeviceCapabilitiesManifestLabels4 = []float32
-
-// DeviceCapabilitiesManifest_Labels_AdditionalProperties defines model for DeviceCapabilitiesManifest.labels.AdditionalProperties.
-type DeviceCapabilitiesManifest_Labels_AdditionalProperties struct {
-	union json.RawMessage
 }
 
 // DeviceCapabilitiesManifestPropertiesCpusArchitecture defines model for DeviceCapabilitiesManifest.Properties.Cpus.Architecture.
@@ -509,29 +376,45 @@ type EligibilityRule struct {
 // ManifestVersion Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.
 type ManifestVersion = float32
 
-// MatchExpression An expression used to match a device's reported capabilities properties or labels.
-type MatchExpression struct {
-	// ItemSelector A set of match expressions evaluated with AND semantics.
-	ItemSelector *Selector `json:"itemSelector,omitempty"`
+// ProblemDetail RFC 9457 Problem Details for HTTP APIs. Returned with Content-Type: application/problem+json. See https://www.rfc-editor.org/rfc/rfc9457. Extension members (RFC 9457 §3.2) are permitted via additionalProperties. Vendors MAY add custom fields alongside standard margo fields. Vendor-specific problem types MUST use their own URI namespace. The https://docs.margo.org/specification/problem-types namespace is reserved for Margo.
+type ProblemDetail struct {
+	// BackoffStrategy Recommended backoff strategy for retrying. none: do not retry. fixed: retry after retryAfterSeconds. exponential: use exponential backoff starting at retryAfterSeconds.
+	BackoffStrategy *ProblemDetailBackoffStrategy `json:"backoffStrategy,omitempty"`
 
-	// Key The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the exact label key.
-	Key string `json:"key"`
+	// Detail Human-readable explanation specific to this occurrence of the problem.
+	Detail *string `json:"detail,omitempty"`
 
-	// Operator Operator used to evaluate the referenced value.
-	Operator MatchExpressionOperator `json:"operator"`
+	// Errors Optional list of field-level validation errors. SHOULD be present on 422 Unprocessable Entity responses.
+	Errors *[]struct {
+		// Field Field path that caused the validation error.
+		Field *string `json:"field,omitempty"`
 
-	// Values Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`, `Gt`, or `Lt` operator.
-	Values *[]interface{} `json:"values,omitempty"`
+		// Message Human-readable validation error message.
+		Message *string `json:"message,omitempty"`
+	} `json:"errors,omitempty"`
+
+	// Instance URI reference identifying the specific occurrence of the problem.
+	Instance *string `json:"instance,omitempty"`
+
+	// RetryAfterSeconds Advisory retry delay in seconds. The authoritative value is the Retry-After response header when present. This field is advisory only.
+	RetryAfterSeconds *int `json:"retryAfterSeconds,omitempty"`
+
+	// Retryable Whether the client MAY retry the request. If true, client SHOULD respect the Retry-After response header when present.
+	Retryable *bool `json:"retryable,omitempty"`
+
+	// Status HTTP status code.
+	Status int `json:"status"`
+
+	// Title Short human-readable summary of the problem type.
+	Title string `json:"title"`
+
+	// Type URI reference identifying the problem type. Implementations MUST use the registered Margo type URI for any error condition defined in the Margo specification. For error conditions not defined in this specification, implementations MAY define their own type URIs under their own namespace. Clients MUST use this field for programmatic error handling, NOT the status code or title. Clients encountering an unknown type URI SHOULD fall back to title, detail, and status for display and handling.
+	Type                 string                 `json:"type"`
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// MatchExpressionOperator Operator used to evaluate the referenced value.
-type MatchExpressionOperator string
-
-// Selector A set of match expressions evaluated with AND semantics.
-type Selector struct {
-	// MatchExpressions Match expressions evaluated against the device's reported capabilities.
-	MatchExpressions []MatchExpression `json:"matchExpressions"`
-}
+// ProblemDetailBackoffStrategy Recommended backoff strategy for retrying. none: do not retry. fixed: retry after retryAfterSeconds. exponential: use exponential backoff starting at retryAfterSeconds.
+type ProblemDetailBackoffStrategy string
 
 // UnsignedAppStateManifest defines model for UnsignedAppStateManifest.
 type UnsignedAppStateManifest struct {
@@ -547,14 +430,8 @@ type UnsignedAppStateManifest struct {
 
 // AppDeploymentManifest Application Deployment manifest
 type AppDeploymentManifest struct {
-	// ApiVersion API version
-	ApiVersion string `json:"apiVersion"`
-
 	// Id Unique identifier for the application deployment
-	Id *string `json:"id,omitempty"`
-
-	// Kind Resource kind
-	Kind     string                `json:"kind"`
+	Id       *string               `json:"id,omitempty"`
 	Metadata AppDeploymentMetadata `json:"metadata"`
 
 	// Spec Application Deployment specification
@@ -643,14 +520,14 @@ type ApplicationDeploymentProfileComponent struct {
 	} `json:"properties"`
 }
 
-// GetApiV1ClientsClientIdBundlesDigestParams defines parameters for GetApiV1ClientsClientIdBundlesDigest.
-type GetApiV1ClientsClientIdBundlesDigestParams struct {
+// GetApiV1BundlesDigestParams defines parameters for GetApiV1BundlesDigest.
+type GetApiV1BundlesDigestParams struct {
 	// IfNoneMatch Quoted ETag (same as digest) previously returned for this bundle.
 	IfNoneMatch *string `json:"If-None-Match,omitempty"`
 }
 
-// GetApiV1ClientsClientIdDeploymentsParams defines parameters for GetApiV1ClientsClientIdDeployments.
-type GetApiV1ClientsClientIdDeploymentsParams struct {
+// GetApiV1DeploymentsParams defines parameters for GetApiV1Deployments.
+type GetApiV1DeploymentsParams struct {
 	// IfNoneMatch ETag value of the last successfully synced manifest. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.
 	IfNoneMatch *string `json:"If-None-Match,omitempty"`
 
@@ -658,8 +535,8 @@ type GetApiV1ClientsClientIdDeploymentsParams struct {
 	Accept *string `json:"Accept,omitempty"`
 }
 
-// GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams defines parameters for GetApiV1ClientsClientIdDeploymentsDeploymentIdDigest.
-type GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams struct {
+// GetApiV1DeploymentsDeploymentIdDigestParams defines parameters for GetApiV1DeploymentsDeploymentIdDigest.
+type GetApiV1DeploymentsDeploymentIdDigestParams struct {
 	// IfNoneMatch Optional ETag for caching. The ETag is returned to the client from the /deployments endpoint, it is the digest of the state manifest.
 	IfNoneMatch *string `json:"If-None-Match,omitempty"`
 
@@ -667,169 +544,190 @@ type GetApiV1ClientsClientIdDeploymentsDeploymentIdDigestParams struct {
 	AcceptEncoding *string `json:"Accept-Encoding,omitempty"`
 }
 
-// PostApiV1OnboardingJSONBody defines parameters for PostApiV1Onboarding.
-type PostApiV1OnboardingJSONBody struct {
-	// ApiVersion API version identifier
-	ApiVersion string `json:"apiVersion"`
+// PutApiV1CapabilitiesDeviceIdJSONRequestBody defines body for PutApiV1CapabilitiesDeviceId for application/json ContentType.
+type PutApiV1CapabilitiesDeviceIdJSONRequestBody = DeviceCapabilitiesManifest
 
-	// Certificate Base64-encoded client certificate
-	Certificate string `json:"certificate"`
+// PostApiV1DeploymentsDeploymentIdStatusJSONRequestBody defines body for PostApiV1DeploymentsDeploymentIdStatus for application/json ContentType.
+type PostApiV1DeploymentsDeploymentIdStatusJSONRequestBody = DeploymentStatusManifest
 
-	// Kind Resource kind
-	Kind PostApiV1OnboardingJSONBodyKind `json:"kind"`
+// Getter for additional properties for ProblemDetail. Returns the specified
+// element and whether it was found
+func (a ProblemDetail) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
 }
 
-// PostApiV1OnboardingJSONBodyKind defines parameters for PostApiV1Onboarding.
-type PostApiV1OnboardingJSONBodyKind string
-
-// PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody defines body for PostApiV1ClientsClientIdCapabilitiesDeviceId for application/json ContentType.
-type PostApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody = DeviceCapabilitiesManifest
-
-// PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody defines body for PutApiV1ClientsClientIdCapabilitiesDeviceId for application/json ContentType.
-type PutApiV1ClientsClientIdCapabilitiesDeviceIdJSONRequestBody = DeviceCapabilitiesManifest
-
-// PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody defines body for PostApiV1ClientsClientIdDeploymentsDeploymentIdStatus for application/json ContentType.
-type PostApiV1ClientsClientIdDeploymentsDeploymentIdStatusJSONRequestBody = DeploymentStatusManifest
-
-// PostApiV1OnboardingJSONRequestBody defines body for PostApiV1Onboarding for application/json ContentType.
-type PostApiV1OnboardingJSONRequestBody PostApiV1OnboardingJSONBody
-
-// AsDeviceCapabilitiesManifestLabels0 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels0
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels0() (DeviceCapabilitiesManifestLabels0, error) {
-	var body DeviceCapabilitiesManifestLabels0
-	err := json.Unmarshal(t.union, &body)
-	return body, err
+// Setter for additional properties for ProblemDetail
+func (a *ProblemDetail) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
 }
 
-// FromDeviceCapabilitiesManifestLabels0 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels0
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels0(v DeviceCapabilitiesManifestLabels0) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeDeviceCapabilitiesManifestLabels0 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels0
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels0(v DeviceCapabilitiesManifestLabels0) error {
-	b, err := json.Marshal(v)
+// Override default JSON handling for ProblemDetail to handle AdditionalProperties
+func (a *ProblemDetail) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
 	if err != nil {
 		return err
 	}
 
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsDeviceCapabilitiesManifestLabels1 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels1
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels1() (DeviceCapabilitiesManifestLabels1, error) {
-	var body DeviceCapabilitiesManifestLabels1
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromDeviceCapabilitiesManifestLabels1 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels1
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels1(v DeviceCapabilitiesManifestLabels1) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeDeviceCapabilitiesManifestLabels1 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels1
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels1(v DeviceCapabilitiesManifestLabels1) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
+	if raw, found := object["backoffStrategy"]; found {
+		err = json.Unmarshal(raw, &a.BackoffStrategy)
+		if err != nil {
+			return fmt.Errorf("error reading 'backoffStrategy': %w", err)
+		}
+		delete(object, "backoffStrategy")
 	}
 
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsDeviceCapabilitiesManifestLabels2 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels2
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels2() (DeviceCapabilitiesManifestLabels2, error) {
-	var body DeviceCapabilitiesManifestLabels2
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromDeviceCapabilitiesManifestLabels2 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels2
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels2(v DeviceCapabilitiesManifestLabels2) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeDeviceCapabilitiesManifestLabels2 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels2
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels2(v DeviceCapabilitiesManifestLabels2) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
+	if raw, found := object["detail"]; found {
+		err = json.Unmarshal(raw, &a.Detail)
+		if err != nil {
+			return fmt.Errorf("error reading 'detail': %w", err)
+		}
+		delete(object, "detail")
 	}
 
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsDeviceCapabilitiesManifestLabels3 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels3
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels3() (DeviceCapabilitiesManifestLabels3, error) {
-	var body DeviceCapabilitiesManifestLabels3
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromDeviceCapabilitiesManifestLabels3 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels3
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels3(v DeviceCapabilitiesManifestLabels3) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeDeviceCapabilitiesManifestLabels3 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels3
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels3(v DeviceCapabilitiesManifestLabels3) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
+	if raw, found := object["errors"]; found {
+		err = json.Unmarshal(raw, &a.Errors)
+		if err != nil {
+			return fmt.Errorf("error reading 'errors': %w", err)
+		}
+		delete(object, "errors")
 	}
 
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsDeviceCapabilitiesManifestLabels4 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels4
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels4() (DeviceCapabilitiesManifestLabels4, error) {
-	var body DeviceCapabilitiesManifestLabels4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromDeviceCapabilitiesManifestLabels4 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels4
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels4(v DeviceCapabilitiesManifestLabels4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeDeviceCapabilitiesManifestLabels4 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels4
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels4(v DeviceCapabilitiesManifestLabels4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
+	if raw, found := object["instance"]; found {
+		err = json.Unmarshal(raw, &a.Instance)
+		if err != nil {
+			return fmt.Errorf("error reading 'instance': %w", err)
+		}
+		delete(object, "instance")
 	}
 
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
+	if raw, found := object["retryAfterSeconds"]; found {
+		err = json.Unmarshal(raw, &a.RetryAfterSeconds)
+		if err != nil {
+			return fmt.Errorf("error reading 'retryAfterSeconds': %w", err)
+		}
+		delete(object, "retryAfterSeconds")
+	}
+
+	if raw, found := object["retryable"]; found {
+		err = json.Unmarshal(raw, &a.Retryable)
+		if err != nil {
+			return fmt.Errorf("error reading 'retryable': %w", err)
+		}
+		delete(object, "retryable")
+	}
+
+	if raw, found := object["status"]; found {
+		err = json.Unmarshal(raw, &a.Status)
+		if err != nil {
+			return fmt.Errorf("error reading 'status': %w", err)
+		}
+		delete(object, "status")
+	}
+
+	if raw, found := object["title"]; found {
+		err = json.Unmarshal(raw, &a.Title)
+		if err != nil {
+			return fmt.Errorf("error reading 'title': %w", err)
+		}
+		delete(object, "title")
+	}
+
+	if raw, found := object["type"]; found {
+		err = json.Unmarshal(raw, &a.Type)
+		if err != nil {
+			return fmt.Errorf("error reading 'type': %w", err)
+		}
+		delete(object, "type")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
 }
 
-func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
+// Override default JSON handling for ProblemDetail to handle AdditionalProperties
+func (a ProblemDetail) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
 
-func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
+	if a.BackoffStrategy != nil {
+		object["backoffStrategy"], err = json.Marshal(a.BackoffStrategy)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'backoffStrategy': %w", err)
+		}
+	}
+
+	if a.Detail != nil {
+		object["detail"], err = json.Marshal(a.Detail)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'detail': %w", err)
+		}
+	}
+
+	if a.Errors != nil {
+		object["errors"], err = json.Marshal(a.Errors)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'errors': %w", err)
+		}
+	}
+
+	if a.Instance != nil {
+		object["instance"], err = json.Marshal(a.Instance)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'instance': %w", err)
+		}
+	}
+
+	if a.RetryAfterSeconds != nil {
+		object["retryAfterSeconds"], err = json.Marshal(a.RetryAfterSeconds)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'retryAfterSeconds': %w", err)
+		}
+	}
+
+	if a.Retryable != nil {
+		object["retryable"], err = json.Marshal(a.Retryable)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'retryable': %w", err)
+		}
+	}
+
+	object["status"], err = json.Marshal(a.Status)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'status': %w", err)
+	}
+
+	object["title"], err = json.Marshal(a.Title)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'title': %w", err)
+	}
+
+	object["type"], err = json.Marshal(a.Type)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'type': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
 }

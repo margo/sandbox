@@ -30,8 +30,8 @@ func New(c *conf.Config, logger *slog.Logger) *MisRestAPI {
 
 func (m *MisRestAPI) Start() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /.well-known/margo", m.getDiscoveryDocument)
-	mux.HandleFunc("GET /{path}", m.getTrustBundle)
+	mux.HandleFunc("GET /.well-known/margo", m.loggingMiddleware(m.getDiscoveryDocument))
+	mux.HandleFunc("GET /{path}", m.loggingMiddleware(m.getTrustBundle))
 	bundle, err := helpers.CreateBundleFile(m.cnf.HTTPS.Cert, m.cnf.HTTPS.CA)
 	if err != nil {
 		return err

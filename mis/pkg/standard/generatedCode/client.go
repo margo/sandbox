@@ -89,6 +89,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+
 	// GetDiscoveryDocument Retrieve MIAF discovery document
 	//
 	// Optional entry point for a Trust Domain.
@@ -262,6 +263,7 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+
 	// GetDiscoveryDocumentWithResponse Retrieve MIAF discovery document
 	//
 	// Optional entry point for a Trust Domain.

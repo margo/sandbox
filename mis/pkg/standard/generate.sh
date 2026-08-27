@@ -3,7 +3,12 @@
 set -e
 
 # Configuration
+TMP_SPEC="snapshot.spec.yaml"
 MIS_SPEC_FILE=("spec.yaml")
+
+SPEC_URL="https://raw.githubusercontent.com/margo/specification/refs/heads/pre-draft/system-design/specification/identity/trust-bundle-api-1.0.0-rc.2.yaml"
+curl -sSL -o "$TMP_SPEC" \
+  "$SPEC_URL"
 
 OUTPUT_DIR="./generatedCode"
 MIS_PACKAGE_NAME="github.com/margo/sandbox/mis/standard/generatedCode"
@@ -145,7 +150,7 @@ main() {
     echo "Generated files:"
     echo "- Models: $OUTPUT_DIR/models/"
     echo "- Client: $OUTPUT_DIR/client/"
-    echo "- Server: $OUTPUT_DIR/server/"
+    # echo "- Server: $OUTPUT_DIR/server/"
     # echo "- Server: $OUTPUT_DIR/server/"
 
     # Verify the imports work

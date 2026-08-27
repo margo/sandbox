@@ -109,8 +109,7 @@ func TestPackageManager_Load_WithValidationEnabled(t *testing.T) {
 func TestPackageManager_Load_InvalidPackageWithValidation(t *testing.T) {
 	dir := t.TempDir()
 	invalidYAML := `
-apiVersion: margo.org/v1alpha1
-kind: WrongKind
+apiVersion: v1
 metadata:
   name: test
 `

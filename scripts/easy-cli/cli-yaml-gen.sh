@@ -101,7 +101,6 @@ generate_instance() {
 # This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
 
 apiVersion: non-margo.org
-kind: ApplicationDeployment
 metadata:
   name: ${instance_name}
 spec:
@@ -251,7 +250,6 @@ generate_wfm_package_yaml() {
 # This is an input template allowing the WFM user to modify deployment instance specific parameters.
 # This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
 apiVersion: non-margo.org
-kind: ApplicationPackage
 metadata:
   name: ${package_repo}
   labels:

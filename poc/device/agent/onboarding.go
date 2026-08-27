@@ -139,40 +139,11 @@ func NewDeviceSettings(
 }
 
 func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId string, err error) {
-	devicePubCert, err := da.deviceRootIdentity.PublicCertificatePEM()
-	if err != nil {
-		return "", err
-	}
-
-	da.log.Infow("Starting device onboarding", "hasValidDeviceSignature", len(devicePubCert) != 0)
-	clientId, wfmEndpointsForClient, err := da.apiClient.OnboardDeviceClient(
-		ctx,
-		[]byte(devicePubCert),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to onboard device client: %s", err.Error())
-	}
-
-	da.deviceClientId = clientId
-	da.wfmEndpointsForClient = wfmEndpointsForClient
-	da.oauthClientId = ""
-	da.oAuthClientSecret = ""
-	da.oauthTokenUrl = ""
-	da.log.Infow("Device onboarding successful", "deviceClientId", da.deviceClientId)
-
-	err = da.db.SetDeviceSettings(database.DeviceSettingsRecord{
-		DeviceClientId:           da.deviceClientId,
-		DeviceRootIdentity:       da.deviceRootIdentity,
-		State:                    types.DeviceOnboardStateOnboarded,
-		OAuthClientId:            da.oauthClientId,
-		OAuthClientSecret:        da.oAuthClientSecret,
-		OAuthTokenEndpointUrl:    da.oauthTokenUrl,
-		AuthEnabled:              da.authEnabled,
-		SupportedDeploymentTypes: da.supportedDeploymentTypes,
-		SupportedRuntimes:        da.supportedRuntimes,
-	})
-
-	return da.deviceClientId, err
+	// TODO: MIAF SUP — onboarding via operator pre-provisioning (X.509-SVID/mTLS).
+	// The SBI onboarding endpoint has been removed from the spec.
+	// For now, return error indicating manual provisioning is required.
+	return "", fmt.Errorf("device onboarding via SBI endpoint is no longer supported — " +
+		"provision device identity via operator pre-provisioning (MIAF SUP)")
 }
 
 func (da *DeviceClientSettings) OnboardWithRetries(

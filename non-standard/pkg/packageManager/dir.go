@@ -50,17 +50,8 @@ func (l *DirectoryLoader) Load(
 	}
 
 	if opts != nil && opts.Validate {
-		if pkg.Description.Kind != "ApplicationDescription" {
-			return "", nil, &ErrInvalidDescription{
-				Path: descPath,
-				ContextualInfo: fmt.Sprintf(
-					"invalid kind: %s",
-					pkg.Description.Kind,
-				),
-			}
-		}
-
-		if pkg.Description.ApiVersion != "margo.org/v1-alpha1" {
+		
+		if pkg.Description.ApiVersion != "v1" {
 			return "", nil, &ErrInvalidDescription{
 				Path: descPath,
 				ContextualInfo: fmt.Sprintf(

@@ -80,11 +80,11 @@ Optional Flags:
 
 Examples:
   # Mint an X.509 SVID using current directory as output
-  svidctl mint x509 \
+  mis mint x509 \
 	--spiffeID spiffe://example.org/myservice \
 
   # Mint an X.509 SVID with DNS SANs, custom TTL, and output directory
-  svidctl mint x509 \
+  mis mint x509 \
 	--spiffeID spiffe://example.org/myservice \
 	--dns myservice.example.com \
 	--ttl 3600 \
@@ -308,7 +308,7 @@ func validateOutputDir(dir string) error {
 	}
 
 	// Check write permission by attempting to create a temp file
-	testFile, err := os.CreateTemp(dir, ".svidctl-write-check-*")
+	testFile, err := os.CreateTemp(dir, ".mis-write-check-*")
 	if err != nil {
 		return fmt.Errorf("outputDir %q is not writable: %w", dir, err)
 	}

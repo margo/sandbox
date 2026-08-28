@@ -98,7 +98,7 @@ func TestValidateOutputDir(t *testing.T) {
 	})
 
 	t.Run("non-existent directory", func(t *testing.T) {
-		err := validateOutputDir("/tmp/this-path-should-not-exist-svidctl-test")
+		err := validateOutputDir("/tmp/this-path-should-not-exist-mis-test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not exist")
 	})
@@ -183,7 +183,7 @@ func TestValidateX509Flags(t *testing.T) {
 
 	t.Run("non-existent output directory", func(t *testing.T) {
 		f := validFlags(t)
-		f.OutputDir = "/tmp/non-existent-svidctl-dir"
+		f.OutputDir = "/tmp/non-existent-mis-dir"
 		err := validateX509Flags(f)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not exist")

@@ -38,6 +38,12 @@ build:
 	@echo ">>> Binary available at: $(BINARY)"
 
 # ============================================================
+# Run (This requires configuration and certificates to be pre-placed)
+# ============================================================
+run:
+	go run main.go start --config ./configuration.json
+
+# ============================================================
 # Docker container
 # ============================================================
 container:

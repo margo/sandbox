@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"log/slog"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -61,6 +62,7 @@ func newOperation(trustDomain string, caCertPath string) *Operation {
 	return &Operation{
 		trustDomain: trustDomain,
 		ca:          conf.CAConfig{Cert: caCertPath},
+		logger:      slog.Default(),
 	}
 }
 

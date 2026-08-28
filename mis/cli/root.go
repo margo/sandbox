@@ -14,15 +14,15 @@ import (
 // rootCmd is the base command for the CLI application.
 // All subcommands are registered under this root command.
 var rootCmd = &cobra.Command{
-	Use:   "svidctl",
-	Short: "SVID management CLI",
-	Long: `svidctl is a CLI tool for managing SPIFFE Verifiable Identity Documents (SVIDs).
+	Use:   "mis",
+	Short: "MIS CLI",
+	Long: `mis is a CLI tool for starting Trust Bundle HTTPS Server and to mint x509 SVIDs.
 
 It provides commands to:
-  - Start a REST API server for SVID management
+  - Start MIS REST API server for trust bundle & mint server for SVID minting
   - Mint new X.509 SVIDs with configurable parameters
 
-Use "svidctl [command] --help" for more information about a command.`,
+Use "mis [command] --help" for more information about a command.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

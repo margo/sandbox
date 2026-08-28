@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/kr/pretty"
 	"github.com/margo/sandbox/mis/https"
 	"github.com/margo/sandbox/mis/pkg/conf"
 	"github.com/margo/sandbox/mis/pkg/log"
@@ -25,19 +26,19 @@ var configFile string
 // It starts the REST API server using the provided configuration file.
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start the REST API server",
-	Long: `Start the REST API server for SVID management.
+	Short: "Start the MIS REST API server",
+	Long: `Start the MIS REST API server as well as Mint Server for SVID minting.
 
 The server requires a configuration file to be specified using the --config flag.
 The configuration file contains server settings such as port, TLS configuration,
-and SPIRE agent connection details.
+CA information, logging configuration.
 
 Examples:
   # Start the server with a configuration file
-  svidctl start --config /etc/svidctl/config.yaml
+  mis start --config /etc/mis/config.json
 
   # Start the server with a configuration file in the current directory
-  svidctl start --config ./config.yaml`,
+  mis start --config ./config.json`,
 
 	// RunE executes the start command logic, returning an error if execution fails.
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,6 +55,8 @@ Examples:
 			return err
 		}
 		logger := log.New(cnf.Log.Level)
+
+		fmt.Printf("printing log file here: %s", pretty.Sprint(cnf))
 
 		normativeServer := https.New(cnf, logger.With("server-type", "Normative"))
 		mintServer := unix.New(cnf, logger.With("server-type", "Mint"))

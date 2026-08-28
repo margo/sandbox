@@ -15,16 +15,16 @@ import (
 var mintCmd = &cobra.Command{
 	Use:   "mint",
 	Short: "Mint a new SVID",
-	Long: `Mint generates a new SPIFFE Verifiable Identity Document (SVID).
+	Long: `Mint generates a new SPIFFE Verifiable Identity Document (SVID) in x.509 format certificates.
 
 Available subcommands allow minting different types of SVIDs:
   - x509 : Mint an X.509 SVID
 
-Use "svidctl mint [subcommand] --help" for more information about a subcommand.
+Use "mis mint [subcommand] --help" for more information about a subcommand.
 
 Examples:
   # Mint an X.509 SVID
-  svidctl mint x509 --spiffeID spiffe://example.org/myservice --outputDir /tmp/svid`,
+  mis mint x509 --spiffeID spiffe://example.org/myservice --outputDir /tmp/svid`,
 }
 
 func init() {

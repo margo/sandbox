@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	ro "github.com/margo/sandbox/mis/https/operations"
@@ -19,17 +20,18 @@ import (
 )
 
 type MisRestAPI struct {
-	cnf    *conf.Config
-	logger *slog.Logger
-	op     types.MISIface
-	server *http.Server
+	cnf                  *conf.Config
+	logger               *slog.Logger
+	op                   types.MISIface
+	server               *http.Server
+	caCertBundleLocation string
 }
 
 func New(c *conf.Config, logger *slog.Logger) *MisRestAPI {
 	return &MisRestAPI{
 		cnf:    c,
 		logger: logger,
-		op:     ro.New(c),
+		op:     ro.New(c, logger),
 	}
 }
 
@@ -38,7 +40,7 @@ func (m *MisRestAPI) Start() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /.well-known/margo", m.loggingMiddleware(m.getDiscoveryDocument))
-	mux.HandleFunc("GET /{path}", m.loggingMiddleware(m.getTrustBundle))
+	mux.HandleFunc("GET /{path...}", m.loggingMiddleware(m.getTrustBundle))
 	m.logger.Debug(
 		"registered HTTP routes",
 		"routes",
@@ -73,6 +75,7 @@ func (m *MisRestAPI) Start() error {
 	}
 
 	m.server = server
+	m.caCertBundleLocation = bundle
 
 	m.logger.Info("HTTPS server listening", "addr", m.cnf.HTTPS.Addr, "tls_min_version", "TLS1.3")
 	return server.ListenAndServeTLS(bundle, m.cnf.HTTPS.Key)
@@ -90,6 +93,7 @@ func (m *MisRestAPI) Stop() error {
 		context.Background(),
 		30*time.Second,
 	)
+	defer os.RemoveAll(m.caCertBundleLocation)
 	defer cancel()
 
 	m.logger.Debug("initiating graceful shutdown", "timeout_seconds", 30)

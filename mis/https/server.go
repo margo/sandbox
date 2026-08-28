@@ -39,12 +39,12 @@ func (m *MisRestAPI) Start() error {
 	m.logger.Info("starting HTTPS server", "addr", m.cnf.HTTPS.Addr)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /.well-known/margo", m.loggingMiddleware(m.getDiscoveryDocument))
-	mux.HandleFunc("GET /{path...}", m.loggingMiddleware(m.getTrustBundle))
+	mux.HandleFunc("GET /.well-known/margo", m.getDiscoveryDocument)
+	mux.HandleFunc("GET /{path...}", m.getTrustBundle)
 	m.logger.Debug(
 		"registered HTTP routes",
 		"routes",
-		[]string{"GET /.well-known/margo", "GET /{path}"},
+		[]string{"GET /.well-known/margo", fmt.Sprintf("GET /%s", m.cnf.TrustBundleURI)},
 	)
 
 	m.logger.Debug("creating TLS bundle file", "cert", m.cnf.HTTPS.Cert, "ca", m.cnf.HTTPS.CA)
@@ -136,8 +136,8 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 			WithRetryable(false)
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotAcceptable)
+		w.Write(jr)
 		return
 	}
 
@@ -157,8 +157,8 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 			WithRetryable(true)
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotFound)
+		w.Write(jr)
 		return
 	}
 
@@ -178,8 +178,8 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotFound)
+		w.Write(jr)
 		return
 	}
 
@@ -221,8 +221,8 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotFound)
+		w.Write(jr)
 		return
 	}
 
@@ -243,8 +243,8 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotFound)
+		w.Write(jr)
 		return
 	}
 
@@ -263,8 +263,8 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
-		w.Write(jr)
 		w.WriteHeader(http.StatusNotFound)
+		w.Write(jr)
 		return
 	}
 

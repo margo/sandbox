@@ -27,10 +27,10 @@ HTTPS_CA_KEY="$OUTPUT_DIR/https-ca.key"
 HTTPS_CA_CRT="$OUTPUT_DIR/https-ca.crt"
 MINTER_CA_KEY="$OUTPUT_DIR/ca.key"
 MINTER_CA_CRT="$OUTPUT_DIR/ca.crt"
-SERVER_KEY="$OUTPUT_DIR/server.key"
-SERVER_CRT="$OUTPUT_DIR/server.crt"
-SERVER_CSR="$OUTPUT_DIR/server.csr"
-SERVER_EXT="$OUTPUT_DIR/server_ext.cnf"
+SERVER_KEY="$OUTPUT_DIR/https-server.key"
+SERVER_CRT="$OUTPUT_DIR/https-server.crt"
+SERVER_CSR="$OUTPUT_DIR/https-server.csr"
+SERVER_EXT="$OUTPUT_DIR/https-server_ext.cnf"
 
 # --- Helpers ------------------------------------------------------------------
 log()  { echo "[INFO]  $(date '+%Y-%m-%d %H:%M:%S') $*"; }

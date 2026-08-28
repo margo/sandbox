@@ -11,9 +11,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/margo/sandbox/mis/https"
 	"github.com/margo/sandbox/mis/pkg/conf"
 	"github.com/margo/sandbox/mis/pkg/log"
-	"github.com/margo/sandbox/mis/restapi"
 	"github.com/margo/sandbox/mis/unix"
 	"github.com/spf13/cobra"
 )
@@ -55,8 +55,8 @@ Examples:
 		}
 		logger := log.New(cnf.Log.Level)
 
-		normativeServer := restapi.New(cnf, logger)
-		mintServer := unix.New(cnf, logger)
+		normativeServer := https.New(cnf, logger.With("server-type", "Normative"))
+		mintServer := unix.New(cnf, logger.With("server-type", "Mint"))
 
 		// For Graceful shutdown
 		quit := make(chan os.Signal, 1)

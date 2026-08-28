@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func newMintOps() *MintOperations {
-	return New()
+	return New(slog.Default())
 }
 
 // parseCert decodes PEM and parses the X.509 certificate.

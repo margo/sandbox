@@ -1,7 +1,13 @@
 package operations
 
-type MintOperations struct{}
+import "log/slog"
 
-func New() *MintOperations {
-	return &MintOperations{}
+type MintOperations struct {
+	logger *slog.Logger
+}
+
+func New(logger *slog.Logger) *MintOperations {
+	return &MintOperations{
+		logger: logger,
+	}
 }

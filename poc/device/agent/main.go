@@ -64,6 +64,11 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
 
+    // TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are replaced by mTLS.
+	// This entire RequestSigner plugin block should be removed when MIAF is implemented.
+	// Replace with: mTLS client certificate (X.509-SVID) configured in tls.Config.
+	// See: shared-lib/crypto/signer.go — marked for deletion on MIAF implementation.
+
 	hasRequestSigningKey := false
 	// If request signer plugin enabled in the configuration, then create signer object and add it
 	// as http client option/RequestEditorFn
@@ -190,16 +195,12 @@ func NewAgent(configPath string) (*Agent, error) {
 		"deviceSignatureType", deviceSettings.deviceRootIdentity.IdentityType,
 		"hasValidDeviceCertificate", hasValidDeviceCertificate,
 		"hasServerTLSVerificationEnabled", hasServerTLSVerificationEnabled,
+		// TODO: MIAF SUP — hasRequestSigningKey rename to "hasMTLSClientCert" when RFC 9421 removed
 		"canSignRequests", hasRequestSigningKey,
 		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
 		"isAuthEnabled", deviceSettings.authEnabled,
-		// "hasClientId", len(deviceSettings.oauthClientId) != 0,
-		// "hasClientSecret", len(deviceSettings.oAuthClientSecret) != 0,
-		// "hasTokenUrl", len(deviceSettings.oauthTokenUrl) != 0,
-		// "tokenBasedAuthDetails", (len(deviceSettings.oauthClientId) != 0) &&
-		// (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
-	)
+		)
 
 	// Create components
 	deployer := NewDeploymentManager(db, helmClient, composeClient, log)

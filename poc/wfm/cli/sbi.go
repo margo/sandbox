@@ -14,13 +14,6 @@ import (
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-const (
-	// southboundBaseURL is the default base URL path for the Northbound API
-	southboundBaseURL = "margo/sbi/v1"
-
-	// Default timeout for API requests
-	sbiDefaultTimeout = 30 * time.Second
-)
 
 type HTTPApiClientRequestEditorOptions = sbi.RequestEditorFn
 type HTTPApiClientOptions = sbi.ClientOption

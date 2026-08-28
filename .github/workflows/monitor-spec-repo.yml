@@ -1,0 +1,27 @@
+name: Sync Spec and Implementation
+on:
+  schedule:
+    - cron: '0 * * * *' # Every hour
+  workflow_dispatch:
+
+jobs:
+  sync-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Code Generation
+        run: |
+          chmod +x ./standard/generates.sh
+          ./standard/generates.sh
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update spec reference and regenerate the code"
+          title: "chore: update spec reference and regenerate the code"
+          body: |
+            Automated update triggered by a change in the remote specification.
+          branch: "chore/auto-spec-sync"
+          delete-branch: true # Cleans up after the PR is merged

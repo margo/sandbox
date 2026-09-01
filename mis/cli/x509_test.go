@@ -120,8 +120,8 @@ func TestValidateOutputDir(t *testing.T) {
 		}
 
 		dir := t.TempDir()
-		require.NoError(t, os.Chmod(dir, 0o555)) // read + execute only
-		t.Cleanup(func() { os.Chmod(dir, 0o755) })
+		require.NoError(t, os.Chmod(dir, 0o600)) // read + execute only
+		t.Cleanup(func() { os.Chmod(dir, 0o600) })
 
 		err := validateOutputDir(dir)
 		require.Error(t, err)
@@ -214,7 +214,7 @@ func TestValidateX509Flags(t *testing.T) {
 	t.Run("output dir is a file", func(t *testing.T) {
 		dir := t.TempDir()
 		file := filepath.Join(dir, "notadir.pem")
-		require.NoError(t, os.WriteFile(file, []byte("x"), 0o644))
+		require.NoError(t, os.WriteFile(file, []byte("x"), 0o600))
 
 		f := validFlags(t)
 		f.OutputDir = file

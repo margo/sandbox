@@ -45,11 +45,12 @@ func (m *MintRestAPI) Start() error {
 	}
 	m.logger.Debug("cleaned up stale socket file", "socket_path", MintUnixSocketPath)
 
-	listener, err := net.Listen("unix", MintUnixSocketPath)
+	ul := net.ListenConfig{}
+
+	listener, err := ul.Listen(context.Background(), "unix", MintUnixSocketPath)
 	if err != nil {
 		return fmt.Errorf("failed to listen on unix socket %s: %v", MintUnixSocketPath, err)
 	}
-	defer listener.Close()
 	m.logger.Info("unix socket listener created", "socket_path", MintUnixSocketPath)
 
 	// Restrict socket permissions (owner read/write only)

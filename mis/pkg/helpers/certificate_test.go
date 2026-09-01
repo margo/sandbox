@@ -39,6 +39,7 @@ func TestCreateBundleFile_SingleCertificate(t *testing.T) {
 	assert.True(t, filepath.IsAbs(bundlePath), "returned path must be absolute")
 	assert.FileExists(t, bundlePath)
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	got, err := os.ReadFile(bundlePath)
 	require.NoError(t, err)
 	assert.Equal(t, certContent, string(got))
@@ -55,6 +56,7 @@ func TestCreateBundleFile_MultipleCertificates(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(bundlePath)
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	got, err := os.ReadFile(bundlePath)
 	require.NoError(t, err)
 
@@ -76,6 +78,7 @@ func TestCreateBundleFile_NewlineSeparatorAdded(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(bundlePath)
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	got, err := os.ReadFile(bundlePath)
 	require.NoError(t, err)
 
@@ -95,6 +98,7 @@ func TestCreateBundleFile_NoNewlineSeparatorWhenAlreadyPresent(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(bundlePath)
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	got, err := os.ReadFile(bundlePath)
 	require.NoError(t, err)
 
@@ -130,6 +134,7 @@ func TestCreateBundleFile_EmptyCertFile(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(bundlePath)
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	got, err := os.ReadFile(bundlePath)
 	require.NoError(t, err)
 	assert.Empty(t, got)

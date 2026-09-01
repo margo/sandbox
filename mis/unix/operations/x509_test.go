@@ -188,7 +188,7 @@ func TestGenerateX509SVID_ValidityPeriodRespectsTTL(t *testing.T) {
 	assert.True(t, cert.NotBefore.After(before.Add(-time.Second)), "NotBefore should be ~now")
 	assert.True(t, cert.NotBefore.Before(after.Add(time.Second)), "NotBefore should be ~now")
 
-	expectedExpiry := cert.NotBefore.Add(time.Duration(*ttl))
+	expectedExpiry := cert.NotBefore.Add((*ttl))
 	// fmt.Println(expectedExpiry.String(), cert.NotAfter.String())
 	// Allow 2-second drift for test execution time
 	assert.WithinDuration(t, expectedExpiry, cert.NotAfter, 2*time.Second)

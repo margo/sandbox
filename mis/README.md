@@ -1,6 +1,6 @@
 # MIS CLI
 
-`mis` is a command-line tool for managing SPIFFE Verifiable Identity Documents (SVIDs) and running the MIS REST API server.
+`mis-cli` is a command-line tool for managing SPIFFE Verifiable Identity Documents (SVIDs) and running the MIS REST API server.
 
 ---
 

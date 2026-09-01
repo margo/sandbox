@@ -159,7 +159,7 @@ func mintx509SVID(flags *x509Flags) {
 		)
 	}
 
-	err = os.WriteFile(path.Join(flags.OutputDir, CertName), certContent, 0o644)
+	err = os.WriteFile(path.Join(flags.OutputDir, CertName), certContent, 0o600)
 	if err != nil {
 		log.Fatalf(
 			"failed to create cert file, %s, err: %s",

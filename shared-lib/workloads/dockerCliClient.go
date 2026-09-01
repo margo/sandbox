@@ -118,7 +118,7 @@ func NewDockerComposeCliClient(
 	}
 
 	// Create working directory
-	if err := os.MkdirAll(workingDir, 0750); err != nil {
+	if err := os.MkdirAll(workingDir, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create working directory: %w", err)
 	}
 
@@ -244,7 +244,6 @@ func (c *DockerComposeCliClient) forceRemoveProjectContainers(
 					string(removeOutput),
 				),
 			)
-
 		}
 	}
 
@@ -457,7 +456,6 @@ func (c *DockerComposeCliClient) RestartCompose(ctx context.Context, projectName
 	cmd.Env = prepareDockerEnv(c.params, nil)
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		return fmt.Errorf(
 			"failed to restart compose project: %s",
@@ -472,7 +470,6 @@ func (c *DockerComposeCliClient) verifyContainersRemoved(
 	ctx context.Context,
 	projectName string,
 ) error {
-
 	listCmd := exec.CommandContext(ctx, c.dockerBinary, "ps", "-a",
 		"--filter", fmt.Sprintf("name=%s-", projectName),
 		"--format", "{{.Names}}")
@@ -506,7 +503,6 @@ func (c *DockerComposeCliClient) ComposeExists(
 	composeFile string,
 	projectName string,
 ) (bool, error) {
-
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return false, nil
 	}
@@ -599,7 +595,7 @@ func (c *DockerComposeCliClient) DownloadCompose(
 	}
 
 	projectDir := filepath.Join(c.workingDir, projectName)
-	if err := os.MkdirAll(projectDir, 0750); err != nil {
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create project directory: %w", err)
 	}
 
@@ -692,7 +688,6 @@ func (c *DockerComposeCliClient) DownloadCompose(
 func (c *DockerComposeCliClient) extractAndFindCompose(
 	archivePath, destDir string,
 ) (string, error) {
-
 	f, err := os.Open(filepath.Clean(archivePath))
 	if err != nil {
 		return "", fmt.Errorf("failed to open archive: %w", err)
@@ -712,7 +707,6 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 	composeNames := make(map[string]bool, len(composeFileNames))
 	for _, name := range composeFileNames {
 		composeNames[name] = true
-
 	}
 
 	var foundCompose string
@@ -744,12 +738,12 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0750); err != nil {
+			if err := os.MkdirAll(target, 0o750); err != nil {
 				return "", fmt.Errorf("failed to create directory: %w", err)
 			}
 
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0750); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 				return "", fmt.Errorf(
 					"failed to create parent directory: %w",
 					err,
@@ -759,7 +753,7 @@ func (c *DockerComposeCliClient) extractAndFindCompose(
 			outFile, err := os.OpenFile( //nolint:gosec // path is sanitized above
 				target,
 				os.O_CREATE|os.O_RDWR|os.O_TRUNC,
-				0600,
+				0o600,
 			)
 			if err != nil {
 				return "", fmt.Errorf("failed to create file: %w", err)
@@ -795,6 +789,7 @@ func (c *DockerComposeCliClient) copyFile(src, dst string) error {
 	}
 	defer source.Close()
 
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	dest, err := os.Create(filepath.Clean(dst))
 	if err != nil {
 		return err

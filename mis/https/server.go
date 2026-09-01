@@ -93,7 +93,12 @@ func (m *MisRestAPI) Stop() error {
 		context.Background(),
 		30*time.Second,
 	)
-	defer os.RemoveAll(m.caCertBundleLocation)
+	defer func() {
+		err := os.RemoveAll(m.caCertBundleLocation)
+		if err != nil {
+			m.logger.Error("failed to remove certificate bundle")
+		}
+	}()
 	defer cancel()
 
 	m.logger.Debug("initiating graceful shutdown", "timeout_seconds", 30)
@@ -137,7 +142,10 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotAcceptable)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -158,7 +166,10 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -179,7 +190,10 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -197,7 +211,10 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(rawResp)
+	_, err = w.Write(rawResp)
+	if err != nil {
+		logger.Error("failed to write http response", "err", err.Error())
+	}
 }
 
 func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +239,10 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -244,7 +264,10 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -264,7 +287,10 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(jr)
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
 		return
 	}
 
@@ -282,5 +308,8 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(rawBundle)
+	_, err = w.Write(rawBundle)
+	if err != nil {
+		logger.Error("failed to write http response", "err", err.Error())
+	}
 }

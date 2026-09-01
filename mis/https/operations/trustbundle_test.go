@@ -47,6 +47,7 @@ func generateSelfSignedCACert(t *testing.T, dir string) (string, *x509.Certifica
 	require.NoError(t, err, "parse generated certificate")
 
 	pemPath := filepath.Join(dir, "ca.pem")
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	f, err := os.Create(pemPath)
 	require.NoError(t, err, "create PEM file")
 	defer f.Close()
@@ -123,7 +124,7 @@ func TestGetTrustBundle_CACertFileNotFound(t *testing.T) {
 func TestGetTrustBundle_InvalidPEMBlock(t *testing.T) {
 	dir := t.TempDir()
 	badPEM := filepath.Join(dir, "bad.pem")
-	require.NoError(t, os.WriteFile(badPEM, []byte("this is not valid PEM data"), 0o644))
+	require.NoError(t, os.WriteFile(badPEM, []byte("this is not valid PEM data"), 0o600))
 
 	op := newOperation("example.org", badPEM)
 	bundle, err := op.GetTrustBundle()
@@ -136,7 +137,7 @@ func TestGetTrustBundle_InvalidPEMBlock(t *testing.T) {
 func TestGetTrustBundle_EmptyFile(t *testing.T) {
 	dir := t.TempDir()
 	emptyFile := filepath.Join(dir, "empty.pem")
-	require.NoError(t, os.WriteFile(emptyFile, []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(emptyFile, []byte{}, 0o600))
 
 	op := newOperation("example.org", emptyFile)
 	bundle, err := op.GetTrustBundle()
@@ -151,6 +152,8 @@ func TestGetTrustBundle_InvalidCertificateBytes(t *testing.T) {
 	// Valid PEM envelope but garbage DER content
 	block := &pem.Block{Type: "CERTIFICATE", Bytes: []byte("not-valid-der")}
 	corruptPEM := filepath.Join(dir, "corrupt.pem")
+
+	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 	f, err := os.Create(corruptPEM)
 	require.NoError(t, err)
 	require.NoError(t, pem.Encode(f, block))

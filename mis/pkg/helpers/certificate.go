@@ -50,15 +50,15 @@ func CreateBundleFile(certPaths ...string) (string, error) {
 
 	for _, certPath := range certPaths {
 		// Read certificate content.
-		certData, err := os.ReadFile(certPath)
+		certData, err := os.ReadFile(filepath.Clean(certPath))
 		if err != nil {
-			os.Remove(tmpFile.Name())
+			_ = os.Remove(tmpFile.Name())
 			return "", fmt.Errorf("read certificate %q: %w", certPath, err)
 		}
 
 		// Write certificate content to the bundle.
 		if _, err := tmpFile.Write(certData); err != nil {
-			os.Remove(tmpFile.Name())
+			_ = os.Remove(tmpFile.Name())
 			return "", fmt.Errorf(
 				"write certificate %q to bundle: %w",
 				certPath,
@@ -69,7 +69,7 @@ func CreateBundleFile(certPaths ...string) (string, error) {
 		// Add a newline between certificates if needed.
 		if len(certData) > 0 && certData[len(certData)-1] != '\n' {
 			if _, err := tmpFile.WriteString("\n"); err != nil {
-				os.Remove(tmpFile.Name())
+				_ = os.Remove(tmpFile.Name())
 				return "", fmt.Errorf(
 					"write separator after %q: %w",
 					certPath,
@@ -81,7 +81,7 @@ func CreateBundleFile(certPaths ...string) (string, error) {
 
 	absPath, err := filepath.Abs(tmpFile.Name())
 	if err != nil {
-		os.Remove(tmpFile.Name())
+		_ = os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("resolve absolute bundle path: %w", err)
 	}
 

@@ -789,7 +789,7 @@ func (c *DockerComposeCliClient) copyFile(src, dst string) error {
 	}
 	defer source.Close()
 
-	//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
+	//nolint:gosec // path is sanitized above
 	dest, err := os.Create(filepath.Clean(dst))
 	if err != nil {
 		return err

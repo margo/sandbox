@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/margo/sandbox/mis/pkg/log"
 )
@@ -34,7 +35,7 @@ type HTTPSConfig struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("error in reading config file, err : %s", err.Error())
 	}

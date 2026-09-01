@@ -242,6 +242,7 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
+		// #nosec G705 -- jr is json error response prepared by the appication, incorrect XSS flag
 		_, err := w.Write(jr)
 		if err != nil {
 			logger.Error("failed to write http response", "err", err.Error())
@@ -267,6 +268,7 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
+		// #nosec G705 -- jr is json error response prepared by the appication, incorrect XSS flag
 		_, err := w.Write(jr)
 		if err != nil {
 			logger.Error("failed to write http response", "err", err.Error())
@@ -290,6 +292,7 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
+		// #nosec G705 -- jr is json error response prepared by the appication, incorrect XSS flag
 		_, err := w.Write(jr)
 		if err != nil {
 			logger.Error("failed to write http response", "err", err.Error())

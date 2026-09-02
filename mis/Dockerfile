@@ -13,7 +13,7 @@ COPY . .
 # Build a static binary
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -trimpath \
-    -o mis ./mis/main.go
+    -o mis-cli ./mis/main.go
 
 # Stage 3: Runtime
 FROM alpine:3.18
@@ -23,7 +23,7 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /
 
-COPY --from=builder /app/mis .
+COPY --from=builder /app/mis-cli .
 
 # Use ENTRYPOINT for better flexibility
-ENTRYPOINT ["./mis"]
+ENTRYPOINT ["./mis-cli"]

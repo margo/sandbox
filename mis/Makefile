@@ -16,12 +16,12 @@ CGO_ENABLED     := 0
 BINARY          := $(SERVICE_NAME)
 
 # Docker settings
-IMAGE_NAME      ?= $(SERVICE_NAME)
+IMAGE_NAME      ?= margo-identity-service
 IMAGE_TAG       ?= $(VERSION)
 # ============================================================
 # Phony Targets
 # ============================================================
-.PHONY: all build container deb rpm clean help
+.PHONY: all build container clean help
 
 all: build
 

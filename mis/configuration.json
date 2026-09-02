@@ -1,0 +1,17 @@
+{
+  "trustDomain": "northstarida.com",
+  "trustBundleURI": ".well-known/spiffe/bundle.json",
+  "log": {
+    "level": "info"
+  },
+  "ca": {
+    "cert": "./certs/ca.crt",
+    "key": "./certs/ca.key"
+  },
+  "https": {
+    "addr": ":18443",
+    "ca": "./certs/https-ca.crt",
+    "cert": "./certs/server.crt",
+    "key": "./certs/server.key"
+  }
+}

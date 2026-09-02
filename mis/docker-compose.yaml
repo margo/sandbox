@@ -3,7 +3,6 @@ version: '3.8'
 services:
   device-agent:
     container_name: margo-identity-service
-    image: margo-identity-service:v1.0.0-rc.2-33-gab1ded3-dirty
     # image: ${mis_IMAGE_REF:-ghcr.io/margo/margo.org/margo-identity-service:latest}
     pull_policy: missing  # Options: always, never, missing, build
     # Add log rotation configuration
@@ -13,6 +12,14 @@ services:
         max-size: "10m"      # Maximum size of each log file
         max-file: "3"        # Keep 3 rotated files (30MB total)
         compress: "true"     # Compress rotated logs (optional)
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q 'mis-cli'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    ports:
+      - ${EXPOSED_MIS_PORT}:9443
     volumes:
       # - /root/.kube/config:/root/.kube/config:ro # to manage kubernetes runtimes
       - ./configuration.json:/configuration.json:ro # to manage docker runtimes

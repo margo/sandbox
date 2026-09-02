@@ -38,3 +38,34 @@ clone_dev_repo() {
   cd "$HOME/sandbox"
   echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
+
+setup_mis_deployment() {
+  # Clean and recreate $HOME/mis-deployment
+  if [[ -d "$HOME/mis-deployment" ]]; then
+    echo "🗑️  Removing existing $HOME/mis-deployment"
+    rm -rf "$HOME/mis-deployment"
+  fi
+  mkdir -p "$HOME/mis-deployment"
+
+  # Clone sandbox repo into /tmp
+  rm -rf /tmp/sandbox
+  echo "🔄 Cloning sandbox branch: $SANDBOX_REPO_BRANCH into /tmp/sandbox"
+  if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
+    git clone --branch "$SANDBOX_REPO_BRANCH" --single-branch --depth 1 \
+              "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/margo/sandbox.git" \
+              /tmp/sandbox
+  else
+    git clone --branch "$SANDBOX_REPO_BRANCH" --single-branch --depth 1 \
+              "https://github.com/margo/sandbox.git" /tmp/sandbox
+  fi
+
+  # Copy required files to $HOME/mis-deployment
+  echo "📂 Copying MIS deployment files..."
+  cp /tmp/sandbox/mis/docker-compose.yaml "$HOME/mis-deployment/"
+  cp /tmp/sandbox/mis/configuration.yaml "$HOME/mis-deployment/"
+  
+  # Cleanup
+  rm -rf /tmp/sandbox
+
+  echo "✅ MIS deployment setup complete in $HOME/mis-deployment"
+}

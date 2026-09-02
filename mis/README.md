@@ -94,8 +94,8 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
   "https": {
     "addr": ":18443",
     "ca": "./certs/https-ca.crt",
-    "cert": "./certs/server.crt",
-    "key": "./certs/server.key"
+    "cert": "./certs/https-server.crt",
+    "key": "./certs/https-server.key"
   }
 }
 ```
@@ -154,7 +154,7 @@ MIS requires two sets of certificates:
 | Certificate Set | Purpose |
 |----------------|---------|
 | **Minter CA** (`ca.crt`, `ca.key`) | Signs X.509 SVIDs issued by `mis mint x509` |
-| **HTTPS CA + Server cert** (`https-ca.crt`, `server.crt`, `server.key`) | Secures the REST API HTTPS server |
+| **HTTPS CA + Server cert** (`https-ca.crt`, `https-server.crt`, `https-server.key`) | Secures the REST API HTTPS server |
 
 ### Generating Certificates with `pki_gen.sh`
 

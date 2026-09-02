@@ -39,8 +39,8 @@ Used to secure the MIS REST API server with TLS.
 |------|-------------|
 | `https-ca.crt` | HTTPS CA certificate |
 | `https-ca.key` | HTTPS CA private key |
-| `server.crt` | HTTPS server certificate (signed by `https-ca.crt`) |
-| `server.key` | HTTPS server private key |
+| `https-server.crt` | HTTPS server certificate (signed by `https-ca.crt`) |
+| `https-server.key` | HTTPS server private key |
 
 ---
 
@@ -54,8 +54,8 @@ certs/
 ├── ca.key          # Minter CA private key
 ├── https-ca.crt    # HTTPS CA certificate
 ├── https-ca.key    # HTTPS CA private key
-├── server.crt      # HTTPS server certificate
-└── server.key      # HTTPS server private key
+├── https-https-server.crt      # HTTPS server certificate
+└── https-server.key      # HTTPS server private key
 ```
 
 ---
@@ -87,8 +87,8 @@ The corresponding `configuration.json` should reference the mounted paths:
   },
   "https": {
     "ca":   "/certs/https-ca.crt",
-    "cert": "/certs/server.crt",
-    "key":  "/certs/server.key"
+    "cert": "/certs/https-server.crt",
+    "key":  "/certs/https-server.key"
   }
 }
 ```

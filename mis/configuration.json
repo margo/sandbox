@@ -9,9 +9,9 @@
     "key": "./certs/ca.key"
   },
   "https": {
-    "addr": ":18443",
+    "addr": ":9443",
     "ca": "./certs/https-ca.crt",
-    "cert": "./certs/server.crt",
-    "key": "./certs/server.key"
+    "cert": "./certs/https-server.crt",
+    "key": "./certs/https-server.key"
   }
 }

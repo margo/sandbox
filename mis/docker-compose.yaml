@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  device-agent:
+  mis-cli:
     container_name: margo-identity-service
-    # image: ${mis_IMAGE_REF:-ghcr.io/margo/margo.org/margo-identity-service:latest}
+    image: ${mis_IMAGE_REF:-ghcr.io/margo/margo.org/margo-identity-service:latest}
     pull_policy: missing  # Options: always, never, missing, build
     # Add log rotation configuration
     logging:

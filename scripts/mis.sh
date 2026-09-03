@@ -203,9 +203,9 @@ invoke_pki_gen() {
 
   if [[ ! -x "$script_path" ]]; then
       echo "Warning: Script is not executable. Attempting to run with bash..."
-      bash "$script_path" --automated
+      bash "$script_path" --automated --dns ${EXPOSED_MIS_HOST}
   else
-      "$script_path" --automated
+      "$script_path" --automated --dns ${EXPOSED_MIS_HOST}
   fi
 }
 

@@ -24,8 +24,6 @@ load_mis_env || true
 GITHUB_USER="${GITHUB_USER:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
-MIS_HOST="${EXPOSED_MIS_HOST:-mis.margo.org}"
-MIS_PORT="${EXPOSED_MIS_PORT:-9443}"
 
 # ----------------------------
 # GHCR Image References
@@ -44,6 +42,7 @@ certs_dir="$deploy_dir/certs"
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/modules/repositories.sh"
 source "${SCRIPT_DIR}/modules/go.sh"
+source "${SCRIPT_DIR}/modules/docker.sh"
 
 # ----------------------------
 # Install Pre-requisites 
@@ -219,7 +218,7 @@ install_mis() {
 
   # If it is not Github CI then: 
   setup_mis_deployment
-  update_config "$MIS_HOST" "$MIS_PORT" "$deploy_dir/configuration.json"
+  update_config "$EXPOSED_MIS_HOST" "$EXPOSED_MIS_PORT" "$deploy_dir/configuration.json"
   start_mis_deployment
 }
 
@@ -307,6 +306,7 @@ start_mis_deployment() {
         return 1
     fi
 
+    export mis_IMAGE_REF="${mis_IMAGE_REF}"
     echo "[INFO] Starting Margo Identity Service Docker Container"
     if ! docker compose -f docker-compose.yaml up -d; then
         echo "[ERROR] 'docker compose up -d' failed. Check Docker logs for details."

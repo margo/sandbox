@@ -62,7 +62,7 @@ setup_mis_deployment() {
   # Copy required files to $HOME/mis-deployment
   echo "📂 Copying MIS deployment files..."
   cp /tmp/sandbox/mis/docker-compose.yaml "$HOME/mis-deployment/"
-  cp /tmp/sandbox/mis/configuration.yaml "$HOME/mis-deployment/"
+  cp /tmp/sandbox/mis/configuration.json "$HOME/mis-deployment/"
   
   # Cleanup
   rm -rf /tmp/sandbox

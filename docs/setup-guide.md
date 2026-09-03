@@ -7,6 +7,7 @@
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
 | **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager |
+| **Margo Identity Service VM (MIS)** | 4 | 8GB | 50GB | Margo Identity Service |
 | **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
 | **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
@@ -23,7 +24,7 @@
 
 ## Step 1: Get the Setup Files
 
-You need to download the setup files to all three VMs. Follow these steps on **each VM**:
+You need to download the setup files to all four VMs. Follow these steps on **each VM**:
 
 1. **Open Terminal**
    - On your WFM VM, open the terminal/command line application
@@ -76,6 +77,7 @@ On each VM, you need to configure environment variables (settings that tell the 
       ```bash
       <ip-address-of-the-wfm-machine> symphony.machine
       <ip-address-of-the-harbor-machine> harbor.machine
+      <ip-address-of-the-mis-machine> mis.margo.org #just an example, should be same as EXPOSED_MIS_HOST in mis.env
       ```
       your file would look something like this:
       ```bash
@@ -88,9 +90,10 @@ On each VM, you need to configure environment variables (settings that tell the 
 
       192.11.11.11 symphony.machine # <---- newly appended line here with ip
       192.11.11.11 harbor.machine # <--- newly appended line with ip
+      192.11.11.11 mis.margo.org # <--- newly appended line with ip
       ```
 
-🔴 **Important:** Complete this step on all three VMs before proceeding.
+🔴 **Important:** Complete this step on all four VMs before proceeding.
 
 ---
 
@@ -99,6 +102,68 @@ On each VM, you need to configure environment variables (settings that tell the 
 > **Note:** If during setup you see any error like the following: ```ERROR:  429 Too Many Requests
    toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit```. This is because docker allows certain number of anonymous image pulls in a day, and yours have exhausted. Please login using your dockerhub account. The command to do so is: `docker login -u <your-dockerhub-account-name>` , then it'll ask for the password once you execute this command.
 
+### On the MIS VM:
+
+1. **Navigate to the scripts folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts
+   ```
+
+2. **Install Basic Tools**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - A menu will appear
+   - Type `1` and press Enter
+   - Choose: `Option 1: PreRequisites: Setup`
+
+   This installs everything needed like Docker and other tools. This may take 1-5 minutes.
+
+3. **Generate Root CAs for HTTPS server and for minting SVIDs for principals**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - A menu will appear
+   - Type `3` and press Enter
+   - Choose: `Option 3: Factory Bootstrap: Generate Root CAs`
+
+   It will place Root CAs in `$HOME/mis-deployment/certs`
+   These are the files and their use cases: 
+
+   | File Path | Description |
+   |-----------|-------------|
+   | `$HOME/mis-deployment/certs/https-ca.key` | Private key of the self-signed HTTPS Root CA. Used to sign the HTTPS Normative Server certificate (`https-server.crt`). |
+   | `$HOME/mis-deployment/certs/https-ca.crt` | Self-signed HTTPS Root CA certificate (valid for 10 years). Acts as the trust anchor for TLS clients and is used to validate the HTTPS Normative Server certificate (`https-server.crt`). |
+   | `$HOME/mis-deployment/certs/https-server.key` | Private key corresponding to the HTTPS Normative Server certificate (`https-server.crt`). Used by the HTTPS Normative Server during TLS handshakes. |
+   | `$HOME/mis-deployment/certs/https-server.crt` | Server certificate for the HTTPS Normative Server (valid for 1 year), signed by the HTTPS Root CA (`https-ca.crt` / `https-ca.key`). Presented to clients during TLS connections. |
+   | `$HOME/mis-deployment/certs/ca.key` | Private key of the self-signed SVID Root CA. Used by the SVID generator to sign X.509 SVID certificates. |
+   | `$HOME/mis-deployment/certs/ca.crt` | Self-signed SVID Root CA certificate (valid for 10 years). Serves as the trust anchor for X.509 SVIDs minted by the SVID generator using SPIFFE IDs. |
+
+   The script also verifies the generated chain and prints a summary on completion.
+
+3. **Start the Margo Identity Service**
+   ```bash
+    sudo -E bash wfm.sh
+   ```
+   - Type `4` and press Enter
+   - Choose: `Option 4:  Margo Identity Service: Install`
+
+   This starts the Margo Identity Service.
+
+   Note: Docker image for Margo Identity Service has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts MIS.
+
+4. **Verify the Margo Identity Service Is Running Correctly**
+   ```bash
+   sudo docker logs -f margo-identity-service
+   ```
+   You should see log messages indicating the service is running. Press `Ctrl+C` to exit.
+
+> Note: Services are configured to auto-start on VM reboot.
+  However, if you encounter issues after reboot, you can manually restart them using the same menu options.
+
+<!-- TODO: Add Documentation of adding HTTPS CA certificates to WFM Machine & WFM Client machines, after integration plan is in place  -->
+<!-- TODO: Add Documentation of generating SVIDs for WFM Client & WFM & placing them in required VMs/directories, after integration plan is in place  -->
+<!-- Documentation is STALE below this point -->
 ### On the WFM VM:
 
 1. **Navigate to the scripts folder**

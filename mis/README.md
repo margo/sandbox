@@ -188,8 +188,8 @@ All files are written to `./certs/`:
 | `certs/https-ca.crt` | HTTPS CA self-signed certificate (10 years) |
 | `certs/ca.key` | Minter CA private key |
 | `certs/ca.crt` | Minter CA self-signed certificate (10 years) |
-| `certs/server.key` | HTTPS server private key |
-| `certs/server.crt` | HTTPS server certificate signed by HTTPS CA (1 year) |
+| `certs/https-server.key` | HTTPS server private key |
+| `certs/https-server.crt` | HTTPS server certificate signed by HTTPS CA (1 year) |
 
 The script also verifies the generated chain and prints a summary on completion.
 

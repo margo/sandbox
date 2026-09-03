@@ -54,7 +54,7 @@ certs/
 ├── ca.key          # Minter CA private key
 ├── https-ca.crt    # HTTPS CA certificate
 ├── https-ca.key    # HTTPS CA private key
-├── https-https-server.crt      # HTTPS server certificate
+├── https-server.crt      # HTTPS server certificate
 └── https-server.key      # HTTPS server private key
 ```
 

@@ -99,10 +99,9 @@ uninstall_prerequisites() {
 
 
 remove_cloned_repositories() {
-  echo "1. Removing cloned repositories..."
+  echo "1. Removing mis-deployment directory..."
 
-  # Remove sandbox
-  [ -d "$HOME/sandbox" ] && sudo rm -rf "$HOME/sandbox" && echo "✅ Removed sandbox repository"
+  rm -rf ${deploy_dir}
 
 }
 

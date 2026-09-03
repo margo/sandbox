@@ -5,7 +5,7 @@ set -euo pipefail
 OUTPUT_FILE="$(pwd)/configuration.json"
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-DEFAULT_TRUST_DOMAIN="northstarida.com"
+DEFAULT_TRUST_DOMAIN="margo.org"
 DEFAULT_TRUST_BUNDLE_URI=".well-known/spiffe/bundle.json"
 DEFAULT_LOG_LEVEL="info"
 DEFAULT_CA_CERT="./ca.crt"
@@ -93,7 +93,7 @@ case "${MODE}" in
     prompt TRUST_DOMAIN \
       "Trust Domain" \
       "${DEFAULT_TRUST_DOMAIN}" \
-      "northstarida.com, example.org, mycompany.io"
+      "margo.org, example.org, mycompany.io"
 
     prompt TRUST_BUNDLE_URI \
       "Trust Bundle URI" \

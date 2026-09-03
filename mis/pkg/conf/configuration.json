@@ -1,5 +1,5 @@
 {
-  "trustDomain": "example.org",
+  "trustDomain": "margo.org",
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"

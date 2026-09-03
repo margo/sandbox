@@ -20,7 +20,7 @@ DEFAULT_L="Gurugram"
 DEFAULT_O="Capgemini"
 DEFAULT_OU="Margo Sandbox Team"
 DEFAULT_EMAIL="admin@capgemini.com"
-DEFAULT_DNS_SAN="mis.northstarida.com"
+DEFAULT_DNS_SAN="mis.margo.org"
 
 # Output file names
 HTTPS_CA_KEY="$OUTPUT_DIR/https-ca.key"

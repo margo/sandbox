@@ -82,7 +82,7 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
 
 ```json
 {
-  "trustDomain": "northstarida.com",
+  "trustDomain": "margo.org",
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"
@@ -104,7 +104,7 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `trustDomain` | `string` | The SPIFFE trust domain for this deployment (e.g. `northstarida.com`). Used as the authority in SPIFFE IDs: `spiffe://<trustDomain>/...` |
+| `trustDomain` | `string` | The SPIFFE trust domain for this deployment (e.g. `margo.org`). Used as the authority in SPIFFE IDs: `spiffe://<trustDomain>/...` |
 | `trustBundleURI` | `string` | The URI path at which the SPIFFE trust bundle is served (e.g. `.well-known/spiffe/bundle.json`) |
 | `log.level` | `string` | Logging verbosity. Accepted values: `debug`, `info`, `warn`, `error` |
 | `ca.cert` | `string` | Path to the Minter CA certificate used to sign X.509 SVIDs |
@@ -139,8 +139,8 @@ Writes `configuration.json` to the current directory using default values.
 Walks through each configuration field with a prompt. Press **Enter** to accept the shown default.
 
 ```
-  Example: northstarida.com, example.org, mycompany.io
-  Trust Domain [default: northstarida.com]: _
+  Example: margo.org, example.org, mycompany.io
+  Trust Domain [default: margo.org]: _
 ```
 
 The generated file is written to `$(pwd)/configuration.json`.

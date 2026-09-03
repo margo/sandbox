@@ -183,6 +183,7 @@ cleanup_docker_resources() {
 
 setup_factory() {
     invoke_pki_gen
+    mkdir -p "$deploy_dir"
     cp -r ./certs "$deploy_dir"
     echo "placed certificates in $certs_dir"
 }

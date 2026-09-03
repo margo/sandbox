@@ -98,7 +98,7 @@ collect_automated_inputs() {
     EMAIL="$DEFAULT_EMAIL"
     CA_VALIDITY="$CA_DAYS"
     SRV_VALIDITY="$CERT_DAYS"
-    DNS_SAN="$DEFAULT_DNS_SAN"
+    DNS_SAN="${dns_override:-$DEFAULT_DNS_SAN}"   
 }
 
 # --- Certificate generation ---------------------------------------------------
@@ -245,11 +245,15 @@ print_summary() {
 # --- Usage --------------------------------------------------------------------
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--interactive | --automated]
+Usage: $(basename "$0") [--interactive | --automated] [--dns <DNS_SAN>]
 
 Modes:
   --interactive   Prompt for all certificate fields interactively.
   --automated     Use built-in defaults (no prompts).
+
+Options:
+  --dns <value>   Override the server DNS SAN (used in automated mode).
+                  Falls back to default: $DEFAULT_DNS_SAN
 
 If no mode is specified, the script will ask you to choose.
 EOF
@@ -259,16 +263,23 @@ EOF
 # --- Main ---------------------------------------------------------------------
 main() {
     local mode=""
+    local dns_override=""
 
     # Parse arguments
-    case "${1:-}" in
-        --interactive) mode="interactive" ;;
-        --automated)   mode="automated"   ;;
-        --help|-h)     usage              ;;
-        "")            mode=""            ;;
-        *) die "Unknown argument: $1. Use --interactive or --automated." ;;
-    esac
-
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --interactive) mode="interactive" ;;
+            --automated)   mode="automated"   ;;
+            --dns)
+                shift
+                [[ -z "${1:-}" ]] && die "--dns requires a value."
+                dns_override="$1"
+                ;;
+            --help|-h) usage ;;
+            *) die "Unknown argument: $1. Use --interactive, --automated, or --dns <value>." ;;
+        esac
+        shift
+    done
     echo ""
     echo "============================================================"
     echo "  PKI Generator — HTTPS CA, Minter CA & Server Certificate"
@@ -312,3 +323,8 @@ main() {
 }
 
 main "$@"
+
+
+
+
+

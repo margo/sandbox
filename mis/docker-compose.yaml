@@ -19,7 +19,7 @@ services:
       retries: 3
       start_period: 10s
     ports:
-      - ${EXPOSED_MIS_PORT}:9443
+      - ${EXPOSED_MIS_PORT:-9443}:9443
     volumes:
       # - /root/.kube/config:/root/.kube/config:ro # to manage kubernetes runtimes
       - ./configuration.json:/configuration.json:ro # to manage docker runtimes

@@ -38,7 +38,7 @@ usage() {
   echo -e "  --automated                       Run in automated mode"
   echo -e ""
   echo -e "${BOLD}Automated Mode Flags:${RESET}"
-  echo -e "  --mode <wfm|wfm-client>           Required: generation mode"
+  echo -e "  --principal <wfm|wfm-client>      Required: principal for which to generate"
   echo -e "  --spiffe-id <spiffeID>            Required: full SPIFFE ID"
   echo -e "                                    e.g. spiffe://margo.org/margo/wfm/my-wfm"
   echo -e "                                         spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
@@ -49,10 +49,10 @@ usage() {
   echo -e "  $(basename "$0") --interactive"
   echo -e ""
   echo -e "  # Automated mode - WFM"
-  echo -e "  $(basename "$0") --automated --mode wfm --spiffe-id spiffe://margo.org/margo/wfm/my-wfm"
+  echo -e "  $(basename "$0") --automated --principal wfm --spiffe-id spiffe://margo.org/margo/wfm/my-wfm"
   echo -e ""
   echo -e "  # Automated mode - WFM Client"
-  echo -e "  $(basename "$0") --automated --mode wfm-client --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
+  echo -e "  $(basename "$0") --automated --principal wfm-client --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
   echo -e ""
   exit 0
 }
@@ -168,9 +168,9 @@ run_interactive() {
   TRUST_DOMAIN="${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}"
   log_info "Trust Domain set to: ${TRUST_DOMAIN}"
 
-  # Step 2ii: WFM or WFM Client
-  log_step "Generation Mode"
-  echo "  Select generation mode:"
+  # Step 2ii: Principal Selection
+  log_step "Principal Selection"
+  echo "  Select the principal for which to generate:"
   echo "    1) WFM        — SPIFFE ID: spiffe://<trust-domain>/margo/wfm/<wfm-id>"
   echo "    2) WFM Client — SPIFFE ID: spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
   while true; do
@@ -181,9 +181,9 @@ run_interactive() {
       *) log_warn "Invalid choice. Please enter 1 or 2." ;;
     esac
   done
-  log_info "Mode selected: ${MODE_LABEL}"
+  log_info "Principal selected: ${MODE_LABEL}"
 
-  # Collect IDs based on mode
+  # Collect IDs based on principal
   if [[ "$MODE" == "wfm" ]]; then
     echo ""
     printf "  ${BOLD}WFM ID${RESET} uniquely identifies your Workflow Manager instance."
@@ -282,15 +282,15 @@ run_automated() {
     wfm)        MODE_LABEL="WFM" ;;
     wfm-client) MODE_LABEL="WFM-Client" ;;
     *)
-      log_error "Invalid --mode value: '${auto_mode}'. Must be 'wfm' or 'wfm-client'."
+      log_error "Invalid --principal value: '${auto_mode}'. Must be 'wfm' or 'wfm-client'."
       exit 1
       ;;
   esac
 
-  log_info "Mode       : ${MODE_LABEL}"
+  log_info "Principal  : ${MODE_LABEL}"
   log_info "SPIFFE ID  : ${auto_spiffe_id}"
   log_info "TTL        : ${DEFAULT_TTL} seconds (default — 90 days)"
-  log_info "DNS SANs   : ${auto_dns_list:-(none)}"   # <-- updated log line
+  log_info "DNS SANs   : ${auto_dns_list:-(none)}"
 
   check_container
   parse_spiffe_id "$auto_spiffe_id" "$auto_mode"
@@ -303,7 +303,7 @@ run_automated() {
 
   log_info "Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
 
-  mint_svid "$auto_spiffe_id" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"  # <-- pass dns
+  mint_svid "$auto_spiffe_id" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
   copy_certs_to_host "$MODE_LABEL"
 
   log_section "Done [${MODE_LABEL}]"
@@ -326,7 +326,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --interactive)   SCRIPT_MODE="interactive"; shift ;;
     --automated)     SCRIPT_MODE="automated";   shift ;;
-    --mode)          AUTO_MODE="$2";            shift 2 ;;
+    --principal)     AUTO_MODE="$2";            shift 2 ;;
     --spiffe-id)     AUTO_SPIFFE_ID="$2";       shift 2 ;;
     --dns)           AUTO_DNS_LIST+=("$2"); shift 2 ;;
     --help|-h)       usage ;;
@@ -343,7 +343,7 @@ case "$SCRIPT_MODE" in
     ;;
   automated)
     if [[ -z "$AUTO_MODE" || -z "$AUTO_SPIFFE_ID" ]]; then
-      log_error "Automated mode requires both --mode and --spiffe-id flags."
+      log_error "Automated mode requires both --principal and --spiffe-id flags."
       usage
     fi
     run_automated "$AUTO_MODE" "$AUTO_SPIFFE_ID"

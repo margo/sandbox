@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mis-cli:
+    container_name: margo-identity-service
+    image: ${mis_IMAGE_REF:-ghcr.io/margo/margo.org/margo-identity-service:latest}
+    pull_policy: missing  # Options: always, never, missing, build
+    # Add log rotation configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"      # Maximum size of each log file
+        max-file: "3"        # Keep 3 rotated files (30MB total)
+        compress: "true"     # Compress rotated logs (optional)
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q 'mis-cli'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    ports:
+      - ${EXPOSED_MIS_PORT}:9443
+    volumes:
+      # - /root/.kube/config:/root/.kube/config:ro # to manage kubernetes runtimes
+      - ./configuration.json:/configuration.json:ro # to manage docker runtimes
+      # Placing SPIFFE Root CA and HTTPS Root CA & Server Certificate
+      - ./certs:/certs:ro
+    restart: always
+    entrypoint: ["./mis-cli"]
+    command: ["start","--config", "/configuration.json"]

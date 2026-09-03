@@ -1,0 +1,17 @@
+{
+  "trustDomain": "margo.org",
+  "trustBundleURI": ".well-known/spiffe/bundle.json",
+  "log": {
+    "level": "info"
+  },
+  "ca": {
+    "cert": "./data/ca/current.crt",
+    "key": "./data/ca/current.key"
+  },
+  "https": {
+    "addr": ":8443",
+    "ca": "./ca.crt",
+    "cert": "./server.crt",
+    "key": "./server.key"
+  }
+}

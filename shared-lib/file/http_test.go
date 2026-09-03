@@ -42,7 +42,10 @@ func TestDownloadFileUsingHttp_SuccessfulDownload(t *testing.T) {
 		w.Header().Set("Content-Length", "11")
 		w.Header().Set("ETag", `"test-etag"`)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello World"))
+		_, err := w.Write([]byte("Hello World"))
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -75,7 +78,10 @@ func TestDownloadFileUsingHttp_AuthenticationRequired(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Authenticated content"))
+		_, err := w.Write([]byte("Authenticated content"))
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -104,7 +110,10 @@ func TestDownloadFileUsingHttp_FileSizeLimitExceeded(t *testing.T) {
 		w.Header().Set("Content-Length", "2048") // 2KB
 		w.WriteHeader(http.StatusOK)
 		data := make([]byte, 2048)
-		w.Write(data)
+		_, err := w.Write(data)
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -183,11 +192,17 @@ func TestDownloadFileUsingHttp_ResumeDownload(t *testing.T) {
 			w.Header().Set("Content-Range", "bytes 5-10/11")
 			w.Header().Set("Content-Length", "6")
 			w.WriteHeader(http.StatusPartialContent)
-			w.Write([]byte(" World"))
+			_, err := w.Write([]byte(" World"))
+			if err != nil {
+				panic(err)
+			}
 		} else {
 			w.Header().Set("Content-Length", "11")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Hello World"))
+			_, err := w.Write([]byte("Hello World"))
+			if err != nil {
+				panic(err)
+			}
 		}
 	}))
 	defer server.Close()
@@ -196,7 +211,7 @@ func TestDownloadFileUsingHttp_ResumeDownload(t *testing.T) {
 	filePath := filepath.Join(tempDir, "resume-test.txt")
 
 	// Create partial file
-	err := os.WriteFile(filePath, []byte("Hello"), 0600)
+	err := os.WriteFile(filePath, []byte("Hello"), 0o600)
 	require.NoError(t, err)
 
 	options := &DownloadOptions{
@@ -223,7 +238,10 @@ func TestDownloadFileUsingHttp_ProgressCallback(t *testing.T) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Length", "20")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("This is test content"))
+		_, err := w.Write([]byte("This is test content"))
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -265,7 +283,10 @@ func TestDownloadFileUsingHttp_CustomHeaders(t *testing.T) {
 		assert.Equal(t, "custom-value", r.Header.Get("X-Custom-Header"))
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Custom headers received"))
+		_, err := w.Write([]byte("Custom headers received"))
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -311,7 +332,10 @@ func TestDownloadFileUsingHttp_UnsupportedHTTPVerb(t *testing.T) {
 func TestDownloadFileUsingHttp_FileExistsNoOverwrite(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("New content"))
+		_, err := w.Write([]byte("New content"))
+		if err != nil {
+			panic(err)
+		}
 	}))
 	defer server.Close()
 
@@ -319,7 +343,7 @@ func TestDownloadFileUsingHttp_FileExistsNoOverwrite(t *testing.T) {
 	existingFile := filepath.Join(tempDir, "existing.txt")
 
 	// Create existing file
-	err := os.WriteFile(existingFile, []byte("Existing content"), 0600)
+	err := os.WriteFile(existingFile, []byte("Existing content"), 0o600)
 	require.NoError(t, err)
 
 	options := &DownloadOptions{

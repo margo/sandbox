@@ -40,12 +40,16 @@ clone_dev_repo() {
 }
 
 setup_mis_deployment() {
-  # Clean and recreate $HOME/mis-deployment
+  # Clean MIS deployment files
   if [[ -d "$HOME/mis-deployment" ]]; then
-    echo "🗑️  Removing existing $HOME/mis-deployment"
-    rm -rf "$HOME/mis-deployment"
+    echo "🗑️  Removing existing MIS deployment files..."
+    rm -rf "$HOME/mis-deployment/docker-compose.yaml"
+    rm -rf "$HOME/mis-deployment/configuration.json"
+  else
+    echo "MIS deployment folder missing, certificates not generated. Please generate Factory Root CAs first..."
+    return 1
   fi
-  mkdir -p "$HOME/mis-deployment"
+
 
   # Clone sandbox repo into /tmp
   rm -rf /tmp/sandbox

@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GITHUB_USER="${GITHUB_USER:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
+MIS_HOST="${EXPOSED_MIS_HOST:-mis.margo.org}"
+MIS_PORT="${EXPOSED_MIS_PORT:-9443}"
 
 # ----------------------------
 # GHCR Image References
@@ -20,8 +22,6 @@ mis_IMAGE_TAG="latest"
 mis_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${mis_IMAGE}:${mis_IMAGE_TAG}"
 deploy_dir="$HOME/mis-deployment"
 certs_dir="$deploy_dir/certs"
-
-
 
 
 
@@ -48,7 +48,6 @@ install_prerequisites() {
   install_basic_utilities
   install_go
   install_docker_and_compose
-  setup_mis_deployment
 }
 
 install_basic_utilities() {
@@ -214,8 +213,57 @@ install_mis() {
   # TODO: Add Github CI related changes here
 
   # If it is not Github CI then: 
+  setup_mis_deployment
+  update_config "$MIS_HOST" "$MIS_PORT" "$deploy_dir/configuration.json"
   start_mis_deployment
+}
 
+update_config() {
+    local host="$1"
+    local port="$2"
+    local config_path="$3"
+
+    # Validate inputs
+    if [[ -z "$host" || -z "$port" || -z "$config_path" ]]; then
+        echo "Error: Missing arguments."
+        echo "Usage: update_config <host> <port> <config_path>"
+        return 1
+    fi
+
+    # Check if config file exists
+    if [[ ! -f "$config_path" ]]; then
+        echo "Error: Configuration file not found at '$config_path'."
+        return 1
+    fi
+
+    # Check if jq is installed
+    if ! command -v jq &>/dev/null; then
+        echo "Error: 'jq' is required but not installed."
+        return 1
+    fi
+
+    # Extract trust domain by stripping the first subdomain (e.g., mis.margo.org -> margo.org)
+    local trust_domain
+    trust_domain=$(echo "$host" | cut -d'.' -f2-)
+
+    # Update the config file using jq
+    local tmp_file
+    tmp_file=$(mktemp)
+
+    jq --arg port ":${port}" \
+       --arg trust_domain "$trust_domain" \
+       '.https.addr = $port | .trustDomain = $trust_domain' \
+       "$config_path" > "$tmp_file" && mv "$tmp_file" "$config_path"
+
+    if [[ $? -eq 0 ]]; then
+        echo "Configuration updated successfully:"
+        echo "  https.addr   => :${port}"
+        echo "  trustDomain  => ${trust_domain}"
+    else
+        echo "Error: Failed to update configuration."
+        rm -f "$tmp_file"
+        return 1
+    fi
 }
 
 
@@ -289,6 +337,9 @@ uninstall_mis(){
   fi
 
   echo "[INFO] Margo Identity Service stopped successfully."
+
+ # Cleanup
+  rm -rf $deploy_dir
   
 }
 

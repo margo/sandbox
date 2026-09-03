@@ -43,6 +43,7 @@ certs_dir="$deploy_dir/certs"
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/modules/repositories.sh"
+source "${SCRIPT_DIR}/modules/go.sh"
 
 # ----------------------------
 # Install Pre-requisites 

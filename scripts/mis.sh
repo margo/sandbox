@@ -6,6 +6,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 
+
+# Load environment
+load_mis_env() {
+  local env_file="$SCRIPT_DIR/mis.env"
+  if [[ ! -f "$env_file" ]]; then
+    echo "[WARN] mis.env not found at: $env_file"
+    return 1
+  fi
+  echo "[INFO] Loading environment from: $env_file"
+  set -a
+  source "$env_file"
+  set +a
+}
+load_mis_env || true
+
 GITHUB_USER="${GITHUB_USER:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
@@ -25,19 +40,9 @@ certs_dir="$deploy_dir/certs"
 
 
 
-
-# Load environment
-load_mis_env() {
-  local env_file="$SCRIPT_DIR/mis.env"
-  if [[ ! -f "$env_file" ]]; then
-    echo "[WARN] mis.env not found at: $env_file"
-    return 1
-  fi
-  echo "[INFO] Loading environment from: $env_file"
-  set -a
-  source "$env_file"
-  set +a
-}
+# Load shared library
+source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/modules/repositories.sh"
 
 # ----------------------------
 # Install Pre-requisites 
@@ -69,7 +74,6 @@ install_basic_utilities() {
     echo "⚡️ Basic utilities already installed"
   fi
 
-  install_helm
 }
 
 # ----------------------------

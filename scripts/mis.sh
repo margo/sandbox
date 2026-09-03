@@ -343,8 +343,9 @@ uninstall_mis(){
 
   echo "[INFO] Margo Identity Service stopped successfully."
 
- # Cleanup
-  rm -rf $deploy_dir
+ # Cleanup (Not Certificates, just deployment related files)
+  rm -rf $deploy_dir/docker-compose.yaml
+  rm -rf $deploy_dir/configuration.json
   
 }
 

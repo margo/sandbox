@@ -16,7 +16,7 @@
 - Subject fields, SANs, and validity periods are set to generic development defaults
 
 **Always generate fresh certificates for any non-development deployment.**
-See [`scripts/mis/utils/pki_gen.sh`](../scripts/mis/utils/pki_gen.sh) for tooling to generate your own PKI.
+See [`scripts/lib/mis/pki_gen.sh`](../scripts/lib/mis/pki_gen.sh) for tooling to generate your own PKI.
 
 ---
 
@@ -101,10 +101,10 @@ For any real deployment, generate fresh certificates using the provided script:
 
 ```bash
 # Interactive — prompts for CN, SANs, organization, validity periods, etc.
-./scripts/mis/utils/pki_gen.sh --interactive
+./scripts/lib/mis/pki_gen.sh --interactive
 
 # Automated — uses built-in defaults, no prompts
-./scripts/mis/utils/pki_gen.sh --automated
+./scripts/lib/mis/pki_gen.sh --automated
 ```
 
 Store the generated files in a **secure location outside the repository** and mount them into the container at runtime.

@@ -189,7 +189,7 @@ setup_factory() {
 }
 
 invoke_pki_gen() {
-  local script_path="$SCRIPT_DIR/mis/utils/pki_gen.sh"
+  local script_path="$SCRIPT_DIR/lib/mis/pki_gen.sh"
 
   if [[ -z "$script_path" ]]; then
       echo "Error: No script path provided."

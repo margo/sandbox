@@ -118,14 +118,14 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
 
 ### Generating Configuration with `confbuilder.sh`
 
-A helper script is provided at `scripts/mis/utils/confbuilder.sh` to generate `configuration.json` without manually editing JSON.
+A helper script is provided at `scripts/lib/mis/confbuilder.sh` to generate `configuration.json` without manually editing JSON.
 
 It supports two modes:
 
 #### Automated (uses built-in defaults)
 
 ```bash
-./scripts/mis/utils/confbuilder.sh --automated
+./scripts/lib/mis/confbuilder.sh --automated
 ```
 
 Writes `configuration.json` to the current directory using default values.
@@ -133,7 +133,7 @@ Writes `configuration.json` to the current directory using default values.
 #### Interactive (prompts for each field)
 
 ```bash
-./scripts/mis/utils/confbuilder.sh --interactive
+./scripts/lib/mis/confbuilder.sh --interactive
 ```
 
 Walks through each configuration field with a prompt. Press **Enter** to accept the shown default.
@@ -158,14 +158,14 @@ MIS requires two sets of certificates:
 
 ### Generating Certificates with `pki_gen.sh`
 
-A PKI generator script is provided at `scripts/mis/utils/pki_gen.sh`. It generates all required certificates in a single run.
+A PKI generator script is provided at `scripts/lib/mis/pki_gen.sh`. It generates all required certificates in a single run.
 
 **Prerequisites:** `openssl` must be installed and available in `$PATH`.
 
 #### Automated mode
 
 ```bash
-./scripts/mis/utils/pki_gen.sh --automated
+./scripts/lib/mis/pki_gen.sh --automated
 ```
 
 Uses built-in defaults to generate all certificates without prompts.
@@ -173,7 +173,7 @@ Uses built-in defaults to generate all certificates without prompts.
 #### Interactive mode
 
 ```bash
-./scripts/mis/utils/pki_gen.sh --interactive
+./scripts/lib/mis/pki_gen.sh --interactive
 ```
 
 Prompts for certificate fields (CN, Country, Organization, DNS SAN, validity periods, etc.) with defaults pre-filled.
@@ -201,10 +201,10 @@ The script also verifies the generated chain and prints a summary on completion.
 
 ```bash
 # 1. Generate PKI certificates
-./scripts/mis/utils/pki_gen.sh --automated
+./scripts/lib/mis/pki_gen.sh --automated
 
 # 2. Generate configuration
-./scripts/mis/utils/confbuilder.sh --automated
+./scripts/lib/mis/confbuilder.sh --automated
 
 # 3. Build the binary
 make build

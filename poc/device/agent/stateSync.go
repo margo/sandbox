@@ -500,25 +500,25 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 func (ss *StateSyncer) shouldDownloadBundle(
 	manifest *sbi.UnsignedAppStateManifest,
 ) bool {
-	// If no bundle available, must fetch individually
-	if manifest.Bundle == nil || manifest.Bundle.Digest == nil {
-		return false
-	}
+	// // If no bundle available, must fetch individually
+	// if manifest.Bundle == nil || manifest.Bundle.Digest == nil {
+	// 	return false
+	// }
 
-	// Heuristic: If more than 2 deployments, use bundle for efficiency
-	if len(manifest.Deployments) > 2 {
-		ss.log.Infow("Using bundle download (many deployments)",
-			"deploymentCount", len(manifest.Deployments))
-		return true
-	}
+	// // Heuristic: If more than 2 deployments, use bundle for efficiency
+	// if len(manifest.Deployments) > 2 {
+	// 	ss.log.Infow("Using bundle download (many deployments)",
+	// 		"deploymentCount", len(manifest.Deployments))
+	// 	return true
+	// }
 
-	// Heuristic: If bundle size is reasonable (< 50MB), use bundle
-	if manifest.Bundle.SizeBytes != nil &&
-		*manifest.Bundle.SizeBytes < 50*1024*1024 {
-		ss.log.Infow("Using bundle download (reasonable size)",
-			"sizeBytes", *manifest.Bundle.SizeBytes)
-		return true
-	}
+	// // Heuristic: If bundle size is reasonable (< 50MB), use bundle
+	// if manifest.Bundle.SizeBytes != nil &&
+	// 	*manifest.Bundle.SizeBytes < 50*1024*1024 {
+	// 	ss.log.Infow("Using bundle download (reasonable size)",
+	// 		"sizeBytes", *manifest.Bundle.SizeBytes)
+	// 	return true
+	// }
 
 	// Default: fetch individually for small number of deployments
 	ss.log.Infow("Using individual deployment fetch",

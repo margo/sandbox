@@ -364,7 +364,7 @@ show_menu() {
   echo "4) Margo Identity Service: Install"
   echo "5) Margo Identity Service: Uninstall"
   echo "6) Exit"
-  read -p "Enter choice [1-5]: " choice
+  read -p "Enter choice [1-6]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;

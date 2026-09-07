@@ -6,6 +6,8 @@ package sbi
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for ComponentStatusState.
@@ -32,6 +34,33 @@ func (e ComponentStatusState) Valid() bool {
 	case ComponentStatusStateRemoved:
 		return true
 	case ComponentStatusStateRemoving:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeploymentCpuRequirementArchitectures.
+const (
+	DeploymentCpuRequirementArchitecturesAmd64   DeploymentCpuRequirementArchitectures = "amd64"
+	DeploymentCpuRequirementArchitecturesArm     DeploymentCpuRequirementArchitectures = "arm"
+	DeploymentCpuRequirementArchitecturesArm64   DeploymentCpuRequirementArchitectures = "arm64"
+	DeploymentCpuRequirementArchitecturesOther   DeploymentCpuRequirementArchitectures = "other"
+	DeploymentCpuRequirementArchitecturesRiscv64 DeploymentCpuRequirementArchitectures = "riscv64"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCpuRequirementArchitectures enum.
+func (e DeploymentCpuRequirementArchitectures) Valid() bool {
+	switch e {
+	case DeploymentCpuRequirementArchitecturesAmd64:
+		return true
+	case DeploymentCpuRequirementArchitecturesArm:
+		return true
+	case DeploymentCpuRequirementArchitecturesArm64:
+		return true
+	case DeploymentCpuRequirementArchitecturesOther:
+		return true
+	case DeploymentCpuRequirementArchitecturesRiscv64:
 		return true
 	default:
 		return false
@@ -188,6 +217,42 @@ func (e DevicePeripheralType) Valid() bool {
 	}
 }
 
+// Defines values for MatchExpressionOperator.
+const (
+	ContainsAll  MatchExpressionOperator = "ContainsAll"
+	ContainsAny  MatchExpressionOperator = "ContainsAny"
+	DoesNotExist MatchExpressionOperator = "DoesNotExist"
+	Exists       MatchExpressionOperator = "Exists"
+	Gt           MatchExpressionOperator = "Gt"
+	In           MatchExpressionOperator = "In"
+	Lt           MatchExpressionOperator = "Lt"
+	NotIn        MatchExpressionOperator = "NotIn"
+)
+
+// Valid indicates whether the value is a known member of the MatchExpressionOperator enum.
+func (e MatchExpressionOperator) Valid() bool {
+	switch e {
+	case ContainsAll:
+		return true
+	case ContainsAny:
+		return true
+	case DoesNotExist:
+		return true
+	case Exists:
+		return true
+	case Gt:
+		return true
+	case In:
+		return true
+	case Lt:
+		return true
+	case NotIn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProblemDetailBackoffStrategy.
 const (
 	Exponential ProblemDetailBackoffStrategy = "exponential"
@@ -225,6 +290,18 @@ func (e AppDeploymentProfileType) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// CapacityRequirements Minimum device capacity required by the deployment profile.
+type CapacityRequirements struct {
+	// Cpu CPU element specifying the CPU requirements for the deployment.
+	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
+
+	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
+	Memory *string `json:"memory,omitempty"`
+
+	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
+	Storage *string `json:"storage,omitempty"`
 }
 
 // ComponentStatus defines model for ComponentStatus.
@@ -303,6 +380,8 @@ type DeploymentStatusManifestStatusState string
 
 // DeviceCapabilitiesManifest defines model for DeviceCapabilitiesManifest.
 type DeviceCapabilitiesManifest struct {
+	// Labels Optional supplier-defined key/value pair metadata used for device matching via eligibilityRules label selectors. Values MUST be a string, number, boolean, or an array of strings or numbers. Margo does not assign semantics to any particular label key or value. Label keys are case-sensitive. Implementations SHOULD use stable, collision-resistant label names, prefixing with an organization domain is recommended.
+	Labels     *map[string]DeviceCapabilitiesManifest_Labels_AdditionalProperties `json:"labels,omitempty"`
 	Properties struct {
 		Cpus *[]struct {
 			Architecture *DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
@@ -320,6 +399,26 @@ type DeviceCapabilitiesManifest struct {
 		SupportedRuntimes        *[]DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
 		Vendor                   string                                                          `json:"vendor"`
 	} `json:"properties"`
+}
+
+// DeviceCapabilitiesManifestLabels0 defines model for DeviceCapabilitiesManifest.Labels.0.
+type DeviceCapabilitiesManifestLabels0 = string
+
+// DeviceCapabilitiesManifestLabels1 defines model for DeviceCapabilitiesManifest.Labels.1.
+type DeviceCapabilitiesManifestLabels1 = float32
+
+// DeviceCapabilitiesManifestLabels2 defines model for DeviceCapabilitiesManifest.Labels.2.
+type DeviceCapabilitiesManifestLabels2 = bool
+
+// DeviceCapabilitiesManifestLabels3 defines model for DeviceCapabilitiesManifest.Labels.3.
+type DeviceCapabilitiesManifestLabels3 = []string
+
+// DeviceCapabilitiesManifestLabels4 defines model for DeviceCapabilitiesManifest.Labels.4.
+type DeviceCapabilitiesManifestLabels4 = []float32
+
+// DeviceCapabilitiesManifest_Labels_AdditionalProperties defines model for DeviceCapabilitiesManifest.labels.AdditionalProperties.
+type DeviceCapabilitiesManifest_Labels_AdditionalProperties struct {
+	union json.RawMessage
 }
 
 // DeviceCapabilitiesManifestPropertiesCpusArchitecture defines model for DeviceCapabilitiesManifest.Properties.Cpus.Architecture.
@@ -376,6 +475,24 @@ type EligibilityRule struct {
 // ManifestVersion Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.
 type ManifestVersion = float32
 
+// MatchExpression An expression used to match a device's reported capabilities properties or labels.
+type MatchExpression struct {
+	// ItemSelector A set of match expressions evaluated with AND semantics.
+	ItemSelector *Selector `json:"itemSelector,omitempty"`
+
+	// Key The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the exact label key.
+	Key string `json:"key"`
+
+	// Operator Operator used to evaluate the referenced value.
+	Operator MatchExpressionOperator `json:"operator"`
+
+	// Values Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`, `Gt`, or `Lt` operator.
+	Values *[]interface{} `json:"values,omitempty"`
+}
+
+// MatchExpressionOperator Operator used to evaluate the referenced value.
+type MatchExpressionOperator string
+
 // ProblemDetail RFC 9457 Problem Details for HTTP APIs. Returned with Content-Type: application/problem+json. See https://www.rfc-editor.org/rfc/rfc9457. Extension members (RFC 9457 §3.2) are permitted via additionalProperties. Vendors MAY add custom fields alongside standard margo fields. Vendor-specific problem types MUST use their own URI namespace. The https://docs.margo.org/specification/problem-types namespace is reserved for Margo.
 type ProblemDetail struct {
 	// BackoffStrategy Recommended backoff strategy for retrying. none: do not retry. fixed: retry after retryAfterSeconds. exponential: use exponential backoff starting at retryAfterSeconds.
@@ -415,6 +532,12 @@ type ProblemDetail struct {
 
 // ProblemDetailBackoffStrategy Recommended backoff strategy for retrying. none: do not retry. fixed: retry after retryAfterSeconds. exponential: use exponential backoff starting at retryAfterSeconds.
 type ProblemDetailBackoffStrategy string
+
+// Selector A set of match expressions evaluated with AND semantics.
+type Selector struct {
+	// MatchExpressions Match expressions evaluated against the device's reported capabilities.
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
 
 // UnsignedAppStateManifest defines model for UnsignedAppStateManifest.
 type UnsignedAppStateManifest struct {
@@ -730,4 +853,144 @@ func (a ProblemDetail) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsDeviceCapabilitiesManifestLabels0 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels0
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels0() (DeviceCapabilitiesManifestLabels0, error) {
+	var body DeviceCapabilitiesManifestLabels0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeviceCapabilitiesManifestLabels0 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels0
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels0(v DeviceCapabilitiesManifestLabels0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDeviceCapabilitiesManifestLabels0 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels0
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels0(v DeviceCapabilitiesManifestLabels0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeviceCapabilitiesManifestLabels1 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels1
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels1() (DeviceCapabilitiesManifestLabels1, error) {
+	var body DeviceCapabilitiesManifestLabels1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeviceCapabilitiesManifestLabels1 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels1
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels1(v DeviceCapabilitiesManifestLabels1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDeviceCapabilitiesManifestLabels1 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels1
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels1(v DeviceCapabilitiesManifestLabels1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeviceCapabilitiesManifestLabels2 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels2
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels2() (DeviceCapabilitiesManifestLabels2, error) {
+	var body DeviceCapabilitiesManifestLabels2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeviceCapabilitiesManifestLabels2 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels2
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels2(v DeviceCapabilitiesManifestLabels2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDeviceCapabilitiesManifestLabels2 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels2
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels2(v DeviceCapabilitiesManifestLabels2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeviceCapabilitiesManifestLabels3 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels3
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels3() (DeviceCapabilitiesManifestLabels3, error) {
+	var body DeviceCapabilitiesManifestLabels3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeviceCapabilitiesManifestLabels3 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels3
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels3(v DeviceCapabilitiesManifestLabels3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDeviceCapabilitiesManifestLabels3 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels3
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels3(v DeviceCapabilitiesManifestLabels3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeviceCapabilitiesManifestLabels4 returns the union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as a DeviceCapabilitiesManifestLabels4
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) AsDeviceCapabilitiesManifestLabels4() (DeviceCapabilitiesManifestLabels4, error) {
+	var body DeviceCapabilitiesManifestLabels4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeviceCapabilitiesManifestLabels4 overwrites any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties as the provided DeviceCapabilitiesManifestLabels4
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) FromDeviceCapabilitiesManifestLabels4(v DeviceCapabilitiesManifestLabels4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDeviceCapabilitiesManifestLabels4 performs a merge with any union data inside the DeviceCapabilitiesManifest_Labels_AdditionalProperties, using the provided DeviceCapabilitiesManifestLabels4
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) MergeDeviceCapabilitiesManifestLabels4(v DeviceCapabilitiesManifestLabels4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DeviceCapabilitiesManifest_Labels_AdditionalProperties) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DeviceCapabilitiesManifest_Labels_AdditionalProperties) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }

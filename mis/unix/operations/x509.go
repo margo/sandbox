@@ -54,7 +54,7 @@ func (mo *MintOperations) GenerateX509SVID(
 		},
 		NotBefore: now,
 		NotAfter:  now.Add(ttl),
-		KeyUsage:  x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		KeyUsage:  x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{
 			x509.ExtKeyUsageServerAuth,
 			x509.ExtKeyUsageClientAuth,

@@ -13,7 +13,6 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/archive"
-	"github.com/margo/sandbox/shared-lib/http/auth"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -39,7 +38,8 @@ func NewStateSyncer(
 	client wfm.SBIAPIClientInterface,
 	deviceID string,
 	stateSeekingIntervalInSec uint16,
-	log *zap.SugaredLogger) *StateSyncer {
+	log *zap.SugaredLogger,
+) *StateSyncer {
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
@@ -99,26 +99,11 @@ func (ss *StateSyncer) performSync() {
 	var desiredStateManifest *sbi.UnsignedAppStateManifest
 	var response *http.Response
 
-	if device.AuthEnabled {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-		)
-	}
-
+	desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
+		ctx,
+		device.DeviceClientId,
+		currentETag,
+	)
 	if err != nil {
 		ss.log.Errorw(
 			"Sync failed",
@@ -379,28 +364,12 @@ func (ss *StateSyncer) fetchDeploymentYAML(
 
 	var yamlContent []byte
 
-	if device.AuthEnabled {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-		)
-	}
-
+	yamlContent, err = ss.apiClient.FetchDeploymentYAML(
+		ctx,
+		device.DeviceClientId,
+		deploymentRef.DeploymentId,
+		deploymentRef.Digest,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch deployment: %w", err)
 	}
@@ -448,26 +417,12 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 
 	// Download bundle
 	var bundleData []byte
-	if device.AuthEnabled {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-		)
-	}
 
+	bundleData, err = ss.apiClient.DownloadBundle(
+		ctx,
+		device.DeviceClientId,
+		*bundleRef.Digest,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download bundle: %w", err)
 	}

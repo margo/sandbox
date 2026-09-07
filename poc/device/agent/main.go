@@ -69,46 +69,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Replace with: mTLS client certificate (X.509-SVID) configured in tls.Config.
 	// See: shared-lib/crypto/signer.go — marked for deletion on MIAF implementation.
 
-	hasRequestSigningKey := false
-	// If request signer plugin enabled in the configuration, then create signer object and add it
-	// as http client option/RequestEditorFn
-	if cfg.Wfm.ClientPlugins.RequestSigner != nil && cfg.Wfm.ClientPlugins.RequestSigner.Enabled {
-		if cfg.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
-			return nil, fmt.Errorf("request signer enabled but no keyRef provided in configuration")
-		}
-		// read private key from file
-		signer, err := crypto.NewSignerFromFile(
-			cfg.Wfm.ClientPlugins.RequestSigner.KeyRef.Path,
-			cfg.Wfm.ClientPlugins.RequestSigner.SignatureAlgo,
-			cfg.Wfm.ClientPlugins.RequestSigner.HashAlgo,
-			cfg.Wfm.ClientPlugins.RequestSigner.SignatureFormat,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request signer: %w", err)
-		}
-
-		hasRequestSigningKey = true
-		// adapter to the generated client's RequestEditorFn signature
-		clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
-	}
-
-	hasServerTLSVerificationEnabled := false
-	// If tls plugin is enabled in the configuration, then pass the http tls client
-	// option/RequestEditorFn
-	if cfg.Wfm.ClientPlugins.TLSHelper != nil && cfg.Wfm.ClientPlugins.TLSHelper.Enabled {
-		if cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef == nil {
-			return nil, fmt.Errorf(
-				"tls helper plugin is enabled but no caKeyRef is not provided in configuration",
-			)
-		}
-
-		// adapter to the generated client's RequestEditorFn signature
-		clientOptions = append(
-			clientOptions,
-			TLSVerifier(&cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef.Path),
-		)
-		hasServerTLSVerificationEnabled = true
-	}
+	// clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
 
 	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
 	if err != nil {
@@ -150,55 +111,20 @@ func NewAgent(configPath string) (*Agent, error) {
 		)
 	}
 
-	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg)))
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize device settings: %w", err)
 	}
-	isOnboarded, err := deviceSettings.IsOnboarded()
-	if err != nil {
-		log.Errorw("failed to check onboarding status", "error", err)
-		return nil, err
-	}
 
-	if !isOnboarded {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		deviceId, err := deviceSettings.OnboardWithRetries(ctx, 10)
-		if err != nil {
-			log.Errorw("device onboarding failed", "error", err)
-			return nil, fmt.Errorf("'failed to onboard' the device, %s", err.Error())
-		}
-		log.Infow("Device onboarded", "deviceId", deviceId)
-	} else {
-		log.Infow("Device already onboarded, skipping onboarding")
-	}
-
-	// Determine signature/certificate availability from deviceSettings (adapt to new attestation
-	// model)
-	hasValidDeviceCertificate := false
-	if deviceSettings != nil {
-		if deviceSettings.deviceRootIdentity.HasCertificateReference() {
-			hasValidDeviceCertificate = true
-		}
-		if deviceSettings.deviceRootIdentity.IdentityType == "Random" &&
-			deviceSettings.deviceRootIdentity.Attestation.Random != nil &&
-			deviceSettings.deviceRootIdentity.Attestation.Random.Value != "" {
-			hasValidDeviceCertificate = true
-		}
-	}
-
-	log.Infow("Device details",
+	log.Infow(
+		"Device details",
 		"deviceId", deviceSettings.deviceClientId,
-		"deviceSignatureType", deviceSettings.deviceRootIdentity.IdentityType,
-		"hasValidDeviceCertificate", hasValidDeviceCertificate,
-		"hasServerTLSVerificationEnabled", hasServerTLSVerificationEnabled,
+		// "hasValidDeviceCertificate", hasValidDeviceCertificate, // Uncomment when MIAF Related stuff is implemented
 		// TODO: MIAF SUP — hasRequestSigningKey rename to "hasMTLSClientCert" when RFC 9421 removed
-		"canSignRequests", hasRequestSigningKey,
+		// "canSignRequests", hasRequestSigningKey, // Uncomment when MIAF related stuff is implemented
 		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
-		"isAuthEnabled", deviceSettings.authEnabled,
 	)
 
 	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
@@ -263,11 +189,9 @@ func (a *Agent) Start() error {
 	a.monitor.Start()
 	a.syncer.Start()
 
-	hasCfgPubCert := a.config.DeviceRootIdentity.HasCertificateReference()
-
-	a.log.Infow("Workload Fleet Management Client started successfully",
+	a.log.Infow(
+		"Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
-		"hasDeviceSignature", hasCfgPubCert,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
 		"sbiUrl", a.config.Wfm.SbiURL,
 	)
@@ -285,10 +209,6 @@ func (a *Agent) Stop() error {
 
 	a.log.Info("Workload Fleet Management Client stopped")
 	return nil
-}
-
-func findDeviceRootIdentity(cfg types.Config) types.DeviceRootIdentity {
-	return cfg.DeviceRootIdentity
 }
 
 func main() {
@@ -469,6 +389,7 @@ func PreflightLogger(
 	}
 }
 
+// TODO: Move these functions so that they can be reused for calling MIS service
 // pass caPath if you want to use some particular ca to verify the certificates
 func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
 	// TODO: we should instead create our own http client and then set that into the openapi client

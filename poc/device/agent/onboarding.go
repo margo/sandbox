@@ -4,26 +4,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
-	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 )
 
 type DeviceClientSettings struct {
-	deviceClientId                                  string
-	deviceRootIdentity                              types.DeviceRootIdentity
-	authEnabled                                     bool
-	wfmEndpointsForClient                           []string
-	oauthClientId, oAuthClientSecret, oauthTokenUrl string
-	log                                             *zap.SugaredLogger
-	apiClient                                       wfm.SBIAPIClientInterface
-	db                                              database.DatabaseIfc
-	supportedDeploymentTypes                        []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
-	supportedRuntimes                               []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
+	deviceClientId           string
+	wfmEndpointsForClient    []string
+	log                      *zap.SugaredLogger
+	apiClient                wfm.SBIAPIClientInterface
+	db                       database.DatabaseIfc
+	supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
+	supportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
 }
 
 type Option = func(auth *DeviceClientSettings)
@@ -57,21 +52,6 @@ func WithDeviceClientID(id string) Option {
 	}
 }
 
-func WithEnableAuth(oauthClientId, oauthClientSecret, tokenUrl string) Option {
-	return func(auth *DeviceClientSettings) {
-		auth.authEnabled = true
-		auth.oauthClientId = oauthClientId
-		auth.oAuthClientSecret = oauthClientSecret
-		auth.oauthTokenUrl = tokenUrl
-	}
-}
-
-func WithDeviceRootIdentity(identity types.DeviceRootIdentity) Option {
-	return func(settings *DeviceClientSettings) {
-		settings.deviceRootIdentity = identity
-	}
-}
-
 func NewDeviceSettings(
 	client wfm.SBIAPIClientInterface,
 	db database.DatabaseIfc,
@@ -83,32 +63,21 @@ func NewDeviceSettings(
 		return nil, fmt.Errorf("failed to get device settings from database, %s", err.Error())
 	}
 
-	deviceClientId, deviceRootIdentity := "", types.DeviceRootIdentity{}
-	authEnabled, oauthClientId, oauthClientSecret, oauthTokenUrl := false, "", "", ""
+	deviceClientId := ""
 	var supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
 	var supportedRuntimes []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
 
 	if existingRecord != nil {
 		deviceClientId = existingRecord.DeviceClientId
-		deviceRootIdentity = existingRecord.DeviceRootIdentity
-		authEnabled = existingRecord.AuthEnabled
-		oauthClientId = existingRecord.OAuthClientId
-		oauthClientSecret = existingRecord.OAuthClientSecret
-		oauthTokenUrl = existingRecord.OAuthTokenEndpointUrl
 		supportedDeploymentTypes = existingRecord.SupportedDeploymentTypes
 		supportedRuntimes = existingRecord.SupportedRuntimes
 	}
 
 	settings := &DeviceClientSettings{
 		deviceClientId:           deviceClientId,
-		deviceRootIdentity:       deviceRootIdentity,
 		apiClient:                client,
 		log:                      log,
 		db:                       db,
-		authEnabled:              authEnabled,
-		oauthClientId:            oauthClientId,
-		oAuthClientSecret:        oauthClientSecret,
-		oauthTokenUrl:            oauthTokenUrl,
 		supportedDeploymentTypes: supportedDeploymentTypes,
 		supportedRuntimes:        supportedRuntimes,
 	}
@@ -123,57 +92,13 @@ func NewDeviceSettings(
 	}
 	newDeviceRecord.SupportedDeploymentTypes = settings.supportedDeploymentTypes
 	newDeviceRecord.SupportedRuntimes = settings.supportedRuntimes
-	newDeviceRecord.AuthEnabled = settings.authEnabled
 	newDeviceRecord.DeviceClientId = settings.deviceClientId
-	newDeviceRecord.DeviceRootIdentity = settings.deviceRootIdentity
-	newDeviceRecord.OAuthClientId = settings.oauthClientId
-	newDeviceRecord.OAuthClientSecret = settings.oAuthClientSecret
-	newDeviceRecord.OAuthTokenEndpointUrl = settings.oauthTokenUrl
 
 	if err := db.SetDeviceSettings(newDeviceRecord); err != nil {
 		return nil, err
 	}
 
 	return settings, nil
-}
-
-func (da *DeviceClientSettings) Onboard(ctx context.Context) (deviceClientId string, err error) {
-	// TODO: MIAF SUP — onboarding via operator pre-provisioning (X.509-SVID/mTLS).
-	// The SBI onboarding endpoint has been removed from the spec.
-	// For now, return error indicating manual provisioning is required.
-	return "", fmt.Errorf("device onboarding via SBI endpoint is no longer supported — " +
-		"provision device identity via operator pre-provisioning (MIAF SUP)")
-}
-
-func (da *DeviceClientSettings) OnboardWithRetries(
-	ctx context.Context,
-	retries uint8,
-) (deviceClientId string, err error) {
-	totalRetries := retries
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	for retries > 0 {
-		retries--
-
-		<-ticker.C
-
-		deviceClientId, err := da.Onboard(ctx)
-		if err != nil {
-			da.log.Infow(
-				"onboard operation failed",
-				"tryCount",
-				totalRetries-retries,
-				"totalRetriesAllowed",
-				totalRetries,
-				"err",
-				err.Error(),
-			)
-			continue
-		}
-		return deviceClientId, err
-	}
-
-	return "", fmt.Errorf("unable to onboard the device")
 }
 
 func (da *DeviceClientSettings) ReportCapabilities(
@@ -195,9 +120,4 @@ func (da *DeviceClientSettings) ReportCapabilities(
 
 	da.log.Infow("Capabilities reported successfully", "deviceClientId", da.deviceClientId)
 	return nil
-}
-
-func (da *DeviceClientSettings) IsOnboarded() (bool, error) {
-	_, isOnboarded, err := da.db.IsDeviceOnboarded()
-	return isOnboarded, err
 }

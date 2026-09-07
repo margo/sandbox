@@ -57,16 +57,8 @@ const (
 )
 
 type DeviceSettingsRecord struct {
-	DeviceClientId     string                   `json:"deviceClientId"`
-	DeviceRootIdentity types.DeviceRootIdentity `json:"deviceRootIdentity"`
-	State              types.DeviceOnboardState `json:"state"`
-	AuthEnabled        bool                     `json:"authEnabled"`
-	// OAuthClientId The client ID for OAuth 2.0 authentication.
-	OAuthClientId string `json:"clientId"`
-	// OAuthClientSecret The client secret for OAuth 2.0 authentication.
-	OAuthClientSecret string `json:"clientSecret"`
-	// OAuthTokenEndpointUrl The URL for the OAuth 2.0 token endpoint.
-	OAuthTokenEndpointUrl string `json:"tokenEndpointUrl"`
+	DeviceClientId string                   `json:"deviceClientId"`
+	State          types.DeviceOnboardState `json:"state"`
 	// the applications that the device can deploy
 	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
 	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`
@@ -176,8 +168,7 @@ func (db *Database) SetLastSyncedBundleDigest(digest string) error {
 }
 
 func NewDatabase(dataDir string) *Database {
-
-	err := os.MkdirAll(dataDir, 0750)
+	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
 		panic(fmt.Sprintf("failed to create database directory, err %s", err.Error()))
@@ -227,7 +218,7 @@ func (db *Database) persistenceLoop() {
 
 func (db *Database) save() {
 	db.mu.RLock()
-	var dump = struct {
+	dump := struct {
 		Deployments    map[string]*DeploymentRecord `json:"deployments"`
 		DeviceSettings *DeviceSettingsRecord        `json:"deviceSettings"`
 	}{
@@ -242,14 +233,14 @@ func (db *Database) save() {
 		return
 	}
 
-	if err := os.MkdirAll(db.dataDir, 0750); err != nil {
+	if err := os.MkdirAll(db.dataDir, 0o750); err != nil {
 		return
 	}
 
 	tempFile := filepath.Join(db.dataDir, "agent.database.json.tmp")
 	finalFile := filepath.Join(db.dataDir, "agent.database.json")
 
-	if err := os.WriteFile(tempFile, data, 0600); err != nil {
+	if err := os.WriteFile(tempFile, data, 0o600); err != nil {
 		return
 	}
 
@@ -265,7 +256,7 @@ func (db *Database) load() {
 		return // File doesn't exist, start fresh
 	}
 
-	var dump = struct {
+	dump := struct {
 		Deployments    map[string]*DeploymentRecord `json:"deployments"`
 		DeviceSettings *DeviceSettingsRecord        `json:"deviceSettings"`
 	}{}

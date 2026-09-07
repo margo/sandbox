@@ -196,6 +196,33 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```bash
    cd $HOME/workspace/sandbox/scripts
    ```
+3. **(Optional) Generate Labels for Device**
+
+   If you want device to inherit user-defined labels, first create the required labels using the provided helper script.
+
+   Run:
+
+   ```bash
+   bash create-device-labels.sh
+   ```
+   and follow on screen instructions to create user defined labels. Prefixing with an organization domain is RECOMMENDED for supplier-specific labels.
+
+   Alternatively, if you have labels prepared & just want to use them without using above helper script, you can:
+   - Create a labels.json file in current working directory
+   - Paste your labels as a json object in labels.json, finally file should look like this: 
+      ```json
+      {
+        "northstarida.com/hypervisor": "hyper-v",
+        "northstarida.com/wasm.runtime": [
+            "wamr"
+        ],
+        "northstarida.com/wasm.package.format": [
+            ".wasm",
+            ".aot"
+        ],
+        "northstarida.com/os": "zephyr"
+      }
+      ```
 
 3. **Install Basic Tools**
 

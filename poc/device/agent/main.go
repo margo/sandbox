@@ -10,13 +10,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"net/http"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/types"
@@ -34,6 +33,7 @@ import (
 type Agent struct {
 	log            *zap.SugaredLogger
 	auth           *DeviceClientSettings
+	capabilities   *sbi.DeviceCapabilitiesManifest
 	config         types.Config
 	database       database.DatabaseIfc
 	syncer         StateSyncerIfc
@@ -146,7 +146,6 @@ func NewAgent(configPath string) (*Agent, error) {
 	}
 
 	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg)))
-
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
 	if err != nil {
@@ -201,8 +200,17 @@ func NewAgent(configPath string) (*Agent, error) {
 		// (len(deviceSettings.oAuthClientSecret) != 0) && (len(deviceSettings.oauthTokenUrl) != 0),
 	)
 
+	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
+	if err != nil {
+		log.Errorw(
+			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
+			"err",
+			err.Error(),
+		)
+	}
+
 	// Create components
-	deployer := NewDeploymentManager(db, helmClient, composeClient, log)
+	deployer := NewDeploymentManager(db, capabilities, helmClient, composeClient, log)
 	monitor := NewDeploymentMonitor(db, helmClient, composeClient, log)
 	syncer := NewStateSyncer(
 		db,
@@ -222,6 +230,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		statusReporter: statusReporter,
 		log:            log,
 		config:         *cfg,
+		capabilities:   capabilities,
 	}, nil
 }
 
@@ -239,20 +248,12 @@ func (a *Agent) Start() error {
 	deviceId = deviceSettings.DeviceClientId
 
 	// 2. Report capabilities
-	capabilities, err := types.LoadCapabilities(a.config.Capabilities.ReadFromFile)
-	if err != nil {
-		a.log.Errorw(
-			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
-			"err",
-			err.Error(),
-		)
-	} else {
-		capabilities.Properties.Id = deviceId
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := a.auth.ReportCapabilities(ctx, *capabilities); err != nil {
-			a.log.Errorw("failed to report the capabilities, ", "err", err.Error())
-		}
+
+	a.capabilities.Properties.Id = deviceId
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := a.auth.ReportCapabilities(ctx, *a.capabilities); err != nil {
+		a.log.Errorw("failed to report the capabilities, ", "err", err.Error())
 	}
 
 	// 3. Start all components

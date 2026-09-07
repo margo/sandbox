@@ -381,6 +381,11 @@ paths:
           in: query
           schema: { type: string }
           description: Token for pagination
+        - name: appPackageId
+          in: query
+          schema:
+            type: string
+          description: optional parameter for application package Id, when provided, marks eligible devices separately
       responses:
         '200':
           description: List of Devices
@@ -641,6 +646,7 @@ components:
             oneOf:
             - $ref: '#/components/schemas/HelmApplicationDeploymentProfileComponent'
             - $ref: '#/components/schemas/ComposeApplicationDeploymentProfileComponent'
+            - $ref: '#/components/schemas/CustomApplicationDeploymentProfileComponent'
           type: array
         description:
           # x-go-field-tags: 'json:"description" yaml:"description"'
@@ -649,16 +655,15 @@ components:
             yaml: "description"
           description: Description of the deployment profile
           type: string
+        deviceConstraints:
+          x-oapi-codegen-extra-tags:
+            json: "deviceConstraints"
+            yaml: "deviceConstraints"
+          description: Description of the device capabilties required for this particular application
+          $ref: "#/components/schemas/DeviceConstraints"
         # id:
         #   description: Unique identifier for the deployment profile
         #   type: string
-        requiredResources:
-          # x-go-field-tags: 'json:"requiredResources" yaml:"requiredResources"'
-          x-oapi-codegen-extra-tags:
-            json: "requiredResources"
-            yaml: "requiredResources"
-          $ref: '#/components/schemas/RequiredResources'
-          description: Required resources for this deployment profile
         type:
           # x-go-field-tags: 'json:"type" yaml:"type"'
           x-oapi-codegen-extra-tags:
@@ -668,6 +673,7 @@ components:
           enum:
           - helm
           - compose
+          - custom
           type: string
       required:
       - type
@@ -830,6 +836,59 @@ components:
       - name
       - properties
       type: object
+    
+    CustomApplicationDeploymentProfileComponent:
+      description: Custom Application Deployment Profile Component
+      properties:
+        name:
+          # x-go-field-tags: 'json:"name" yaml:"name"'
+          x-oapi-codegen-extra-tags:
+            json: "name"
+            yaml: "name"
+          description: Name of the component
+          type: string
+        properties:
+          # x-go-field-tags: 'json:"properties" yaml:"properties"'
+          x-oapi-codegen-extra-tags:
+            json: "properties"
+            yaml: "properties"
+          properties:
+            keyLocation:
+              # x-go-field-tags: 'json:"keyLocation" yaml:"keyLocation"'
+              x-oapi-codegen-extra-tags:
+                json: "keyLocation"
+                yaml: "keyLocation"
+              description: Key location of the component
+              type: string
+            packageLocation:
+              # x-go-field-tags: 'json:"packageLocation" yaml:"packageLocation"'
+              x-oapi-codegen-extra-tags:
+                json: "packageLocation"
+                yaml: "packageLocation"
+              description: Package location of the component
+              type: string
+            timeout:
+              # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
+              x-oapi-codegen-extra-tags:
+                json: "timeout"
+                yaml: "timeout"
+              description: Timeout for the component
+              type: string
+            wait:
+              # x-go-field-tags: 'json:"wait" yaml:"wait"'
+              x-oapi-codegen-extra-tags:
+                json: "wait"
+                yaml: "wait"
+              description: Wait for the component to be ready
+              type: boolean
+          required:
+          - packageLocation
+          type: object
+      required:
+      - name
+      - properties
+      type: object
+
 
     AppConfigurationSchema:
       properties:
@@ -993,87 +1052,6 @@ components:
       - name
       - schema
       type: object
-
-    RequiredResources:
-      properties:
-        cpu:
-          # x-go-field-tags: 'json:"cpu" yaml:"cpu"'
-          x-oapi-codegen-extra-tags:
-            json: "cpu"
-            yaml: "cpu"
-          properties:
-            architectures:
-              # x-go-field-tags: 'json:"architectures" yaml:"architectures"'
-              x-oapi-codegen-extra-tags:
-                json: "architectures"
-                yaml: "architectures"
-              description: Supported CPU architectures
-              items:
-                type: string
-              type: array
-            cores:
-              # x-go-field-tags: 'json:"cores" yaml:"cores"'
-              x-oapi-codegen-extra-tags:
-                json: "cores"
-                yaml: "cores"
-              description: Required CPU cores
-              type: number
-          type: object
-        interfaces:
-          # x-go-field-tags: 'json:"interfaces" yaml:"interfaces"'
-          x-oapi-codegen-extra-tags:
-            json: "interfaces"
-            yaml: "interfaces"
-          items:
-            properties:
-              type:
-                # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags:
-                  json: "type"
-                  yaml: "type"
-                description: Interface type (e.g., ethernet, bluetooth)
-                type: string
-            type: object
-          type: array
-        memory:
-          # x-go-field-tags: 'json:"memory" yaml:"memory"'
-          x-oapi-codegen-extra-tags:
-            json: "memory"
-            yaml: "memory"
-          description: Required memory (e.g., "1024Mi")
-          type: string
-        peripherals:
-          # x-go-field-tags: 'json:"peripherals" yaml:"peripherals"'
-          x-oapi-codegen-extra-tags:
-            json: "peripherals"
-            yaml: "peripherals"
-          items:
-            properties:
-              manufacturer:
-                # x-go-field-tags: 'json:"manufacturer" yaml:"manufacturer"'
-                x-oapi-codegen-extra-tags:
-                  json: "manufacturer"
-                  yaml: "manufacturer"
-                description: Manufacturer requirement
-                type: string
-              type:
-                # x-go-field-tags: 'json:"type" yaml:"type"'
-                x-oapi-codegen-extra-tags:
-                  json: "type"
-                  yaml: "type"
-                description: Type of peripheral
-                type: string
-            type: object
-          type: array
-        storage:
-          # x-go-field-tags: 'json:"storage" yaml:"storage"'
-          x-oapi-codegen-extra-tags:
-            json: "storage"
-            yaml: "storage"
-          description: Required storage (e.g., "10Gi")
-          type: string
-      type: object
-
 
     # Application Package Schemas
     ApplicationPackageManifestRequest:
@@ -1338,14 +1316,19 @@ components:
       properties:
         type:
           type: string
-          enum: ["helm", "compose"]
+          enum: ["helm", "compose", "custom"]
           description: Type of deployment profile
+        deviceConstraints:
+          description: Description of the device capabilties required for this particular application
+          $ref: "#/components/schemas/DeviceConstraints"
+
         components:
           type: array
           items:
             oneOf:
               - $ref: '#/components/schemas/HelmDeploymentProfileComponent'
               - $ref: '#/components/schemas/ComposeDeploymentProfileComponent'
+              - $ref: '#/components/schemas/CustomDeploymentProfileComponent'
           description: Components of the deployment profile
 
     HelmDeploymentProfileComponent:
@@ -1359,6 +1342,30 @@ components:
         properties:
           type: object
           required: [repository, revision]
+          properties:
+            repository:
+              type: string
+              description: Repository of the component
+            revision:
+              type: string
+              description: Revision of the component
+            timeout:
+              type: string
+              description: Timeout for the component
+            wait:
+              type: boolean
+              description: Wait for the component to be ready
+    CustomDeploymentProfileComponent:
+      type: object
+      description: Custom Application Deployment Profile Component
+      required: [name, properties]
+      properties:
+        name:
+          type: string
+          description: Name of the component
+        properties:
+          type: object
+          required: [repository]
           properties:
             repository:
               type: string
@@ -1624,6 +1631,10 @@ components:
           type: string
           default: Device
           description: Resource kind
+        eligible:
+          type: string
+          enum: ["true", "false", "unknown"]
+          description: if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back. 
         id:
           type: string
           description: Unique device identifier
@@ -1665,6 +1676,101 @@ components:
     DeviceOnboardStatus:
       type: string
       enum: [IN-PROGRESS, ONBOARDED, FAILED]
+
+    DeviceConstraints:
+      type: object
+      description: >-
+        Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+      properties:
+        capacityRequirements:
+          $ref: '#/components/schemas/CapacityRequirements'
+          description: Minimum CPU, memory, and storage requirements for the deployment profile.
+        eligibilityRules:
+          type: array
+          items:
+            $ref: '#/components/schemas/EligibilityRule'
+          description: >-
+            Optional rules used to match the deployment with device properties and supplier-defined labels
+            reported in the device capabilities.
+    CapacityRequirements:
+      type: object
+      description: Minimum device capacity required by the deployment profile.
+      properties:
+        cpu:
+          $ref: '#/components/schemas/DeploymentCpuRequirement'
+          description: CPU element specifying the CPU requirements for the deployment.
+        memory:
+          type: string
+          description: >-
+            The minimum amount of memory required. The value is given in binary units
+            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
+          pattern: ^[0-9]+(Mi|Gi|Ki)$
+        storage:
+          type: string
+          description: >-
+            The minimum amount of storage required. The value is given in binary units
+            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
+          pattern: ^[0-9]+(Mi|Gi|Ki|Ti|Pi|Ei)$
+    DeploymentCpuRequirement:
+      type: object
+      description: CPU element specifying the CPU requirements for the deployment.
+      required: [cores]
+      properties:
+        cores:
+          type: number
+          description: >-
+            The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
+        architectures:
+          type: array
+          items:
+            type: string
+            enum: [amd64, arm64, arm, riscv64, other]
+          description: The CPU architectures supported by the deployment.
+    EligibilityRule:
+      type: object
+      description: A rule matching properties and supplier-defined labels reported through the device capabilities.
+      properties:
+        propertySelector:
+          $ref: '#/components/schemas/Selector'
+          description: Selector evaluated against the properties reported in the device capabilities.
+        labelSelector:
+          $ref: '#/components/schemas/Selector'
+          description: Selector evaluated against the labels reported in the device capabilities.
+    Selector:
+      type: object
+      description: A set of match expressions evaluated with AND semantics.
+      required: [matchExpressions]
+      properties:
+        matchExpressions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchExpression'
+          description: Match expressions evaluated against the device's reported capabilities.
+    MatchExpression:
+      type: object
+      description: An expression used to match a device's reported capabilities properties or labels.
+      required: [key, operator]
+      properties:
+        key:
+          type: string
+          description: >-
+            The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON
+            Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the
+            exact label key.
+        operator:
+          type: string
+          enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt, ContainsAll, ContainsAny]
+          description: Operator used to evaluate the referenced value.
+        values:
+          type: array
+          items: {}
+          description: >-
+            Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`,
+            `Gt`, or `Lt` operator.
+        itemSelector:
+          $ref: '#/components/schemas/Selector'
+          description: Selector evaluated against array elements. Required for the `ContainsAll` or `ContainsAny` operator.
+    
 
     # Common Schemas
     ContextualInfo:

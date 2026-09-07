@@ -116,7 +116,7 @@ metadata:
 	err := os.WriteFile(
 		filepath.Join(dir, ExpectedDescriptionFileName),
 		[]byte(invalidYAML),
-		0600,
+		0o600,
 	)
 	require.NoError(t, err)
 
@@ -132,7 +132,7 @@ metadata:
 
 	assert.Error(t, err)
 	assert.Nil(t, pkg)
-	assert.IsType(t, &ErrInvalidDescription{}, err)
+	assert.IsType(t, &ErrValidation{}, err)
 }
 
 func TestPackageManager_LoadFromDirectory(t *testing.T) {

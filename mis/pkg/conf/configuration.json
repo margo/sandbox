@@ -5,13 +5,13 @@
     "level": "info"
   },
   "ca": {
-    "cert": "./data/ca/current.crt",
-    "key": "./data/ca/current.key"
+    "cert": "./certs/ca.crt",
+    "key": "./certs/ca.key"
   },
   "https": {
-    "addr": ":8443",
-    "ca": "./ca.crt",
-    "cert": "./server.crt",
-    "key": "./server.key"
+    "addr": ":9443",
+    "ca": "./certs/https-ca.crt",
+    "cert": "./certs/https-server.crt",
+    "key": "./certs/https-server.key"
   }
 }

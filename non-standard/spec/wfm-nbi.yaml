@@ -774,59 +774,6 @@ components:
       - name
       - properties
       type: object
-    
-    CustomApplicationDeploymentProfileComponent:
-      description: Custom Application Deployment Profile Component
-      properties:
-        name:
-          # x-go-field-tags: 'json:"name" yaml:"name"'
-          x-oapi-codegen-extra-tags:
-            json: "name"
-            yaml: "name"
-          description: Name of the component
-          type: string
-        properties:
-          # x-go-field-tags: 'json:"properties" yaml:"properties"'
-          x-oapi-codegen-extra-tags:
-            json: "properties"
-            yaml: "properties"
-          properties:
-            keyLocation:
-              # x-go-field-tags: 'json:"keyLocation" yaml:"keyLocation"'
-              x-oapi-codegen-extra-tags:
-                json: "keyLocation"
-                yaml: "keyLocation"
-              description: Key location of the component
-              type: string
-            packageLocation:
-              # x-go-field-tags: 'json:"packageLocation" yaml:"packageLocation"'
-              x-oapi-codegen-extra-tags:
-                json: "packageLocation"
-                yaml: "packageLocation"
-              description: Package location of the component
-              type: string
-            timeout:
-              # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
-              x-oapi-codegen-extra-tags:
-                json: "timeout"
-                yaml: "timeout"
-              description: Timeout for the component
-              type: string
-            wait:
-              # x-go-field-tags: 'json:"wait" yaml:"wait"'
-              x-oapi-codegen-extra-tags:
-                json: "wait"
-                yaml: "wait"
-              description: Wait for the component to be ready
-              type: boolean
-          required:
-          - packageLocation
-          type: object
-      required:
-      - name
-      - properties
-      type: object
-
 
     AppConfigurationSchema:
       properties:
@@ -1243,30 +1190,6 @@ components:
         properties:
           type: object
           required: [repository, revision]
-          properties:
-            repository:
-              type: string
-              description: Repository of the component
-            revision:
-              type: string
-              description: Revision of the component
-            timeout:
-              type: string
-              description: Timeout for the component
-            wait:
-              type: boolean
-              description: Wait for the component to be ready
-    CustomDeploymentProfileComponent:
-      type: object
-      description: Custom Application Deployment Profile Component
-      required: [name, properties]
-      properties:
-        name:
-          type: string
-          description: Name of the component
-        properties:
-          type: object
-          required: [repository]
           properties:
             repository:
               type: string

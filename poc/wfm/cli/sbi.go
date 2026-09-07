@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/margo/sandbox/shared-lib/cache"
@@ -14,9 +13,10 @@ import (
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
-
-type HTTPApiClientRequestEditorOptions = sbi.RequestEditorFn
-type HTTPApiClientOptions = sbi.ClientOption
+type (
+	HTTPApiClientRequestEditorOptions = sbi.RequestEditorFn
+	HTTPApiClientOptions              = sbi.ClientOption
+)
 
 // SbiHttpClient implementation
 type SbiHttpClient struct {
@@ -58,7 +58,6 @@ func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClie
 	}
 	return apiClient, nil
 }
-
 
 func (sbiClient *SbiHttpClient) SyncState(
 	ctx context.Context,
@@ -396,33 +395,34 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 
 	return bundleData, nil
 }
-func (sbiClient *SbiHttpClient) ReportCapabilities(
-    ctx context.Context,
-    deviceId string,
-    capabilities sbi.DeviceCapabilitiesManifest,
-    overrideOptions ...HTTPApiClientRequestEditorOptions,
-) error {
-    resp, err := sbiClient.client.PutApiV1CapabilitiesDeviceId(
-        ctx,
-        sbi.DeviceId(deviceId),
-        sbi.PutApiV1CapabilitiesDeviceIdJSONRequestBody(capabilities),
-        overrideOptions...,
-    )
-    if err != nil {
-        return fmt.Errorf("failed to report capabilities: %w", err)
-    }
-    defer resp.Body.Close()
 
-    switch resp.StatusCode {
-    case http.StatusOK, http.StatusCreated:
-        return nil
-    case http.StatusBadRequest:
-        return fmt.Errorf("malformed capabilities request: %d", resp.StatusCode)
-    case http.StatusForbidden:
-        return fmt.Errorf("not authorized to report capabilities: %d", resp.StatusCode)
-    case http.StatusUnprocessableEntity:
-        return fmt.Errorf("capabilities request contains semantic error: %d", resp.StatusCode)
-    default:
-        return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-    }
+func (sbiClient *SbiHttpClient) ReportCapabilities(
+	ctx context.Context,
+	deviceId string,
+	capabilities sbi.DeviceCapabilitiesManifest,
+	overrideOptions ...HTTPApiClientRequestEditorOptions,
+) error {
+	resp, err := sbiClient.client.PutApiV1CapabilitiesDeviceId(
+		ctx,
+		sbi.DeviceId(deviceId),
+		sbi.PutApiV1CapabilitiesDeviceIdJSONRequestBody(capabilities),
+		overrideOptions...,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to report capabilities: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated:
+		return nil
+	case http.StatusBadRequest:
+		return fmt.Errorf("malformed capabilities request: %d", resp.StatusCode)
+	case http.StatusForbidden:
+		return fmt.Errorf("not authorized to report capabilities: %d", resp.StatusCode)
+	case http.StatusUnprocessableEntity:
+		return fmt.Errorf("capabilities request contains semantic error: %d", resp.StatusCode)
+	default:
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 }

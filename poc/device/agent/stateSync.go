@@ -646,7 +646,7 @@ func (ss *StateSyncer) storeDeployment(
 	desiredState := database.AppDeploymentState{
 		AppDeploymentManifest: *deploymentYAML,
 		Status: sbi.DeploymentStatusManifest{
-				DeploymentId: deploymentId,
+			DeploymentId: deploymentId,
 			Status: struct {
 				Error *struct {
 					Code    *string `json:"code,omitempty"`

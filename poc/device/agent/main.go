@@ -64,7 +64,7 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
 
-    // TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are replaced by mTLS.
+	// TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are replaced by mTLS.
 	// This entire RequestSigner plugin block should be removed when MIAF is implemented.
 	// Replace with: mTLS client certificate (X.509-SVID) configured in tls.Config.
 	// See: shared-lib/crypto/signer.go — marked for deletion on MIAF implementation.
@@ -199,7 +199,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
 		"isAuthEnabled", deviceSettings.authEnabled,
-		)
+	)
 
 	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
 	if err != nil {

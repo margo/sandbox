@@ -9,8 +9,8 @@ import (
 
 // SBIAPIClient interface
 type SBIAPIClientInterface interface {
-     // OnboardDeviceClient removed — onboarding endpoint no longer in SBI spec.
-    // Will be re-implemented as part of MIAF SUP (operator pre-provisioning via mTLS/X.509-SVID).
+	// OnboardDeviceClient removed — onboarding endpoint no longer in SBI spec.
+	// Will be re-implemented as part of MIAF SUP (operator pre-provisioning via mTLS/X.509-SVID).
 	SyncState(
 		ctx context.Context,
 		deviceClientId string,

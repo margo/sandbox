@@ -762,6 +762,18 @@ type ApplicationPackageStatus struct {
 // ApplicationPackageStatusState State of the application package
 type ApplicationPackageStatusState string
 
+// CapacityRequirements Minimum device capacity required by the deployment profile.
+type CapacityRequirements struct {
+	// Cpu CPU element specifying the CPU requirements for the deployment.
+	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
+
+	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
+	Memory *string `json:"memory,omitempty"`
+
+	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
+	Storage *string `json:"storage,omitempty"`
+}
+
 // ConfigurationSchema defines model for ConfigurationSchema.
 type ConfigurationSchema struct {
 	// AllowEmpty Whether empty values are allowed
@@ -831,44 +843,6 @@ type ContextualInfo struct {
 	Message *string `json:"message,omitempty"`
 }
 
-// CustomApplicationDeploymentProfileComponent Custom Application Deployment Profile Component
-type CustomApplicationDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name" yaml:"name"`
-	Properties struct {
-		// KeyLocation Key location of the component
-		KeyLocation *string `json:"keyLocation" yaml:"keyLocation"`
-
-		// PackageLocation Package location of the component
-		PackageLocation string `json:"packageLocation" yaml:"packageLocation"`
-
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout" yaml:"timeout"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait" yaml:"wait"`
-	} `json:"properties" yaml:"properties"`
-}
-
-// CustomDeploymentProfileComponent Custom Application Deployment Profile Component
-type CustomDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name"`
-	Properties struct {
-		// Repository Repository of the component
-		Repository string `json:"repository"`
-
-		// Revision Revision of the component
-		Revision *string `json:"revision,omitempty"`
-
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout,omitempty"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait,omitempty"`
-	} `json:"properties"`
-}
-
 // DeploymentCpuRequirement CPU element specifying the CPU requirements for the deployment.
 type DeploymentCpuRequirement struct {
 	// Architectures The CPU architectures supported by the deployment.
@@ -922,15 +896,6 @@ type DeploymentParameterValue struct {
 // DeploymentParameters Application Parameters
 type DeploymentParameters map[string]DeploymentParameterValue
 
-// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
-type DeviceConstraints struct {
-	// CapacityRequirements Minimum CPU, memory, and storage requirements for the deployment profile.
-	CapacityRequirements *CapacityRequirements `json:"capacityRequirements,omitempty"`
-
-	// EligibilityRules Optional rules used to match the deployment with device properties and supplier-defined labels reported in the device capabilities.
-	EligibilityRules *[]EligibilityRule `json:"eligibilityRules,omitempty"`
-}
-
 // DeploymentProfileComponent Application Deployment Profile Component
 type DeploymentProfileComponent struct {
 	// Name Name of the component
@@ -950,6 +915,15 @@ type DeploymentProfileComponent struct {
 	} `json:"properties"`
 }
 
+// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+type DeviceConstraints struct {
+	// CapacityRequirements Minimum CPU, memory, and storage requirements for the deployment profile.
+	CapacityRequirements *CapacityRequirements `json:"capacityRequirements,omitempty"`
+
+	// EligibilityRules Optional rules used to match the deployment with device properties and supplier-defined labels reported in the device capabilities.
+	EligibilityRules *[]EligibilityRule `json:"eligibilityRules,omitempty"`
+}
+
 // DeviceListResp List of Devices
 type DeviceListResp struct {
 	Items    []DeviceManifestResp `json:"items"`
@@ -958,6 +932,9 @@ type DeviceListResp struct {
 
 // DeviceManifestResp Device manifest
 type DeviceManifestResp struct {
+	// Eligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
+	Eligible *DeviceManifestRespEligible `json:"eligible,omitempty"`
+
 	// Id Unique device identifier
 	Id *string `json:"id" yaml:"id"`
 
@@ -1013,6 +990,24 @@ type ErrorResponse struct {
 	// Timestamp Timestamp of the request
 	Timestamp time.Time `json:"timestamp"`
 }
+
+// MatchExpression An expression used to match a device's reported capabilities properties or labels.
+type MatchExpression struct {
+	// ItemSelector A set of match expressions evaluated with AND semantics.
+	ItemSelector *Selector `json:"itemSelector,omitempty"`
+
+	// Key The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the exact label key.
+	Key string `json:"key"`
+
+	// Operator Operator used to evaluate the referenced value.
+	Operator MatchExpressionOperator `json:"operator"`
+
+	// Values Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`, `Gt`, or `Lt` operator.
+	Values *[]interface{} `json:"values,omitempty"`
+}
+
+// MatchExpressionOperator Operator used to evaluate the referenced value.
+type MatchExpressionOperator string
 
 // Metadata defines model for Metadata.
 type Metadata struct {
@@ -1149,32 +1144,6 @@ func (t *AppDeploymentProfile_Components_Item) FromApplicationDeploymentProfileC
 
 // MergeApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided ApplicationDeploymentProfileComponent
 func (t *AppDeploymentProfile_Components_Item) MergeApplicationDeploymentProfileComponent(v ApplicationDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsCustomApplicationDeploymentProfileComponent returns the union data inside the AppDeploymentProfile_Components_Item as a CustomApplicationDeploymentProfileComponent
-func (t AppDeploymentProfile_Components_Item) AsCustomApplicationDeploymentProfileComponent() (CustomApplicationDeploymentProfileComponent, error) {
-	var body CustomApplicationDeploymentProfileComponent
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromCustomApplicationDeploymentProfileComponent overwrites any union data inside the AppDeploymentProfile_Components_Item as the provided CustomApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) FromCustomApplicationDeploymentProfileComponent(v CustomApplicationDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeCustomApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided CustomApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) MergeCustomApplicationDeploymentProfileComponent(v CustomApplicationDeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -1357,32 +1326,6 @@ func (t *DeploymentExecutionProfile_Components_Item) FromDeploymentProfileCompon
 
 // MergeDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided DeploymentProfileComponent
 func (t *DeploymentExecutionProfile_Components_Item) MergeDeploymentProfileComponent(v DeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsCustomDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a CustomDeploymentProfileComponent
-func (t DeploymentExecutionProfile_Components_Item) AsCustomDeploymentProfileComponent() (CustomDeploymentProfileComponent, error) {
-	var body CustomDeploymentProfileComponent
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromCustomDeploymentProfileComponent overwrites any union data inside the DeploymentExecutionProfile_Components_Item as the provided CustomDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) FromCustomDeploymentProfileComponent(v CustomDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeCustomDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided CustomDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) MergeCustomDeploymentProfileComponent(v CustomDeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

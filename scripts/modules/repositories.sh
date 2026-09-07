@@ -105,7 +105,7 @@ setup_mis_deployment() {
   if [[ -d "$HOME/mis-deployment" ]]; then
     echo "🗑️  Removing existing MIS deployment files..."
     rm -rf "$HOME/mis-deployment/docker-compose.yaml"
-    rm -rf "$HOME/mis-deployment/configuration.json"
+    rm -rf "$HOME/mis-deployment/pkg/conf/configuration.json"
   else
     echo "MIS deployment folder missing, certificates not generated. Please generate Factory Root CAs first..."
     return 1

@@ -646,8 +646,6 @@ func (ss *StateSyncer) storeDeployment(
 	desiredState := database.AppDeploymentState{
 		AppDeploymentManifest: *deploymentYAML,
 		Status: sbi.DeploymentStatusManifest{
-			ApiVersion:   "deployment.margo.org/v1alpha1",
-			Kind:         sbi.DeploymentStatusManifestKindDeploymentStatusManifest,
 			DeploymentId: deploymentId,
 			Status: struct {
 				Error *struct {

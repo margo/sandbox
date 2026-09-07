@@ -20,10 +20,7 @@ import (
 func buildDevice(
 	id, vendor, modelNumber, serialNumber string,
 ) *clModels.DeviceCapabilitiesManifest {
-	d := &clModels.DeviceCapabilitiesManifest{
-		ApiVersion: "margo.org/v1",
-		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
-	}
+	d := &clModels.DeviceCapabilitiesManifest{}
 	d.Properties.Id = id
 	d.Properties.Vendor = vendor
 	d.Properties.ModelNumber = modelNumber

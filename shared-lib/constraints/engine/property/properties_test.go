@@ -17,8 +17,6 @@ import (
 
 func deviceWithVendor(vendor string) *clModels.DeviceCapabilitiesManifest {
 	return &clModels.DeviceCapabilitiesManifest{
-		ApiVersion: "device.margo.org/v1alpha1",
-		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
 		Properties: struct {
 			Cpus *[]struct {
 				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
@@ -51,8 +49,6 @@ func deviceWithVendor(vendor string) *clModels.DeviceCapabilitiesManifest {
 // baseDevice returns a minimal valid DeviceCapabilitiesManifest.
 func baseDevice() *clModels.DeviceCapabilitiesManifest {
 	return &clModels.DeviceCapabilitiesManifest{
-		ApiVersion: "device.margo.org/v1alpha1",
-		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
 		Properties: struct {
 			Cpus *[]struct {
 				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
@@ -431,8 +427,6 @@ func TestResolvePointer_DifferentPointers_IndependentResults(t *testing.T) {
 // minimalDevice returns a DeviceCapabilitiesManifest with only the required fields set.
 func minimalDevice() *clModels.DeviceCapabilitiesManifest {
 	return &clModels.DeviceCapabilitiesManifest{
-		ApiVersion: "device.margo.org/v1alpha1",
-		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
 		Properties: struct {
 			Cpus *[]struct {
 				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`

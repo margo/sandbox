@@ -13,10 +13,9 @@ import (
 func makeDevice(cpus *[]struct {
 	Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
 	Cores        float32                                                        `json:"cores"`
-}, memory, storage *string) clModels.DeviceCapabilitiesManifest {
+}, memory, storage *string,
+) clModels.DeviceCapabilitiesManifest {
 	return clModels.DeviceCapabilitiesManifest{
-		ApiVersion: "v1",
-		Kind:       clModels.DeviceCapabilitiesManifestKindDeviceCapabilitiesManifest,
 		Properties: struct {
 			Cpus *[]struct {
 				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`

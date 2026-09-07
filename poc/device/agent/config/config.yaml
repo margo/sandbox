@@ -18,6 +18,8 @@ miaf:
     endpoint: "https://mis.margo.org:9443"          # MIS service URL
     caPath: "./config/mis/https-ca.crt"             # CA certificate
     cacheInterval: 60                               # cache interval in seconds
+    trustBundle:
+      path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured)
   authzPath: "./config/authorized.json"             # Authorized clients
 
 wfm:

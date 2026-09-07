@@ -24,11 +24,15 @@ type MIAFX509Config struct {
 	CertPath string `yaml:"certPath" validate:"required"`
 	KeyPath  string `yaml:"keyPath"  validate:"required"`
 }
+type TrustBundleConfig struct {
+	Path string `yaml:"path"`
+}
 
 type MISConfig struct {
-	Endpoint      string `yaml:"endpoint"      validate:"required"`
-	CacheInterval uint   `yaml:"cacheInterval"` // in seconds
-	CAPath        string `yaml:"caPath"        validate:"required"`
+	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
+	CacheInterval uint               `yaml:"cacheInterval"` // in seconds
+	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
+	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format
 }
 
 type DeviceOnboardState string
@@ -143,12 +147,16 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("miaf.x509.keyPath is required in configuration")
 	}
 
-	if config.MIAF.MIS.Endpoint == "" {
-		return fmt.Errorf("miaf.mis.endpoint is required in configuration")
+	// MIS: either dynamic (endpoint + caPath) or static (trustBundle.path)
+	if config.MIAF.MIS.Endpoint == "" &&
+		(config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "") {
+		return fmt.Errorf(
+			"either miaf.mis.endpoint (with miaf.mis.caPath) or miaf.mis.trustBundle.path must be configured",
+		)
 	}
 
-	if config.MIAF.MIS.CAPath == "" {
-		return fmt.Errorf("miaf.mis.caPath is required in configuration")
+	if config.MIAF.MIS.Endpoint != "" && config.MIAF.MIS.CAPath == "" {
+		return fmt.Errorf("miaf.mis.caPath is required when miaf.mis.endpoint is configured")
 	}
 
 	if config.MIAF.AuthzPath == "" {
@@ -168,7 +176,7 @@ func validateConfig(config *Config) error {
 	}
 
 	if config.MIAF.MIS.CacheInterval == 0 {
-		config.MIAF.MIS.CacheInterval = 60 // setting By default cache interval to 60
+		config.MIAF.MIS.CacheInterval = 60
 	}
 
 	return nil

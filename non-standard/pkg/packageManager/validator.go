@@ -36,7 +36,6 @@ func (v *Validator) ValidateDescription(ctx context.Context, desc *nbi.AppDescri
 		return fmt.Errorf("apiVersion is required")
 	}
 
-
 	if desc.Metadata.Name == "" {
 		return fmt.Errorf("metadata.name is required")
 	}

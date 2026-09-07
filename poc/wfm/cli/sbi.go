@@ -404,8 +404,8 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 ) error {
 	resp, err := sbiClient.client.PutApiV1CapabilitiesDeviceId(
 		ctx,
-		sbi.DeviceId(deviceId),
-		sbi.PutApiV1CapabilitiesDeviceIdJSONRequestBody(capabilities),
+		deviceId,
+		capabilities,
 		overrideOptions...,
 	)
 	if err != nil {

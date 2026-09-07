@@ -67,7 +67,6 @@ func TestDirectoryLoader_Load_MissingDescriptionFile(t *testing.T) {
 	assert.IsType(t, &ErrDescriptionNotFound{}, err)
 }
 
-
 func TestDirectoryLoader_Type(t *testing.T) {
 	loader := NewDirectoryLoader(defaultConfig())
 	assert.Equal(t, SourceDirectory, loader.Type())

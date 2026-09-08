@@ -128,8 +128,9 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		r.Method,
 	)
 
-	if ac := r.Header.Get("Accept"); ac != "application/json" {
-		logger.Error("accept missing in request headers, aborting", "accept_header", ac)
+	// if accept header is present, it should be application/json
+	if ac := r.Header.Get("Accept"); ac != "" && ac != "application/json" {
+		logger.Error("accept header contains unacceptable value, aborting", "accept_header", ac)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
 			"Server Cannot Generate Response",
@@ -137,7 +138,7 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		).
 			WithInstance("/.well-known/margo").
 			WithBackoffStrategy(gc.None).
-			WithDetail("accept is either missing in request headers or does not accept application/json response").
+			WithDetail("client should request the document in application/json").
 			WithRetryable(false)
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
@@ -242,6 +243,29 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		jr, _ := pd.MarshalJSON()
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusNotFound)
+		// #nosec G705 -- jr is json error response prepared by the appication, incorrect XSS flag
+		_, err := w.Write(jr)
+		if err != nil {
+			logger.Error("failed to write http response", "err", err.Error())
+		}
+		return
+	}
+
+	// if accept header is present, it should be application/json
+	if ac := r.Header.Get("Accept"); ac != "" && ac != "application/json" {
+		logger.Error("accept header contains unacceptable value, aborting", "accept_header", ac)
+		pd := gc.NewProblemDetail(
+			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
+			"Server Cannot Generate Response",
+			http.StatusNotAcceptable,
+		).
+			WithInstance(path).
+			WithBackoffStrategy(gc.None).
+			WithDetail("client should request the document in application/json").
+			WithRetryable(false)
+		jr, _ := pd.MarshalJSON()
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotAcceptable)
 		// #nosec G705 -- jr is json error response prepared by the appication, incorrect XSS flag
 		_, err := w.Write(jr)
 		if err != nil {

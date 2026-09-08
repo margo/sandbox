@@ -1,10 +1,10 @@
 {
   "_": {
-    "postman_id": "76586694-401e-4a69-8f83-e1bd908843c1"
+    "postman_id": "0800ead3-fb4c-4ab7-a04d-eb081a2b391d"
   },
   "item": [
     {
-      "id": "a61e0839-fe9a-49fe-9ab6-53a786b252dd",
+      "id": "dc7a02ba-be8f-4a50-a95d-084a02839652",
       "name": "Download Root CA certificate",
       "request": {
         "name": "Download Root CA certificate",
@@ -38,7 +38,7 @@
           "_": {
             "postman_previewlanguage": "json"
           },
-          "id": "376f572a-ea76-45a4-a2c9-7d0742d54abd",
+          "id": "c42f4b7d-992a-4af0-924b-2eb4d787678a",
           "name": "Root CA certificate",
           "originalRequest": {
             "url": {
@@ -79,7 +79,7 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"certificate\": \"ullamco laboris officia\"\n}",
+          "body": "{\n  \"certificate\": \"eiusmod\"\n}",
           "cookie": []
         }
       ],
@@ -87,7 +87,7 @@
         {
           "listen": "test",
           "script": {
-            "id": "faf35c0f-7248-4a57-a5be-0a5320584c59",
+            "id": "fc6a5159-3b3f-4140-8092-25992e18f959",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[GET]::/api/v1/onboarding/certificate - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
@@ -103,7 +103,7 @@
       }
     },
     {
-      "id": "d3def0e4-6e34-4ace-932d-e34a3d3f8986",
+      "id": "0dd06053-e16c-419a-a533-f8cddb42471a",
       "name": "Complete onboarding with client certificate",
       "request": {
         "name": "Complete onboarding with client certificate",
@@ -135,7 +135,7 @@
         "method": "POST",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"apiVersion\": \"Ut velit eiusmod Lorem\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"magna\"\n}",
+          "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
           "options": {
             "raw": {
               "headerFamily": "json",
@@ -169,7 +169,7 @@
           "_": {
             "postman_previewlanguage": "json"
           },
-          "id": "d1e82e70-3412-48fb-8349-e2eb9f44b144",
+          "id": "0b95ee4e-dc64-4119-b07e-69c3342da26a",
           "name": "New client onboarded successfully.",
           "originalRequest": {
             "url": {
@@ -205,7 +205,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"Ut velit eiusmod Lorem\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"magna\"\n}",
+              "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -222,14 +222,14 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"clientId\": \"velit in eu deserunt laboris\"\n}",
+          "body": "{\n  \"clientId\": \"enim deserunt\"\n}",
           "cookie": []
         },
         {
           "_": {
             "postman_previewlanguage": "json"
           },
-          "id": "015a07c8-e523-4c16-a1fe-bbff533e4523",
+          "id": "f9e10c20-8474-47ec-81c0-fc7c0823891d",
           "name": "Invalid certificate format or structure.",
           "originalRequest": {
             "url": {
@@ -265,7 +265,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"Ut velit eiusmod Lorem\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"magna\"\n}",
+              "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -289,7 +289,7 @@
           "_": {
             "postman_previewlanguage": "json"
           },
-          "id": "ad67362c-9b3e-44da-baf4-3196a84080f8",
+          "id": "e89bca4b-f257-434a-8397-d604c2b42eb8",
           "name": "Client certificate not trusted or client rejected.",
           "originalRequest": {
             "url": {
@@ -325,7 +325,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"Ut velit eiusmod Lorem\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"magna\"\n}",
+              "raw": "{\n  \"apiVersion\": \"consectetur elit eu veniam\",\n  \"kind\": \"OnboardingRequest\",\n  \"certificate\": \"veniam\"\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -350,7 +350,7 @@
         {
           "listen": "test",
           "script": {
-            "id": "30f5a4a3-4ae3-4f2a-8a7d-8a2d683a216d",
+            "id": "d05053ea-7ea1-4199-ad89-e629b3cde65c",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[POST]::/api/v1/onboarding - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
@@ -366,7 +366,7 @@
       }
     },
     {
-      "id": "2eb53adb-9fd4-42ef-b3cf-78fa1cb9f62d",
+      "id": "165f8444-a0e2-4ef1-8bbb-58295b3e02a2",
       "name": "Report device capabilities",
       "request": {
         "name": "Report device capabilities",
@@ -379,8 +379,7 @@
             "v1",
             "clients",
             ":clientId",
-            "capabilities",
-            ":deviceId"
+            "capabilities"
           ],
           "host": [
             "{{baseUrl}}"
@@ -394,18 +393,8 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
-            },
-            {
-              "disabled": false,
-              "description": {
-                "content": "(Required) ",
-                "type": "text/plain"
-              },
-              "type": "any",
-              "value": "lU9DGC/-a",
-              "key": "deviceId"
             }
           ]
         },
@@ -418,7 +407,7 @@
         "method": "POST",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+          "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
           "options": {
             "raw": {
               "headerFamily": "json",
@@ -452,7 +441,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "a3b47be9-4f33-47ed-87e3-605828816e82",
+          "id": "0510e725-a124-415f-a9b9-0d369e1d94e2",
           "name": "Capabilities reported successfully",
           "originalRequest": {
             "url": {
@@ -461,8 +450,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -487,7 +475,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -505,7 +493,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "3ac28f42-c28c-4eaa-8c00-9ed165ac8f0f",
+          "id": "f206fb46-f592-45ea-a6f1-6569371ee515",
           "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
           "originalRequest": {
             "url": {
@@ -514,8 +502,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -540,7 +527,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -558,7 +545,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "fd499d59-c55e-435a-b3bc-9d50efe11833",
+          "id": "5fc47546-2c1a-4956-9b6a-cfdfb31b88f6",
           "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
           "originalRequest": {
             "url": {
@@ -567,8 +554,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -593,7 +579,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -611,7 +597,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "539e44f6-125c-456d-8dc3-6a9e9b0ca2ab",
+          "id": "066c0155-a489-428e-9535-dabb36c7aaf6",
           "name": "Client certificate is not trusted or has been revoked.",
           "originalRequest": {
             "url": {
@@ -620,8 +606,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -646,7 +631,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -664,60 +649,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "8cfcfb28-2de0-44bc-bf3f-852e4b5f1d44",
-          "name": "No client with the given `clientID` was found.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "POST",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
-              "options": {
-                "raw": {
-                  "headerFamily": "json",
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "status": "Not Found",
-          "code": 404,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "dbbe0b9c-8382-45ed-b7e1-ae6d7d0c5f84",
+          "id": "a3f7146c-5c7f-41f1-82d4-9ed75c84ec24",
           "name": "Request body includes a semantic error.",
           "originalRequest": {
             "url": {
@@ -726,8 +658,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -752,7 +683,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -771,10 +702,10 @@
         {
           "listen": "test",
           "script": {
-            "id": "bc958fc9-fc77-46ab-90cb-512e00791fb5",
+            "id": "4caa7c0d-a601-4a36-93ed-7d4a7d774f46",
             "type": "text/javascript",
             "exec": [
-              "// Validate status 2xx \npm.test(\"[POST]::/api/v1/clients/:clientId/capabilities/:deviceId - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
+              "// Validate status 2xx \npm.test(\"[POST]::/api/v1/clients/:clientId/capabilities - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
             ]
           }
         }
@@ -784,7 +715,7 @@
       }
     },
     {
-      "id": "fc6d0597-0382-4a51-8e3a-666a87ec74aa",
+      "id": "a99303f4-742b-494a-a822-31265b7f8443",
       "name": "Update device capabilities (Update)",
       "request": {
         "name": "Update device capabilities (Update)",
@@ -797,8 +728,7 @@
             "v1",
             "clients",
             ":clientId",
-            "capabilities",
-            ":deviceId"
+            "capabilities"
           ],
           "host": [
             "{{baseUrl}}"
@@ -812,18 +742,8 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
-            },
-            {
-              "disabled": false,
-              "description": {
-                "content": "(Required) ",
-                "type": "text/plain"
-              },
-              "type": "any",
-              "value": "lU9DGC/-a",
-              "key": "deviceId"
             }
           ]
         },
@@ -836,7 +756,7 @@
         "method": "PUT",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+          "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
           "options": {
             "raw": {
               "headerFamily": "json",
@@ -870,7 +790,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "45ee8935-479c-4c1c-8036-c2bfe8c5bbae",
+          "id": "8bb41ecf-4010-4dd0-ba9e-11033cfe66cd",
           "name": "Capabilities reported successfully",
           "originalRequest": {
             "url": {
@@ -879,8 +799,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -905,7 +824,7 @@
             "method": "PUT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -923,7 +842,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "ed9f0b23-2875-41d1-be39-8fd6699c15a8",
+          "id": "eb9e178c-5df0-420c-8169-c223cc174a86",
           "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
           "originalRequest": {
             "url": {
@@ -932,8 +851,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -958,7 +876,7 @@
             "method": "PUT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -976,7 +894,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "8fd5223a-1381-4902-9f3b-edfbeb70d851",
+          "id": "7b600483-4a8d-41ea-957c-88600e2a5f83",
           "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
           "originalRequest": {
             "url": {
@@ -985,8 +903,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -1011,7 +928,7 @@
             "method": "PUT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -1029,7 +946,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "b6fe4bc5-5fb4-4a52-990f-ac84b4ef51dc",
+          "id": "6fb8f5bb-2932-4287-adb3-4e2f0b477a90",
           "name": "Client certificate is not trusted or has been revoked.",
           "originalRequest": {
             "url": {
@@ -1038,8 +955,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -1064,7 +980,7 @@
             "method": "PUT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -1082,60 +998,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "86d2d2f3-dec3-4c99-87bb-c95bdeb3e939",
-          "name": "No client with the given `clientID` was found.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "PUT",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
-              "options": {
-                "raw": {
-                  "headerFamily": "json",
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "status": "Not Found",
-          "code": 404,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "ffc0c9e0-203b-46d0-b955-fe161a31e1c4",
+          "id": "8ec05b96-3f1d-4030-b2c6-67c9e98bf811",
           "name": "Request body includes a semantic error.",
           "originalRequest": {
             "url": {
@@ -1144,8 +1007,7 @@
                 "v1",
                 "clients",
                 ":clientId",
-                "capabilities",
-                ":deviceId"
+                "capabilities"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -1170,7 +1032,7 @@
             "method": "PUT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute et\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"TW2LkIhcN/7U/bxSwT/gjAR1A8y6X\",\n    \"vendor\": \"do occaecat\",\n    \"modelNumber\": \"culpa ipsum\",\n    \"serialNumber\": \"consequat nisi ut qui\",\n    \"cpus\": [\n      {\n        \"cores\": 62037355.382241964,\n        \"architecture\": \"arm64\"\n      },\n      {\n        \"cores\": 77412925.27265963,\n        \"architecture\": \"amd64\"\n      }\n    ],\n    \"memory\": \"ullamco Duis anim e\",\n    \"storage\": \"cupidatat sint adipisicing\",\n    \"peripherals\": [\n      {\n        \"type\": \"speaker\",\n        \"manufacturer\": \"enim dolor tempor occaecat\",\n        \"model\": \"in in\"\n      },\n      {\n        \"type\": \"camera\",\n        \"manufacturer\": \"culpa sunt\",\n        \"model\": \"eiusmod exercitation culpa consequat\"\n      }\n    ],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      },\n      {\n        \"type\": \"usb\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"helm\"\n    ]\n  }\n}",
+              "raw": "{\n  \"apiVersion\": \"pariatur laborum officia eu\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"ea magna eu elit\",\n    \"vendor\": \"esse in sed ullamco\",\n    \"modelNumber\": \"occaecat u\",\n    \"serialNumber\": \"ullamco magna incididunt\",\n    \"roles\": [\n      \"Standalone Device\",\n      \"Cluster Leader\"\n    ],\n    \"resources\": {\n      \"cpu\": {\n        \"cores\": 32691186.870693564,\n        \"architecture\": \"amd64\"\n      },\n      \"memory\": \"laboris pariatur\",\n      \"storage\": \"id\",\n      \"peripherals\": [\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"Excepteur labore sit\",\n          \"model\": \"cupidata\"\n        },\n        {\n          \"type\": \"speaker\",\n          \"manufacturer\": \"nisi minim\",\n          \"model\": \"do\"\n        }\n      ],\n      \"interfaces\": [\n        {\n          \"type\": \"bluetooth\"\n        },\n        {\n          \"type\": \"wifi\"\n        }\n      ]\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -1189,10 +1051,10 @@
         {
           "listen": "test",
           "script": {
-            "id": "63857d96-da13-4be7-9979-1efddfef8489",
+            "id": "586381df-bdc6-4b0f-8a1b-3316641b5317",
             "type": "text/javascript",
             "exec": [
-              "// Validate status 2xx \npm.test(\"[PUT]::/api/v1/clients/:clientId/capabilities/:deviceId - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
+              "// Validate status 2xx \npm.test(\"[PUT]::/api/v1/clients/:clientId/capabilities - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
             ]
           }
         }
@@ -1202,293 +1064,7 @@
       }
     },
     {
-      "id": "3259ca12-e654-480b-9cbd-b0b7fbd29a25",
-      "name": "Remove device (Unregister)",
-      "request": {
-        "name": "Remove device (Unregister)",
-        "description": {
-          "type": "text/plain"
-        },
-        "url": {
-          "path": [
-            "api",
-            "v1",
-            "clients",
-            ":clientId",
-            "capabilities",
-            ":deviceId"
-          ],
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "query": [],
-          "variable": [
-            {
-              "disabled": false,
-              "description": {
-                "content": "(Required) ",
-                "type": "text/plain"
-              },
-              "type": "any",
-              "value": "consectetur",
-              "key": "clientId"
-            },
-            {
-              "disabled": false,
-              "description": {
-                "content": "(Required) ",
-                "type": "text/plain"
-              },
-              "type": "any",
-              "value": "lU9DGC/-a",
-              "key": "deviceId"
-            }
-          ]
-        },
-        "method": "DELETE",
-        "body": {},
-        "auth": {
-          "type": "apikey",
-          "apikey": [
-            {
-              "type": "any",
-              "value": "X-Payload-Signature",
-              "key": "key"
-            },
-            {
-              "type": "any",
-              "value": "{{apiKey}}",
-              "key": "value"
-            },
-            {
-              "type": "any",
-              "value": "header",
-              "key": "in"
-            }
-          ]
-        }
-      },
-      "response": [
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "3fcc340a-394f-41d1-bd70-d68627d5a7f5",
-          "name": "Device capabilities removed successfully",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "DELETE",
-            "body": {}
-          },
-          "status": "No Content",
-          "code": 204,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "5c74faab-5b59-4779-8fd7-e5fc23d7f984",
-          "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the payload is included.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "DELETE",
-            "body": {}
-          },
-          "status": "Bad Request",
-          "code": 400,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "7aab7103-bb14-4aff-87c4-6c3c2c99cd4f",
-          "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "DELETE",
-            "body": {}
-          },
-          "status": "Unauthorized",
-          "code": 401,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "d2b1818c-f28c-4acf-961e-6825d20b1db4",
-          "name": "Client certificate is not trusted or has been revoked.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "DELETE",
-            "body": {}
-          },
-          "status": "Forbidden",
-          "code": 403,
-          "header": [],
-          "cookie": []
-        },
-        {
-          "_": {
-            "postman_previewlanguage": "text"
-          },
-          "id": "6defbec6-a735-49b6-bbee-a8d3cd4ae697",
-          "name": "Client or device not found.",
-          "originalRequest": {
-            "url": {
-              "path": [
-                "api",
-                "v1",
-                "clients",
-                ":clientId",
-                "capabilities",
-                ":deviceId"
-              ],
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "query": [],
-              "variable": []
-            },
-            "header": [
-              {
-                "description": {
-                  "content": "Added as a part of security scheme: apikey",
-                  "type": "text/plain"
-                },
-                "key": "X-Payload-Signature",
-                "value": "<API Key>"
-              }
-            ],
-            "method": "DELETE",
-            "body": {}
-          },
-          "status": "Not Found",
-          "code": 404,
-          "header": [],
-          "cookie": []
-        }
-      ],
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "id": "25e1795f-054b-438f-b99c-eebd70abe76e",
-            "type": "text/javascript",
-            "exec": [
-              "// Validate status 2xx \npm.test(\"[DELETE]::/api/v1/clients/:clientId/capabilities/:deviceId - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
-              "// Validate if response has empty Body \npm.test(\"[DELETE]::/api/v1/clients/:clientId/capabilities/:deviceId - Response has empty Body\", function () {\n    pm.response.to.not.be.withBody;\n});\n"
-            ]
-          }
-        }
-      ],
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      }
-    },
-    {
-      "id": "804ec133-cdfb-4592-a980-c7ecbac81e9c",
+      "id": "7bcc0bad-9d1c-4514-8243-be92aafcf609",
       "name": "Retrieve bundle information for a specific device and digest",
       "request": {
         "name": "Retrieve bundle information for a specific device and digest",
@@ -1516,7 +1092,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
             },
             {
@@ -1526,7 +1102,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "digest"
             }
           ]
@@ -1539,7 +1115,7 @@
               "type": "text/plain"
             },
             "key": "If-None-Match",
-            "value": "consectetur"
+            "value": "aute magna"
           },
           {
             "key": "Accept",
@@ -1574,7 +1150,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "7ea25e18-7fc3-41f7-89e3-b414b2e2f9e7",
+          "id": "195c5f23-c8c7-491a-b622-3ce29a0aa9c4",
           "name": "Bundle archive (immutable)",
           "originalRequest": {
             "url": {
@@ -1600,7 +1176,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "key": "Accept",
@@ -1632,7 +1208,7 @@
                 "type": "text/plain"
               },
               "key": "ETag",
-              "value": "consectetur"
+              "value": "aute magna"
             },
             {
               "disabled": true,
@@ -1641,17 +1217,17 @@
                 "type": "text/plain"
               },
               "key": "Cache-Control",
-              "value": "consectetur"
+              "value": "aute magna"
             }
           ],
-          "body": "deser",
+          "body": "ut nostrud",
           "cookie": []
         },
         {
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "bac5e57e-8be2-4684-a315-5b722fa9eae8",
+          "id": "5755e4a7-8329-4ceb-b210-8c41e6423569",
           "name": "Representation not modified",
           "originalRequest": {
             "url": {
@@ -1677,7 +1253,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -1700,7 +1276,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "614bc0df-331c-45c6-9c21-8561afa1f575",
+          "id": "a7d2c754-66c3-4e45-aecb-987e481d9343",
           "name": "Invalid request.",
           "originalRequest": {
             "url": {
@@ -1726,7 +1302,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -1749,7 +1325,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "bdd50c91-26ab-4e9b-8d2f-e8bcc80568c9",
+          "id": "80315591-d033-4c57-8d63-9979889e6317",
           "name": "Bundle not found for the given digest",
           "originalRequest": {
             "url": {
@@ -1775,7 +1351,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -1799,7 +1375,7 @@
         {
           "listen": "test",
           "script": {
-            "id": "e243c52b-94a8-4f66-a419-f089db93560b",
+            "id": "ad5f8b04-e05e-4153-99d6-a74773d6c565",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[GET]::/api/v1/clients/:clientId/bundles/:digest - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
@@ -1813,7 +1389,7 @@
       }
     },
     {
-      "id": "6826d798-cedb-4d44-bec3-96cec3c9757d",
+      "id": "215cf5ba-da42-4358-bc8f-daae289826cd",
       "name": "Retrieve the complete desired state for all workloads assigned to a device",
       "request": {
         "name": "Retrieve the complete desired state for all workloads assigned to a device",
@@ -1840,7 +1416,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
             }
           ]
@@ -1853,7 +1429,7 @@
               "type": "text/plain"
             },
             "key": "If-None-Match",
-            "value": "consectetur"
+            "value": "aute magna"
           },
           {
             "disabled": true,
@@ -1862,7 +1438,7 @@
               "type": "text/plain"
             },
             "key": "Accept",
-            "value": "consectetur"
+            "value": "aute magna"
           },
           {
             "key": "Accept",
@@ -1897,7 +1473,7 @@
           "_": {
             "postman_previewlanguage": "json"
           },
-          "id": "59230f11-c2ad-4767-b6c5-43b9097db33e",
+          "id": "2bd8b6a4-ac94-435b-a365-42f07a064bc3",
           "name": "Manifest returned in the negotiated format",
           "originalRequest": {
             "url": {
@@ -1922,7 +1498,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "disabled": true,
@@ -1931,7 +1507,7 @@
                   "type": "text/plain"
                 },
                 "key": "Accept",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "key": "Accept",
@@ -1963,7 +1539,7 @@
                 "type": "text/plain"
               },
               "key": "Content-Type",
-              "value": "consectetur"
+              "value": "aute magna"
             },
             {
               "disabled": true,
@@ -1972,17 +1548,17 @@
                 "type": "text/plain"
               },
               "key": "ETag",
-              "value": "consectetur"
+              "value": "aute magna"
             }
           ],
-          "body": "{\n  \"manifestVersion\": 16782841.787125453,\n  \"bundle\": {\n    \"mediaType\": \"et nostrud tempor\",\n    \"digest\": \"velit nostrud officia in\",\n    \"sizeBytes\": 87577100.75676665,\n    \"url\": \"Duis pariatur commodo Ut adipisicing\"\n  },\n  \"deployments\": [\n    {\n      \"deploymentId\": \"fugiat\",\n      \"digest\": \"non ut dolore eu\",\n      \"url\": \"elit\",\n      \"sizeBytes\": 40085006.54876733\n    },\n    {\n      \"deploymentId\": \"ullamco\",\n      \"digest\": \"eiusmod consectetur veniam Excepteur\",\n      \"url\": \"labore veniam occaecat laborum\",\n      \"sizeBytes\": -36487742.122606285\n    }\n  ],\n  \"bundle.mediaType\": 91035777,\n  \"bundle.digest\": -91668673,\n  \"bundle.url\": \"nisi\"\n}",
+          "body": "{\n  \"manifestVersion\": -83824536.23767403,\n  \"bundle\": {\n    \"mediaType\": \"Lorem\",\n    \"digest\": \"non i\",\n    \"sizeBytes\": -77785071.88778825,\n    \"url\": \"ad exercitation sint cupidatat\"\n  },\n  \"deployments\": [\n    {\n      \"deploymentId\": \"culpa\",\n      \"digest\": \"eiusmod\",\n      \"url\": \"sed occaecat\",\n      \"sizeBytes\": 37257419.806667894\n    },\n    {\n      \"deploymentId\": \"Duis occaecat\",\n      \"digest\": \"ad irure\",\n      \"url\": \"in\",\n      \"sizeBytes\": -51875188.13968461\n    }\n  ],\n  \"bundle.mediaType\": false,\n  \"bundle.digest\": false,\n  \"bundle.url\": false\n}",
           "cookie": []
         },
         {
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "1175ab00-bf3f-42b7-887a-d7f3e15a2390",
+          "id": "17a2b787-ca67-4dd6-a72b-27cd1290bebc",
           "name": "Not Modified - Manifest has not changed",
           "originalRequest": {
             "url": {
@@ -2007,7 +1583,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "disabled": true,
@@ -2016,7 +1592,7 @@
                   "type": "text/plain"
                 },
                 "key": "Accept",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -2039,7 +1615,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "14a0e6e1-8d12-40c6-88d0-307a4346b671",
+          "id": "f54748a1-72c1-4fb9-a64f-7e4b2b36ba54",
           "name": "Not Acceptable - Server cannot generate a response matching the Accept header",
           "originalRequest": {
             "url": {
@@ -2064,7 +1640,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "disabled": true,
@@ -2073,7 +1649,7 @@
                   "type": "text/plain"
                 },
                 "key": "Accept",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -2097,13 +1673,13 @@
         {
           "listen": "test",
           "script": {
-            "id": "37a1fc66-0533-4c56-9c60-79386d40e923",
+            "id": "0b19a87e-55aa-4f0c-91b0-c9ddfb0511dc",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
               "// Validate if response header has matching content-type\npm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Content-Type is application/vnd.margo.manifest.v1+json\", function () {\n   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/vnd.margo.manifest.v1+json\");\n});\n",
               "// Validate if response has JSON Body \npm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Response has JSON Body\", function () {\n    pm.response.to.have.jsonBody();\n});\n",
-              "// Response Validation\nconst schema = {\"type\":\"object\",\"required\":[\"manifestVersion\",\"bundle\",\"bundle.mediaType\",\"bundle.digest\",\"bundle.url\",\"deployments\"],\"properties\":{\"manifestVersion\":{\"type\":\"number\",\"description\":\"Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.\\n\"},\"bundle\":{\"type\":[\"object\",\"null\"],\"description\":\"Describes a single archive containing all ApplicationDeployment documents. If there are zero deployments (deployments array is empty) the property MUST be present with the value null (it MUST NOT be omitted).\\n\",\"properties\":{\"mediaType\":{\"type\":\"string\",\"description\":\"MUST be application/vnd.margo.bundle.v1+tar+gzip; a gzip-compressed tar whose root contains one or more ApplicationDeployment YAML files. If there are zero deployments then bundle MUST be null (an empty archive MUST NOT be served). The archive MUST contain exactly the set of YAML files referenced by deployments.\\n\"},\"digest\":{\"type\":\"string\",\"description\":\"The digest of the bundle archive. MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in the bundle endpoint's HTTP 200 OK response body.\\n\"},\"sizeBytes\":{\"type\":\"number\",\"description\":\"Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the bundle archive. Provided for bandwidth estimation and update planning. MUST NOT be used for integrity; digest verification remains mandatory.\\n\"},\"url\":{\"type\":\"string\",\"description\":\"Content-addressable retrieval endpoint of the form /api/v1/clients/{clientId}/bundles/{digest} where {digest} equals bundle.digest.\\n\"}}},\"deployments\":{\"type\":\"array\",\"description\":\"A list of deployment object references for the device. The reference contains some meta info and reference to the url where the deployment is available.\",\"items\":{\"type\":\"object\",\"description\":\"Reference to a deployment manifest with content addressing and integrity verification.\\n\",\"required\":[\"deploymentId\",\"digest\",\"url\"],\"properties\":{\"deploymentId\":{\"type\":\"string\",\"description\":\"Unique identifier for the application deployment.\\n\"},\"digest\":{\"type\":\"string\",\"description\":\"The digest of the individual ApplicationDeployment YAML file. MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in that deployment endpoint's HTTP 200 OK response body.\\n\"},\"sizeBytes\":{\"type\":\"number\",\"description\":\"Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the deployment YAML. Provided for planning or progress display. MUST NOT be used for integrity; digest verification remains mandatory.\\n\"},\"url\":{\"type\":\"string\",\"description\":\"Content-addressable endpoint of the form /api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable\\n\"}}}}}}\n\n// Validate if response matches JSON schema \npm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
+              "// Response Validation\nconst schema = {\"type\":\"object\",\"required\":[\"manifestVersion\",\"bundle\",\"bundle.mediaType\",\"bundle.digest\",\"bundle.url\",\"deployments\"],\"properties\":{\"manifestVersion\":{\"type\":\"number\",\"description\":\"Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.\\n\"},\"bundle\":{\"type\":[\"object\",\"null\"],\"description\":\"Describes a single archive containing all ApplicationDeployment documents. If there are zero deployments (deployments array is empty) the property MUST be present with the value null (it MUST NOT be omitted).\\n\",\"properties\":{\"mediaType\":{\"type\":\"string\",\"description\":\"MUST be application/vnd.margo.bundle.v1+tar+gzip; a gzip-compressed tar whose root contains one or more ApplicationDeployment YAML files. If there are zero deployments then bundle MUST be null (an empty archive MUST NOT be served). The archive MUST contain exactly the set of YAML files referenced by deployments.\\n\"},\"digest\":{\"type\":\"string\",\"description\":\"The digest of the bundle archive. MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in the bundle endpoint's HTTP 200 OK response body.\\n\"},\"sizeBytes\":{\"type\":\"number\",\"description\":\"Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the bundle archive. Provided for bandwidth estimation and update planning. MUST NOT be used for integrity; digest verification remains mandatory.\\n\"},\"url\":{\"type\":\"string\",\"description\":\"Content-addressable retrieval endpoint of the form /api/v1/clients/{clientId}/bundles/{digest} where {digest} equals bundle.digest.\\n\"}}},\"deployments\":{\"type\":\"array\",\"description\":\"A list of deployment object references for the device. The reference contains some meta info and reference to the url where the deployment is available.\",\"items\":{\"type\":\"object\",\"description\":\"Reference to a deployment manifest with content addressing and integrity verification.\\n\",\"required\":[\"deploymentId\",\"digest\",\"url\"],\"properties\":{\"deploymentId\":{\"type\":\"string\",\"description\":\"The unique UUID from the ApplicationDeployment's metadata.annotations.id.\\n\"},\"digest\":{\"type\":\"string\",\"description\":\"The digest of the individual ApplicationDeployment YAML file. MUST equal the digest computed over the exact sequence of bytes (per Exact Bytes Rule) in that deployment endpoint's HTTP 200 OK response body.\\n\"},\"sizeBytes\":{\"type\":\"number\",\"description\":\"Unsigned 64-bit advisory estimate of the decoded payload length in bytes for the deployment YAML. Provided for planning or progress display. MUST NOT be used for integrity; digest verification remains mandatory.\\n\"},\"url\":{\"type\":\"string\",\"description\":\"Content-addressable endpoint of the form /api/v1/clients/{clientId}/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable\\n\"}}}}}}\n\n// Validate if response matches JSON schema \npm.test(\"[GET]::/api/v1/clients/:clientId/deployments - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
             ]
           }
         }
@@ -2113,7 +1689,7 @@
       }
     },
     {
-      "id": "3ec68a92-121b-490f-b9e8-76f4958f3a43",
+      "id": "d772612f-ef4c-48ab-bb98-5cc30eb30465",
       "name": "Retrieve an individual ApplicationDeployment YAML file",
       "request": {
         "name": "Retrieve an individual ApplicationDeployment YAML file",
@@ -2143,17 +1719,17 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
             },
             {
               "disabled": false,
               "description": {
-                "content": "(Required) Unique identifier for the application deployment",
+                "content": "(Required) UUID of the ApplicationDeployment (metadata.annotations.id)",
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "deploymentId"
             },
             {
@@ -2163,7 +1739,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "digest"
             }
           ]
@@ -2176,7 +1752,7 @@
               "type": "text/plain"
             },
             "key": "If-None-Match",
-            "value": "consectetur"
+            "value": "aute magna"
           },
           {
             "disabled": true,
@@ -2185,7 +1761,7 @@
               "type": "text/plain"
             },
             "key": "Accept-Encoding",
-            "value": "consectetur"
+            "value": "aute magna"
           },
           {
             "key": "Accept",
@@ -2220,7 +1796,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "c6de9b74-c372-4d86-bc4f-bd87867a71ee",
+          "id": "36fdd629-6c79-4991-86a2-49be8dbcf96f",
           "name": "The response body is the raw ApplicationDeployment YAML file (Content-Type: application/yaml). The content MUST match the {digest} path segment; the server MUST return 404 if it does not have the exact digest referenced.\n",
           "originalRequest": {
             "url": {
@@ -2247,7 +1823,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "disabled": true,
@@ -2256,7 +1832,7 @@
                   "type": "text/plain"
                 },
                 "key": "Accept-Encoding",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "key": "Accept",
@@ -2288,7 +1864,7 @@
                 "type": "text/plain"
               },
               "key": "Content-Type",
-              "value": "consectetur"
+              "value": "aute magna"
             },
             {
               "disabled": true,
@@ -2297,7 +1873,7 @@
                 "type": "text/plain"
               },
               "key": "ETag",
-              "value": "consectetur"
+              "value": "aute magna"
             },
             {
               "disabled": true,
@@ -2306,7 +1882,7 @@
                 "type": "text/plain"
               },
               "key": "Cache-Control",
-              "value": "consectetur"
+              "value": "aute magna"
             },
             {
               "disabled": true,
@@ -2315,17 +1891,17 @@
                 "type": "text/plain"
               },
               "key": "Vary",
-              "value": "consectetur"
+              "value": "aute magna"
             }
           ],
-          "body": "Lorem ipsum sint quis",
+          "body": "officia dolor",
           "cookie": []
         },
         {
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "a10c410b-34cf-4ddc-b1ea-bdd91ab76f20",
+          "id": "e0358da8-3b31-4278-af5f-84d5e347bacd",
           "name": "Deployment not found for the given digest",
           "originalRequest": {
             "url": {
@@ -2352,7 +1928,7 @@
                   "type": "text/plain"
                 },
                 "key": "If-None-Match",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "disabled": true,
@@ -2361,7 +1937,7 @@
                   "type": "text/plain"
                 },
                 "key": "Accept-Encoding",
-                "value": "consectetur"
+                "value": "aute magna"
               },
               {
                 "description": {
@@ -2385,7 +1961,7 @@
         {
           "listen": "test",
           "script": {
-            "id": "a965b641-ae5f-4cea-898a-e211fd92b52f",
+            "id": "60f5d625-d7de-4c1c-9820-134aefea4c7d",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[GET]::/api/v1/clients/:clientId/deployments/:deploymentId/:digest - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
@@ -2399,7 +1975,7 @@
       }
     },
     {
-      "id": "eec99863-c633-4e57-916d-9e62ed8e2d3f",
+      "id": "4fd5d28a-d4c1-434c-b00d-2b136be54402",
       "name": "Report deployment status",
       "request": {
         "name": "Report deployment status",
@@ -2428,7 +2004,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "clientId"
             },
             {
@@ -2438,7 +2014,7 @@
                 "type": "text/plain"
               },
               "type": "any",
-              "value": "consectetur",
+              "value": "aute magna",
               "key": "deploymentId"
             }
           ]
@@ -2452,7 +2028,7 @@
         "method": "POST",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+          "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
           "options": {
             "raw": {
               "headerFamily": "json",
@@ -2486,7 +2062,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "949b050a-6a4e-4e9b-a23f-396ab4b5ae9b",
+          "id": "6283ddb7-ae5b-4602-ae16-fa7b3aff0bc0",
           "name": "The deployment status was added, or updated, successfully.",
           "originalRequest": {
             "url": {
@@ -2522,7 +2098,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+              "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -2540,7 +2116,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "e4f2efbc-e244-41da-b5ec-584270795794",
+          "id": "aee967e3-204c-4193-b500-2559110e5c02",
           "name": "Missing or invalid content-digest header. Ensure the SHA256 hash of the base64-encoded payload is included.",
           "originalRequest": {
             "url": {
@@ -2576,7 +2152,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+              "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -2594,7 +2170,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "f9617ec1-bb14-48f1-91d9-d37c5a6860c0",
+          "id": "387e5c5b-1a88-42a8-8c8d-e46e7aa20865",
           "name": "Signature verification failed. Ensure you are signing with the correct X.509 private key.",
           "originalRequest": {
             "url": {
@@ -2630,7 +2206,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+              "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -2648,7 +2224,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "c4809e0b-9097-47e3-8b40-c4b6c15af201",
+          "id": "292d8e91-d376-4d2b-81d9-7c44cbc89ef3",
           "name": "Client certificate is not trusted or has been revoked.",
           "originalRequest": {
             "url": {
@@ -2684,7 +2260,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+              "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -2702,7 +2278,7 @@
           "_": {
             "postman_previewlanguage": "text"
           },
-          "id": "db5c1cf6-8252-40c8-a471-f003f180a473",
+          "id": "6e674338-64ef-434c-9905-3ddff3d14877",
           "name": "Request body includes a semantic error.",
           "originalRequest": {
             "url": {
@@ -2738,7 +2314,7 @@
             "method": "POST",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apiVersion\": \"aute enim eius\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"nulla labore\",\n  \"status\": {\n    \"state\": \"failed\",\n    \"error\": {\n      \"code\": \"esse consectetur\",\n      \"source\": \"exercitation aute\",\n      \"message\": \"Exc\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"nostrud ad\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"amet\",\n        \"source\": \"pariatur cillum reprehenderit\",\n        \"message\": \"esse adipis\"\n      }\n    },\n    {\n      \"name\": \"veniam sint non\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"dolore magna cillum quis\",\n        \"source\": \"dolore\",\n        \"message\": \"velit exercitation \"\n      }\n    }\n  ],\n  \"deviceId\": \"bUZN/5h6~o8/TW/2VTYUE9/zWXegdIfN/cWvMOx/wOQvNXtVW/1g6N~9g.imy/ph/C/~YD7Y\"\n}",
+              "raw": "{\n  \"apiVersion\": \"in veniam aliqua deserunt non\",\n  \"kind\": \"DeploymentStatusManifest\",\n  \"deploymentId\": \"aute velit\",\n  \"status\": {\n    \"state\": \"installed\",\n    \"error\": {\n      \"code\": \"consectetur cupidatat\",\n      \"message\": \"sed velit do\"\n    }\n  },\n  \"components\": [\n    {\n      \"name\": \"sint reprehe\",\n      \"state\": \"removed\",\n      \"error\": {\n        \"code\": \"anim aliqua\",\n        \"message\": \"consequat esse Duis pariatur\"\n      }\n    },\n    {\n      \"name\": \"sed qui Duis repre\",\n      \"state\": \"removing\",\n      \"error\": {\n        \"code\": \"deserunt\",\n        \"message\": \"qui enim Ut\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -2757,7 +2333,7 @@
         {
           "listen": "test",
           "script": {
-            "id": "a5f1e479-f77b-4ea6-b91d-99a9bf38aafd",
+            "id": "02555be8-873a-4f60-b961-449291382227",
             "type": "text/javascript",
             "exec": [
               "// Validate status 2xx \npm.test(\"[POST]::/api/v1/clients/:clientId/deployments/:deploymentId/status - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
@@ -2768,6 +2344,239 @@
       "protocolProfileBehavior": {
         "disableBodyPruning": true
       }
+    },
+    {
+      "id": "4fa5f851-45f8-459c-ad46-ca246fbb0c50",
+      "name": "Report device capabilities \u2014 Invalid supportedDeploymentTypes (must be rejected)",
+      "request": {
+        "name": "Report device capabilities \u2014 Invalid supportedDeploymentTypes (must be rejected)",
+        "description": {
+          "type": "text/plain"
+        },
+        "url": {
+          "path": [
+            "api",
+            "v1",
+            "clients",
+            ":clientId",
+            "capabilities",
+            ":deviceId"
+          ],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{deviceId}\",\n    \"vendor\": \"Acme Corp\",\n    \"modelNumber\": \"ACM-XYZ\",\n    \"serialNumber\": \"SN-WFM-CORE\",\n    \"cpus\": [\n      {\n        \"cores\": 4,\n        \"architecture\": \"arm64\"\n      }\n    ],\n    \"memory\": \"8Gi\",\n    \"storage\": \"64Gi\",\n    \"peripherals\": [],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"docker-swarm\"\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "_": {
+            "postman_previewlanguage": "json"
+          },
+          "id": "39ee0019-4f35-4034-9738-8830fa163a0c",
+          "name": "Request body includes a semantic error.",
+          "code": 422,
+          "status": "Request body includes a semantic error.",
+          "header": [],
+          "body": "",
+          "originalRequest": {
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                ":clientId",
+                "capabilities",
+                ":deviceId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{deviceId}\",\n    \"vendor\": \"Acme Corp\",\n    \"modelNumber\": \"ACM-XYZ\",\n    \"serialNumber\": \"SN-WFM-CORE\",\n    \"cpus\": [\n      {\n        \"cores\": 4,\n        \"architecture\": \"arm64\"\n      }\n    ],\n    \"memory\": \"8Gi\",\n    \"storage\": \"64Gi\",\n    \"peripherals\": [],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"oci\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"docker-swarm\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ee39f2b0-b2ec-402b-9096-e16094e53928",
+      "name": "Report device capabilities \u2014 Invalid supportedRuntimes (must be rejected)",
+      "request": {
+        "name": "Report device capabilities \u2014 Invalid supportedRuntimes (must be rejected)",
+        "description": {
+          "type": "text/plain"
+        },
+        "url": {
+          "path": [
+            "api",
+            "v1",
+            "clients",
+            ":clientId",
+            "capabilities",
+            ":deviceId"
+          ],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{deviceId}\",\n    \"vendor\": \"Acme Corp\",\n    \"modelNumber\": \"ACM-XYZ\",\n    \"serialNumber\": \"SN-WFM-CORE\",\n    \"cpus\": [\n      {\n        \"cores\": 4,\n        \"architecture\": \"arm64\"\n      }\n    ],\n    \"memory\": \"8Gi\",\n    \"storage\": \"64Gi\",\n    \"peripherals\": [],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"containerd-direct\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"compose\"\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "_": {
+            "postman_previewlanguage": "json"
+          },
+          "id": "288e3214-5c8b-41b0-b4b0-44b6ad8b8df5",
+          "name": "Request body includes a semantic error.",
+          "code": 422,
+          "status": "Request body includes a semantic error.",
+          "header": [],
+          "body": "",
+          "originalRequest": {
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                ":clientId",
+                "capabilities",
+                ":deviceId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiVersion\": \"device.margo.org/v1alpha1\",\n  \"kind\": \"DeviceCapabilitiesManifest\",\n  \"properties\": {\n    \"id\": \"{deviceId}\",\n    \"vendor\": \"Acme Corp\",\n    \"modelNumber\": \"ACM-XYZ\",\n    \"serialNumber\": \"SN-WFM-CORE\",\n    \"cpus\": [\n      {\n        \"cores\": 4,\n        \"architecture\": \"arm64\"\n      }\n    ],\n    \"memory\": \"8Gi\",\n    \"storage\": \"64Gi\",\n    \"peripherals\": [],\n    \"interfaces\": [\n      {\n        \"type\": \"ethernet\"\n      }\n    ],\n    \"otelCollector\": true,\n    \"supportedRuntimes\": [\n      \"containerd-direct\"\n    ],\n    \"supportedDeploymentTypes\": [\n      \"compose\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "fc55ee87-3fb4-44f5-bf8d-b67b815aed01",
+      "name": "Retrieve desired state without an Accept header \u2014 server defaults to manifest media type",
+      "request": {
+        "name": "Retrieve desired state without an Accept header \u2014 server defaults to manifest media type",
+        "description": {
+          "type": "text/plain"
+        },
+        "url": {
+          "path": [
+            "api",
+            "v1",
+            "clients",
+            ":clientId",
+            "deployments"
+          ],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "header": [],
+        "method": "GET",
+        "body": {}
+      },
+      "response": [
+        {
+          "_": {
+            "postman_previewlanguage": "json"
+          },
+          "id": "6da61c30-6c27-4090-b345-34eedc8747de",
+          "name": "Manifest returned in the default format (application/vnd.margo.manifest.v1+json)",
+          "code": 200,
+          "status": "Manifest returned in the default format (application/vnd.margo.manifest.v1+json)",
+          "header": [],
+          "body": "",
+          "originalRequest": {
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                ":clientId",
+                "deployments"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [],
+            "method": "GET",
+            "body": {}
+          }
+        }
+      ]
     }
   ],
   "auth": {
@@ -2799,21 +2608,21 @@
     }
   ],
   "info": {
-    "_postman_id": "76586694-401e-4a69-8f83-e1bd908843c1",
-    "name": "Margo Workload Management API",
+    "_postman_id": "0800ead3-fb4c-4ab7-a04d-eb081a2b391d",
+    "name": "Margo WFM Supplier \u2014 Core Conformance",
     "version": {
-      "raw": "1.0.0-rc.2",
+      "raw": "1.0.0",
       "major": 1,
       "minor": 0,
       "patch": 0,
-      "prerelease": "rc,2",
+      "prerelease": [],
       "build": [],
-      "string": "1.0.0-rc.2"
+      "string": "1.0.0"
     },
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "API for managing workloads on Margo-compliant edge devices. Includes the APIs for exchanging desired state and current state. Communication is secured using server-side TLS (TLS 1.3 preferred), and payloads are signed using X.509 certificates.",
-      "type": "text/plain"
+      "type": "text/plain",
+      "content": "Postman/Portman-format WFM Supplier conformance collection. Superset of the baseline 'Margo Workload Management API' collection (testcases/user1): all endpoint items and their documented response codes, PLUS core edge/negative cases not exercised by the other groups \u2014 invalid supportedDeploymentTypes / supportedRuntimes enum values (must be 422) and default content negotiation when the client omits the Accept header (must be 200 with the manifest media type). Replaces the earlier declarative testcases/wfm-core/core.json."
     }
   }
 }

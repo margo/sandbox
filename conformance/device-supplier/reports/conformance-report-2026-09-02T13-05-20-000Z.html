@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Supplier Conformance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f2f2f2; }
+        .version-warning { margin: 16px 0; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Device Supplier Conformance Test Report</h1>
+        <p>CTT Margo Version: 1.0.0-rc.2</p>
+        <p>Claimed App Version: 1.0.0-rc.2</p>
+        <p>Generated: 2026-09-02T13:05:20Z</p>
+    </div>
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Tests: 79 | <span class="pass">&#x2705; Passed: 79</span> | <span class="fail">&#x274C; Failed: 0</span></p>
+        <p>Success Rate: 100.0%</p>
+    </div>
+    <div class="summary">
+        <h2>Requirements Coverage</h2>
+        <p><span class="pass">33 requirement(s) verified</span> by passing tests | 33 referenced by tests in total</p>
+        <table style="width:auto;">
+            <tr><th>CR-ID</th><th>Verified</th></tr>
+            <tr><td>MARGO-DEV-APPLICATIONDESCRIPTION-001</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-APPLICATIONDESCRIPTION-002</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-APPLICATIONDESCRIPTION-003</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-002</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-003</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-004</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-005</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-006</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-007</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-008</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-DEPLOYMENT-009</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-003</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-004</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-005</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-006</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-007</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-008</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-009</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-010</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-012</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-014</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-016</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-018</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-019</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-020</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-021</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-022</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-023</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-024</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-025</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-026</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-027</td><td><span class="pass">&#x2705;</span></td></tr>
+<tr><td>MARGO-DEV-MANAGEMENTINTERFACE-031</td><td><span class="pass">&#x2705;</span></td></tr>
+
+        </table>
+    </div>
+    <table>
+        <tr><th>Scenario</th><th>Step</th><th>CR-IDs</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>
+
+        <tr>
+            <td>Device Onboarding</td>
+            <td>Get Root CA Certificate</td>
+            <td>MARGO-DEV-DEPLOYMENT-003<br>MARGO-DEV-MANAGEMENTINTERFACE-003<br>MARGO-DEV-MANAGEMENTINTERFACE-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Device Onboarding</td>
+            <td>Onboard Trusted Device</td>
+            <td>MARGO-DEV-DEPLOYMENT-003<br>MARGO-DEV-MANAGEMENTINTERFACE-003<br>MARGO-DEV-MANAGEMENTINTERFACE-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Device Onboarding</td>
+            <td>Reject Blocklisted Certificate</td>
+            <td>MARGO-DEV-DEPLOYMENT-003<br>MARGO-DEV-MANAGEMENTINTERFACE-003<br>MARGO-DEV-MANAGEMENTINTERFACE-004<br>MARGO-DEV-MANAGEMENTINTERFACE-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>403</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Reporting</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Reporting</td>
+            <td>Report Capabilities with POST</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Reporting</td>
+            <td>Report Capabilities with PUT</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Get Current Deployments</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Get Deployments With Matching ETag</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Download Deployment Bundle</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Download Bundle With Matching ETag</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Download Individual Deployment Manifest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Download Individual Deployment Manifest With Matching ETag</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>304</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deployment Retrieval And Status</td>
+            <td>Report Deployment Status</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-014<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-024<br>MARGO-DEV-MANAGEMENTINTERFACE-031</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Reject Onboarding With Invalid Api Version</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Reject Onboarding With Missing Certificate</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Reject Onboarding With Empty Certificate</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Reject Onboarding With Missing Kind</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Reject Onboarding With Wrong Kind Value</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Onboarding Error Handling</td>
+            <td>Onboard Without Signature Succeeds</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities With Missing Properties</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities With Invalid Peripheral Type</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities With Invalid Interface Type</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities With Invalid Cpu Architecture</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities With Missing Content-Digest</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities Without Signature</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capabilities Error Handling</td>
+            <td>Reject Capabilities For Unknown Client</td>
+            <td>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Get Current Deployments (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Deployments Request With Unsupported Accept Header</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>406</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Bundle Download With Wrong Digest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Deployment Manifest Download With Wrong Digest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>404</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Status With Invalid State</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Status With Missing Component Name</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Status With Path Deployment Mismatch</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Status With Missing Content-Digest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>400</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Status Without Signature</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Unsigned GET Deployments</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Unsigned GET Bundle</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status And Retrieval Errors</td>
+            <td>Reject Unsigned GET Deployment Manifest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-007<br>MARGO-DEV-MANAGEMENTINTERFACE-016<br>MARGO-DEV-MANAGEMENTINTERFACE-019<br>MARGO-DEV-MANAGEMENTINTERFACE-020<br>MARGO-DEV-MANAGEMENTINTERFACE-021<br>MARGO-DEV-MANAGEMENTINTERFACE-022<br>MARGO-DEV-MANAGEMENTINTERFACE-023<br>MARGO-DEV-MANAGEMENTINTERFACE-024</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>401</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Live Assertion Demo — Dynamic Error Code</td>
+            <td>Onboard Device (Demo Setup)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Live Assertion Demo — Dynamic Error Code</td>
+            <td>Invalid Capabilities (missing apiVersion) — expects 422 from assertion</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Live Assertion Demo — Dynamic Error Code</td>
+            <td>Non-Standard Memory String Is Accepted (spec places no format constraint on memory/storage)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-001<br>MARGO-DEV-APPLICATIONDESCRIPTION-002<br>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Report Capabilities — Standalone Device Role (compose only)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Report Capabilities — Standalone Cluster Role (helm only)</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Reject Capabilities — Invalid supportedDeploymentTypes Value</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Reject Capabilities — Invalid supportedRuntimes Value</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Capability Reporting — Device Role Variants</td>
+            <td>Reject Capabilities — cpus[] Entry Missing Required cores</td>
+            <td>MARGO-DEV-APPLICATIONDESCRIPTION-003<br>MARGO-DEV-DEPLOYMENT-002<br>MARGO-DEV-DEPLOYMENT-004<br>MARGO-DEV-DEPLOYMENT-005<br>MARGO-DEV-DEPLOYMENT-006<br>MARGO-DEV-DEPLOYMENT-007<br>MARGO-DEV-DEPLOYMENT-008<br>MARGO-DEV-DEPLOYMENT-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Desired State — Default Negotiation and Zero-Deployment Manifest</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Desired State — Default Negotiation and Zero-Deployment Manifest</td>
+            <td>Get Deployments With No Accept Header — Defaults To Manifest Format</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Desired State — Default Negotiation and Zero-Deployment Manifest</td>
+            <td>Reset Desired State To Empty (test-control)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Desired State — Default Negotiation and Zero-Deployment Manifest</td>
+            <td>Get Deployments — Zero Deployments Still Returns A Valid (Empty) Manifest</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-016</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-008 — Manifest With Unsupported Digest Algorithm Must Be Rejected</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-008<br>MARGO-DEV-MANAGEMENTINTERFACE-027</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-008 — Manifest With Unsupported Digest Algorithm Must Be Rejected</td>
+            <td>Arm The unsupported_digest_algorithm Negative Fixture</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-008<br>MARGO-DEV-MANAGEMENTINTERFACE-027</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-008 — Manifest With Unsupported Digest Algorithm Must Be Rejected</td>
+            <td>GET Deployments — Manifest Uses An Unsupported Digest Algorithm And Must Be Rejected</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-008<br>MARGO-DEV-MANAGEMENTINTERFACE-027</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-006/009 — Bundle Digest That Doesn't Match Content Must Be Rejected</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-006/009 — Bundle Digest That Doesn't Match Content Must Be Rejected</td>
+            <td>Arm bundle_digest_mismatch Fixture</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-006/009 — Bundle Digest That Doesn't Match Content Must Be Rejected</td>
+            <td>GET Deployments — Bundle Digest Mismatch Must Be Rejected</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-009</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-019 — Any Fetched Artifact With A Wrong Digest Must Be Rejected</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-019</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-019 — Any Fetched Artifact With A Wrong Digest Must Be Rejected</td>
+            <td>Arm deployment_digest_mismatch Fixture</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-019</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-019 — Any Fetched Artifact With A Wrong Digest Must Be Rejected</td>
+            <td>GET Deployments — Deployment Digest Mismatch Must Be Rejected</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-006<br>MARGO-DEV-MANAGEMENTINTERFACE-019</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-010 — A manifestVersion Not Strictly Greater Than The Last Must Be Rejected</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-010</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-010 — A manifestVersion Not Strictly Greater Than The Last Must Be Rejected</td>
+            <td>Assign A Deployment (manifestVersion climbs to 2)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-010</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-010 — A manifestVersion Not Strictly Greater Than The Last Must Be Rejected</td>
+            <td>GET Deployments — Establish The Current Version</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-010</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-010 — A manifestVersion Not Strictly Greater Than The Last Must Be Rejected</td>
+            <td>Arm non_increasing_manifest_version Fixture</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-010</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-010 — A manifestVersion Not Strictly Greater Than The Last Must Be Rejected</td>
+            <td>GET Deployments — Version Went Backwards, Must Be Rejected</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-010</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-025/026 — A Wrong sizeBytes (Digest Still Valid) Must NOT Cause Rejection</td>
+            <td>Onboard Device (Setup)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-025<br>MARGO-DEV-MANAGEMENTINTERFACE-026</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-025/026 — A Wrong sizeBytes (Digest Still Valid) Must NOT Cause Rejection</td>
+            <td>Arm wrong_size_bytes Fixture</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-025<br>MARGO-DEV-MANAGEMENTINTERFACE-026</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-025/026 — A Wrong sizeBytes (Digest Still Valid) Must NOT Cause Rejection</td>
+            <td>GET Deployments — sizeBytes Is Bogus But The Manifest Is Still Acceptable</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-025<br>MARGO-DEV-MANAGEMENTINTERFACE-026</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-012 — Server Accepts An ecdsa-p384-sha384 Signed Client</td>
+            <td>Onboard With P-384 Device Certificate</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-012</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-012 — Server Accepts An ecdsa-p384-sha384 Signed Client</td>
+            <td>Signed GET Deployments Succeeds (P-384 signature verified)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-012</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-014 — Server Accepts An rsa-v1_5-sha256 Signed Client</td>
+            <td>Onboard With RSA-2048 Device Certificate</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-014</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-014 — Server Accepts An rsa-v1_5-sha256 Signed Client</td>
+            <td>Signed GET Deployments Succeeds (rsa-v1_5-sha256 signature verified)</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-014</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-004 — Device Certificate Must Conform To RFC 5280</td>
+            <td>Onboard With A Conforming Certificate — Accepted</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-004</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>201</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-004 — Device Certificate Must Conform To RFC 5280</td>
+            <td>Onboard With A Weak-Key (1024-bit RSA) Certificate — Rejected</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-004</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>422</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-018 — Device Trusts The WFM Server Certificate Via The Root CA</td>
+            <td>GET Certificate Over A CA-Verified TLS Connection — Succeeds</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-018</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>200</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>MI-018 — Device Trusts The WFM Server Certificate Via The Root CA</td>
+            <td>Connect To A Server Whose Cert Is Not CA-Signed — Refused</td>
+            <td>MARGO-DEV-MANAGEMENTINTERFACE-018</td>
+            <td><span class="pass">✅ PASS</span></td>
+            <td>0</td>
+            <td>transport error as expected: Get "https://localhost:3002/v1alpha2/margo/api/v1/onboarding/certificate": tls: failed to verify certificate: x509: certificate signed by unknown authority</td>
+        </tr>
+
+    </table>
+</body>
+</html>

@@ -1,0 +1,2369 @@
+[
+  {
+    "id": "scenario-onboarding",
+    "name": "Device Onboarding",
+    "description": "Certificate retrieval plus successful and rejected onboarding flows.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-003",
+      "MARGO-DEV-MANAGEMENTINTERFACE-005",
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-DEPLOYMENT-003"
+    ],
+    "steps": [
+      {
+        "id": "step-1.1",
+        "name": "Get Root CA Certificate",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-003"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/onboarding/certificate",
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "certificate",
+            "operation": "is_string"
+          },
+          {
+            "field": "certificate",
+            "operation": "not_empty"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-1.2",
+        "name": "Onboard Trusted Device",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-005",
+          "MARGO-DEV-MANAGEMENTINTERFACE-016",
+          "MARGO-DEV-DEPLOYMENT-003"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-1.3",
+        "name": "Reject Blocklisted Certificate",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-004"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "rnd-key-7f3a91b2c4d8e6"
+        },
+        "skip_certificate_injection": true,
+        "headers": {},
+        "expected_status": 403,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Client rejected"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-capabilities",
+    "name": "Capabilities Reporting",
+    "description": "POST and PUT capability manifests that match the spec-aligned schema.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-DEPLOYMENT-002",
+      "MARGO-DEV-DEPLOYMENT-004",
+      "MARGO-DEV-DEPLOYMENT-005",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-001",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-002",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-003"
+    ],
+    "steps": [
+      {
+        "id": "step-2.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-2.1",
+        "name": "Report Capabilities with POST",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-002",
+          "MARGO-DEV-DEPLOYMENT-004",
+          "MARGO-DEV-DEPLOYMENT-005",
+          "MARGO-DEV-APPLICATIONDESCRIPTION-001",
+          "MARGO-DEV-APPLICATIONDESCRIPTION-002",
+          "MARGO-DEV-APPLICATIONDESCRIPTION-003"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-001",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "camera"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-2.2",
+        "name": "Report Capabilities with PUT",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-002",
+          "MARGO-DEV-DEPLOYMENT-004",
+          "MARGO-DEV-DEPLOYMENT-005"
+        ],
+        "method": "PUT",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-001",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 8,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "32Gi",
+            "storage": "512Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              },
+              {
+                "type": "wifi"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-deployments",
+    "name": "Deployment Retrieval And Status",
+    "description": "Deployment state retrieval, cache validation, immutable artifact downloads, and status updates.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-007",
+      "MARGO-DEV-MANAGEMENTINTERFACE-014",
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-MANAGEMENTINTERFACE-019",
+      "MARGO-DEV-MANAGEMENTINTERFACE-031"
+    ],
+    "steps": [
+      {
+        "id": "step-3.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-3.1",
+        "name": "Get Current Deployments",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-031",
+          "MARGO-DEV-MANAGEMENTINTERFACE-014"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          },
+          {
+            "field": "bundle.mediaType",
+            "operation": "equals",
+            "value": "application/vnd.margo.bundle.v1+tar+gzip"
+          },
+          {
+            "field": "bundle.digest",
+            "operation": "not_empty"
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          },
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "is_string"
+          },
+          {
+            "field": "bundle.url",
+            "operation": "not_empty"
+          },
+          {
+            "field": "deployments.0.url",
+            "operation": "not_empty"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "manifestEtag": "_headers.ETag",
+          "bundleDigest": "bundle.digest",
+          "deploymentId": "deployments.0.deploymentId",
+          "deploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "step-3.2",
+        "name": "Get Deployments With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json",
+          "If-None-Match": "{manifestEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-3.3",
+        "name": "Download Deployment Bundle",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-031",
+          "MARGO-DEV-MANAGEMENTINTERFACE-019"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/vnd.margo.bundle.v1+tar+gzip"
+          },
+          {
+            "field": "_headers.Cache-Control",
+            "operation": "contains",
+            "value": "immutable"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "bundleEtag": "_headers.ETag"
+        }
+      },
+      {
+        "id": "step-3.4",
+        "name": "Download Bundle With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "headers": {
+          "If-None-Match": "{bundleEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-3.5",
+        "name": "Download Individual Deployment Manifest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-014",
+          "MARGO-DEV-MANAGEMENTINTERFACE-019"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/yaml"
+          },
+          {
+            "field": "_headers.Cache-Control",
+            "operation": "contains",
+            "value": "immutable"
+          },
+          {
+            "field": "_headers.Vary",
+            "operation": "contains",
+            "value": "Accept-Encoding"
+          },
+          {
+            "field": "_headers.ETag",
+            "operation": "contains",
+            "value": "{deploymentDigest}"
+          }
+        ],
+        "extract_context": {
+          "deploymentEtag": "_headers.ETag"
+        }
+      },
+      {
+        "id": "step-3.6",
+        "name": "Download Individual Deployment Manifest With Matching ETag",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "headers": {
+          "If-None-Match": "{deploymentEtag}"
+        },
+        "expected_status": 304,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-3.7",
+        "name": "Report Deployment Status",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-007",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "acknowledgement",
+            "operation": "equals",
+            "value": "received"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-onboarding-errors",
+    "name": "Onboarding Error Handling",
+    "description": "Spec-shaped 400 and 401 onboarding responses.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-016"
+    ],
+    "steps": [
+      {
+        "id": "step-4.1",
+        "name": "Reject Onboarding With Invalid Api Version",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "v1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "apiVersion"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-4.2",
+        "name": "Reject Onboarding With Missing Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "certificate"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-4.3",
+        "name": "Reject Onboarding With Empty Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": ""
+        },
+        "skip_certificate_injection": true,
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "certificate"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-4.5",
+        "name": "Reject Onboarding With Missing Kind",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "kind"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-4.6",
+        "name": "Reject Onboarding With Wrong Kind Value",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "WrongKind",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "kind"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-4.4",
+        "name": "Onboard Without Signature Succeeds",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-capabilities-errors",
+    "name": "Capabilities Error Handling",
+    "description": "Negative tests for digest, schema, role, interface, and client validation.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-MANAGEMENTINTERFACE-020",
+      "MARGO-DEV-MANAGEMENTINTERFACE-021",
+      "MARGO-DEV-MANAGEMENTINTERFACE-022",
+      "MARGO-DEV-MANAGEMENTINTERFACE-023",
+      "MARGO-DEV-MANAGEMENTINTERFACE-024",
+      "MARGO-DEV-DEPLOYMENT-002"
+    ],
+    "steps": [
+      {
+        "id": "step-5.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-5.1",
+        "name": "Reject Capabilities With Missing Properties",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest"
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.2",
+        "name": "Reject Capabilities With Invalid Peripheral Type",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-002",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [
+              {
+                "type": "not-a-real-type"
+              }
+            ],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.3",
+        "name": "Reject Capabilities With Invalid Interface Type",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-003",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "serial"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.4",
+        "name": "Reject Capabilities With Invalid Cpu Architecture",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-004",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "sparc"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.5",
+        "name": "Reject Capabilities With Missing Content-Digest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-020",
+          "MARGO-DEV-MANAGEMENTINTERFACE-022",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-005",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {
+          "Content-Digest": ""
+        },
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "content-digest"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.6",
+        "name": "Reject Capabilities Without Signature",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-021",
+          "MARGO-DEV-MANAGEMENTINTERFACE-023",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-006",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature verification failed"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-5.7",
+        "name": "Reject Capabilities For Unknown Client",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/not-a-real-client/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-007",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-12345",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "16Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Client not found"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-status-and-retrieval-errors",
+    "name": "Status And Retrieval Errors",
+    "description": "Negative coverage for deployment content negotiation, immutable resource lookup, and status schema validation.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-007",
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-MANAGEMENTINTERFACE-019",
+      "MARGO-DEV-MANAGEMENTINTERFACE-020",
+      "MARGO-DEV-MANAGEMENTINTERFACE-021",
+      "MARGO-DEV-MANAGEMENTINTERFACE-022",
+      "MARGO-DEV-MANAGEMENTINTERFACE-023",
+      "MARGO-DEV-MANAGEMENTINTERFACE-024"
+    ],
+    "steps": [
+      {
+        "id": "step-6.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-6.1",
+        "name": "Get Current Deployments (Setup)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "deployments.0.deploymentId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "manifestEtag": "_headers.ETag",
+          "bundleDigest": "bundle.digest",
+          "deploymentId": "deployments.0.deploymentId",
+          "deploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "step-6.2",
+        "name": "Reject Deployments Request With Unsupported Accept Header",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "expected_status": 406,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.3",
+        "name": "Reject Bundle Download With Wrong Digest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-019"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/not-the-right-digest",
+        "headers": {},
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Bundle not found"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.4",
+        "name": "Reject Deployment Manifest Download With Wrong Digest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-019"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/not-the-right-digest",
+        "headers": {},
+        "expected_status": 404,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Deployment not found for digest"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.5",
+        "name": "Reject Status With Invalid State",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-007"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "done"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.6",
+        "name": "Reject Status With Missing Component Name",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-007"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.7",
+        "name": "Reject Status With Path Deployment Mismatch",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-007"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "another-deployment",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.8",
+        "name": "Reject Status With Missing Content-Digest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-020",
+          "MARGO-DEV-MANAGEMENTINTERFACE-022",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Digest": ""
+        },
+        "expected_status": 400,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "content-digest"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.9",
+        "name": "Reject Status Without Signature",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-021",
+          "MARGO-DEV-MANAGEMENTINTERFACE-023",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": {
+            "state": "installed"
+          },
+          "components": [
+            {
+              "name": "app-component-1",
+              "state": "installed"
+            }
+          ]
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.10",
+        "name": "Reject Unsigned GET Deployments",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-023",
+          "MARGO-DEV-MANAGEMENTINTERFACE-021",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "skip_signing": true,
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.11",
+        "name": "Reject Unsigned GET Bundle",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-023",
+          "MARGO-DEV-MANAGEMENTINTERFACE-021",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/bundles/{bundleDigest}",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-6.12",
+        "name": "Reject Unsigned GET Deployment Manifest",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-023",
+          "MARGO-DEV-MANAGEMENTINTERFACE-021",
+          "MARGO-DEV-MANAGEMENTINTERFACE-024"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 401,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "Signature"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "scenario-live-assertion-demo",
+    "name": "Live Assertion Demo \u2014 Dynamic Error Code",
+    "description": "DEMO SCENARIO: Proves server reloads assertions.json on every restart. Step 7.1 sends an invalid capabilities request (missing apiVersion) which triggers a validation error. The expected HTTP status code comes directly from error_responses.unprocessable.status_code in assertions.json. Change that one value, restart, re-run \u2014 the code changes without touching any Go code.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-016",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-001",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-002"
+    ],
+    "steps": [
+      {
+        "id": "step-7.0",
+        "name": "Onboard Device (Demo Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-7.1",
+        "name": "Invalid Capabilities (missing apiVersion) \u2014 expects 422 from assertion",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "demo-device-001",
+            "vendor": "Demo Corp",
+            "modelNumber": "DEMO-X1",
+            "serialNumber": "SN-DEMO-001",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "128Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "exists"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-custom-1",
+        "name": "Non-Standard Memory String Is Accepted (spec places no format constraint on memory/storage)",
+        "crIds": [
+          "MARGO-DEV-APPLICATIONDESCRIPTION-001",
+          "MARGO-DEV-APPLICATIONDESCRIPTION-002"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "device-invalid-mem",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-XYZ",
+            "serialNumber": "SN-99999",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "sixteen_gb",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": false,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm",
+              "compose"
+            ]
+          }
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "device-core-capability-roles",
+    "name": "Capability Reporting \u2014 Device Role Variants",
+    "description": "Per docs.margo.org/specification/margo-management-interface/device-capabilities and the Device Supplier conformance requirements, a device fills either the Standalone Cluster role (Kubernetes + Helm) or the Standalone Device role (Compose) \u2014 supportedDeploymentTypes is how a device declares which. This scenario covers both role variants as positive cases, plus negative coverage for invalid enum values and a malformed cpus[] entry not exercised by other groups.",
+    "crIds": [
+      "MARGO-DEV-DEPLOYMENT-002",
+      "MARGO-DEV-DEPLOYMENT-004",
+      "MARGO-DEV-DEPLOYMENT-005",
+      "MARGO-DEV-DEPLOYMENT-006",
+      "MARGO-DEV-DEPLOYMENT-007",
+      "MARGO-DEV-DEPLOYMENT-008",
+      "MARGO-DEV-DEPLOYMENT-009",
+      "MARGO-DEV-APPLICATIONDESCRIPTION-003"
+    ],
+    "steps": [
+      {
+        "id": "step-core-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-core-1.1",
+        "name": "Report Capabilities \u2014 Standalone Device Role (compose only)",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-008",
+          "MARGO-DEV-DEPLOYMENT-009",
+          "MARGO-DEV-DEPLOYMENT-004",
+          "MARGO-DEV-DEPLOYMENT-005"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-COMPOSE-1",
+            "serialNumber": "SN-CORE-001",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-1.2",
+        "name": "Report Capabilities \u2014 Standalone Cluster Role (helm only)",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-006",
+          "MARGO-DEV-DEPLOYMENT-007",
+          "MARGO-DEV-DEPLOYMENT-004",
+          "MARGO-DEV-DEPLOYMENT-005"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-HELM-1",
+            "serialNumber": "SN-CORE-002",
+            "cpus": [
+              {
+                "cores": 8,
+                "architecture": "amd64"
+              }
+            ],
+            "memory": "32Gi",
+            "storage": "256Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              },
+              {
+                "type": "wifi"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "helm"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "status",
+            "operation": "equals",
+            "value": "capabilities_received"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-1.3",
+        "name": "Reject Capabilities \u2014 Invalid supportedDeploymentTypes Value",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-002"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-INVALID-1",
+            "serialNumber": "SN-CORE-003",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "docker-swarm"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-1.4",
+        "name": "Reject Capabilities \u2014 Invalid supportedRuntimes Value",
+        "crIds": [
+          "MARGO-DEV-DEPLOYMENT-004"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-INVALID-2",
+            "serialNumber": "SN-CORE-004",
+            "cpus": [
+              {
+                "cores": 4,
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": [
+              "containerd-direct"
+            ],
+            "supportedDeploymentTypes": [
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-1.5",
+        "name": "Reject Capabilities \u2014 cpus[] Entry Missing Required cores",
+        "crIds": [
+          "MARGO-DEV-APPLICATIONDESCRIPTION-003"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Acme Corp",
+            "modelNumber": "ACM-INVALID-3",
+            "serialNumber": "SN-CORE-005",
+            "cpus": [
+              {
+                "architecture": "arm64"
+              }
+            ],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "interfaces": [
+              {
+                "type": "ethernet"
+              }
+            ],
+            "peripherals": [],
+            "otelCollector": true,
+            "supportedRuntimes": [
+              "oci"
+            ],
+            "supportedDeploymentTypes": [
+              "compose"
+            ]
+          }
+        },
+        "headers": {},
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "errors",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "device-core-manifest-semantics",
+    "name": "Desired State \u2014 Default Negotiation and Zero-Deployment Manifest",
+    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state: (1) the WFM (here, our mock server) MUST default to application/vnd.margo.manifest.v1+json when the Accept header is omitted entirely, not just when it's the exact expected value; (2) when a client has zero deployments assigned, the manifest's deployments field MUST still be a valid (empty) array. Both are edge cases the other device-supplier groups don't exercise directly. Note: the spec also requires the manifest's bundle field to be explicit null (not omitted) when deployments is empty \u2014 not independently verified here, because this suite's validation engine can't distinguish a field that's present-but-null from one that's absent (both read as Go/JS nil); confirmed instead by reading the mock server's response-construction code directly.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-016"
+    ],
+    "steps": [
+      {
+        "id": "step-core-2.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId"
+        }
+      },
+      {
+        "id": "step-core-2.1",
+        "name": "Get Deployments With No Accept Header \u2014 Defaults To Manifest Format",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          },
+          {
+            "field": "_headers.Content-Type",
+            "operation": "contains",
+            "value": "application/vnd.margo.manifest.v1+json"
+          }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-2.2",
+        "name": "Reset Desired State To Empty (test-control)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": []
+        },
+        "skip_signing": true,
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "step-core-2.3",
+        "name": "Get Deployments \u2014 Zero Deployments Still Returns A Valid (Empty) Manifest",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          },
+          {
+            "field": "deployments",
+            "operation": "is_array"
+          }
+        ],
+        "extract_context": {}
+      }
+    ]
+  },
+  {
+    "id": "device-mi008-unsupported-digest-algorithm",
+    "name": "MI-008 \u2014 Manifest With Unsupported Digest Algorithm Must Be Rejected",
+    "description": "SUITE SELF-TEST for MARGO-DEV-MANAGEMENTINTERFACE-008 ('If a manifest references an unsupported digest algorithm, the client MUST treat the manifest as invalid and abort processing'). The mock is armed with the 'unsupported_digest_algorithm' negative fixture so GET /deployments returns a manifest whose digests use sha512 instead of sha256. The suite then asserts (a) the fixture is actually present in the response and (b) its own manifest-conformance check (expect_manifest_rejected) flags the manifest for rejection. This proves the suite would correctly fail a real device that acted on such a manifest.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-008",
+      "MARGO-DEV-MANAGEMENTINTERFACE-027"
+    ],
+    "steps": [
+      {
+        "id": "step-mi008-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi008-1.1",
+        "name": "Arm The unsupported_digest_algorithm Negative Fixture",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "mi008-app"
+          ],
+          "negativeFixture": "unsupported_digest_algorithm"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "negativeFixture",
+            "operation": "equals",
+            "value": "unsupported_digest_algorithm"
+          }
+        ]
+      },
+      {
+        "id": "step-mi008-1.2",
+        "name": "GET Deployments \u2014 Manifest Uses An Unsupported Digest Algorithm And Must Be Rejected",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-008",
+          "MARGO-DEV-MANAGEMENTINTERFACE-027"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "bundle.digest",
+            "operation": "contains",
+            "value": "sha512:"
+          },
+          {
+            "field": "deployments.0.digest",
+            "operation": "contains",
+            "value": "sha512:"
+          }
+        ],
+        "expect_manifest_rejected": true
+      }
+    ]
+  },
+  {
+    "id": "device-mi006-bundle-digest-mismatch",
+    "name": "MI-006/009 \u2014 Bundle Digest That Doesn't Match Content Must Be Rejected",
+    "description": "SUITE SELF-TEST for MARGO-DEV-MANAGEMENTINTERFACE-006 / -009: the client MUST verify computed digests match manifest values and abort on any mismatch. The 'bundle_digest_mismatch' fixture corrupts bundle.digest while leaving bundle.url pointing at the real archive; evaluateManifest downloads it, hashes it, and must flag the mismatch.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-006",
+      "MARGO-DEV-MANAGEMENTINTERFACE-009"
+    ],
+    "steps": [
+      {
+        "id": "step-mi006-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi006-1.1",
+        "name": "Arm bundle_digest_mismatch Fixture",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "self-test-app"
+          ],
+          "negativeFixture": "bundle_digest_mismatch"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "negativeFixture",
+            "operation": "equals",
+            "value": "bundle_digest_mismatch"
+          }
+        ]
+      },
+      {
+        "id": "step-mi006-1.2",
+        "name": "GET Deployments \u2014 Bundle Digest Mismatch Must Be Rejected",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-006",
+          "MARGO-DEV-MANAGEMENTINTERFACE-009"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "expect_manifest_rejected": true
+      }
+    ]
+  },
+  {
+    "id": "device-mi019-deployment-digest-mismatch",
+    "name": "MI-019 \u2014 Any Fetched Artifact With A Wrong Digest Must Be Rejected",
+    "description": "SUITE SELF-TEST for MARGO-DEV-MANAGEMENTINTERFACE-019: the client MUST verify the digest of every fetched artifact. The 'deployment_digest_mismatch' fixture corrupts the first deployments[].digest only (the bundle digest stays correct), so the violation is caught on a per-deployment artifact, not the bundle.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-019",
+      "MARGO-DEV-MANAGEMENTINTERFACE-006"
+    ],
+    "steps": [
+      {
+        "id": "step-mi019-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi019-1.1",
+        "name": "Arm deployment_digest_mismatch Fixture",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "self-test-app"
+          ],
+          "negativeFixture": "deployment_digest_mismatch"
+        },
+        "expected_status": 200
+      },
+      {
+        "id": "step-mi019-1.2",
+        "name": "GET Deployments \u2014 Deployment Digest Mismatch Must Be Rejected",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-019"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "expect_manifest_rejected": true
+      }
+    ]
+  },
+  {
+    "id": "device-mi010-non-increasing-manifest-version",
+    "name": "MI-010 \u2014 A manifestVersion Not Strictly Greater Than The Last Must Be Rejected",
+    "description": "SUITE SELF-TEST for MARGO-DEV-MANAGEMENTINTERFACE-010. The scenario first reads a manifest at version >= 2 (so the runner records it), then the 'non_increasing_manifest_version' fixture serves a manifest back at version 1; evaluateManifest must reject it as a rollback.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-010"
+    ],
+    "steps": [
+      {
+        "id": "step-mi010-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi010-1.1",
+        "name": "Assign A Deployment (manifestVersion climbs to 2)",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "self-test-app"
+          ]
+        },
+        "expected_status": 200
+      },
+      {
+        "id": "step-mi010-1.2",
+        "name": "GET Deployments \u2014 Establish The Current Version",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          }
+        ]
+      },
+      {
+        "id": "step-mi010-1.3",
+        "name": "Arm non_increasing_manifest_version Fixture",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "self-test-app"
+          ],
+          "negativeFixture": "non_increasing_manifest_version"
+        },
+        "expected_status": 200
+      },
+      {
+        "id": "step-mi010-1.4",
+        "name": "GET Deployments \u2014 Version Went Backwards, Must Be Rejected",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-010"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "expect_manifest_rejected": true
+      }
+    ]
+  },
+  {
+    "id": "device-mi025-026-sizebytes-not-integrity",
+    "name": "MI-025/026 \u2014 A Wrong sizeBytes (Digest Still Valid) Must NOT Cause Rejection",
+    "description": "SUITE SELF-TEST for MARGO-DEV-MANAGEMENTINTERFACE-025 / -026: sizeBytes MUST NOT be used for integrity verification. The 'wrong_size_bytes' fixture sets every sizeBytes to 1 but leaves digests correct; a conformant client verifies by digest and MUST still proceed, so the suite asserts expect_manifest_accepted.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-025",
+      "MARGO-DEV-MANAGEMENTINTERFACE-026"
+    ],
+    "steps": [
+      {
+        "id": "step-mi025-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi025-1.1",
+        "name": "Arm wrong_size_bytes Fixture",
+        "method": "PUT",
+        "endpoint": "/api/v1/test/clients/{clientId}/deployments",
+        "request_body": {
+          "deploymentIds": [
+            "self-test-app"
+          ],
+          "negativeFixture": "wrong_size_bytes"
+        },
+        "expected_status": 200
+      },
+      {
+        "id": "step-mi025-1.2",
+        "name": "GET Deployments \u2014 sizeBytes Is Bogus But The Manifest Is Still Acceptable",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-025",
+          "MARGO-DEV-MANAGEMENTINTERFACE-026"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "bundle.sizeBytes",
+            "operation": "equals",
+            "value": 1
+          }
+        ],
+        "expect_manifest_accepted": true
+      }
+    ]
+  },
+  {
+    "id": "device-mi012-ecdsa-p384",
+    "name": "MI-012 \u2014 Server Accepts An ecdsa-p384-sha384 Signed Client",
+    "description": "MARGO-DEV-MANAGEMENTINTERFACE-012: implementations MUST support ecdsa-p384-sha384. The scenario signs every request with a P-384 device key (signing_key at scenario level); htmsig derives ecdsa-p384-sha384 from the curve. A successful signed GET proves the WFM verifies P-384 signatures.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-012"
+    ],
+    "signing_key": "./certs/device-ec384-key.pem",
+    "steps": [
+      {
+        "id": "step-mi012-1.0",
+        "name": "Onboard With P-384 Device Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-ec384-cert.pem"
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi012-1.1",
+        "name": "Signed GET Deployments Succeeds (P-384 signature verified)",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-012"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "device-mi014-rsa-v1_5",
+    "name": "MI-014 \u2014 Server Accepts An rsa-v1_5-sha256 Signed Client",
+    "description": "MARGO-DEV-MANAGEMENTINTERFACE-014: implementations MUST support rsa-v1_5-sha256. The scenario signs with an RSA-2048 device key and pins signing_algorithm to rsa-v1_5-sha256 (htmsig would otherwise default RSA keys to rsa-pss-sha512). A successful signed GET proves the WFM verifies rsa-v1_5-sha256.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-014"
+    ],
+    "signing_key": "./certs/device-rsa2048-key.pem",
+    "signing_algorithm": "rsa-v1_5-sha256",
+    "steps": [
+      {
+        "id": "step-mi014-1.0",
+        "name": "Onboard With RSA-2048 Device Certificate",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-rsa2048-cert.pem"
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-mi014-1.1",
+        "name": "Signed GET Deployments Succeeds (rsa-v1_5-sha256 signature verified)",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-014"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": {
+          "Accept": "application/vnd.margo.manifest.v1+json"
+        },
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "manifestVersion",
+            "operation": "is_number"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "device-mi004-rfc5280-certificate",
+    "name": "MI-004 \u2014 Device Certificate Must Conform To RFC 5280",
+    "description": "MARGO-DEV-MANAGEMENTINTERFACE-004: all client certificates MUST conform to RFC 5280. Positive: a normal device cert onboards (201). Negative: a cert with a 1024-bit RSA key \u2014 below the RFC 5280 / CA-Browser Forum floor \u2014 is rejected with 422. The mock's certRFC5280Violation() also checks the validity window and empty-subject/no-SAN.",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-004"
+    ],
+    "steps": [
+      {
+        "id": "step-mi004-1.0",
+        "name": "Onboard With A Conforming Certificate \u2014 Accepted",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-004"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "expected_status": 201,
+        "validations": [
+          {
+            "field": "clientId",
+            "operation": "is_string"
+          }
+        ]
+      },
+      {
+        "id": "step-mi004-1.1",
+        "name": "Onboard With A Weak-Key (1024-bit RSA) Certificate \u2014 Rejected",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-004"
+        ],
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-weakkey-cert.pem"
+        },
+        "skip_signing": true,
+        "expected_status": 422,
+        "validations": [
+          {
+            "field": "error",
+            "operation": "contains",
+            "value": "RFC 5280"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "device-mi018-tls-trust",
+    "name": "MI-018 \u2014 Device Trusts The WFM Server Certificate Via The Root CA",
+    "description": "MARGO-DEV-MANAGEMENTINTERFACE-018: the client MUST trust the WFM's server certificate through a securely obtained root CA. verify_tls makes the runner verify the server cert against certs/ca-cert.pem (the CA a device fetches from the Certificate API). Positive: the real WFM (CA-signed cert) is trusted. Negative: the :3002 listener presents a cert NOT signed by that CA, so the connection MUST fail. Assumes a local mock (:3001 / :3002).",
+    "crIds": [
+      "MARGO-DEV-MANAGEMENTINTERFACE-018"
+    ],
+    "steps": [
+      {
+        "id": "step-mi018-1.0",
+        "name": "GET Certificate Over A CA-Verified TLS Connection \u2014 Succeeds",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-018"
+        ],
+        "method": "GET",
+        "endpoint": "/api/v1/onboarding/certificate",
+        "skip_signing": true,
+        "verify_tls": true,
+        "expected_status": 200,
+        "validations": [
+          {
+            "field": "certificate",
+            "operation": "not_empty"
+          }
+        ]
+      },
+      {
+        "id": "step-mi018-1.1",
+        "name": "Connect To A Server Whose Cert Is Not CA-Signed \u2014 Refused",
+        "crIds": [
+          "MARGO-DEV-MANAGEMENTINTERFACE-018"
+        ],
+        "method": "GET",
+        "endpoint": "https://localhost:3002/v1alpha2/margo/api/v1/onboarding/certificate",
+        "skip_signing": true,
+        "verify_tls": true,
+        "expect_transport_error": true
+      }
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "name": "device-conformance",
+  "version": "1.0.0-rc.2",
+  "persona": "device-supplier",
+  "description": "Consolidated device-supplier conformance scenarios — the working file for adding new test cases. Contains the onboarding/capabilities/deployments/error scenarios (was testcases/user2Device), the device-role + desired-state edge cases (was testcases/device-core), and the negative-fixture self-tests for MI-008/006/009/010/019/025/026. testCases is empty = run every scenario in FolderPath; regenerate via ./conformance.sh to pin a subset.",
+  "FolderPath": [
+    "testcases/device-conformance"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

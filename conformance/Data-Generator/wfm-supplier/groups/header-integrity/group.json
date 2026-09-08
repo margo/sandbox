@@ -1,0 +1,11 @@
+{
+  "name": "header-integrity",
+  "version": "1.0.0-rc.2",
+  "persona": "wfm-supplier",
+  "description": "Response-header and versioning correctness checks the suite never asserted before: ETag digest grammar (MI-004/MI-027), manifest Content-Type (MI-006/MI-007), first manifestVersion=1 (MI-026), and client ID URL-safety (MI-002/MI-020). All target behavior confirmed present in the real Symphony implementation (device-agent-vendor.go / device.go) — kept isolated in its own group so a wrong assumption about exact header formatting fails here, not in core/silver.",
+  "FolderPath": [
+    "testcases/wfm-header-integrity"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

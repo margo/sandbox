@@ -2,13 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"flag"
 	"fmt"
 	"io"
@@ -19,11 +15,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
-
-	"github.com/lestrrat-go/htmsig/component"
-	htmsighttp "github.com/lestrrat-go/htmsig/http"
 )
 
 const (
@@ -58,13 +52,22 @@ type TestScenario struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
+	// CRIds lists the Margo conformance requirement IDs this scenario exercises;
+	// surfaced in the HTML report's coverage summary. A step may add its own.
+	CRIds       []string   `json:"crIds,omitempty"`
 	FixedFirst  bool       `json:"fixed_first,omitempty"`
-	Steps       []TestStep `json:"steps"`
+	// SigningKey / SigningAlgorithm apply to every step in the scenario unless a
+	// step overrides them. Used to exercise the non-default RFC 9421 signature
+	// algorithms (MI-012 ecdsa-p384-sha384, MI-014 rsa-v1_5-sha256).
+	SigningKey       string     `json:"signing_key,omitempty"`
+	SigningAlgorithm string     `json:"signing_algorithm,omitempty"`
+	Steps            []TestStep `json:"steps"`
 }
 
 type TestStep struct {
 	ID                        string                 `json:"id"`
 	Name                      string                 `json:"name"`
+	CRIds                     []string               `json:"crIds,omitempty"`
 	Method                    string                 `json:"method"`
 	Endpoint                  string                 `json:"endpoint"`
 	RequestBody               map[string]interface{} `json:"request_body,omitempty"`
@@ -74,6 +77,26 @@ type TestStep struct {
 	ExpectedStatus            int                    `json:"expected_status"`
 	Validations               []StepValidation       `json:"validations"`
 	ExtractContext            map[string]string      `json:"extract_context,omitempty"`
+	// ExpectManifestRejected / ExpectManifestAccepted assert the verdict a
+	// conformant device client MUST reach on the desired-state manifest in this
+	// step's response (see evaluateManifest). "Rejected" passes when the
+	// manifest violates a rule a client MUST enforce (bad digest algorithm,
+	// digest that doesn't match the artifact, non-increasing manifestVersion);
+	// "Accepted" passes when it does not — used to prove a client MUST proceed
+	// despite a difference the spec says is not an integrity signal (sizeBytes).
+	ExpectManifestRejected    bool                   `json:"expect_manifest_rejected,omitempty"`
+	ExpectManifestAccepted    bool                   `json:"expect_manifest_accepted,omitempty"`
+	// SigningKey / SigningAlgorithm override the scenario-level signing config
+	// for this one step (see TestScenario). MI-012 / MI-014.
+	SigningKey       string `json:"signing_key,omitempty"`
+	SigningAlgorithm string `json:"signing_algorithm,omitempty"`
+	// VerifyTLS makes this step verify the server's TLS certificate against the
+	// fetched root CA (certs/ca-cert.pem) instead of skipping verification.
+	// ExpectTransportError passes the step when the request fails at the
+	// transport layer (e.g. the server cert doesn't chain to the trusted CA).
+	// Together they cover MI-018.
+	VerifyTLS            bool `json:"verify_tls,omitempty"`
+	ExpectTransportError bool `json:"expect_transport_error,omitempty"`
 }
 
 type StepValidation struct {
@@ -87,6 +110,10 @@ type TestResult struct {
 	ScenarioName string      `json:"scenario_name"`
 	StepID       string      `json:"step_id"`
 	StepName     string      `json:"step_name"`
+	CRIds        []string    `json:"crIds,omitempty"`
+	Method       string      `json:"method,omitempty"`
+	Endpoint     string      `json:"endpoint,omitempty"`
+	Expected     int         `json:"expected_status,omitempty"`
 	Status       string      `json:"status"` // "pass", "fail"
 	Reason       string      `json:"reason,omitempty"`
 	StatusCode   int         `json:"status_code"`
@@ -184,8 +211,10 @@ func main() {
 	}
 
 	// Print summary
+	covered, attempted := crIDCoverage(allResults)
 	fmt.Println(`╔══════════════════════════════════════════════════════════════════════════════╗`)
 	fmt.Printf("║  Test Results: %d PASSED, %d FAILED (Total: %d)\n", passCount, failCount, passCount+failCount)
+	fmt.Printf("║  Requirements verified: %d  (referenced by tests: %d)\n", len(covered), len(attempted))
 	fmt.Println(`╚══════════════════════════════════════════════════════════════════════════════╝`)
 
 	// Save results to file
@@ -203,6 +232,10 @@ func runScenarioSteps(scenario TestScenario, ctx *TestContext, stepFilter string
 	fmt.Printf("▶ Running Scenario: %s (%s)\n", scenario.Name, scenario.ID)
 	fmt.Printf("  Description: %s\n", scenario.Description)
 
+	// Scenario-level signing config, read by executeStep (a step may override).
+	ctx.Data["_signingKey"] = scenario.SigningKey
+	ctx.Data["_signingAlgorithm"] = scenario.SigningAlgorithm
+
 	var results []TestResult
 	pass, fail := 0, 0
 
@@ -217,6 +250,7 @@ func runScenarioSteps(scenario TestScenario, ctx *TestContext, stepFilter string
 		result := executeStep(step, ctx)
 		result.ScenarioID = scenario.ID
 		result.ScenarioName = scenario.Name
+		result.CRIds = mergeCRIds(scenario.CRIds, step.CRIds)
 		results = append(results, result)
 
 		if verbose {
@@ -311,12 +345,15 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 	result := TestResult{
 		StepID:     step.ID,
 		StepName:   step.Name,
+		Method:     step.Method,
+		Expected:   step.ExpectedStatus,
 		Timestamp:  time.Now().UTC().Format(time.RFC3339),
 		StatusCode: 0,
 	}
 
 	// Prepare endpoint with context interpolation
 	endpoint := interpolateContext(step.Endpoint, ctx)
+	result.Endpoint = endpoint
 
 	// Prepare request body
 	var bodyReader io.Reader
@@ -343,8 +380,13 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 		result.Response = body
 	}
 
-	// Create HTTP request
-	req, err := http.NewRequest(step.Method, WFMServer+endpoint, bodyReader)
+	// Create HTTP request. An endpoint may be an absolute URL (used by MI-018 to
+	// hit the untrusted-CA listener) or a path relative to WFMServer.
+	reqURL := WFMServer + endpoint
+	if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+		reqURL = endpoint
+	}
+	req, err := http.NewRequest(step.Method, reqURL, bodyReader)
 	if err != nil {
 		result.Status = "fail"
 		result.Reason = fmt.Sprintf("Failed to create request: %v", err)
@@ -355,9 +397,12 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 	req.Header.Set("Content-Type", "application/json")
 
 	// RFC 9421: sign all requests (adds Signature-Input, Signature, Content-Digest)
-	// unless skip_signing is true
+	// unless skip_signing is true. Signing key/algorithm come from the step, then
+	// the scenario, then the default device key.
 	if !step.SkipSigning {
-		if err := signRequest(req, bodyBytes); err != nil {
+		keyPath := firstNonEmpty(step.SigningKey, ctxString(ctx, "_signingKey"), getDeviceKeyPath())
+		alg := firstNonEmpty(step.SigningAlgorithm, ctxString(ctx, "_signingAlgorithm"))
+		if err := signRequest(req, bodyBytes, keyPath, alg); err != nil {
 			result.Status = "fail"
 			result.Reason = fmt.Sprintf("Failed to sign request: %v", err)
 			return result
@@ -369,15 +414,36 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 		req.Header.Set(key, interpolateHeaderValue(value, ctx))
 	}
 
-	// Execute request using TLS-skip client (self-signed cert on mock-server)
+	// Execute request. Default client skips TLS verification (self-signed mock
+	// cert); verify_tls swaps in a client that checks the server cert against
+	// the fetched root CA (MI-018).
 	client := tlsSkipClient()
+	if step.VerifyTLS {
+		vc, vcErr := caVerifyingClient()
+		if vcErr != nil {
+			result.Status = "fail"
+			result.Reason = fmt.Sprintf("could not build CA-verifying client: %v", vcErr)
+			return result
+		}
+		client = vc
+	}
 	resp, err := client.Do(req)
 	if err != nil {
+		if step.ExpectTransportError {
+			result.Status = "pass"
+			result.Reason = fmt.Sprintf("transport error as expected: %v", err)
+			return result
+		}
 		result.Status = "fail"
 		result.Reason = fmt.Sprintf("Request failed: %v", err)
 		return result
 	}
 	defer resp.Body.Close()
+	if step.ExpectTransportError {
+		result.Status = "fail"
+		result.Reason = fmt.Sprintf("expected a transport error but request succeeded (HTTP %d)", resp.StatusCode)
+		return result
+	}
 
 	result.StatusCode = resp.StatusCode
 
@@ -419,6 +485,38 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 		}
 	}
 
+	// Manifest-verdict check: some requirements are about the CLIENT's decision
+	// on a desired-state manifest. The suite owns that rule (it must not assume
+	// the device implements it) and encodes it in evaluateManifest so a scenario
+	// can assert it without a full device-agent.
+	if step.ExpectManifestRejected || step.ExpectManifestAccepted {
+		reason, violated := evaluateManifest(respData, ctx)
+		switch {
+		case step.ExpectManifestRejected && violated:
+			fmt.Printf("    ✅ manifest correctly flagged as non-conformant: %s\n", reason)
+		case step.ExpectManifestRejected:
+			result.Status = "fail"
+			result.Reason = "expect_manifest_rejected: manifest is spec-conformant, nothing for a client to reject"
+			return result
+		case step.ExpectManifestAccepted && violated:
+			result.Status = "fail"
+			result.Reason = "expect_manifest_accepted: a conformant client would reject this manifest: " + reason
+			return result
+		default:
+			fmt.Printf("    ✅ manifest is conformant on every integrity-relevant check; a client MUST proceed\n")
+		}
+	}
+	// Track the highest manifestVersion seen on an accepted manifest GET, so a
+	// later non-increasing version can be detected (MI-010). Only GET responses
+	// are real manifests — the test-control PUT echoes a version too.
+	if step.Method == "GET" && !step.ExpectManifestRejected {
+		if cur, ok := extractJSONPath(respData, "manifestVersion").(float64); ok {
+			if prev, _ := ctx.Data["_seenManifestVersion"].(float64); cur > prev {
+				ctx.Data["_seenManifestVersion"] = cur
+			}
+		}
+	}
+
 	// Extract context for next steps
 	if len(step.ExtractContext) > 0 {
 		for varName, jsonPath := range step.ExtractContext {
@@ -450,8 +548,11 @@ func resolveCertificateValue(value string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to load certificate from %s: %w", cleanPath, err)
 		}
-		// log.Printf("[cert] Loaded certificate from %s (%d bytes)", cleanPath, len(certData))
-		return string(certData), nil
+		// Send the certificate as base64-encoded PEM — the "device-agent format"
+		// a real WFM (Symphony) expects and stores; it rejects a raw PEM string
+		// ("illegal base64 data at input byte 0") on the next signed request.
+		// The mock accepts either (it tries base64 first, then raw PEM).
+		return base64.StdEncoding.EncodeToString(certData), nil
 	}
 
 	return value, nil
@@ -486,83 +587,7 @@ func ensureCertificates() error {
 	return nil
 }
 
-func buildContentDigest(body []byte) string {
-	sum := sha256.Sum256(body)
-	return "sha-256=:" + base64.StdEncoding.EncodeToString(sum[:]) + ":"
-}
-
-// ===== RFC 9421 CLIENT-SIDE SIGNING =====
-
-// defaultDeviceKeyPath is the private key used to sign requests.
-// It matches ./certs/device-cert.pem generated by generate-certs.sh.
-const defaultDeviceKeyPath = "./certs/device-key.pem"
-
-func getDeviceKeyPath() string {
-	if customPath := strings.TrimSpace(os.Getenv("DEVICE_PRIVATE_KEY_PATH")); customPath != "" {
-		return customPath
-	}
-	return defaultDeviceKeyPath
-}
-
-// loadDevicePrivateKey loads the PEM private key from deviceKeyPath.
-func loadDevicePrivateKey() (interface{}, error) {
-	deviceKeyPath := getDeviceKeyPath()
-	data, err := os.ReadFile(deviceKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("device private key not found at %s: %w", deviceKeyPath, err)
-	}
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, fmt.Errorf("failed to PEM-decode device private key")
-	}
-	// Try PKCS8 first (RSA or ECDSA wrapped)
-	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-	// Fall back to PKCS1 RSA
-	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-	// Try EC key
-	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-	return nil, fmt.Errorf("unrecognized private key format")
-}
-
-// signRequest adds RFC 9421 Signature-Input, Signature, and Content-Digest headers
-// using the htmsig library — the same library used by the server for verification.
-func signRequest(req *http.Request, bodyBytes []byte) error {
-	key, err := loadDevicePrivateKey()
-	if err != nil {
-		return fmt.Errorf("could not load device key: %w", err)
-	}
-
-	// log.Printf("[sign] Request: %s %s, body length: %d bytes", req.Method, req.URL.Path, len(bodyBytes))
-
-	// Build Content-Digest header for requests with a body
-	comps := []component.Identifier{
-		component.Method(),
-		component.TargetURI(),
-	}
-	if len(bodyBytes) > 0 {
-		digest := buildContentDigest(bodyBytes)
-		// log.Printf("[sign] Content-Digest computed: %s (body first 100 chars: %.100s)", digest, string(bodyBytes))
-		req.Header.Set("Content-Digest", digest)
-		comps = append(comps, component.New("content-digest"))
-	} else {
-		// log.Printf("[sign] No body - Content-Digest not set")
-	}
-
-	signer := htmsighttp.NewSigner(key, "device-key",
-		htmsighttp.WithComponents(comps...),
-		htmsighttp.WithLabel("sig1"),
-	)
-	if err := signer.SignRequest(context.Background(), req); err != nil {
-		return fmt.Errorf("htmsig SignRequest failed: %w", err)
-	}
-	return nil
-}
+// RFC 9421 client-side signing + TLS trust live in signing.go.
 
 // ===== UTILITIES =====
 
@@ -680,6 +705,8 @@ func interpolateHeaderValue(value string, ctx *TestContext) string {
 	return interpolateValue(value, ctx).(string)
 }
 
+// Desired-state manifest rules (evaluateManifest, signedGET) live in manifest_rules.go.
+
 func validateResponse(data interface{}, validation StepValidation, ctx *TestContext) bool {
 	value := extractJSONPath(data, validation.Field)
 	if value == nil {
@@ -751,10 +778,63 @@ func saveResults(results []TestResult) {
 	fmt.Printf("📊 Test report saved: %s\n", filename)
 }
 
-func generateHTMLReport(results []TestResult) string {
-	passCount := 0
-	failCount := 0
+// mergeCRIds returns the sorted, de-duplicated union of the given CR-ID lists.
+func mergeCRIds(lists ...[]string) []string {
+	set := map[string]bool{}
+	for _, l := range lists {
+		for _, id := range l {
+			if s := strings.TrimSpace(id); s != "" {
+				set[s] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
 
+// crIDCoverage returns (verified, referenced): CR-IDs cited by at least one
+// passing step, and CR-IDs cited by any step (pass or fail).
+func crIDCoverage(results []TestResult) (verified, referenced []string) {
+	v := map[string]bool{}
+	ref := map[string]bool{}
+	for _, r := range results {
+		for _, id := range r.CRIds {
+			ref[id] = true
+			if r.Status == "pass" {
+				v[id] = true
+			}
+		}
+	}
+	return sortedKeys(v), sortedKeys(ref)
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// htmlEscape mirrors the wfm-supplier report's escaping.
+func htmlEscape(v string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
+	return r.Replace(v)
+}
+
+// scenarioTally is a per-scenario pass/fail rollup for the report's summary table.
+type scenarioTally struct {
+	name                 string
+	total, passed, faild int
+}
+
+func generateHTMLReport(results []TestResult) string {
+	passCount, failCount := 0, 0
 	for _, r := range results {
 		if r.Status == "pass" {
 			passCount++
@@ -763,36 +843,136 @@ func generateHTMLReport(results []TestResult) string {
 		}
 	}
 
-	versionWarning := ""
-	if ClaimedAppVersion != "unknown" && ClaimedAppVersion != CTTMargoVersion {
-		versionWarning = "<div class=\"version-warning\">⚠ Version Mismatch: Claimed App Version (" + ClaimedAppVersion + ") differs from CTT Margo Version (" + CTTMargoVersion + ")</div>\n    "
-	}
-
-	html := "<!DOCTYPE html>\n<html>\n<head>\n    <title>Device Supplier Conformance Report</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background: #333; color: white; padding: 20px; border-radius: 5px; }\n        .summary { margin: 20px 0; }\n        .pass { color: green; font-weight: bold; }\n        .fail { color: red; font-weight: bold; }\n        table { width: 100%; border-collapse: collapse; margin-top: 20px; }\n        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }\n        th { background: #f2f2f2; }\n        .version-warning { margin: 16px 0; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>Device Supplier Conformance Test Report</h1>\n        <p>CTT Margo Version: " + CTTMargoVersion + "</p>\n        <p>Claimed App Version: " + ClaimedAppVersion + "</p>\n        <p>Generated: " + time.Now().Format(time.RFC3339) + "</p>\n    </div>\n    " + versionWarning + "<div class=\"summary\">\n        <h2>Summary</h2>\n        <p>Total Tests: " + fmt.Sprintf("%d", len(results)) + " | <span class=\"pass\">&#x2705; Passed: " + fmt.Sprintf("%d", passCount) + "</span> | <span class=\"fail\">&#x274C; Failed: " + fmt.Sprintf("%d", failCount) + "</span></p>\n        <p>Success Rate: " + fmt.Sprintf("%.1f", float64(passCount)/float64(len(results))*100) + "%</p>\n    </div>\n    <table>\n        <tr><th>Step</th><th>Status</th><th>HTTP Code</th><th>Details</th></tr>\n"
-
+	// Per-scenario rollup, preserving first-seen order.
+	var order []string
+	tallies := map[string]*scenarioTally{}
 	for _, r := range results {
-		statusClass := "pass"
-		statusText := "✅ PASS"
-		if r.Status == "fail" {
-			statusClass = "fail"
-			statusText = "❌ FAIL"
+		t := tallies[r.ScenarioID]
+		if t == nil {
+			t = &scenarioTally{name: r.ScenarioName}
+			tallies[r.ScenarioID] = t
+			order = append(order, r.ScenarioID)
 		}
-
-		html += fmt.Sprintf(`
-        <tr>
-            <td>%s</td>
-            <td><span class="%s">%s</span></td>
-            <td>%d</td>
-            <td>%s</td>
-        </tr>
-`, r.StepName, statusClass, statusText, r.StatusCode, r.Reason)
+		t.total++
+		if r.Status == "pass" {
+			t.passed++
+		} else {
+			t.faild++
+		}
 	}
 
-	html += `
-    </table>
-</body>
-</html>
-`
+	verified, referenced := crIDCoverage(results)
+	verifiedSet := map[string]bool{}
+	for _, id := range verified {
+		verifiedSet[id] = true
+	}
 
-	return html
+	var b strings.Builder
+	b.WriteString(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Device Conformance Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2933; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .meta { font-size: 13px; color: #555; margin-bottom: 18px; }
+    .summary { margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+    .summary.all-pass { color: #166534; }
+    .summary.has-fail { color: #b91c1c; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 24px; }
+    th, td { border: 1px solid #d7dde5; padding: 7px 9px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    tr.pass td:first-child { color: #166534; font-weight: 700; }
+    tr.fail td:first-child, tr.fail td:last-child { color: #b91c1c; font-weight: 700; }
+    .version-warning { margin-bottom: 14px; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Margo Device Conformance Report</h1>
+`)
+	fmt.Fprintf(&b, `  <div class="meta">
+    Claimed App Version: <strong>%s</strong> &nbsp;|&nbsp;
+    CTT Margo Version: <strong>%s</strong> &nbsp;|&nbsp;
+    Target WFM: <strong>%s</strong> &nbsp;|&nbsp;
+    Run: <strong>%s</strong>
+  </div>
+`, htmlEscape(ClaimedAppVersion), htmlEscape(CTTMargoVersion), htmlEscape(WFMServer), time.Now().Format(time.RFC3339))
+
+	if ClaimedAppVersion != "unknown" && ClaimedAppVersion != CTTMargoVersion {
+		fmt.Fprintf(&b, `  <div class="version-warning">⚠ Version Mismatch: Claimed App Version (%s) differs from CTT Margo Version (%s)</div>
+`, htmlEscape(ClaimedAppVersion), htmlEscape(CTTMargoVersion))
+	}
+
+	cls := "all-pass"
+	icon := "✅"
+	if failCount != 0 {
+		cls, icon = "has-fail", "❌"
+	}
+	fmt.Fprintf(&b, `  <div class="summary %s">%s %d passed, %d failed, %d total</div>
+`, cls, icon, passCount, failCount, len(results))
+
+	// Requirements coverage
+	fmt.Fprintf(&b, `  <h2>Requirements Coverage</h2>
+  <div class="summary">%d requirement(s) verified by passing tests &nbsp;|&nbsp; %d referenced by tests in total</div>
+  <table>
+    <thead><tr><th>CR-ID</th><th>Verified</th></tr></thead>
+    <tbody>
+`, len(verified), len(referenced))
+	for _, id := range referenced {
+		rowCls, mark := "pass", "✅"
+		if !verifiedSet[id] {
+			rowCls, mark = "fail", "❌"
+		}
+		fmt.Fprintf(&b, "    <tr class=\"%s\"><td>%s</td><td>%s</td></tr>\n", rowCls, htmlEscape(id), mark)
+	}
+	b.WriteString("    </tbody>\n  </table>\n")
+
+	// Scenario summary
+	b.WriteString(`  <h2>Scenario Summary</h2>
+  <table>
+    <thead><tr><th>Scenario</th><th>Total</th><th>Passed</th><th>Failed</th></tr></thead>
+    <tbody>
+`)
+	for _, id := range order {
+		t := tallies[id]
+		rowCls := "pass"
+		if t.faild != 0 {
+			rowCls = "fail"
+		}
+		fmt.Fprintf(&b, "    <tr class=\"%s\"><td>%s</td><td>%d</td><td>%d</td><td>%d</td></tr>\n",
+			rowCls, htmlEscape(t.name), t.total, t.passed, t.faild)
+	}
+	b.WriteString("    </tbody>\n  </table>\n")
+
+	// Step details
+	b.WriteString(`  <h2>Step Details</h2>
+  <table>
+    <thead><tr>
+      <th>Status</th><th>Scenario</th><th>Step</th><th>CR-IDs</th><th>Name</th>
+      <th>Method</th><th>Endpoint</th><th>Expected</th><th>Actual</th><th>Failure Reason</th>
+    </tr></thead>
+    <tbody>
+`)
+	for _, r := range results {
+		rowCls, statusText := "pass", "PASS"
+		if r.Status != "pass" {
+			rowCls, statusText = "fail", "FAIL"
+		}
+		expected := ""
+		if r.Expected != 0 {
+			expected = fmt.Sprintf("%d", r.Expected)
+		}
+		fmt.Fprintf(&b, `    <tr class="%s">
+      <td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>
+      <td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td>
+    </tr>
+`, rowCls, statusText, htmlEscape(r.ScenarioName), htmlEscape(r.StepID),
+			htmlEscape(strings.Join(r.CRIds, ", ")), htmlEscape(r.StepName),
+			htmlEscape(r.Method), htmlEscape(r.Endpoint), expected, r.StatusCode, htmlEscape(r.Reason))
+	}
+	b.WriteString("    </tbody>\n  </table>\n</body>\n</html>\n")
+
+	return b.String()
 }

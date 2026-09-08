@@ -771,7 +771,7 @@ run_wfm_newman() {
     cp "$collection_file" "$runtime_collection"
     
     # Use external jq filter file to avoid shell quoting issues
-    local jq_filter_file="$wfm_supplier_dir/patch_postman_collection.jq"
+    local jq_filter_file="$wfm_supplier_dir/prepare_conformance_collection.jq"
     if [[ ! -f "$jq_filter_file" ]]; then
         error "JQ filter file not found: $jq_filter_file"
     fi
@@ -1062,7 +1062,7 @@ execute_device_tests() {
     # Build test runner if not already built
     if [[ ! -f "bin/run_tests" ]]; then
         log "📦 Building device test runner..."
-        go build -o bin/run_tests run_tests.go || error "Failed to build test runner"
+        go build -o bin/run_tests . || error "Failed to build test runner"
     fi
     
     # Copy test scenarios from Data-Generator or use custom scenarios
@@ -1624,7 +1624,7 @@ device_run_tests() {
     # Build test runner if needed
     if [[ ! -f "bin/run_tests" ]]; then
         log "📦 Building device test runner..."
-        go build -o bin/run_tests run_tests.go || error "Failed to build test runner"
+        go build -o bin/run_tests . || error "Failed to build test runner"
     fi
 
     # Group selection

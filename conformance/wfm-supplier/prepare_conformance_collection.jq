@@ -41,8 +41,8 @@ def patch_request:
     elif ($method == "GET" and ($path | test("api/v1/clients/.*/deployments$"))) then add_flexible_test_script
     elif ($method == "GET" and ($path | test("api/v1/clients/.*/deployments/.*/"))) then add_flexible_test_script
     elif ($method == "POST" and ($path | test("api/v1/onboarding$"))) then set_json_body("{{onboardingRequest}}") | add_flexible_test_script
-    elif ($method == "POST" and ($path | test("api/v1/clients/.*/capabilities$"))) then set_json_body("{{capabilitiesRequest}}") | add_flexible_test_script
-    elif ($method == "PUT" and ($path | test("api/v1/clients/.*/capabilities$"))) then set_json_body("{{capabilitiesUpdateRequest}}") | add_flexible_test_script
+    elif ($method == "POST" and ($path | test("api/v1/clients/.*/capabilities(/.*)?$"))) then set_json_body("{{capabilitiesRequest}}") | add_flexible_test_script
+    elif ($method == "PUT" and ($path | test("api/v1/clients/.*/capabilities(/.*)?$"))) then set_json_body("{{capabilitiesUpdateRequest}}") | add_flexible_test_script
     elif ($method == "POST" and ($path | test("api/v1/clients/.*/deployments/.*/status$"))) then set_json_body("{{statusRequest}}") | add_flexible_test_script
     else . end
   end;

@@ -110,6 +110,42 @@ openssl req -new -x509 -days $DAYS_VALID \
   -out "$OUTPUT_DIR/device-cert.pem" \
   -subj "/C=IN/ST=GGN/L=Sector48/O=AcmeCorp/OU=Devices/CN=device-001" 2>/dev/null
 
+# --- WP-1: device certs for the other required RFC 9421 signature algorithms ---
+# MI-012 ecdsa-p384-sha384
+if [[ ! -f "$OUTPUT_DIR/device-ec384-cert.pem" ]]; then
+  openssl ecparam -name secp384r1 -genkey -noout -out "$OUTPUT_DIR/device-ec384-key.pem" 2>/dev/null
+  openssl req -new -x509 -days $DAYS_VALID -key "$OUTPUT_DIR/device-ec384-key.pem" \
+    -out "$OUTPUT_DIR/device-ec384-cert.pem" \
+    -subj "/C=IN/ST=GGN/L=Sector48/O=AcmeCorp/OU=Devices/CN=device-ec384" 2>/dev/null
+fi
+# MI-014 rsa-v1_5-sha256 (RSA-2048)
+if [[ ! -f "$OUTPUT_DIR/device-rsa2048-cert.pem" ]]; then
+  openssl genrsa -out "$OUTPUT_DIR/device-rsa2048-key.pem" 2048 2>/dev/null
+  openssl req -new -x509 -days $DAYS_VALID -key "$OUTPUT_DIR/device-rsa2048-key.pem" \
+    -out "$OUTPUT_DIR/device-rsa2048-cert.pem" \
+    -subj "/C=IN/ST=GGN/L=Sector48/O=AcmeCorp/OU=Devices/CN=device-rsa2048" 2>/dev/null
+fi
+
+# --- WP-2 (MI-004): a device cert that does NOT conform to RFC 5280 ---
+# 1024-bit RSA key — below the modern RFC 5280 / CA-Browser Forum floor of 2048.
+if [[ ! -f "$OUTPUT_DIR/device-weakkey-cert.pem" ]]; then
+  openssl genrsa -out "$OUTPUT_DIR/device-weakkey-key.pem" 1024 2>/dev/null
+  openssl req -new -x509 -days $DAYS_VALID -key "$OUTPUT_DIR/device-weakkey-key.pem" \
+    -out "$OUTPUT_DIR/device-weakkey-cert.pem" \
+    -subj "/C=IN/ST=GGN/L=Sector48/O=AcmeCorp/OU=Devices/CN=device-weak" 2>/dev/null
+fi
+
+# --- WP-2 (MI-018): a TLS server cert NOT signed by our root CA (self-signed) ---
+# Served on the mock's :3002 listener; a client that verifies the server cert
+# against the fetched root CA MUST refuse to connect there.
+if [[ ! -f "$OUTPUT_DIR/untrusted-server-cert.pem" ]]; then
+  openssl genrsa -out "$OUTPUT_DIR/untrusted-server-key.pem" 2048 2>/dev/null
+  openssl req -new -x509 -days $DAYS_VALID -key "$OUTPUT_DIR/untrusted-server-key.pem" \
+    -out "$OUTPUT_DIR/untrusted-server-cert.pem" \
+    -subj "/C=US/ST=State/L=City/O=NotMargo/OU=WFM/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" 2>/dev/null
+fi
+
 echo ""
 echo "✅ Certificate generation complete!"
 echo ""

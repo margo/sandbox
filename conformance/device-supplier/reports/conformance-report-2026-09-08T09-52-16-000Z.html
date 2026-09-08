@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Device Conformance Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2933; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .meta { font-size: 13px; color: #555; margin-bottom: 18px; }
+    .summary { margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+    .summary.all-pass { color: #166534; }
+    .summary.has-fail { color: #b91c1c; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 24px; }
+    th, td { border: 1px solid #d7dde5; padding: 7px 9px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    tr.pass td:first-child { color: #166534; font-weight: 700; }
+    tr.fail td:first-child, tr.fail td:last-child { color: #b91c1c; font-weight: 700; }
+    .version-warning { margin-bottom: 14px; padding: 10px 14px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 13px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Margo Device Conformance Report</h1>
+  <div class="meta">
+    Claimed App Version: <strong>1.0.0-rc.2</strong> &nbsp;|&nbsp;
+    CTT Margo Version: <strong>1.0.0-rc.2</strong> &nbsp;|&nbsp;
+    Target WFM: <strong>https://10.0.0.7:3001/v1alpha2/margo</strong> &nbsp;|&nbsp;
+    Run: <strong>2026-09-08T09:52:16Z</strong>
+  </div>
+  <div class="summary all-pass">✅ 10 passed, 0 failed, 10 total</div>
+  <h2>Requirements Coverage</h2>
+  <div class="summary">0 requirement(s) verified by passing tests &nbsp;|&nbsp; 0 referenced by tests in total</div>
+  <table>
+    <thead><tr><th>CR-ID</th><th>Verified</th></tr></thead>
+    <tbody>
+    </tbody>
+  </table>
+  <h2>Scenario Summary</h2>
+  <table>
+    <thead><tr><th>Scenario</th><th>Total</th><th>Passed</th><th>Failed</th></tr></thead>
+    <tbody>
+    <tr class="pass"><td>Capability Reporting — Device Role Variants</td><td>6</td><td>6</td><td>0</td></tr>
+    <tr class="pass"><td>Desired State — Default Negotiation and Zero-Deployment Manifest</td><td>4</td><td>4</td><td>0</td></tr>
+    </tbody>
+  </table>
+  <h2>Step Details</h2>
+  <table>
+    <thead><tr>
+      <th>Status</th><th>Scenario</th><th>Step</th><th>CR-IDs</th><th>Name</th>
+      <th>Method</th><th>Endpoint</th><th>Expected</th><th>Actual</th><th>Failure Reason</th>
+    </tr></thead>
+    <tbody>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.0</td><td></td><td>Onboard Device (Setup)</td>
+      <td>POST</td><td>/api/v1/onboarding</td><td>201</td><td>201</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.1</td><td></td><td>Report Capabilities — Standalone Device Role (compose only)</td>
+      <td>POST</td><td>/api/v1/clients/9f38b05f-cfbe-45ae-b5cb-56a096ed967e/capabilities/9f38b05f-cfbe-45ae-b5cb-56a096ed967e</td><td>201</td><td>201</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.2</td><td></td><td>Report Capabilities — Standalone Cluster Role (helm only)</td>
+      <td>POST</td><td>/api/v1/clients/9f38b05f-cfbe-45ae-b5cb-56a096ed967e/capabilities/9f38b05f-cfbe-45ae-b5cb-56a096ed967e</td><td>201</td><td>201</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.3</td><td></td><td>Reject Capabilities — Invalid supportedDeploymentTypes Value</td>
+      <td>POST</td><td>/api/v1/clients/9f38b05f-cfbe-45ae-b5cb-56a096ed967e/capabilities/9f38b05f-cfbe-45ae-b5cb-56a096ed967e</td><td>422</td><td>422</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.4</td><td></td><td>Reject Capabilities — Invalid supportedRuntimes Value</td>
+      <td>POST</td><td>/api/v1/clients/9f38b05f-cfbe-45ae-b5cb-56a096ed967e/capabilities/9f38b05f-cfbe-45ae-b5cb-56a096ed967e</td><td>422</td><td>422</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Capability Reporting — Device Role Variants</td><td>step-core-1.5</td><td></td><td>Reject Capabilities — cpus[] Entry Missing Required cores</td>
+      <td>POST</td><td>/api/v1/clients/9f38b05f-cfbe-45ae-b5cb-56a096ed967e/capabilities/9f38b05f-cfbe-45ae-b5cb-56a096ed967e</td><td>422</td><td>422</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Desired State — Default Negotiation and Zero-Deployment Manifest</td><td>step-core-2.0</td><td></td><td>Onboard Device (Setup)</td>
+      <td>POST</td><td>/api/v1/onboarding</td><td>201</td><td>201</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Desired State — Default Negotiation and Zero-Deployment Manifest</td><td>step-core-2.1</td><td></td><td>Get Deployments With No Accept Header — Defaults To Manifest Format</td>
+      <td>GET</td><td>/api/v1/clients/4f323e5e-601e-4d16-932f-a503af33fe9a/deployments</td><td>200</td><td>200</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Desired State — Default Negotiation and Zero-Deployment Manifest</td><td>step-core-2.2</td><td></td><td>Reset Desired State To Empty (test-control)</td>
+      <td>PUT</td><td>/api/v1/test/clients/4f323e5e-601e-4d16-932f-a503af33fe9a/deployments</td><td>200</td><td>200</td><td></td>
+    </tr>
+    <tr class="pass">
+      <td>PASS</td><td>Desired State — Default Negotiation and Zero-Deployment Manifest</td><td>step-core-2.3</td><td></td><td>Get Deployments — Zero Deployments Still Returns A Valid (Empty) Manifest</td>
+      <td>GET</td><td>/api/v1/clients/4f323e5e-601e-4d16-932f-a503af33fe9a/deployments</td><td>200</td><td>200</td><td></td>
+    </tr>
+    </tbody>
+  </table>
+</body>
+</html>

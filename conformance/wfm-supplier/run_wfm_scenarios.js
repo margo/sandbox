@@ -167,6 +167,29 @@ const POSTMAN_ENDPOINT_RULES = {
   },
 };
 
+// semanticErrorBody returns a structurally valid current-schema request body for
+// `endpoint` with exactly one deliberate semantic violation (a bad enum value),
+// so a 422 test reaches the server's semantic-validation layer instead of being
+// rejected earlier as a malformed payload. Returns null for endpoints we don't
+// have a known-good body shape for (caller falls back to the Postman body).
+function semanticErrorBody(endpoint) {
+  if (endpoint.includes('/capabilities')) {
+    const b = JSON.parse(JSON.stringify(DEVICE_CAPABILITIES_BODY));
+    b.properties.supportedDeploymentTypes = ['__invalid_deployment_type__'];
+    return b;
+  }
+  if (endpoint.endsWith('/status')) {
+    return {
+      apiVersion: 'deployment.margo.org/v1alpha1',
+      kind: 'DeploymentStatusManifest',
+      deploymentId: '{deploymentId}',
+      status: { state: '__invalid_state__' },
+      components: [{ name: 'component-1', state: 'installed' }],
+    };
+  }
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Error-triggering rules for each response-example sub-test
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,9 +229,12 @@ function deriveErrorBehavior(resp) {
     return { skip_content_digest: true };
   }
   if (/signature.*fail|signature.*verif/i.test(name) || code === 401) {
-    // "Signature verification failed" — skip signing.
-    // Spec documents 401 for this specific case; 400 belongs to content-digest, a different test.
-    return { skip_signing: true };
+    // "Signature verification failed" — send a fully-formed request (valid
+    // Signature-Input + Content-Digest) whose Signature bytes are wrong, so the
+    // server's verifier runs and rejects it. `skip_signing` would instead omit
+    // the headers entirely, which is "missing signature" — a different case that
+    // a strict server answers with 400, not the 401 this test documents.
+    return { tamper_signature: true };
   }
   if (/invalid.*cert.*format|cert.*format.*invalid|cert.*format.*struct/i.test(name)) {
     // skip_signing: prevents 409 "already registered" when the device keyid is already onboarded.
@@ -216,12 +242,22 @@ function deriveErrorBehavior(resp) {
     return { bad_certificate: true, skip_signing: true };
   }
   if (/not.*trusted|revoked|rejected/i.test(name) || code === 403) {
-    // "Certificate not trusted" — use fresh unregistered cert. Spec documents 403 for this case.
-    return { fresh_cert: true };
+    // "Certificate not trusted / revoked" — sign with a fresh, never-onboarded
+    // certificate so the WFM sees an identity it has no trust relationship with.
+    // A conformant WFM may answer 403 (recognised but not trusted) or 401 (could
+    // not authenticate the caller) here — the strict 403-vs-revoked distinction
+    // needs server-side revocation state this client-only test can't create — so
+    // both codes are accepted. Anything else (400, 2xx) is still a failure.
+    return { fresh_cert: true, accepted_statuses: [401, 403] };
   }
   if (/semantic.*error|body.*semantic|request body includes/i.test(name) || code === 422) {
     // Spec documents 422 for a semantic body error; 400 belongs to content-digest, a different test.
-    return { use_placeholder_body: true };
+    // We send a STRUCTURALLY VALID current-schema body with exactly one semantic
+    // violation (a bad enum value) — the Portman placeholder body has an invalid
+    // apiVersion and old-schema fields, so a strict server rejects it with 400
+    // ("invalid API version …") before it ever reaches semantic validation, which
+    // is not what this test is checking.
+    return { semantic_error: true };
   }
   // Any other documented error (404 CONTEXT_FALLBACKS, or anything else): hold it to its
   // own documented code — no blanket fallback (e.g. 301 isn't documented anywhere in spec).
@@ -254,6 +290,7 @@ function deriveStepFromResponse(parentItem, resp) {
   const skip_signing = errorBehavior.skip_signing ?? (rules.skip_signing ?? false);
   const skip_content_digest = errorBehavior.skip_content_digest ?? false;
   const fresh_cert   = errorBehavior.fresh_cert ?? false;
+  const tamper_signature = errorBehavior.tamper_signature ?? false;
 
   // Derive the request body
   let request_body = null;
@@ -278,9 +315,9 @@ function deriveStepFromResponse(parentItem, resp) {
       ...(rules.body || {}),
       certificate: `INVALID_NOT_A_PEM_CERTIFICATE-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     };
-  } else if (errorBehavior.use_placeholder_body) {
-    // 422 "Semantic error" — keep the Postman Lorem-Ipsum body (bad apiVersion, invalid values)
-    // Don't apply bodyMerge/bodyNested — the placeholder body IS the bad payload
+  } else if (errorBehavior.semantic_error) {
+    // 422 "Semantic error" — a valid current-schema body with one bad enum value.
+    request_body = semanticErrorBody(endpoint) || request_body;
   } else if (errorBehavior.wrong_accept) {
     headers['Accept'] = 'text/plain';
   } else if (errorBehavior.add_if_none_match) {
@@ -330,6 +367,7 @@ function deriveStepFromResponse(parentItem, resp) {
     skip_signing,
     skip_content_digest,
     fresh_cert,
+    tamper_signature,
   };
 }
 
@@ -656,6 +694,17 @@ function validate(responseSource, validation) {
       return Array.isArray(expected) && expected.includes(actual)
         ? ''
         : `${validation.field} expected one of ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+    case 'matches_regex':
+      // Uses the raw pattern, not the {context}-substituted `expected` — a
+      // regex quantifier like {64} would otherwise be mistaken for a
+      // context-variable placeholder by substitute() and silently stripped.
+      return new RegExp(validation.value).test(String(actual ?? ''))
+        ? ''
+        : `${validation.field} value ${JSON.stringify(actual)} does not match pattern ${validation.value}`;
+    case 'greater_than':
+      return Number(actual) > Number(expected)
+        ? ''
+        : `${validation.field} expected > ${expected}, got ${actual}`;
     default:
       return `unsupported validation operation: ${validation.operation}`;
   }
@@ -753,8 +802,9 @@ function printScenarioHeader(scenario, index, total) {
 }
 
 function signingLabel(step, bodyText) {
-  if (step.skip_signing) return '[unsigned]';
-  if (step.fresh_cert)   return '[fresh-cert · signed]';
+  if (step.skip_signing)      return '[unsigned]';
+  if (step.tamper_signature)  return '[bad-signature]';
+  if (step.fresh_cert)        return '[fresh-cert · signed]';
   if (bodyText) return '[signed · content-digest]';
   return '[signed]';
 }
@@ -875,6 +925,17 @@ async function performHTTPStep(step) {
   if (!step.skip_content_digest) prepareContentDigest(headers, bodyText);
 
   if (!step.skip_signing) signRequest(method, url, headers, bodyText);
+
+  // "Signature verification failed" test: keep Signature-Input intact but flip one
+  // character of the Signature value so the bytes no longer verify.
+  if (step.tamper_signature && headers.Signature) {
+    headers.Signature = headers.Signature.replace(/:([A-Za-z0-9+/=]+):/, (_m, b64) => {
+      const chars = b64.split('');
+      const i = Math.max(0, Math.floor(chars.length / 2));
+      chars[i] = chars[i] === 'A' ? 'B' : 'A';
+      return ':' + chars.join('') + ':';
+    });
+  }
 
   const response = await request(method, url, headers, bodyText);
   const parsed = parseBody(response.body);

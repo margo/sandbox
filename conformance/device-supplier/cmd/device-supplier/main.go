@@ -88,6 +88,11 @@ type ClientData struct {
 	Capabilities    map[string]interface{} `json:"capabilities,omitempty"`
 	DeploymentsData []string               `json:"deployments,omitempty"`
 	ManifestVersion int                    `json:"manifest_version,omitempty"`
+	// NegativeFixture, when set, makes GET /deployments serve a deliberately
+	// spec-violating manifest for this client (see negative_fixtures.go). It is
+	// set only via the test-control endpoint; "" means serve a conformant
+	// manifest.
+	NegativeFixture NegativeFixture `json:"negative_fixture,omitempty"`
 }
 
 type DeploymentData struct {
@@ -602,35 +607,35 @@ func verifyRFC9421Signature(r *http.Request, certPEM string, bodyBytes []byte) e
 // - Plain PEM format
 // - Base64-encoded DER (raw binary)
 func extractPublicKeyFromCertPEM(certPEM string) (interface{}, error) {
+	cert, err := parseClientCert(certPEM)
+	if err != nil {
+		return nil, err
+	}
+	return cert.PublicKey, nil
+}
+
+// parseClientCert decodes a client certificate that may arrive as raw PEM,
+// base64-encoded PEM, or base64-encoded DER, and returns the parsed cert.
+func parseClientCert(certPEM string) (*x509.Certificate, error) {
 	var certBytes []byte
-	
-	// Try 1: Decode base64 first
-	decoded, err := base64.StdEncoding.DecodeString(certPEM)
-	if err == nil {
-		// Base64 decode succeeded - check if result is PEM or DER
-		block, _ := pem.Decode(decoded)
-		if block != nil {
-			// It was base64-encoded PEM (device-agent format)
+
+	if decoded, err := base64.StdEncoding.DecodeString(certPEM); err == nil {
+		if block, _ := pem.Decode(decoded); block != nil {
 			certBytes = block.Bytes
 		} else {
-			// It was base64-encoded DER
 			certBytes = decoded
 		}
+	} else if block, _ := pem.Decode([]byte(certPEM)); block != nil {
+		certBytes = block.Bytes
 	} else {
-		// Base64 decode failed - try PEM decode directly
-		block, _ := pem.Decode([]byte(certPEM))
-		if block != nil {
-			certBytes = block.Bytes
-		} else {
-			return nil, fmt.Errorf("cert is not base64, PEM, or valid format")
-		}
+		return nil, fmt.Errorf("cert is not base64, PEM, or valid format")
 	}
 
 	cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse X.509 certificate: %w", err)
 	}
-	return cert.PublicKey, nil
+	return cert, nil
 }
 
 // signatureAuthError returns a spec-compliant 401 response body.
@@ -915,6 +920,12 @@ func handleOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// MI-004: the device certificate MUST conform to RFC 5280.
+	if reason := certRFC5280Violation(certRaw); reason != "" {
+		respondJSON(w, 422, ResponseError{Error: "certificate does not conform to RFC 5280", Message: reason})
+		return
+	}
+
 	// Optionally accept the WFM root CA certificate from the client during onboarding
 	caCertRaw, _ := body["caCertificate"].(string)
 	if caCertRaw != "" {
@@ -1078,6 +1089,18 @@ func handleGetDeployments(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondJSON(w, 500, ResponseError{Error: "Failed to build deployment manifest"})
 		return
+	}
+
+	// Negative-fixture path: a conformance test has asked us to serve a
+	// deliberately non-conformant manifest for this client. Applied over the
+	// correct manifest, then the ETag is recomputed so it still matches the
+	// bytes we send.
+	if client.NegativeFixture != FixtureNone {
+		manifest = applyNegativeFixture(manifest, client.NegativeFixture)
+		if b, mErr := json.Marshal(manifest); mErr == nil {
+			etag = sha256Hex(b)
+		}
+		log.Printf("[Deployments] ⚠ negative fixture %q active for %s — serving a deliberately non-conformant manifest", client.NegativeFixture, clientID)
 	}
 
 	if normalizeETag(r.Header.Get("If-None-Match")) == etag {
@@ -1297,6 +1320,11 @@ func handlePostStatus(w http.ResponseWriter, r *http.Request) {
 // on demand instead of relying on the fixed one-shot manifest every client
 // gets at onboarding. Real device-agents under conformance test never call
 // this; only our own test harness does, so it skips signature verification.
+//
+// It also accepts an optional "negativeFixture" naming a single spec violation
+// to inject into this client's desired-state manifest (see negative_fixtures.go)
+// — the mechanism the suite uses to verify "the client MUST reject X"
+// requirements such as MARGO-DEV-MANAGEMENTINTERFACE-008.
 func handleTestSetDeployments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clientID := vars["clientId"]
@@ -1310,11 +1338,17 @@ func handleTestSetDeployments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		DeploymentIDs []string `json:"deploymentIds"`
+		DeploymentIDs   []string        `json:"deploymentIds"`
+		NegativeFixture NegativeFixture `json:"negativeFixture,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		mu.Unlock()
-		respondJSON(w, 400, ResponseError{Error: `Invalid JSON body: expected {"deploymentIds": [...]}`})
+		respondJSON(w, 400, ResponseError{Error: `Invalid JSON body: expected {"deploymentIds": [...], "negativeFixture"?: "<name>"}`})
+		return
+	}
+	if !isKnownFixture(body.NegativeFixture) {
+		mu.Unlock()
+		respondJSON(w, 400, ResponseError{Error: fmt.Sprintf("Unknown negativeFixture: %q (see negative_fixtures.go)", body.NegativeFixture)})
 		return
 	}
 	newIDs := body.DeploymentIDs
@@ -1332,6 +1366,7 @@ func handleTestSetDeployments(w http.ResponseWriter, r *http.Request) {
 			ensureDeployment(clientID, id)
 		}
 	}
+	client.NegativeFixture = body.NegativeFixture
 	clients[clientID] = client
 	version := client.ManifestVersion
 	mu.Unlock()
@@ -1343,12 +1378,13 @@ func handleTestSetDeployments(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[TestControl] ⚠ Failed to persist deployments: %v", err)
 	}
 
-	log.Printf("[TestControl] Client %s desired state set to %v (manifestVersion=%d)", clientID, newIDs, version)
+	log.Printf("[TestControl] Client %s desired state set to %v (manifestVersion=%d, negativeFixture=%q)", clientID, newIDs, version, body.NegativeFixture)
 
 	respondJSON(w, 200, map[string]interface{}{
 		"clientId":        clientID,
 		"deployments":     newIDs,
 		"manifestVersion": version,
+		"negativeFixture": body.NegativeFixture,
 	})
 }
 
@@ -1740,8 +1776,31 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// MI-018 negative-test listener: the same API served over TLS with a
+	// certificate NOT signed by our root CA. A device that correctly verifies
+	// the WFM server certificate against the fetched root CA MUST refuse to
+	// connect here. Best-effort — skipped if the untrusted cert isn't present.
+	go serveUntrustedTLS(router)
+
 	log.Printf("🚀 Mock WFM Server starting on https://localhost%s", WFMPort)
 	if err := http.ListenAndServeTLS(WFMPort, certFile, keyFile, router); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// UntrustedTLSPort serves the API with a non-CA-signed cert for the MI-018
+// negative test. Not part of the Margo spec.
+const UntrustedTLSPort = ":3002"
+
+func serveUntrustedTLS(router http.Handler) {
+	cert := filepath.Join("certs", "untrusted-server-cert.pem")
+	key := filepath.Join("certs", "untrusted-server-key.pem")
+	if _, err := os.Stat(cert); err != nil {
+		log.Printf("[MI-018] untrusted-CA listener disabled (%s not found)", cert)
+		return
+	}
+	log.Printf("🔒 untrusted-CA listener on https://localhost%s (MI-018 negative test)", UntrustedTLSPort)
+	if err := http.ListenAndServeTLS(UntrustedTLSPort, cert, key, router); err != nil {
+		log.Printf("[MI-018] untrusted-CA listener stopped: %v", err)
 	}
 }

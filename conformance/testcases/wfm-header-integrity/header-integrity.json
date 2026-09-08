@@ -1,0 +1,59 @@
+[
+  {
+    "id": "wfm-header-integrity-manifest",
+    "name": "Desired State Manifest — ETag & Content-Type Correctness",
+    "description": "Per docs.margo.org/specification/margo-management-interface/desired-state: MI-004/MI-027 (ETag MUST be sha256:<64 lowercase hex>), MI-006/MI-007 (200 OK manifest response MUST carry Content-Type application/vnd.margo.manifest.v1+json), MI-026 (first manifest for a client MUST use manifestVersion 1), MI-030 (matching If-None-Match MUST return 304 with an empty body). Uses matches_regex/greater_than validation operators added to run_wfm_scenarios.js for this purpose.",
+    "steps": [
+      {
+        "id": "step-wfm-hi-1.0",
+        "name": "Onboard Device (Setup)",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          { "field": "clientId", "operation": "is_string" },
+          { "field": "clientId", "operation": "matches_regex", "value": "^[A-Za-z0-9_-]+$" }
+        ],
+        "extract_context": {
+          "clientId": "clientId",
+          "deviceId": "clientId"
+        }
+      },
+      {
+        "id": "step-wfm-hi-1.1",
+        "name": "Get Deployments — First Manifest Has ETag, Content-Type, and Version 1",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": { "Accept": "application/vnd.margo.manifest.v1+json" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "manifestVersion", "operation": "equals", "value": 1 },
+          { "field": "_headers.content-type", "operation": "equals", "value": "application/vnd.margo.manifest.v1+json" },
+          { "field": "_headers.etag", "operation": "exists" },
+          { "field": "_headers.etag", "operation": "matches_regex", "value": "^\"?sha256:[0-9a-f]{64}\"?$" }
+        ],
+        "extract_context": {
+          "etag": "_headers.etag"
+        }
+      },
+      {
+        "id": "step-wfm-hi-1.2",
+        "name": "Get Deployments Again With If-None-Match — Returns 304 With Empty Body",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": { "Accept": "application/vnd.margo.manifest.v1+json", "If-None-Match": "{etag}" },
+        "expected_status": 304,
+        "validations": [
+          { "field": "_body", "operation": "equals", "value": "" }
+        ],
+        "extract_context": {}
+      }
+    ]
+  }
+]

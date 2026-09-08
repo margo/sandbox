@@ -627,11 +627,13 @@ set_supplier_context() {
 create_test_group() {
     mkdir -p "$GROUP_DIR"
 
-    # Group name
+    # Group name — re-prompt instead of aborting on empty input
     if [[ -z "${GROUP_NAME:-}" ]]; then
         echo ""
-        read -p "Enter group name: " GROUP_NAME
-        [[ -z "$GROUP_NAME" ]] && error "Group name cannot be empty"
+        while [[ -z "${GROUP_NAME:-}" ]]; do
+            read -p "Enter group name: " GROUP_NAME
+            [[ -z "$GROUP_NAME" ]] && warn "Group name cannot be empty. Try again."
+        done
     fi
 
     GROUP_PATH="$GROUP_DIR/$GROUP_NAME"
@@ -655,11 +657,37 @@ create_test_group() {
         mkdir -p "$GROUP_PATH"
     fi
 
-    # Input folder
+    # Input folder — re-prompt on a bad path or an empty folder instead of aborting.
+    # Accepts an absolute path, a path relative to the current directory, or one
+    # relative to the conformance/ root (e.g. "testcases/wfm-core").
     echo ""
-    read -p "Enter folder path containing JSON files: " INPUT_PATH
-    [[ ! -d "$INPUT_PATH" ]] && error "Provided path is not a folder!"
-    INPUT_PATH="$(realpath --relative-to="$CONFORMANCE_DIR" "$INPUT_PATH")"
+    local _resolved=""
+    while :; do
+        read -p "Enter folder path containing JSON files: " INPUT_PATH
+        if [[ -z "$INPUT_PATH" ]]; then
+            warn "Path cannot be empty. Try again."
+            continue
+        fi
+        if [[ -d "$INPUT_PATH" ]]; then
+            _resolved="$INPUT_PATH"
+        elif [[ -d "$CONFORMANCE_DIR/$INPUT_PATH" ]]; then
+            _resolved="$CONFORMANCE_DIR/$INPUT_PATH"
+        elif [[ -d "$CONFORMANCE_DIR/${INPUT_PATH#conformance/}" ]]; then
+            _resolved="$CONFORMANCE_DIR/${INPUT_PATH#conformance/}"
+        else
+            warn "Not a folder: '$INPUT_PATH'. Try again (relative to $(pwd) or to $CONFORMANCE_DIR)."
+            continue
+        fi
+        shopt -s nullglob
+        local _probe=("$_resolved"/*.json)
+        shopt -u nullglob
+        if [[ ${#_probe[@]} -eq 0 ]]; then
+            warn "No .json files found in '$_resolved'. Try again."
+            continue
+        fi
+        break
+    done
+    INPUT_PATH="$(realpath --relative-to="$CONFORMANCE_DIR" "$_resolved")"
 
     log " Reading all JSON files from folder..."
 

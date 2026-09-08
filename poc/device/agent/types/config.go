@@ -25,6 +25,7 @@ type MIAFX509Config struct {
 	KeyPath  string `yaml:"keyPath"  validate:"required"`
 }
 type TrustBundleConfig struct {
+	URI  string `yaml:"uri"`
 	Path string `yaml:"path"`
 }
 
@@ -32,6 +33,7 @@ type MISConfig struct {
 	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
 	CacheInterval uint               `yaml:"cacheInterval"` // in seconds
 	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
+	TrustDomain   string             `yaml:"trustDomain"`   // required when endpoint+caPath are absent
 	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format
 }
 
@@ -147,16 +149,37 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("miaf.x509.keyPath is required in configuration")
 	}
 
-	// MIS: either dynamic (endpoint + caPath) or static (trustBundle.path)
-	if config.MIAF.MIS.Endpoint == "" &&
-		(config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "") {
-		return fmt.Errorf(
-			"either miaf.mis.endpoint (with miaf.mis.caPath) or miaf.mis.trustBundle.path must be configured",
-		)
+	// Rule 1: mis.endpoint and mis.caPath must be present together
+	if (config.MIAF.MIS.Endpoint == "") != (config.MIAF.MIS.CAPath == "") {
+		return fmt.Errorf("miaf.mis.endpoint and miaf.mis.caPath must both be configured together")
 	}
 
-	if config.MIAF.MIS.Endpoint != "" && config.MIAF.MIS.CAPath == "" {
-		return fmt.Errorf("miaf.mis.caPath is required when miaf.mis.endpoint is configured")
+	// Rule 2: if trustBundle.uri is present, mis.endpoint & mis.caPath must be present
+	if config.MIAF.MIS.TrustBundle != nil && config.MIAF.MIS.TrustBundle.URI != "" {
+		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
+			return fmt.Errorf(
+				"miaf.mis.endpoint and miaf.mis.caPath are required when miaf.mis.trustBundle.uri is configured",
+			)
+		}
+	}
+
+	// Rule 3: if neither trustBundle.path nor endpoint is configured, fail
+	// (trustBundle.path makes endpoint+caPath optional; without it, endpoint+caPath are required)
+	if config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "" {
+		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
+			return fmt.Errorf(
+				"either miaf.mis.trustBundle.path must be configured, or both miaf.mis.endpoint and miaf.mis.caPath must be provided",
+			)
+		}
+	}
+
+	// Rule 4: trustDomain is required when endpoint+caPath are absent (static trust bundle mode)
+	if config.MIAF.MIS.Endpoint == "" && config.MIAF.MIS.CAPath == "" {
+		if config.MIAF.MIS.TrustDomain == "" {
+			return fmt.Errorf(
+				"miaf.mis.trustDomain is required when miaf.mis.endpoint and miaf.mis.caPath are not configured",
+			)
+		}
 	}
 
 	if config.MIAF.AuthzPath == "" {

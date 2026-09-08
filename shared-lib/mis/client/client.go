@@ -1,5 +1,5 @@
-// Package misclient provides a simple wrapper around the generated MIS client.
-package misclient
+// Package client provides a simple wrapper around the generated MIS client.
+package client
 
 import (
 	"context"

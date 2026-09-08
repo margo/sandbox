@@ -504,7 +504,7 @@ func (ss *StateSyncer) shouldDownloadBundle(
 	if manifest.Bundle == nil || manifest.Bundle.Digest == nil {
 		return false
 	}
-    
+
 	// Heuristic: If more than 5 deployments, use bundle for efficiency
 	if len(manifest.Deployments) > 5 {
 		ss.log.Infow("Using bundle download (many deployments)",

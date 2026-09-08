@@ -1,0 +1,21 @@
+# ── Generated test-run output — never commit ────────────────────────────
+# HTML conformance reports (device + wfm suites)
+Runner/**/*.html
+*/reports/*.html
+wfm-supplier/wfm-test-report*.html
+wfm-supplier/wfm-scenario-report*.html
+
+# Per-run device certificates the harness regenerates on every run
+# (the CA cert is kept — it's the WFM's, not regenerated)
+**/newman-data/certs/device.key
+**/newman-data/certs/device-cert.pem
+
+# Runtime / temp scratch files
+wfm-supplier/.collection*.json
+wfm-supplier/tmp/
+**/.temp-fresh.*
+device-supplier/device-scenarios/test-scenarios.json
+
+# Compiled test binaries dropped in the working dir
+device-supplier/device-supplier
+device-supplier/server

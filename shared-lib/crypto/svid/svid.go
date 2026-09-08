@@ -23,54 +23,11 @@ type jwkKey struct {
 	Kty string   `json:"kty"`
 }
 
-// getTrustBundleFromJWK parses a SPIFFE trust bundle in JWK Set format
-// and returns the X.509 trust anchor certificates.
-// Only keys with use="x509-svid" are considered.
-func getTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
-	var keySet jwkSet
-	if err := json.Unmarshal(jwkBytes, &keySet); err != nil {
-		return nil, fmt.Errorf("failed to parse JWK Set: %w", err)
-	}
-
-	var certs []*x509.Certificate
-	for i, key := range keySet.Keys {
-		if key.Use != "x509-svid" {
-			continue // skip JWT SVIDs and other key types
-		}
-		if len(key.X5C) == 0 {
-			return nil, fmt.Errorf("key %d has use=x509-svid but missing x5c field", i)
-		}
-
-		// Only the first entry in x5c is the trust anchor;
-		// remaining entries are intermediates (if present)
-		for j, certB64 := range key.X5C {
-			derBytes, err := base64.StdEncoding.DecodeString(certB64)
-			if err != nil {
-				return nil, fmt.Errorf("key %d, x5c[%d]: failed to base64 decode: %w", i, j, err)
-			}
-			cert, err := x509.ParseCertificate(derBytes)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"key %d, x5c[%d]: failed to parse certificate: %w",
-					i,
-					j,
-					err,
-				)
-			}
-			certs = append(certs, cert)
-		}
-	}
-
-	if len(certs) == 0 {
-		return nil, fmt.Errorf("no x509-svid trust anchors found in JWK Set")
-	}
-
-	return certs, nil
-}
-
 // ValidateX509SVID validates an x509 SVID provided as a PEM or DER encoded []byte.
 // Returns (true, nil) if valid, or (false, error) describing the reason for invalidity.
-func ValidateX509SVID(svidBytes []byte, trustBundleJWKBytes []byte) (bool, error) {
+//
+// Note: This function only checks the validity of SVID, does not check the validity of SVID against any trust bundle.
+func ValidateX509SVID(svidBytes []byte) (bool, error) {
 	// 1. Parse the certificate — try PEM first, then DER
 	cert, err := parseCertificate(svidBytes)
 	if err != nil {
@@ -91,8 +48,28 @@ func ValidateX509SVID(svidBytes []byte, trustBundleJWKBytes []byte) (bool, error
 		return false, fmt.Errorf("certificate has expired: NotAfter was %s", cert.NotAfter)
 	}
 
-	// 4. Validate as a leaf certificate against the SPIFFE trust bundle
-	if err := validateAgainstTrustBundle(cert, trustBundleJWKBytes); err != nil {
+	return true, nil
+}
+
+// ValidateX509SVIDAgainstTrustBundle verifies that the given X.509 SVID certificate
+// chains to a trusted CA in the provided SPIFFE trust bundle (in JWK Set format).
+//
+// Parameters:
+//   - svidBytes:        PEM or DER encoded X.509 SVID certificate.
+//   - trustBundleBytes: SPIFFE trust bundle in JWK Set (JSON) format.
+//
+// Returns:
+//   - (true, nil)   if the certificate chains to the trust bundle successfully.
+//   - (false, error) describing why validation failed.
+func ValidateX509SVIDAgainstTrustBundle(svidBytes []byte, trustBundleBytes []byte) (bool, error) {
+	// 1. Parse the certificate — supports both PEM and DER encoding
+	cert, err := parseCertificate(svidBytes)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse SVID certificate: %w", err)
+	}
+
+	// 2. Verify the certificate chains to the SPIFFE trust bundle
+	if err := validateAgainstTrustBundle(cert, trustBundleBytes); err != nil {
 		return false, err
 	}
 
@@ -197,4 +174,49 @@ func validateAgainstTrustBundle(cert *x509.Certificate, trustBundle []byte) erro
 	}
 
 	return nil
+}
+
+// getTrustBundleFromJWK parses a SPIFFE trust bundle in JWK Set format
+// and returns the X.509 trust anchor certificates.
+// Only keys with use="x509-svid" are considered.
+func getTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
+	var keySet jwkSet
+	if err := json.Unmarshal(jwkBytes, &keySet); err != nil {
+		return nil, fmt.Errorf("failed to parse JWK Set: %w", err)
+	}
+
+	var certs []*x509.Certificate
+	for i, key := range keySet.Keys {
+		if key.Use != "x509-svid" {
+			continue // skip JWT SVIDs and other key types
+		}
+		if len(key.X5C) == 0 {
+			return nil, fmt.Errorf("key %d has use=x509-svid but missing x5c field", i)
+		}
+
+		// Only the first entry in x5c is the trust anchor;
+		// remaining entries are intermediates (if present)
+		for j, certB64 := range key.X5C {
+			derBytes, err := base64.StdEncoding.DecodeString(certB64)
+			if err != nil {
+				return nil, fmt.Errorf("key %d, x5c[%d]: failed to base64 decode: %w", i, j, err)
+			}
+			cert, err := x509.ParseCertificate(derBytes)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"key %d, x5c[%d]: failed to parse certificate: %w",
+					i,
+					j,
+					err,
+				)
+			}
+			certs = append(certs, cert)
+		}
+	}
+
+	if len(certs) == 0 {
+		return nil, fmt.Errorf("no x509-svid trust anchors found in JWK Set")
+	}
+
+	return certs, nil
 }

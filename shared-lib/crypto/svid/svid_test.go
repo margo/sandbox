@@ -404,18 +404,17 @@ func TestValidateAgainstTrustBundle(t *testing.T) {
 	})
 }
 
-// ── ValidateX509SVID (integration) ───────────────────────────────────────────
+// ── ValidateX509SVID (no trust bundle) ───────────────────────────
 
 func TestValidateX509SVID(t *testing.T) {
 	caKey := generateKey(t)
 	caCert := newCACert(t, caKey)
-	jwk := buildJWKSet(t, caCert)
 
 	t.Run("valid PEM SVID", func(t *testing.T) {
 		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
 			spiffeID: "spiffe://example.org/svc",
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), jwk)
+		ok, err := ValidateX509SVID(certToPEM(leaf))
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -424,13 +423,13 @@ func TestValidateX509SVID(t *testing.T) {
 		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
 			spiffeID: "spiffe://example.org/svc",
 		})
-		ok, err := ValidateX509SVID(leaf.Raw, jwk)
+		ok, err := ValidateX509SVID(leaf.Raw)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("invalid certificate bytes", func(t *testing.T) {
-		ok, err := ValidateX509SVID([]byte("garbage"), jwk)
+		ok, err := ValidateX509SVID([]byte("garbage"))
 		assert.False(t, ok)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid x.509 certificate")
@@ -442,7 +441,7 @@ func TestValidateX509SVID(t *testing.T) {
 			notBefore: time.Now().Add(-2 * time.Hour),
 			notAfter:  time.Now().Add(-time.Hour),
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), jwk)
+		ok, err := ValidateX509SVID(certToPEM(leaf))
 		assert.False(t, ok)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate has expired")
@@ -454,7 +453,7 @@ func TestValidateX509SVID(t *testing.T) {
 			notBefore: time.Now().Add(time.Hour),
 			notAfter:  time.Now().Add(2 * time.Hour),
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), jwk)
+		ok, err := ValidateX509SVID(certToPEM(leaf))
 		assert.False(t, ok)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not yet valid")
@@ -464,30 +463,163 @@ func TestValidateX509SVID(t *testing.T) {
 		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
 			clearURIs: true,
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), jwk)
+		ok, err := ValidateX509SVID(certToPEM(leaf))
 		assert.False(t, ok)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no URI SANs")
 	})
 
-	t.Run("untrusted certificate", func(t *testing.T) {
+	// NOTE: "untrusted certificate" and "malformed trust bundle" cases are removed —
+	// ValidateX509SVID no longer checks trust bundle. See TestValidateX509SVIDAgainstTrustBundle.
+}
+
+// ── ValidateX509SVIDAgainstTrustBundle ───────────────────────────────────────
+
+func TestValidateX509SVIDAgainstTrustBundle(t *testing.T) {
+	caKey := generateKey(t)
+	caCert := newCACert(t, caKey)
+	jwk := buildJWKSet(t, caCert)
+
+	// ── Happy path ────────────────────────────────────────────────────────────
+
+	t.Run("valid PEM SVID chains to trust bundle", func(t *testing.T) {
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), jwk)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("valid DER SVID chains to trust bundle", func(t *testing.T) {
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(leaf.Raw, jwk)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("valid SVID with multiple CAs in trust bundle", func(t *testing.T) {
+		// Add a second unrelated CA to the bundle — cert should still validate
+		otherKey := generateKey(t)
+		otherCA := newCACert(t, otherKey)
+		multiJWK := buildJWKSet(t, caCert, otherCA)
+
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), multiJWK)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	// ── Invalid SVID bytes ────────────────────────────────────────────────────
+
+	t.Run("invalid certificate bytes", func(t *testing.T) {
+		ok, err := ValidateX509SVIDAgainstTrustBundle([]byte("garbage"), jwk)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse SVID certificate")
+	})
+
+	t.Run("empty certificate bytes", func(t *testing.T) {
+		ok, err := ValidateX509SVIDAgainstTrustBundle([]byte{}, jwk)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse SVID certificate")
+	})
+
+	t.Run("PEM block with wrong type", func(t *testing.T) {
+		wrongPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("data")})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(wrongPEM, jwk)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse SVID certificate")
+	})
+
+	// ── Chain validation failures ─────────────────────────────────────────────
+
+	t.Run("certificate signed by unknown CA", func(t *testing.T) {
 		otherKey := generateKey(t)
 		otherCA := newCACert(t, otherKey)
 		leaf := newLeafCert(t, otherKey, otherCA, leafCertOptions{
 			spiffeID: "spiffe://example.org/svc",
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), jwk)
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), jwk)
 		assert.False(t, ok)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not chain to a trusted SPIFFE bundle")
 	})
 
-	t.Run("malformed trust bundle", func(t *testing.T) {
+	t.Run("CA certificate rejected as SVID", func(t *testing.T) {
+		// CA certs must not be accepted as SVIDs
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(caCert), jwk)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "CA certificate")
+	})
+
+	t.Run("self-signed leaf not in trust bundle", func(t *testing.T) {
+		// Leaf signed by its own key — not in any trust bundle
+		selfKey := generateKey(t)
+		selfCA := newCACert(t, selfKey)
+		leaf := newLeafCert(t, selfKey, selfCA, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), jwk)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not chain to a trusted SPIFFE bundle")
+	})
+
+	// ── Trust bundle failures ─────────────────────────────────────────────────
+
+	t.Run("malformed trust bundle JSON", func(t *testing.T) {
 		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
 			spiffeID: "spiffe://example.org/svc",
 		})
-		ok, err := ValidateX509SVID(certToPEM(leaf), []byte("{bad}"))
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), []byte("{bad json"))
 		assert.False(t, ok)
 		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to obtain trust bundle")
+	})
+
+	t.Run("empty trust bundle — no x509-svid keys", func(t *testing.T) {
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		emptyBundle, err := json.Marshal(jwkSet{Keys: []jwkKey{
+			{Use: "jwt-svid", Kty: "EC", X5C: []string{}},
+		}})
+		require.NoError(t, err)
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), emptyBundle)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to obtain trust bundle")
+	})
+
+	t.Run("empty trust bundle bytes", func(t *testing.T) {
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), []byte{})
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to obtain trust bundle")
+	})
+
+	t.Run("trust bundle with invalid base64 in x5c", func(t *testing.T) {
+		leaf := newLeafCert(t, caKey, caCert, leafCertOptions{
+			spiffeID: "spiffe://example.org/svc",
+		})
+		badBundle, err := json.Marshal(jwkSet{Keys: []jwkKey{
+			{Use: "x509-svid", Kty: "EC", X5C: []string{"!!!not-base64!!!"}},
+		}})
+		require.NoError(t, err)
+		ok, err := ValidateX509SVIDAgainstTrustBundle(certToPEM(leaf), badBundle)
+		assert.False(t, ok)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to obtain trust bundle")
 	})
 }

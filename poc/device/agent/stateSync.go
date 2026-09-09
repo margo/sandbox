@@ -505,16 +505,16 @@ func (ss *StateSyncer) shouldDownloadBundle(
 		return false
 	}
 
-	// Heuristic: If more than 2 deployments, use bundle for efficiency
-	if len(manifest.Deployments) > 2 {
+	// Heuristic: If more than 5 deployments, use bundle for efficiency
+	if len(manifest.Deployments) > 5 {
 		ss.log.Infow("Using bundle download (many deployments)",
 			"deploymentCount", len(manifest.Deployments))
 		return true
 	}
 
-	// Heuristic: If bundle size is reasonable (< 50MB), use bundle
+	// Heuristic: If bundle size is reasonable ( > 50MB), use bundle
 	if manifest.Bundle.SizeBytes != nil &&
-		*manifest.Bundle.SizeBytes < 50*1024*1024 {
+		*manifest.Bundle.SizeBytes > 50*1024*1024 {
 		ss.log.Infow("Using bundle download (reasonable size)",
 			"sizeBytes", *manifest.Bundle.SizeBytes)
 		return true

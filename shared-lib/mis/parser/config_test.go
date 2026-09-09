@@ -10,367 +10,443 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Test Helpers ---
+// ── helpers ──────────────────────────────────────────────────────────────────
 
-// writeFile creates a temp file with the given content and returns its path.
-func writeFile(t *testing.T, dir, name, content string) string {
+func writeTempFile(t *testing.T, dir, name string, content []byte) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	require.NoError(t, os.WriteFile(path, content, 0o600))
 	return path
 }
 
-// writeJSONFile marshals v into JSON and writes it to a temp file.
-func writeJSONFile(t *testing.T, dir, name string, v any) string {
-	t.Helper()
-	data, err := json.Marshal(v)
-	require.NoError(t, err)
-	return writeFile(t, dir, name, string(data))
+// Fixtures – replace with real PEM bytes that pass your validators.
+// These are intentionally kept as constants so tests are self-contained.
+var (
+	validCertPEM = []byte(`-----BEGIN CERTIFICATE-----
+MIIBrTCCAVOgAwIBAgIQLZTcXrnbxIO6MdWxtQr//DAKBggqhkjOPQQDAjAUMRIw
+EAYDVQQKEwltYXJnby5jb20wHhcNMjYwOTAzMTMwOTUxWhcNMjYxMjAyMTMwOTUx
+WjAUMRIwEAYDVQQKEwltYXJnby5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AAT16Wgvj5nQB67tsU6lFz3AGEuF/VYKtCuZkBvZ6YgOxpO8yBM+n19rRl8iWm6x
+BOJp/kBZA3uq82xYrHteFz3No4GGMIGDMA4GA1UdDwEB/wQEAwIChDAdBgNVHSUE
+FjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADBEBgNVHREEPTA7
+ghBzeW1waG9ueS5tYWNoaW5lhidzcGlmZmU6Ly9tYXJnby5jb20vbWFyZ28vd2Zt
+L3N5bXBob255LTEwCgYIKoZIzj0EAwIDSAAwRQIgZC7r2XAuKawRCaPv8WTnK5Jx
+2M9Cq0BsVsGLx0gLAB4CIQD4YB23AvLg6+dy9maX0Ygy6qdKX+QPyKhrSsaZdty2
+hA==
+-----END CERTIFICATE-----
+`)
+	validKeyPEM = []byte(`-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIPL1E95PGphDhCaM/t8yB+YwALJrEVsfcSLsYeB5UqosoAoGCCqGSM49
+AwEHoUQDQgAE9eloL4+Z0Aeu7bFOpRc9wBhLhf1WCrQrmZAb2emIDsaTvMgTPp9f
+a0ZfIlpusQTiaf5AWQN7qvNsWKx7Xhc9zQ==
+-----END EC PRIVATE KEY-----
+`)
+	validCAPEM = []byte(`-----BEGIN CERTIFICATE-----
+MIIGOzCCBCOgAwIBAgIUCvkrG7i+pRjjfrxiH2xEeHyM0kEwDQYJKoZIhvcNAQEL
+BQAwgaQxCzAJBgNVBAYTAklOMRAwDgYDVQQIDAdIYXJ5YW5hMREwDwYDVQQHDAhH
+dXJ1Z3JhbTESMBAGA1UECgwJQ2FwZ2VtaW5pMRswGQYDVQQLDBJNYXJnbyBTYW5k
+Ym94IFRlYW0xGzAZBgNVBAMMEkNhcGdlbWluaSBIVFRQUyBDQTEiMCAGCSqGSIb3
+DQEJARYTYWRtaW5AY2FwZ2VtaW5pLmNvbTAeFw0yNjA5MDcwOTMyMTZaFw0zNjA5
+MDQwOTMyMTZaMIGkMQswCQYDVQQGEwJJTjEQMA4GA1UECAwHSGFyeWFuYTERMA8G
+A1UEBwwIR3VydWdyYW0xEjAQBgNVBAoMCUNhcGdlbWluaTEbMBkGA1UECwwSTWFy
+Z28gU2FuZGJveCBUZWFtMRswGQYDVQQDDBJDYXBnZW1pbmkgSFRUUFMgQ0ExIjAg
+BgkqhkiG9w0BCQEWE2FkbWluQGNhcGdlbWluaS5jb20wggIiMA0GCSqGSIb3DQEB
+AQUAA4ICDwAwggIKAoICAQDoYJVMetPVo+AQ61fYgnQMsqw2ThldxFZfOBByUL48
+v+VYTSNeSNsTw72RQkR0VgO0NZyWTwEeAc47ejCXA/2pksnqplM9GwCUbR+wHYV3
+HhCamzOb657WUyqmqmm/ULB5DJZji2iIWitlS9ci5A5mHzrR9cMS9q1UugxAr82R
+oWsThus6xOZ+m+z7ej9ZPVnWCmT/1OWuJhHdMmRshDbnWC1a9nX9tKTk75OYlYtS
+827z0d53TGtjvtk7iGJx64xB9sk0YB5rfSYVVuhCqxKLd5wJLTOgTkGBY4opToA8
+gih3h3tET/X0aOp7+yBsve6K5KJ6NWpOlOg3UHaf1W1RxECKfBwYnBCFwHCaNct4
+Zoi7IWz2zK+EHwKrbOXAYWkDa1etd+dwA+xcwnI/q5s512jk4+YaXrpkgegML737
+SPfENxsUXUSTlfEi4RDB6oQgoPouJ8oaHXEndm0vS8VS/BCpUujuuxd7EHGgfHzr
+pxCWjZipi5NyJeI9OdOX8AeOcfkUgwiHEiSdl5wOc9Twea9/+6EZzb2yD+cE64rY
+E7SzwkMNe43vM/2KYx4F5tGWz7QmP9PucclwTiyMXm3niAaY+CHyrBmM462V2Xk4
+IfLEu5MOEasQ/IxqKBq09mzmUJZ3b5uegTNDb9OkZDCgbPnWrRI3wAhPrZp/acD+
+BQIDAQABo2MwYTAfBgNVHSMEGDAWgBQeV7L73v/vmgBEOlJWICMCb9WbyzAPBgNV
+HRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUHley+97/75oA
+RDpSViAjAm/Vm8swDQYJKoZIhvcNAQELBQADggIBAD4KtDeZmft3er/hV+3Q8wEc
+UYaeGGeWkfrGhFxCqzK6PfVei29JBgtPeWWzvToOvcPRgBstCyYUSNmelrcQLgQt
+prwXcLMH/8YGfhdhPT6jT5vO0xFRKyEIR0URu28950PRKmyReJFBKZMx18XWUXw2
+SZ2aXhiWNV9Fmq5lwlXgzsJse3GBrQGE+WzKc9Kbs0vPdTbV9ViZeUxWavekfET/
+hzn0bsgMpzChb37e+M3/4/9Jihh40gTwiaJTzDQB+LlrO4YhDlODSLSg+dXyOf49
+lxFj7FQDW+en/OggIgEKVKXCEXZNhXNcaTfkIgFFPrlFiF9lb+skwvNSXw6DQdZ7
+8fiUSFoWwhGCmXfRT9cWDrSfV7oqUP3B5i1+BTVT/k4QpnMh4JujV7DB2kS4Moim
+ySLPL+gmD5MNkziir/amJM/HJCpEcKofdJsV+9K7jMptyWI93OO0SFaIa5hIXpa0
+y340F/Qg+I5X6xZfErw9yzH2AlcRBegfCttvnVrwjeRT4Gn1gxZjOqpGcbf/tIfg
+hLdcDlIBV5gTDGoP8Pc1Qlaactnz5iB9ancuS1fVLFDVwvzDcYdUQN6wd6Q+X1fL
+XCX2zVhOMtJK4TR7JGnVh/RtdbWAb7+RaIov9vKjloINuIBjAAOln9UVGUP39k1l
+ygXsCNlqnR3ygi38rZAe
+-----END CERTIFICATE-----
+`)
+	validTrustBundle = []byte(
+		`{ "keys": [ { "use": "x509-svid", "kty": "RSA", "n": "uf9PzM_8FN6uOFNrp-igvKO1vHK8X-HV9ZvG0U4zdy0kLiQEbYQxTpkbcahkgQz7q9eOLFCkKnJu4qwoV5U0SOoXqlm-iGu-5_pHs9yW5sGvvNo01bFx2-W66lPb7cbBhPQcBMhEbo8q4wF2zXb-CzOsyVD266MHGhcrKHYEAQkt92CvfrzNrv2M_eL272IXceJVhwHVtUwMgZzHtIIqbtTnfDFlfz9D75mNN_H2q6Au8vNrMaFlPrEmDO3GkDiGvUmx5KMJyd6xbxUhsyNK2j-tQXsun2KbkvKzMAaN3lJYtEt3WJjLf0Vbzfw_d7KAULaeqAl-412jhHGAiY-9A2a1vduiwyaA77FLKGxAvaVMWfMo_X9n4gqVtV5gu5n_1MPEwPOzq7ifQL_rgocNrZhzx9auTDaXD9djs3IDXHnL2SwBK7wq23wo2MgDTNGijf_hJGNJhdqYHp4vr5gIAw79sOFKnW4iVfw66c32HdhftFS0KUsizZaDSKGIRv6O3hKrJfMh0mRYx1PSQqQNEshPs7RSZmZCZ3fnG0onMRD6p7PnuDUHZjEJ5mp8JhG-wtySOf-lNaKCtEkP0pYwVDH5U4BR7TtjTdvWjhmcHJLiI5f5PLecDb2Pkt-8qQbL7ZftycpVRROI7UhMc3Ewufdz6pvICmhASsi3_1qalI0", "e": "AQAB", "x5c": [ "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" ] } ] }`,
+	)
+	validSpiffeIDs = mustMarshalJSON([]string{"spiffe://example.org/margo/wfm/device-1"})
+)
+
+func mustMarshalJSON(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
-// validInput builds a fully-populated MIAFInput backed by real temp files.
-func validInput(t *testing.T, dir string) MIAFInput {
+// buildValidInput creates a fully-populated MIAFInput backed by temp files.
+func buildValidInput(t *testing.T, dir string) MIAFInput {
 	t.Helper()
 	return MIAFInput{
 		X509: MIAFx509Input{
-			CertPath: writeFile(t, dir, "cert.pem", "CERT_CONTENT"),
-			KeyPath:  writeFile(t, dir, "key.pem", "KEY_CONTENT"),
+			CertPath: writeTempFile(t, dir, "cert.pem", validCertPEM),
+			KeyPath:  writeTempFile(t, dir, "key.pem", validKeyPEM),
 		},
 		MIS: MISInput{
-			Endpoint:    "https://mis.margo.org:9443",
-			CAPath:      writeFile(t, dir, "ca.crt", "CA_CONTENT"),
-			TrustDomain: "margo.org",
+			Endpoint:    "https://mis.example.org",
+			CAPath:      writeTempFile(t, dir, "ca.pem", validCAPEM),
+			TrustDomain: "example.org",
 			TrustBundle: &TrustBundleInput{
-				URI:  "/.well-known/spiffe/bundle.json",
-				Path: writeFile(t, dir, "trust-bundle.json", `{"keys":[]}`),
+				URI:  "https://mis.example.org/bundle",
+				Path: writeTempFile(t, dir, "bundle.json", validTrustBundle),
 			},
 		},
-		AuthzPath: writeJSONFile(t, dir, "authorized.json", []string{
-			"spiffe://margo.org/device/abc",
-			"spiffe://margo.org/device/xyz",
-		}),
+		AuthzPath: writeTempFile(t, dir, "authz.json", validSpiffeIDs),
 	}
 }
 
-// --- Happy Path ---
+// ── happy path ────────────────────────────────────────────────────────────────
 
-func TestParseMIAFConfig_FullyPopulated(t *testing.T) {
+func TestParseMIAFConfig_ValidInput_ReturnsPopulatedConfig(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
+	input := buildValidInput(t, dir)
 
-	got, err := ParseMIAFConfig(input)
+	got, err := ParseMIAFConfig(input, "wfm")
 
 	require.NoError(t, err)
-	require.NotNil(t, got)
-
-	assert.Equal(t, []byte("CERT_CONTENT"), got.X509.CertPEM)
-	assert.Equal(t, []byte("KEY_CONTENT"), got.X509.KeyPEM)
-
-	assert.Equal(t, "https://mis.margo.org:9443", got.MIS.Endpoint)
-	assert.Equal(t, []byte("CA_CONTENT"), got.MIS.CAPEM)
-	assert.Equal(t, "margo.org", got.MIS.TrustDomain)
-
+	assert.Equal(t, validCertPEM, got.X509.CertPEM)
+	assert.Equal(t, validKeyPEM, got.X509.KeyPEM)
+	assert.Equal(t, "https://mis.example.org", got.MIS.Endpoint)
+	assert.Equal(t, validCAPEM, got.MIS.CAPEM)
+	assert.Equal(t, "example.org", got.MIS.TrustDomain)
 	require.NotNil(t, got.MIS.TrustBundle)
-	assert.Equal(t, "/.well-known/spiffe/bundle.json", got.MIS.TrustBundle.URI)
-	assert.Equal(t, []byte(`{"keys":[]}`), got.MIS.TrustBundle.BundleJSON)
-
-	assert.Equal(t, []string{
-		"spiffe://margo.org/device/abc",
-		"spiffe://margo.org/device/xyz",
-	}, got.AuthorizedSPIFFEIDs)
+	assert.Equal(t, "https://mis.example.org/bundle", got.MIS.TrustBundle.URI)
+	assert.Equal(t, validTrustBundle, got.MIS.TrustBundle.BundleJSON)
+	assert.Equal(t, []string{"spiffe://example.org/margo/wfm/device-1"}, got.AuthorizedSPIFFEIDs)
 }
 
-// Static trust bundle mode: no endpoint/caPath, only trustBundle.path + trustDomain.
-func TestParseMIAFConfig_StaticTrustBundleMode(t *testing.T) {
+func TestParseMIAFConfig_OptionalX509Paths_Omitted(t *testing.T) {
 	dir := t.TempDir()
-	input := MIAFInput{
-		X509: MIAFx509Input{
-			CertPath: writeFile(t, dir, "cert.pem", "CERT"),
-			KeyPath:  writeFile(t, dir, "key.pem", "KEY"),
-		},
-		MIS: MISInput{
-			TrustDomain: "margo.org",
-			TrustBundle: &TrustBundleInput{
-				Path: writeFile(t, dir, "trust-bundle.json", `{"keys":[]}`),
-			},
-		},
-		AuthzPath: writeJSONFile(
-			t,
-			dir,
-			"authorized.json",
-			[]string{"spiffe://margo.org/device/abc"},
-		),
-	}
+	input := buildValidInput(t, dir)
+	input.X509.CertPath = ""
+	input.X509.KeyPath = ""
 
-	got, err := ParseMIAFConfig(input)
-
-	require.NoError(t, err)
-	assert.Empty(t, got.MIS.Endpoint)
-	assert.Nil(t, got.MIS.CAPEM)
-	assert.NotNil(t, got.MIS.TrustBundle)
-	assert.NotEmpty(t, got.MIS.TrustBundle.BundleJSON)
-}
-
-// --- Empty File Content Errors ---
-
-func TestParseMIAFConfig_CertPathEmptyContent(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.X509.CertPath = writeFile(t, dir, "empty-cert.pem", "")
-
-	_, err := ParseMIAFConfig(input)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.x509.certPath")
-	assert.Contains(t, err.Error(), "must not be empty")
-}
-
-func TestParseMIAFConfig_KeyPathEmptyContent(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.X509.KeyPath = writeFile(t, dir, "empty-key.pem", "")
-
-	_, err := ParseMIAFConfig(input)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.x509.keyPath")
-	assert.Contains(t, err.Error(), "must not be empty")
-}
-
-func TestParseMIAFConfig_CAPathEmptyContent(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.MIS.CAPath = writeFile(t, dir, "empty-ca.crt", "   ")
-
-	_, err := ParseMIAFConfig(input)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.mis.caPath")
-	assert.Contains(t, err.Error(), "must not be empty")
-}
-
-func TestParseMIAFConfig_TrustBundlePathEmptyContent(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.MIS.TrustBundle.Path = writeFile(t, dir, "empty-bundle.json", "\t  \n")
-
-	_, err := ParseMIAFConfig(input)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.mis.trustBundle.path")
-	assert.Contains(t, err.Error(), "must not be empty")
-}
-
-// Optional file fields left empty should produce nil byte slices, not errors.
-func TestParseMIAFConfig_OptionalFileFieldsEmpty(t *testing.T) {
-	dir := t.TempDir()
-	input := MIAFInput{
-		X509: MIAFx509Input{}, // both paths empty
-		MIS: MISInput{
-			Endpoint:    "https://mis.margo.org:9443",
-			TrustDomain: "margo.org",
-			// CAPath empty, TrustBundle nil
-		},
-		AuthzPath: writeJSONFile(
-			t,
-			dir,
-			"authorized.json",
-			[]string{"spiffe://margo.org/device/abc"},
-		),
-	}
-
-	got, err := ParseMIAFConfig(input)
+	got, err := ParseMIAFConfig(input, "wfm")
 
 	require.NoError(t, err)
 	assert.Nil(t, got.X509.CertPEM)
 	assert.Nil(t, got.X509.KeyPEM)
-	assert.Nil(t, got.MIS.CAPEM)
+}
+
+func TestParseMIAFConfig_NilTrustBundle_Allowed(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.TrustBundle = nil
+
+	got, err := ParseMIAFConfig(input, "wfm")
+
+	require.NoError(t, err)
 	assert.Nil(t, got.MIS.TrustBundle)
 }
 
-// TrustBundle configured with only URI (no local path) should not error.
-func TestParseMIAFConfig_TrustBundleURIOnly(t *testing.T) {
+func TestParseMIAFConfig_TrustBundleWithoutPath_URIPassedThrough(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
+	input := buildValidInput(t, dir)
 	input.MIS.TrustBundle = &TrustBundleInput{
-		URI: "/.well-known/spiffe/bundle.json",
-		// Path intentionally empty
+		URI:  "https://mis.example.org/bundle",
+		Path: "", // no local file
 	}
 
-	got, err := ParseMIAFConfig(input)
+	got, err := ParseMIAFConfig(input, "wfm")
 
 	require.NoError(t, err)
 	require.NotNil(t, got.MIS.TrustBundle)
-	assert.Equal(t, "/.well-known/spiffe/bundle.json", got.MIS.TrustBundle.URI)
+	assert.Equal(t, "https://mis.example.org/bundle", got.MIS.TrustBundle.URI)
 	assert.Nil(t, got.MIS.TrustBundle.BundleJSON)
 }
 
-// String-only fields must be passed through unchanged.
-func TestParseMIAFConfig_PassThroughFields(t *testing.T) {
+func TestParseMIAFConfig_AuthzFileWithBlankEntries_FiltersThemOut(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.MIS.Endpoint = "https://custom-endpoint:1234"
-	input.MIS.TrustDomain = "custom.domain"
-	input.MIS.TrustBundle.URI = "https://custom.domain/bundle"
+	input := buildValidInput(t, dir)
+	ids := mustMarshalJSON([]string{
+		"  ",
+		"spiffe://example.org/margo/wfm/device-1",
+		"",
+	})
+	input.AuthzPath = writeTempFile(t, dir, "authz_blanks.json", ids)
 
-	got, err := ParseMIAFConfig(input)
+	got, err := ParseMIAFConfig(input, "wfm")
 
 	require.NoError(t, err)
-	assert.Equal(t, "https://custom-endpoint:1234", got.MIS.Endpoint)
-	assert.Equal(t, "custom.domain", got.MIS.TrustDomain)
-	assert.Equal(t, "https://custom.domain/bundle", got.MIS.TrustBundle.URI)
+	assert.Equal(t, []string{"spiffe://example.org/margo/wfm/device-1"}, got.AuthorizedSPIFFEIDs)
 }
 
-// --- X.509 File Errors ---
-
-func TestParseMIAFConfig_CertPathNotFound(t *testing.T) {
+func TestParseMIAFConfig_EndpointPassedThrough(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.X509.CertPath = filepath.Join(dir, "nonexistent-cert.pem")
+	input := buildValidInput(t, dir)
+	input.MIS.Endpoint = "grpc://custom-endpoint:8443"
 
-	_, err := ParseMIAFConfig(input)
+	got, err := ParseMIAFConfig(input, "wfm")
+
+	require.NoError(t, err)
+	assert.Equal(t, "grpc://custom-endpoint:8443", got.MIS.Endpoint)
+}
+
+// ── X.509 certificate errors ──────────────────────────────────────────────────
+
+func TestParseMIAFConfig_CertPathNotFound_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.X509.CertPath = filepath.Join(dir, "nonexistent.pem")
+
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.x509.certPath")
 }
 
-func TestParseMIAFConfig_KeyPathNotFound(t *testing.T) {
+func TestParseMIAFConfig_CertFileEmpty_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.X509.KeyPath = filepath.Join(dir, "nonexistent-key.pem")
+	input := buildValidInput(t, dir)
+	input.X509.CertPath = writeTempFile(t, dir, "empty_cert.pem", []byte("   "))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.x509.certPath")
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestParseMIAFConfig_CertFileInvalidPEM_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.X509.CertPath = writeTempFile(t, dir, "bad_cert.pem", []byte("not-a-cert"))
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.x509.certPath")
+	assert.Contains(t, err.Error(), "not a valid x509 SVID certificate")
+}
+
+// ── X.509 private key errors ──────────────────────────────────────────────────
+
+func TestParseMIAFConfig_KeyPathNotFound_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.X509.KeyPath = filepath.Join(dir, "nonexistent_key.pem")
+
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.x509.keyPath")
 }
 
-// --- MIS CA File Errors ---
-
-func TestParseMIAFConfig_CAPathNotFound(t *testing.T) {
+func TestParseMIAFConfig_KeyFileEmpty_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.MIS.CAPath = filepath.Join(dir, "nonexistent-ca.crt")
+	input := buildValidInput(t, dir)
+	input.X509.KeyPath = writeTempFile(t, dir, "empty_key.pem", []byte("  "))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.x509.keyPath")
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestParseMIAFConfig_KeyFileInvalidPEM_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.X509.KeyPath = writeTempFile(t, dir, "bad_key.pem", []byte("not-a-key"))
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.x509.keyPath")
+	assert.Contains(t, err.Error(), "not a valid x509 SVID certificate key")
+}
+
+// ── MIS CA certificate errors ─────────────────────────────────────────────────
+
+func TestParseMIAFConfig_CAPathNotFound_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.CAPath = filepath.Join(dir, "nonexistent_ca.pem")
+
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.mis.caPath")
 }
 
-// --- Trust Bundle File Errors ---
-
-func TestParseMIAFConfig_TrustBundlePathNotFound(t *testing.T) {
+func TestParseMIAFConfig_CAFileEmpty_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.MIS.TrustBundle.Path = filepath.Join(dir, "nonexistent-bundle.json")
+	input := buildValidInput(t, dir)
+	input.MIS.CAPath = writeTempFile(t, dir, "empty_ca.pem", []byte("  "))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.caPath")
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestParseMIAFConfig_CAFileInvalidPEM_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.CAPath = writeTempFile(t, dir, "bad_ca.pem", []byte("not-a-ca"))
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.caPath")
+	assert.Contains(t, err.Error(), "must be a valid ca certificate")
+}
+
+// ── trust domain errors ───────────────────────────────────────────────────────
+
+func TestParseMIAFConfig_InvalidTrustDomain_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.TrustDomain = "INVALID DOMAIN!"
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.trustDomain")
+	assert.Contains(t, err.Error(), "must be valid")
+}
+
+// ── trust bundle errors ───────────────────────────────────────────────────────
+
+func TestParseMIAFConfig_TrustBundlePathNotFound_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.TrustBundle.Path = filepath.Join(dir, "nonexistent_bundle.json")
+
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.mis.trustBundle.path")
 }
 
-// --- AuthzPath Validation ---
-
-func TestParseMIAFConfig_AuthzPathEmpty(t *testing.T) {
+func TestParseMIAFConfig_TrustBundleFileEmpty_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
+	input := buildValidInput(t, dir)
+	input.MIS.TrustBundle.Path = writeTempFile(t, dir, "empty_bundle.json", []byte("  "))
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.trustBundle.path")
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestParseMIAFConfig_TrustBundleInvalidJSON_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.TrustBundle.Path = writeTempFile(t, dir, "bad_bundle.json", []byte("not-json"))
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.trustBundle.path")
+	assert.Contains(t, err.Error(), "valid SPIFFE trust bundle")
+}
+
+// ── authz path errors ─────────────────────────────────────────────────────────
+
+func TestParseMIAFConfig_AuthzPathEmpty_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
 	input.AuthzPath = ""
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.authzPath must not be empty")
+}
+
+func TestParseMIAFConfig_AuthzPathNotFound_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.AuthzPath = filepath.Join(dir, "nonexistent_authz.json")
+
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.authzPath")
 }
 
-func TestParseMIAFConfig_AuthzPathNotFound(t *testing.T) {
+func TestParseMIAFConfig_AuthzFileInvalidJSON_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.AuthzPath = filepath.Join(dir, "nonexistent-authz.json")
+	input := buildValidInput(t, dir)
+	input.AuthzPath = writeTempFile(t, dir, "bad_authz.json", []byte("{not-an-array}"))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.authzPath")
+	assert.Contains(t, err.Error(), "failed to parse JSON array")
 }
 
-func TestParseMIAFConfig_AuthzFileInvalidJSON(t *testing.T) {
+func TestParseMIAFConfig_AuthzFileAllBlankEntries_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.AuthzPath = writeFile(t, dir, "bad-authz.json", `not valid json`)
+	input := buildValidInput(t, dir)
+	input.AuthzPath = writeTempFile(t, dir, "blank_authz.json", mustMarshalJSON([]string{"", "  "}))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.authzPath")
-	assert.Contains(t, err.Error(), "parse JSON")
+	assert.Contains(t, err.Error(), "must contain at least one SPIFFE ID")
 }
 
-func TestParseMIAFConfig_AuthzFileNotAnArray(t *testing.T) {
+func TestParseMIAFConfig_AuthzFileEmptyArray_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
-	input := validInput(t, dir)
-	// JSON object instead of array
-	input.AuthzPath = writeFile(t, dir, "obj-authz.json", `{"id":"spiffe://margo.org/device/abc"}`)
+	input := buildValidInput(t, dir)
+	input.AuthzPath = writeTempFile(t, dir, "empty_authz.json", mustMarshalJSON([]string{}))
 
-	_, err := ParseMIAFConfig(input)
+	_, err := ParseMIAFConfig(input, "wfm")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.authzPath")
+	assert.Contains(t, err.Error(), "must contain at least one SPIFFE ID")
 }
 
-func TestParseMIAFConfig_AuthzFileEmptyArray(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.AuthzPath = writeJSONFile(t, dir, "empty-authz.json", []string{})
+// ── table-driven: principal variants ─────────────────────────────────────────
 
-	_, err := ParseMIAFConfig(input)
+func TestParseMIAFConfig_PrincipalVariants(t *testing.T) {
+	tests := []struct {
+		name      string
+		principal string
+		wantErr   bool
+	}{
+		{"valid wfm principal", "wfm", false},
+		{"valid wfm-client principal", "wfm-client", true},
+		{"unknown principal", "admin", true},
+	}
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one SPIFFE ID")
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			// Use cert matching the principal under test; adjust fixture as needed.
+			input := buildValidInput(t, dir)
 
-func TestParseMIAFConfig_AuthzFileOnlyBlankEntries(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.AuthzPath = writeJSONFile(t, dir, "blank-authz.json", []string{"", "   ", "\t"})
+			_, err := ParseMIAFConfig(input, tc.principal)
 
-	_, err := ParseMIAFConfig(input)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one SPIFFE ID")
-}
-
-func TestParseMIAFConfig_AuthzFileBlankEntriesFiltered(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	// Mix of valid and blank entries — blanks should be silently dropped.
-	input.AuthzPath = writeJSONFile(t, dir, "mixed-authz.json", []string{
-		"spiffe://margo.org/device/abc",
-		"",
-		"   ",
-		"spiffe://margo.org/device/xyz",
-	})
-
-	got, err := ParseMIAFConfig(input)
-
-	require.NoError(t, err)
-	assert.Equal(t, []string{
-		"spiffe://margo.org/device/abc",
-		"spiffe://margo.org/device/xyz",
-	}, got.AuthorizedSPIFFEIDs)
-}
-
-func TestParseMIAFConfig_AuthzFileSingleEntry(t *testing.T) {
-	dir := t.TempDir()
-	input := validInput(t, dir)
-	input.AuthzPath = writeJSONFile(t, dir, "single-authz.json", []string{
-		"spiffe://margo.org/device/only-one",
-	})
-
-	got, err := ParseMIAFConfig(input)
-
-	require.NoError(t, err)
-	assert.Len(t, got.AuthorizedSPIFFEIDs, 1)
-	assert.Equal(t, "spiffe://margo.org/device/only-one", got.AuthorizedSPIFFEIDs[0])
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

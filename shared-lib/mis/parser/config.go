@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
 
 // MIAFx509Input holds paths to the device's X.509-SVID certificate and private key.
@@ -89,9 +91,10 @@ func readFile(fieldName, path string) ([]byte, error) {
 //   - Reading file-backed fields (x509 cert/key, CA cert, trust bundle, authz list) into memory.
 //   - Passing string-only fields (endpoint, trust domain, trust bundle URI) through unchanged.
 //   - Validating that the authorized SPIFFE ID list is non-empty.
+//   - Principal should be wfm or wfm-client (for which config is being validated)
 //
 // Returns an error if any required file cannot be read or if the authz file contains no entries.
-func ParseMIAFConfig(input MIAFInput) (*ParsedMIAFConfig, error) {
+func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, error) {
 	out := &ParsedMIAFConfig{}
 
 	// --- X.509 certificate ---
@@ -104,6 +107,12 @@ func ParseMIAFConfig(input MIAFInput) (*ParsedMIAFConfig, error) {
 			return nil, fmt.Errorf(
 				"miaf.x509.certPath: file %q must not be empty",
 				input.X509.CertPath,
+			)
+		}
+		if ok, err := validators.ValidateX509SVID(cert, principal); !ok {
+			return nil, fmt.Errorf(
+				"miaf.x509.certPath: file %q not a valid x509 SVID certificate, err: %s",
+				input.X509.CertPath, err.Error(),
 			)
 		}
 		out.X509.CertPEM = cert
@@ -121,6 +130,13 @@ func ParseMIAFConfig(input MIAFInput) (*ParsedMIAFConfig, error) {
 				input.X509.KeyPath,
 			)
 		}
+
+		if err := validators.ValidatePrivateKey(key); err != nil {
+			return nil, fmt.Errorf(
+				"miaf.x509.keyPath: file %q not a valid x509 SVID certificate key, err: %s",
+				input.X509.KeyPath, err.Error(),
+			)
+		}
 		out.X509.KeyPEM = key
 	}
 
@@ -136,10 +152,24 @@ func ParseMIAFConfig(input MIAFInput) (*ParsedMIAFConfig, error) {
 		if len(bytes.TrimSpace(ca)) == 0 {
 			return nil, fmt.Errorf("miaf.mis.caPath: file %q must not be empty", input.MIS.CAPath)
 		}
+		if _, err = validators.ValidateRootCACertificate(ca); err != nil {
+			return nil, fmt.Errorf(
+				"miaf.mis.caPath: file %q must be a valid ca certificate, err: %s",
+				input.MIS.CAPath, err.Error(),
+			)
+		}
+
 		out.MIS.CAPEM = ca
 	}
 
-	// --- MIS trust domain (pass-through) ---
+	// --- MIS trust domain (pass-through after basic check) ---
+	if ok := validators.ValidateTrustDomain(input.MIS.TrustDomain); !ok {
+		return nil, fmt.Errorf(
+			"miaf.mis.trustDomain: trust domain %q must be valid",
+			input.MIS.TrustBundle.Path,
+		)
+	}
+
 	out.MIS.TrustDomain = input.MIS.TrustDomain
 
 	// --- Trust bundle ---
@@ -157,6 +187,17 @@ func ParseMIAFConfig(input MIAFInput) (*ParsedMIAFConfig, error) {
 				return nil, fmt.Errorf(
 					"miaf.mis.trustBundle.path: file %q must not be empty",
 					input.MIS.TrustBundle.Path,
+				)
+			}
+
+			if err := validators.ValidateSpiffeTrustBundle(
+				bundle,
+				input.MIS.TrustDomain,
+			); err != nil {
+				return nil, fmt.Errorf(
+					"miaf.mis.trustBundle.path: file %q must be a valid SPIFFE trust bundle, err: %s",
+					input.MIS.TrustBundle.Path,
+					err.Error(),
 				)
 			}
 			parsed.BundleJSON = bundle

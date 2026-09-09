@@ -27,7 +27,7 @@ type jwkKey struct {
 // Returns (true, nil) if valid, or (false, error) describing the reason for invalidity.
 //
 // Note: This function only checks the validity of SVID, does not check the validity of SVID against any trust bundle.
-func ValidateX509SVID(svidBytes []byte) (bool, error) {
+func ValidateX509SVID(svidBytes []byte, principal string) (bool, error) {
 	// 1. Parse the certificate — try PEM first, then DER
 	cert, err := parseCertificate(svidBytes)
 	if err != nil {
@@ -35,7 +35,7 @@ func ValidateX509SVID(svidBytes []byte) (bool, error) {
 	}
 
 	// 2. Validate SPIFFE ID: must contain exactly one URI SAN that is a valid SPIFFE ID
-	if err := validateSPIFFEID(cert); err != nil {
+	if err := validateSPIFFEID(cert, principal); err != nil {
 		return false, err
 	}
 
@@ -96,7 +96,7 @@ func parseCertificate(data []byte) (*x509.Certificate, error) {
 }
 
 // validateSPIFFEID ensures the certificate has exactly one URI SAN and it is a valid SPIFFE ID.
-func validateSPIFFEID(cert *x509.Certificate) error {
+func validateSPIFFEID(cert *x509.Certificate, principal string) error {
 	uris := cert.URIs
 	if len(uris) == 0 {
 		return fmt.Errorf("certificate contains no URI SANs; a SPIFFE ID is required")
@@ -113,6 +113,10 @@ func validateSPIFFEID(cert *x509.Certificate) error {
 		return fmt.Errorf("invalid SPIFFE ID %q: %w", spiffeID.String(), err)
 	}
 
+	// Validate nased on principal as well
+	if err := ValidateSpiffeID(spiffeID.String(), principal); err != nil {
+		return fmt.Errorf("invalid SPIFFE ID %q: %w", spiffeID.String(), err)
+	}
 	return nil
 }
 
@@ -220,3 +224,10 @@ func getTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
 
 	return certs, nil
 }
+
+/*
+TODO: START HERE
+Extra Functions:
+1. Extract SPIFFE ID -- for validation and saving
+
+*/

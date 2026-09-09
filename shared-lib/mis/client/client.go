@@ -49,6 +49,8 @@ func New(endpoint string, rootCAPEM []byte) (*MISClient, error) {
 
 // GetDiscoveryDocument calls GET /.well-known/margo and returns the parsed response.
 // Pass a non-empty etag to send an If-None-Match header (conditional GET); pass "" to skip it.
+// Callers should check rsp.HTTPResponse.StatusCode == http.StatusNotModified (304) to detect
+// an unchanged document and reuse their cached copy.
 func (c *MISClient) GetDiscoveryDocument(
 	ctx context.Context,
 	etag string,
@@ -62,6 +64,14 @@ func (c *MISClient) GetDiscoveryDocument(
 	if err != nil {
 		return nil, fmt.Errorf("GetDiscoveryDocument: %w", err)
 	}
+
+	// 304 Not Modified: the generated client returns the raw response without
+	// populating a JSON body field. Signal this to the caller via a sentinel
+	// error so they know to reuse their cached document.
+	if rsp.HTTPResponse.StatusCode == http.StatusNotModified {
+		return rsp, nil // JSON200 will be nil; caller checks StatusCode or ETag header
+	}
+
 	return rsp, nil
 }
 
@@ -72,7 +82,11 @@ func (c *MISClient) GetDiscoveryDocument(
 // /.well-known/spiffe/bundle.json path on the configured server is used.
 //
 // etag: pass a non-empty value to send an If-None-Match header (conditional GET);
-// pass "" to skip it. A 304 response will have a nil JSON200 body.
+// pass "" to skip it.
+//
+// Callers should check rsp.HTTPResponse.StatusCode == http.StatusNotModified (304)
+// to detect an unchanged bundle and reuse their cached copy. In that case,
+// JSON200 will be nil.
 func (c *MISClient) GetTrustBundle(
 	ctx context.Context,
 	trustBundleURL string,
@@ -88,6 +102,7 @@ func (c *MISClient) GetTrustBundle(
 		if err != nil {
 			return nil, fmt.Errorf("GetTrustBundle: %w", err)
 		}
+		// 304: generated client leaves JSON200 nil; caller checks StatusCode.
 		return rsp, nil
 	}
 
@@ -128,6 +143,11 @@ func (c *MISClient) GetTrustBundle(
 			return nil, fmt.Errorf("GetTrustBundle: parsing bundle: %w", err)
 		}
 		response.JSON200 = &dest
+
+	case http.StatusNotModified:
+		// 304 carries no body; JSON200 intentionally left nil.
+		// The caller should reuse its cached bundle.
+
 	case http.StatusNotFound:
 		var dest generatedCode.ProblemDetail
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

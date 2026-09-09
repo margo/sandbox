@@ -15,53 +15,36 @@ import (
 	"github.com/margo/sandbox/shared-lib/mis/client"
 )
 
+// ErrNotModified is returned by GetTrustBundle when the server responds with
+// HTTP 304 Not Modified, indicating the caller's cached bundle is still current.
+var ErrNotModified = errors.New("trust bundle not modified")
+
 // Getter defines the interface for retrieving a SPIFFE trust bundle.
 // Returns:
 //   - trustDomain: the trust domain string (e.g. "margo.org")
 //   - bundle:      the raw SPIFFE bundle in JWKS JSON format
 //   - etag:        the ETag value from the MIS server response, or "" if not present
-//   - err:         non-nil if the bundle could not be retrieved from any source
+//   - err:         non-nil if the bundle could not be retrieved from any source.
+//     err == ErrNotModified when the server confirmed the cached bundle
+//     is still valid (HTTP 304); in that case bundle and etag are empty.
 type Getter interface {
-	GetTrustBundle(ctx context.Context) (trustDomain string, bundle []byte, etag string, err error)
+	GetTrustBundle(
+		ctx context.Context,
+		ietag string,
+	) (trustDomain string, bundle []byte, etag string, err error)
 }
 
 // trustBundleGetterImpl is the unexported implementation of Getter.
-// It holds all configuration needed to retrieve a SPIFFE trust bundle,
-// with multiple fallback strategies.
 type trustBundleGetterImpl struct {
-	// misEndpoint is the base URL of the MIS server (e.g. "https://mis.margo.org:9443").
-	misEndpoint string
-
-	// misRootCA is the DER- or PEM-encoded X.509 CA certificate used to
-	// establish TLS trust with the MIS server.
-	misRootCA []byte
-
-	// trustBundleURI is the well-known URI path for the SPIFFE bundle endpoint
-	// (e.g. "/.well-known/spiffe/bundle.json"). When non-empty it is combined
-	// with misEndpoint to form the full bundle URL used as a fallback.
+	misEndpoint    string
+	misRootCA      []byte
 	trustBundleURI string
-
-	// staticBundle is an operator-supplied SPIFFE bundle in JWKS JSON format,
-	// read from a .json file. Used as the last-resort fallback when all
-	// network-based retrieval attempts fail.
-	staticBundle []byte
-
-	// trustDomain is the SPIFFE trust domain (e.g. "margo.org") associated
-	// with the bundle. Returned alongside the bundle bytes.
-	trustDomain string
+	staticBundle   []byte
+	trustDomain    string
 }
 
 // New validates the provided configuration and returns a Getter backed by
 // trustBundleGetterImpl.
-//
-// Parameters:
-//   - misEndpoint:     base URL of the MIS server, must be a valid HTTPS URL.
-//   - misRootCA:       PEM-encoded X.509 CA certificate for TLS verification.
-//   - trustBundleURI:  optional URI path for the SPIFFE bundle (may be empty).
-//   - staticBundle:    optional operator-supplied SPIFFE bundle JSON (may be nil/empty).
-//   - trustDomain:     SPIFFE trust domain string (may be empty if not yet known).
-//
-// Returns an error if any supplied value fails validation.
 func New(
 	misEndpoint string,
 	misRootCA []byte,
@@ -106,30 +89,32 @@ func New(
 //
 //  2. URI Fallback: if discovery fails and a trustBundleURI is configured,
 //     constructs the full bundle URL (misEndpoint + trustBundleURI) and fetches
-//     the bundle directly. Returns the bundle with the configured trust domain.
+//     the bundle directly.
 //
-//  3. Static Fallback: if step 2 is skipped or also fails, returns the
-//     operator-supplied static bundle and trust domain. Both must be non-empty
-//     for this step to succeed.
+//  3. Static Fallback: returns the operator-supplied static bundle and trust domain.
 //
-// Returns the trust domain string, raw SPIFFE bundle bytes, etag if fetched from MIS and any error.
+// When the server returns HTTP 304 (ETag match), GetTrustBundle returns
+// (trustDomain, nil, "", ErrNotModified). The caller should continue using its
+// cached bundle. The static fallback is NOT attempted on 304, since the cached
+// network bundle is authoritative.
 func (t *trustBundleGetterImpl) GetTrustBundle(
-	ctx context.Context,
+	ctx context.Context, ietag string,
 ) (string, []byte, string, error) {
-	client, err := client.New(t.misEndpoint, t.misRootCA)
+	c, err := client.New(t.misEndpoint, t.misRootCA)
 	if err != nil {
-		return t.fallbackToURIOrStatic(ctx, fmt.Errorf("building MIS client: %w", err))
+		return t.fallbackToURIOrStatic(ctx, ietag, fmt.Errorf("building MIS client: %w", err))
 	}
 
 	// ── Step 1: Discovery ────────────────────────────────────────────────────
-	discoveryResp, err := client.GetDiscoveryDocument(ctx, "")
+	discoveryResp, err := c.GetDiscoveryDocument(ctx, "")
 	if err != nil {
-		return t.fallbackToURIOrStatic(ctx, fmt.Errorf("discovery request failed: %w", err))
+		return t.fallbackToURIOrStatic(ctx, ietag, fmt.Errorf("discovery request failed: %w", err))
 	}
 
 	if discoveryResp.JSON200 == nil {
 		return t.fallbackToURIOrStatic(
 			ctx,
+			ietag,
 			fmt.Errorf(
 				"discovery returned non-200 status %d",
 				discoveryResp.HTTPResponse.StatusCode,
@@ -142,7 +127,7 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 	discoveredBundleURL := discoveryDoc.TrustBundleUri
 	if discoveredBundleURL == "" {
 		return t.fallbackToURIOrStatic(
-			ctx,
+			ctx, ietag,
 			errors.New("discovery document contains no trustBundleUri"),
 		)
 	}
@@ -150,8 +135,13 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 	discoveredTrustDomain := discoveryDoc.TrustDomain
 
 	// ── Step 2: Fetch bundle from discovered URL ──────────────────────────────
-	bundleBytes, etag, err := t.fetchBundleFromURL(ctx, client, discoveredBundleURL)
+	bundleBytes, etag, err := t.fetchBundleFromURL(ctx, c, ietag, discoveredBundleURL)
 	if err != nil {
+		// 304: the cached bundle is still valid — surface ErrNotModified directly.
+		// Do NOT fall back to static, as the network source is authoritative.
+		if errors.Is(err, ErrNotModified) {
+			return discoveredTrustDomain, nil, "", ErrNotModified
+		}
 		return t.staticFallback(
 			fmt.Errorf("fetching bundle from discovered URL %q: %w", discoveredBundleURL, err),
 		)
@@ -161,16 +151,16 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 }
 
 // fallbackToURIOrStatic implements steps 2 and 3 of the retrieval strategy.
-// It is called whenever the discovery step (step 1) fails for any reason.
 func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 	ctx context.Context,
+	ietag string,
 	discoveryErr error,
 ) (string, []byte, string, error) {
 	// ── Step 2: URI Fallback ─────────────────────────────────────────────────
 	if t.trustBundleURI != "" {
 		fullBundleURL := t.misEndpoint + t.trustBundleURI
 
-		client, clientErr := client.New(t.misEndpoint, t.misRootCA)
+		c, clientErr := client.New(t.misEndpoint, t.misRootCA)
 		if clientErr != nil {
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); also failed to build MIS client for URI fallback: %v",
@@ -178,8 +168,12 @@ func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 			))
 		}
 
-		bundleBytes, etag, fetchErr := t.fetchBundleFromURL(ctx, client, fullBundleURL)
+		bundleBytes, etag, fetchErr := t.fetchBundleFromURL(ctx, c, ietag, fullBundleURL)
 		if fetchErr != nil {
+			// 304 from the URI fallback: cached bundle is still valid.
+			if errors.Is(fetchErr, ErrNotModified) {
+				return t.trustDomain, nil, "", ErrNotModified
+			}
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); URI fallback to %q also failed: %v",
 				discoveryErr, fullBundleURL, fetchErr,
@@ -193,7 +187,6 @@ func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 }
 
 // staticFallback implements step 3: return the operator-supplied static bundle.
-// Both staticBundle and trustDomain must be non-empty; otherwise an error is returned.
 func (t *trustBundleGetterImpl) staticFallback(precedingErr error) (string, []byte, string, error) {
 	if len(t.staticBundle) == 0 && t.trustDomain == "" {
 		return "", nil, "", fmt.Errorf(
@@ -216,18 +209,22 @@ func (t *trustBundleGetterImpl) staticFallback(precedingErr error) (string, []by
 		)
 	}
 
-	// Static fallback has no ETag — return empty string.
 	return t.trustDomain, t.staticBundle, "", nil
 }
 
-// fetchBundleFromURL calls client.GetTrustBundle with the given full URL
-// and returns the raw bundle bytes on HTTP 200.
+// fetchBundleFromURL calls client.GetTrustBundle with the given full URL and
+// returns the raw bundle bytes on HTTP 200.
+//
+// On HTTP 304 (Not Modified) it returns (nil, "", ErrNotModified), signalling
+// that the caller's cached bundle is still current. No static fallback should
+// be attempted in that case.
 func (t *trustBundleGetterImpl) fetchBundleFromURL(
 	ctx context.Context,
-	client *client.MISClient,
+	c *client.MISClient,
+	ietag string,
 	fullURL string,
 ) ([]byte, string, error) {
-	resp, err := client.GetTrustBundle(ctx, fullURL, "")
+	resp, err := c.GetTrustBundle(ctx, fullURL, ietag)
 	if err != nil {
 		return nil, "", fmt.Errorf("GetTrustBundle request: %w", err)
 	}
@@ -236,7 +233,13 @@ func (t *trustBundleGetterImpl) fetchBundleFromURL(
 		return nil, "", errors.New("nil HTTP response")
 	}
 
-	if resp.HTTPResponse.StatusCode != 200 {
+	switch resp.HTTPResponse.StatusCode {
+	case 200:
+		// handled below
+	case 304:
+		// ETag matched: the cached bundle is still valid.
+		return nil, "", ErrNotModified
+	default:
 		return nil, "", fmt.Errorf("unexpected HTTP status %d", resp.HTTPResponse.StatusCode)
 	}
 
@@ -261,20 +264,16 @@ func validateMISEndpoint(endpoint string) error {
 	if endpoint == "" {
 		return errors.New("must not be empty")
 	}
-
 	parsed, err := url.ParseRequestURI(endpoint)
 	if err != nil {
 		return fmt.Errorf("not a valid URL: %w", err)
 	}
-
 	if parsed.Scheme != "https" {
 		return fmt.Errorf("scheme must be \"https\", got %q", parsed.Scheme)
 	}
-
 	if parsed.Host == "" {
 		return errors.New("URL must include a host")
 	}
-
 	return nil
 }
 
@@ -284,22 +283,17 @@ func validateRootCA(rootCA []byte) error {
 	if len(rootCA) == 0 {
 		return errors.New("must not be empty")
 	}
-
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(rootCA) {
 		return errors.New("no valid PEM-encoded X.509 certificate found")
 	}
-
-	// Verify at least one block is actually parseable.
 	block, _ := pem.Decode(rootCA)
 	if block == nil {
 		return errors.New("no PEM block found")
 	}
-
 	if _, err := x509.ParseCertificate(block.Bytes); err != nil {
 		return fmt.Errorf("parsing certificate: %w", err)
 	}
-
 	return nil
 }
 
@@ -308,23 +302,18 @@ func validateTrustBundleURI(uri string) error {
 	if uri == "" {
 		return errors.New("must not be empty when provided")
 	}
-
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return fmt.Errorf("not a valid URI: %w", err)
 	}
-
-	// A URI-path-only value must not carry a scheme or host.
 	if parsed.Scheme != "" || parsed.Host != "" {
 		return errors.New(
 			"must be a URI path (e.g. \"/.well-known/spiffe/bundle.json\"), not a full URL",
 		)
 	}
-
 	if len(parsed.Path) == 0 || parsed.Path[0] != '/' {
 		return errors.New("path must start with \"/\"")
 	}
-
 	return nil
 }
 
@@ -335,27 +324,14 @@ func validateSPIFFEBundle(bundle []byte) error {
 	if len(bundle) == 0 {
 		return errors.New("must not be empty")
 	}
-
 	var doc struct {
 		Keys []json.RawMessage `json:"keys"`
 	}
-
 	if err := json.Unmarshal(bundle, &doc); err != nil {
 		return fmt.Errorf("not valid JSON: %w", err)
 	}
-
 	if doc.Keys == nil {
 		return errors.New("SPIFFE bundle must contain a \"keys\" array")
 	}
-
 	return nil
-}
-
-// stringFromPtr safely dereferences a *string, returning "" for nil pointers.
-func stringFromPtr(s *string) string {
-	if s == nil {
-		return ""
-	}
-
-	return *s
 }

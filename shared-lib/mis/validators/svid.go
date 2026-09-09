@@ -1,4 +1,4 @@
-package svid
+package validators
 
 import (
 	"crypto/x509"

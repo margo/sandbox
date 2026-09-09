@@ -140,13 +140,28 @@ const POSTMAN_ENDPOINT_RULES = {
   'PUT /api/v1/clients/{clientId}/capabilities/{deviceId}': {
     body: DEVICE_CAPABILITIES_BODY,
   },
+  // Same endpoint without the {deviceId} segment — the shape the baseline
+  // (user1) Postman collection uses. Without this, capability items fall back to
+  // the Portman placeholder body and get a spurious 400 "invalid API version".
+  'POST /api/v1/clients/{clientId}/capabilities': {
+    body: DEVICE_CAPABILITIES_BODY,
+  },
+  'PUT /api/v1/clients/{clientId}/capabilities': {
+    body: DEVICE_CAPABILITIES_BODY,
+  },
   'GET /api/v1/clients/{clientId}/deployments': {
     extract_context: {
       deploymentId: 'deployments.0.deploymentId',
       bundleDigest: 'bundle.digest',
       deploymentDigest: 'deployments.0.digest',
     },
-    validations: [{ field: 'manifestVersion', operation: 'is_number' }],
+    validations: [
+      { field: 'manifestVersion', operation: 'is_number' },
+      // MI-009: bundle present & null when deployments is empty.
+      { operation: 'bundle_null_when_no_deployments' },
+      // MI-031: correct bundle media type when a bundle is present.
+      { operation: 'bundle_media_type' },
+    ],
   },
   'GET /api/v1/clients/{clientId}/bundles/{bundleDigest}': {
     // Bundle endpoint: passes when a bundle exists (200); 404 is expected when no deployments configured
@@ -658,7 +673,9 @@ function request(method, url, headers, bodyText) {
 }
 
 function validate(responseSource, validation) {
-  const actual = getField(responseSource, validation.field);
+  // Field-less validations (the bundle_* semantic checks below) carry no `field`.
+  const actual =
+    validation.field == null ? undefined : getField(responseSource, validation.field);
   const expected = substitute(validation.value);
 
   switch (validation.operation) {
@@ -705,6 +722,29 @@ function validate(responseSource, validation) {
       return Number(actual) > Number(expected)
         ? ''
         : `${validation.field} expected > ${expected}, got ${actual}`;
+    case 'bundle_null_when_no_deployments': {
+      // MI-009: when there are zero deployments the `bundle` field MUST be
+      // present with the value null (not omitted). JSON.parse keeps the key, so
+      // `bundle === null` is true only for an explicit null; `undefined` (the
+      // field absent) fails the check as it should.
+      const deployments = getField(responseSource, 'deployments');
+      const bundle = getField(responseSource, 'bundle');
+      if (Array.isArray(deployments) && deployments.length === 0) {
+        return bundle === null
+          ? ''
+          : 'bundle must be present and null when the deployments array is empty (MI-009)';
+      }
+      return '';
+    }
+    case 'bundle_media_type': {
+      // MI-031: bundle.mediaType MUST be application/vnd.margo.bundle.v1+tar+gzip.
+      // Skipped on a zero-deployment manifest, where bundle is null.
+      const bundle = getField(responseSource, 'bundle');
+      if (bundle == null) return '';
+      return bundle.mediaType === 'application/vnd.margo.bundle.v1+tar+gzip'
+        ? ''
+        : `bundle.mediaType expected "application/vnd.margo.bundle.v1+tar+gzip", got ${JSON.stringify(bundle.mediaType)} (MI-031)`;
+    }
     default:
       return `unsupported validation operation: ${validation.operation}`;
   }

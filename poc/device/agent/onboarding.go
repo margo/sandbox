@@ -6,11 +6,14 @@ import (
 	"fmt"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
+	"github.com/margo/sandbox/shared-lib/mis/parser"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 )
 
+// onboarding.go
 type DeviceClientSettings struct {
 	deviceClientId           string
 	wfmEndpointsForClient    []string
@@ -19,6 +22,8 @@ type DeviceClientSettings struct {
 	db                       database.DatabaseIfc
 	supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
 	supportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
+	miaf                     types.MIAFConfig
+	parsedMiaf               *parser.ParsedMIAFConfig
 }
 
 type Option = func(auth *DeviceClientSettings)
@@ -29,6 +34,19 @@ func WithEnableComposeDeployment() Option {
 			auth.supportedDeploymentTypes,
 			sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose,
 		)
+	}
+}
+
+func WithMIAFConfig(cfg types.MIAFConfig) Option {
+	return func(auth *DeviceClientSettings) {
+		auth.miaf = cfg
+	}
+}
+
+// WithParsedMIAFConfig sets the pre-parsed MIAF configuration on DeviceClientSettings.
+func WithParsedMIAFConfig(cfg *parser.ParsedMIAFConfig) Option {
+	return func(auth *DeviceClientSettings) {
+		auth.parsedMiaf = cfg
 	}
 }
 

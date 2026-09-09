@@ -21,6 +21,9 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/crypto"
+	"github.com/margo/sandbox/shared-lib/mis/parser"
+	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
@@ -40,6 +43,7 @@ type Agent struct {
 	deployer       DeploymentManagerIfc
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
+	tbCacher       TrustBundleCacherIface
 }
 
 func NewAgent(configPath string) (*Agent, error) {
@@ -71,9 +75,20 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	// clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
 
+	// TODO: START HERE - mTLS related changes need to be done here
 	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WFM client: %w", err)
+	}
+
+	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
+	if err != nil {
+		log.Errorw(
+			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
+			"err",
+			err.Error(),
+		)
+		// TODO: This should return? is there a case where capabilities are not required?
 	}
 
 	opts := []Option{}
@@ -111,6 +126,41 @@ func NewAgent(configPath string) (*Agent, error) {
 		)
 	}
 
+	// adding MIAF configuration in database
+	opts = append(opts, WithMIAFConfig(cfg.MIAF))
+	// Adding deviceId from capabilities
+	opts = append(opts, WithDeviceClientID(capabilities.Properties.Id))
+
+	// This validates disk parameters (SVID, Key, CA etc) as well.
+	pmc, err := mc.ParseMIAFConfig(cfg.MIAF.ToMIAFInput(), validators.PrincipalWFMClient)
+	if err != nil {
+		log.Errorw(
+			"failed to parse MIAF config",
+			"err",
+			err.Error(),
+		)
+		return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
+	}
+
+	// Validate Authorized spiffe Ids here
+	for _, spid := range pmc.AuthorizedSPIFFEIDs {
+		// Authorization list for device-agent will contain SPIFFE IDs of WFMs, hence using principal WFM here.
+		err := validators.ValidateSpiffeID(spid, validators.PrincipalWFM)
+		if err != nil {
+			log.Errorw(
+				"spiffe id is invalid ",
+				"spiffeId",
+				spid,
+				"err",
+				err.Error(),
+			)
+			return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
+		}
+	}
+
+	// parsed & validated MIAF Configuration (with certificates etc) added to database
+	opts = append(opts, WithParsedMIAFConfig(pmc))
+
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
 	if err != nil {
@@ -127,15 +177,6 @@ func NewAgent(configPath string) (*Agent, error) {
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
 	)
 
-	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
-	if err != nil {
-		log.Errorw(
-			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
-			"err",
-			err.Error(),
-		)
-	}
-
 	// Create components
 	deployer := NewDeploymentManager(db, capabilities, helmClient, composeClient, log)
 	monitor := NewDeploymentMonitor(db, helmClient, composeClient, log)
@@ -147,6 +188,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		log,
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, deviceSettings.deviceClientId, log)
+	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
 
 	return &Agent{
 		database:       db,
@@ -158,6 +200,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		log:            log,
 		config:         *cfg,
 		capabilities:   capabilities,
+		tbCacher:       tbCacher,
 	}, nil
 }
 
@@ -173,6 +216,58 @@ func (a *Agent) Start() error {
 		return err
 	}
 	deviceId = deviceSettings.DeviceClientId
+
+	err = a.tbCacher.Start()
+	if err != nil {
+		return err
+	}
+
+	td, err := a.database.GetTrustDomain()
+	if err != nil {
+		return fmt.Errorf("trustdomain not found, cannot proceed. err: %w", err)
+	}
+	// * Extract SPIFFE ID from Certificate & Validate it against trust domain
+	c, _, err := a.database.GetSVID()
+	if err != nil {
+		return fmt.Errorf("SVID not found, cannot proceed. err: %w", err)
+	}
+	sid, err := parser.ParseSpiffeIdFromX509Svid(c)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spiffeid from certificate, err: %w", err)
+	}
+
+	if err := validators.ValidateSpiffeIDWithTrustDomain(
+		sid,
+		td,
+		validators.PrincipalWFMClient,
+	); err != nil {
+		return fmt.Errorf("validation failed for device-agent Spiffe Id, err: %w", err)
+	}
+
+	a.database.SetSpiffeId(sid)
+
+	// * Validate Certificate against TrustBundle
+	tb, err := a.database.GetTrustBundle()
+	if err != nil {
+		return fmt.Errorf("trustbundle not found, cannot proceed. err: %w", err)
+	}
+	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, tb); !ok {
+		return fmt.Errorf("svid validation failed against trustbundle, err: %w", err)
+	}
+
+	authzIds := a.database.GetAuthorizedWFMs()
+
+	// * Validate Authorized SPIFFE IDs against trust domain
+	for _, aid := range authzIds {
+		// principal will be WFM as these spiffeIDs belong to WFMs.
+		if err := validators.ValidateSpiffeIDWithTrustDomain(
+			aid,
+			td,
+			validators.PrincipalWFM,
+		); err != nil {
+			return fmt.Errorf("authorized wfm spiffe id validation failed, err:%w", err)
+		}
+	}
 
 	// 2. Report capabilities
 
@@ -200,7 +295,7 @@ func (a *Agent) Start() error {
 
 func (a *Agent) Stop() error {
 	a.log.Info("Stopping Workload Fleet Management Client")
-
+	a.tbCacher.Stop()
 	a.syncer.Stop()
 	a.deployer.Stop()
 	a.monitor.Stop()

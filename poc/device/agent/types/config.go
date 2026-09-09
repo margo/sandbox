@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/go-playground/validator/v10"
+	miafParser "github.com/margo/sandbox/shared-lib/mis/parser"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"gopkg.in/yaml.v2"
 )
@@ -203,6 +204,35 @@ func validateConfig(config *Config) error {
 	}
 
 	return nil
+}
+
+// ToMIAFInput converts a MIAFConfig (from the types package) into a miaf.MIAFInput
+// suitable for use with miaf.ParseMIAFConfig.
+//
+// This adapter exists so that the miaf package remains independent of the types
+// package — only the wiring layer (e.g. main or a factory) needs to import both.
+func (c MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
+	input := miafParser.MIAFInput{
+		X509: miafParser.MIAFx509Input{
+			CertPath: c.X509.CertPath,
+			KeyPath:  c.X509.KeyPath,
+		},
+		MIS: miafParser.MISInput{
+			Endpoint:    c.MIS.Endpoint,
+			CAPath:      c.MIS.CAPath,
+			TrustDomain: c.MIS.TrustDomain,
+		},
+		AuthzPath: c.AuthzPath,
+	}
+
+	if c.MIS.TrustBundle != nil {
+		input.MIS.TrustBundle = &miafParser.TrustBundleInput{
+			URI:  c.MIS.TrustBundle.URI,
+			Path: c.MIS.TrustBundle.Path,
+		}
+	}
+
+	return input
 }
 
 // KeyRef describes where the private key used for signing can be found.

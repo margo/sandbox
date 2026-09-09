@@ -36,7 +36,7 @@ WORKDIR /
 
 COPY --from=builder /app/device-agent .
 COPY --from=builder /app/poc/device/agent/config ./config
-# this will remove the dependency from docker image 
+# this will remove the dependency from docker image
 COPY --from=docker-source /usr/local/bin/docker /usr/bin/docker
 
 # Create the cli-plugins directory FIRST

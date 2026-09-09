@@ -19,9 +19,10 @@ import (
 // Returns:
 //   - trustDomain: the trust domain string (e.g. "margo.org")
 //   - bundle:      the raw SPIFFE bundle in JWKS JSON format
+//   - etag:        the ETag value from the MIS server response, or "" if not present
 //   - err:         non-nil if the bundle could not be retrieved from any source
 type Getter interface {
-	GetTrustBundle(ctx context.Context) (trustDomain string, bundle []byte, err error)
+	GetTrustBundle(ctx context.Context) (trustDomain string, bundle []byte, etag string, err error)
 }
 
 // trustBundleGetterImpl is the unexported implementation of Getter.
@@ -111,11 +112,12 @@ func New(
 //     operator-supplied static bundle and trust domain. Both must be non-empty
 //     for this step to succeed.
 //
-// Returns the trust domain string, raw SPIFFE bundle bytes, and any error.
-func (t *trustBundleGetterImpl) GetTrustBundle(ctx context.Context) (string, []byte, error) {
+// Returns the trust domain string, raw SPIFFE bundle bytes, etag if fetched from MIS and any error.
+func (t *trustBundleGetterImpl) GetTrustBundle(
+	ctx context.Context,
+) (string, []byte, string, error) {
 	client, err := client.New(t.misEndpoint, t.misRootCA)
 	if err != nil {
-		// Client construction failure is non-fatal; we fall through to URI/static fallbacks.
 		return t.fallbackToURIOrStatic(ctx, fmt.Errorf("building MIS client: %w", err))
 	}
 
@@ -137,7 +139,6 @@ func (t *trustBundleGetterImpl) GetTrustBundle(ctx context.Context) (string, []b
 
 	discoveryDoc := discoveryResp.JSON200
 
-	// Extract the trust bundle URL advertised by the discovery document.
 	discoveredBundleURL := discoveryDoc.TrustBundleUri
 	if discoveredBundleURL == "" {
 		return t.fallbackToURIOrStatic(
@@ -146,19 +147,17 @@ func (t *trustBundleGetterImpl) GetTrustBundle(ctx context.Context) (string, []b
 		)
 	}
 
-	// Extract the trust domain advertised by the discovery document.
 	discoveredTrustDomain := discoveryDoc.TrustDomain
 
-	// ── Step 4: Fetch bundle from discovered URL ──────────────────────────────
-	bundleBytes, err := t.fetchBundleFromURL(ctx, client, discoveredBundleURL)
+	// ── Step 2: Fetch bundle from discovered URL ──────────────────────────────
+	bundleBytes, etag, err := t.fetchBundleFromURL(ctx, client, discoveredBundleURL)
 	if err != nil {
-		// Step 5: Discovery succeeded but bundle fetch failed — fall back to static.
 		return t.staticFallback(
 			fmt.Errorf("fetching bundle from discovered URL %q: %w", discoveredBundleURL, err),
 		)
 	}
 
-	return discoveredTrustDomain, bundleBytes, nil
+	return discoveredTrustDomain, bundleBytes, etag, nil
 }
 
 // fallbackToURIOrStatic implements steps 2 and 3 of the retrieval strategy.
@@ -166,21 +165,20 @@ func (t *trustBundleGetterImpl) GetTrustBundle(ctx context.Context) (string, []b
 func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 	ctx context.Context,
 	discoveryErr error,
-) (string, []byte, error) {
+) (string, []byte, string, error) {
 	// ── Step 2: URI Fallback ─────────────────────────────────────────────────
 	if t.trustBundleURI != "" {
 		fullBundleURL := t.misEndpoint + t.trustBundleURI
 
 		client, clientErr := client.New(t.misEndpoint, t.misRootCA)
 		if clientErr != nil {
-			// Cannot build client; skip to static fallback.
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); also failed to build MIS client for URI fallback: %v",
 				discoveryErr, clientErr,
 			))
 		}
 
-		bundleBytes, fetchErr := t.fetchBundleFromURL(ctx, client, fullBundleURL)
+		bundleBytes, etag, fetchErr := t.fetchBundleFromURL(ctx, client, fullBundleURL)
 		if fetchErr != nil {
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); URI fallback to %q also failed: %v",
@@ -188,38 +186,38 @@ func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 			))
 		}
 
-		return t.trustDomain, bundleBytes, nil
+		return t.trustDomain, bundleBytes, etag, nil
 	}
 
-	// trustBundleURI is empty — skip step 2 and proceed directly to step 3.
 	return t.staticFallback(discoveryErr)
 }
 
 // staticFallback implements step 3: return the operator-supplied static bundle.
 // Both staticBundle and trustDomain must be non-empty; otherwise an error is returned.
-func (t *trustBundleGetterImpl) staticFallback(precedingErr error) (string, []byte, error) {
+func (t *trustBundleGetterImpl) staticFallback(precedingErr error) (string, []byte, string, error) {
 	if len(t.staticBundle) == 0 && t.trustDomain == "" {
-		return "", nil, fmt.Errorf(
+		return "", nil, "", fmt.Errorf(
 			"%w; no static trust bundle or trust domain configured as fallback",
 			precedingErr,
 		)
 	}
 
 	if len(t.staticBundle) == 0 {
-		return "", nil, fmt.Errorf(
+		return "", nil, "", fmt.Errorf(
 			"%w; static fallback failed: static trust bundle is empty",
 			precedingErr,
 		)
 	}
 
 	if t.trustDomain == "" {
-		return "", nil, fmt.Errorf(
+		return "", nil, "", fmt.Errorf(
 			"%w; static fallback failed: trust domain is empty",
 			precedingErr,
 		)
 	}
 
-	return t.trustDomain, t.staticBundle, nil
+	// Static fallback has no ETag — return empty string.
+	return t.trustDomain, t.staticBundle, "", nil
 }
 
 // fetchBundleFromURL calls client.GetTrustBundle with the given full URL
@@ -228,32 +226,32 @@ func (t *trustBundleGetterImpl) fetchBundleFromURL(
 	ctx context.Context,
 	client *client.MISClient,
 	fullURL string,
-) ([]byte, error) {
+) ([]byte, string, error) {
 	resp, err := client.GetTrustBundle(ctx, fullURL, "")
 	if err != nil {
-		return nil, fmt.Errorf("GetTrustBundle request: %w", err)
+		return nil, "", fmt.Errorf("GetTrustBundle request: %w", err)
 	}
 
 	if resp.HTTPResponse == nil {
-		return nil, errors.New("nil HTTP response")
+		return nil, "", errors.New("nil HTTP response")
 	}
 
 	if resp.HTTPResponse.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected HTTP status %d", resp.HTTPResponse.StatusCode)
+		return nil, "", fmt.Errorf("unexpected HTTP status %d", resp.HTTPResponse.StatusCode)
 	}
 
 	if resp.JSON200 == nil {
-		return nil, errors.New("HTTP 200 response contained no parsed bundle body")
+		return nil, "", errors.New("HTTP 200 response contained no parsed bundle body")
 	}
 
-	// Re-marshal the parsed SpiffeBundle back to JSON so callers receive
-	// a stable, canonical byte representation.
+	etag := resp.HTTPResponse.Header.Get("ETag")
+
 	bundleBytes, err := json.Marshal(resp.JSON200)
 	if err != nil {
-		return nil, fmt.Errorf("re-marshalling SPIFFE bundle: %w", err)
+		return nil, "", fmt.Errorf("re-marshalling SPIFFE bundle: %w", err)
 	}
 
-	return bundleBytes, nil
+	return bundleBytes, etag, nil
 }
 
 // ── Validation helpers ────────────────────────────────────────────────────────

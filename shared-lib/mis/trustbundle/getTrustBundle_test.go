@@ -87,8 +87,7 @@ func newMISServer(
 	mux.HandleFunc("/.well-known/margo", discoveryHandler)
 	mux.HandleFunc("/.well-known/spiffe/bundle.json", bundleHandler)
 
-	var server *httptest.Server
-	server = httptest.NewUnstartedServer(mux)
+	server := httptest.NewUnstartedServer(mux)
 	server.TLS = &tls.Config{
 		Certificates: []tls.Certificate{ca.tlsCert},
 	}
@@ -98,10 +97,34 @@ func newMISServer(
 	return server
 }
 
+// validSPIFFEBundle returns a minimal valid SPIFFE JWKS bundle JSON.
+func validSPIFFEBundle() []byte {
+	bundle := map[string]interface{}{
+		"keys": []map[string]interface{}{
+			{"kty": "EC", "use": "x509-svid"},
+		},
+	}
+	b, _ := json.Marshal(bundle)
+	return b
+}
+
+// discoveryDoc builds a minimal MIS discovery document JSON response.
+func discoveryDoc(trustBundleURI, trustDomain string) []byte {
+	doc := map[string]string{
+		"trustBundleUri": trustBundleURI,
+		"trustDomain":    trustDomain,
+	}
+	b, _ := json.Marshal(doc)
+	return b
+}
+
+// ── Discovery succeeds, ETag present ─────────────────────────────────────────
+
 func TestGetTrustBundle_DiscoverySuccess_ReturnsBundleAndDomain(t *testing.T) {
 	ca := newTestCA(t)
 	bundle := validSPIFFEBundle()
 	const trustDomain = "margo.org"
+	const expectedETag = `"abc123"`
 
 	var server *httptest.Server
 
@@ -118,6 +141,7 @@ func TestGetTrustBundle_DiscoverySuccess_ReturnsBundleAndDomain(t *testing.T) {
 	mux.HandleFunc("/.well-known/spiffe/bundle.json", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("ETag", expectedETag)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bundle)
 	})
@@ -138,12 +162,58 @@ func TestGetTrustBundle_DiscoverySuccess_ReturnsBundleAndDomain(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gotDomain, gotBundle, err := getter.GetTrustBundle(context.Background())
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, trustDomain, gotDomain)
 	assert.JSONEq(t, string(bundle), string(gotBundle))
+	assert.Equal(t, expectedETag, gotETag)
 }
+
+// ── Discovery succeeds, ETag absent → empty string ───────────────────────────
+
+func TestGetTrustBundle_DiscoverySuccess_NoETag_ReturnsEmptyETag(t *testing.T) {
+	ca := newTestCA(t)
+	bundle := validSPIFFEBundle()
+	const trustDomain = "margo.org"
+
+	var server *httptest.Server
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/margo", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(discoveryDoc(
+			server.URL+"/.well-known/spiffe/bundle.json",
+			trustDomain,
+		))
+	})
+	mux.HandleFunc("/.well-known/spiffe/bundle.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// No ETag header set intentionally.
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bundle)
+	})
+
+	server = httptest.NewUnstartedServer(mux)
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{ca.tlsCert},
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+
+	getter, err := New(server.URL, ca.certPEM, "/.well-known/spiffe/bundle.json", nil, "")
+	require.NoError(t, err)
+
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, trustDomain, gotDomain)
+	assert.JSONEq(t, string(bundle), string(gotBundle))
+	assert.Empty(t, gotETag)
+}
+
+// ── Bundle fetch returns non-200 → static fallback, empty ETag ───────────────
 
 func TestGetTrustBundle_BundleFetchNon200_StaticFallback(t *testing.T) {
 	ca := newTestCA(t)
@@ -181,12 +251,15 @@ func TestGetTrustBundle_BundleFetchNon200_StaticFallback(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gotDomain, gotBundle, err := getter.GetTrustBundle(context.Background())
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, trustDomain, gotDomain)
 	assert.Equal(t, staticBundle, gotBundle)
+	assert.Empty(t, gotETag) // static fallback always returns empty ETag
 }
+
+// ── Bundle fetch returns 200 with empty body → static fallback, empty ETag ───
 
 func TestGetTrustBundle_BundleFetch200ButEmptyBody_StaticFallback(t *testing.T) {
 	ca := newTestCA(t)
@@ -225,40 +298,21 @@ func TestGetTrustBundle_BundleFetch200ButEmptyBody_StaticFallback(t *testing.T) 
 	)
 	require.NoError(t, err)
 
-	gotDomain, gotBundle, err := getter.GetTrustBundle(context.Background())
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, trustDomain, gotDomain)
 	assert.Equal(t, staticBundle, gotBundle)
+	assert.Empty(t, gotETag) // static fallback always returns empty ETag
 }
 
-// validSPIFFEBundle returns a minimal valid SPIFFE JWKS bundle JSON.
-func validSPIFFEBundle() []byte {
-	bundle := map[string]interface{}{
-		"keys": []map[string]interface{}{
-			{"kty": "EC", "use": "x509-svid"},
-		},
-	}
-	b, _ := json.Marshal(bundle)
-	return b
-}
-
-// discoveryDoc builds a minimal MIS discovery document JSON response.
-func discoveryDoc(trustBundleURI, trustDomain string) []byte {
-	doc := map[string]string{
-		"trustBundleUri": trustBundleURI,
-		"trustDomain":    trustDomain,
-	}
-	b, _ := json.Marshal(doc)
-	return b
-}
-
-// ── Discovery returns non-200 → URI fallback succeeds ────────────────────────
+// ── Discovery returns non-200 → URI fallback succeeds, ETag returned ─────────
 
 func TestGetTrustBundle_DiscoveryNon200_URIFallbackSucceeds(t *testing.T) {
 	ca := newTestCA(t)
 	bundle := validSPIFFEBundle()
 	const trustDomain = "margo.org"
+	const expectedETag = `"fallback-etag"`
 
 	server := newMISServer(
 		t, ca,
@@ -266,9 +320,10 @@ func TestGetTrustBundle_DiscoveryNon200_URIFallbackSucceeds(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		},
-		// Bundle handler serves correctly.
+		// Bundle handler serves correctly with ETag.
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("ETag", expectedETag)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(bundle)
 		},
@@ -283,11 +338,12 @@ func TestGetTrustBundle_DiscoveryNon200_URIFallbackSucceeds(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gotDomain, gotBundle, err := getter.GetTrustBundle(context.Background())
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, trustDomain, gotDomain)
 	assert.JSONEq(t, string(bundle), string(gotBundle))
+	assert.Equal(t, expectedETag, gotETag)
 }
 
 // ── Discovery returns empty trustBundleUri → URI fallback succeeds ────────────
@@ -296,6 +352,7 @@ func TestGetTrustBundle_DiscoveryEmptyBundleURI_URIFallbackSucceeds(t *testing.T
 	ca := newTestCA(t)
 	bundle := validSPIFFEBundle()
 	const trustDomain = "margo.org"
+	const expectedETag = `"uri-fallback-etag"`
 
 	server := newMISServer(
 		t, ca,
@@ -307,6 +364,7 @@ func TestGetTrustBundle_DiscoveryEmptyBundleURI_URIFallbackSucceeds(t *testing.T
 		},
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("ETag", expectedETag)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(bundle)
 		},
@@ -321,11 +379,12 @@ func TestGetTrustBundle_DiscoveryEmptyBundleURI_URIFallbackSucceeds(t *testing.T
 	)
 	require.NoError(t, err)
 
-	gotDomain, gotBundle, err := getter.GetTrustBundle(context.Background())
+	gotDomain, gotBundle, gotETag, err := getter.GetTrustBundle(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, trustDomain, gotDomain)
 	assert.JSONEq(t, string(bundle), string(gotBundle))
+	assert.Equal(t, expectedETag, gotETag)
 }
 
 // ── All strategies fail → error propagated ───────────────────────────────────
@@ -352,7 +411,7 @@ func TestGetTrustBundle_AllStrategiesFail_ReturnsError(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, _, err = getter.GetTrustBundle(context.Background())
+	_, _, _, err = getter.GetTrustBundle(context.Background())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no static trust bundle or trust domain configured")
@@ -384,10 +443,7 @@ func TestGetTrustBundle_ContextCancelledBeforeRequest_ReturnsError(t *testing.T)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before the call
 
-	_, _, err = getter.GetTrustBundle(ctx)
+	_, _, _, err = getter.GetTrustBundle(ctx)
 
 	require.Error(t, err)
 }
-
-// ── Previously written static/validation tests (unchanged) ───────────────────
-// ... (all TestNew_* and static fallback tests from the previous answer remain here)

@@ -131,8 +131,8 @@ generate_https_ca() {
 }
 
 generate_minter_ca() {
-    log "--- Generating Minter CA key (RSA-${KEY_SIZE}) ---"
-    openssl genrsa -out "$MINTER_CA_KEY" "$KEY_SIZE"
+    log "--- Generating Minter CA key (EC prime256v1) ---"
+    openssl ecparam -name prime256v1 -genkey -noout -out "$MINTER_CA_KEY"
     chmod 600 "$MINTER_CA_KEY"
     log "Minter CA key written to: $MINTER_CA_KEY"
 

@@ -10,6 +10,8 @@ RUN go mod download
 
 COPY . .
 
+RUN go mod vendor
+
 # Build a static binary
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -trimpath \

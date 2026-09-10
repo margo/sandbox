@@ -157,7 +157,7 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 
 	// Generate X.509 SVID
 	m.logger.Debug("generating X.509 SVID")
-	certPEM, keyPEM, err := op.GenerateX509SVID(&req)
+	certPEM, keyPEM, err := op.GenerateX509SVID(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
 	if err != nil {
 		m.logger.Error("failed to generate X.509 SVID", "error", err)
 		helpers.WriteError(

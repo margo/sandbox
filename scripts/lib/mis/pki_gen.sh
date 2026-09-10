@@ -21,6 +21,7 @@ DEFAULT_O="Capgemini"
 DEFAULT_OU="Margo Sandbox Team"
 DEFAULT_EMAIL="admin@capgemini.com"
 DEFAULT_DNS_SAN="mis.margo.org"
+DEFAULT_MINTER_CA_CN="margo.org"
 
 # Output file names
 HTTPS_CA_KEY="$OUTPUT_DIR/https-ca.key"
@@ -82,6 +83,7 @@ collect_interactive_inputs() {
     prompt CA_VALIDITY "CA validity in days (10yr=3650)"   "$CA_DAYS"
     prompt SRV_VALIDITY "Server cert validity in days"     "$CERT_DAYS"
     prompt DNS_SAN     "Server DNS SAN"                    "$DEFAULT_DNS_SAN"
+    prompt MINTER_CA_CN  "Minter CA Common Name (CN)"         "$DEFAULT_MINTER_CA_CN"
 
     echo ""
     log "Configuration collected."
@@ -98,7 +100,8 @@ collect_automated_inputs() {
     EMAIL="$DEFAULT_EMAIL"
     CA_VALIDITY="$CA_DAYS"
     SRV_VALIDITY="$CERT_DAYS"
-    DNS_SAN="${dns_override:-$DEFAULT_DNS_SAN}"   
+    DNS_SAN="${dns_override:-$DEFAULT_DNS_SAN}"
+    MINTER_CA_CN="${minter_cn_override:-$DEFAULT_MINTER_CA_CN}"
 }
 
 # --- Certificate generation ---------------------------------------------------
@@ -138,7 +141,7 @@ generate_minter_ca() {
         -key    "$MINTER_CA_KEY" \
         -out    "$MINTER_CA_CRT" \
         -days   "$CA_VALIDITY" \
-        -subj   "$(build_subject "Capgemini Minter CA")" \
+        -subj   "$(build_subject "$MINTER_CA_CN")" \
         -extensions v3_ca \
         -addext "basicConstraints=critical,CA:TRUE" \
         -addext "keyUsage=critical,keyCertSign,cRLSign" \
@@ -245,15 +248,17 @@ print_summary() {
 # --- Usage --------------------------------------------------------------------
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--interactive | --automated] [--dns <DNS_SAN>]
+Usage: $(basename "$0") [--interactive | --automated] [--dns <DNS_SAN> | --minter-cn <MINTER_COMMON_NAME>]
 
 Modes:
   --interactive   Prompt for all certificate fields interactively.
   --automated     Use built-in defaults (no prompts).
 
 Options:
-  --dns <value>   Override the server DNS SAN (used in automated mode).
-                  Falls back to default: $DEFAULT_DNS_SAN
+  --dns <value>         Override the server DNS SAN (used in automated mode).
+                        Falls back to default: $DEFAULT_DNS_SAN
+  --minter-cn <value>   Override the SVID minting CA Common Name (used in automated mode).
+                        Falls back to default: $DEFAULT_MINTER_CA_CN
 
 If no mode is specified, the script will ask you to choose.
 EOF
@@ -274,6 +279,11 @@ main() {
                 shift
                 [[ -z "${1:-}" ]] && die "--dns requires a value."
                 dns_override="$1"
+                ;;
+            --minter-cn)
+                shift
+                [[ -z "${1:-}" ]] && die "--minter-cn requires a value."
+                minter_cn_override="$1"
                 ;;
             --help|-h) usage ;;
             *) die "Unknown argument: $1. Use --interactive, --automated, or --dns <value>." ;;

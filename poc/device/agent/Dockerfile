@@ -7,7 +7,7 @@ ARG DATE
 
 ARG TARGETOS
 ARG TARGETARCH
-
+ARG TARGETPLATFORM
 
 WORKDIR /app
 
@@ -22,11 +22,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -ldflags="-X main.build=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
     -o device-agent ./poc/device/agent
 
-
-    
 # Stage 2: Get Docker binary and compose plugin from official image
 # FROM docker:28.3.3-cli AS docker-source
-FROM --platform=$BUILDPLATFORM docker:28.3.3-cli AS docker-source
+FROM --platform=$TARGETPLATFORM docker:28.3.3-cli AS docker-source
 
 # Stage 3: Runtime
 FROM alpine:3.18
@@ -38,7 +36,7 @@ WORKDIR /
 
 COPY --from=builder /app/device-agent .
 COPY --from=builder /app/poc/device/agent/config ./config
-# this will remove the dependency from docker image 
+# this will remove the dependency from docker image
 COPY --from=docker-source /usr/local/bin/docker /usr/bin/docker
 
 # Create the cli-plugins directory FIRST

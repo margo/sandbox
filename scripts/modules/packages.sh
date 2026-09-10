@@ -48,7 +48,7 @@ get_margo_media_type() {
     echo "application/vnd.margo.app.icon.v1+${format}"
   elif [[ "$lower_name" =~ (readme|description) ]]; then
     echo "application/vnd.margo.app.descriptionFile.v1+${format}"
-  elif [[ "$lower_name" =~ (release_notes|releasenotes|changelog) ]]; then
+  elif [[ "$lower_name" =~ (release_notes|releasenotes|changelog|release-notes) ]]; then
     echo "application/vnd.margo.app.releaseNotes.v1+${format}"
   elif [[ "$lower_name" =~ (license|licence) ]]; then
     echo "application/vnd.margo.app.licenseFile.v1+${format}"

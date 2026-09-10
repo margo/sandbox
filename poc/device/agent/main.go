@@ -483,7 +483,7 @@ func PreflightLogger(
 	}
 }
 
-// Verifies mTLS based on trust bundle and trust domain read from database, updated separately by trustbundle handler
+// Verifies mTLS based on trust bundle, trust domain and allowlist read from database, updated separately by trustbundle handler
 func mTLSVerifier(db database.DatabaseIfc) wfm.HTTPApiClientOptions {
 	// TODO: we should instead create our own http client and then set that into the openapi client
 	// the current way is a slightly longer route to acheive things

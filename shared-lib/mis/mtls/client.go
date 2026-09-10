@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"slices"
 
 	"github.com/margo/sandbox/shared-lib/mis/encoders"
 	"github.com/margo/sandbox/shared-lib/mis/parser"
@@ -19,6 +20,11 @@ type VerifierConfig struct {
 	// GetTrustBundleBytes is a function that returns the SPIFFE trust bundle in JWK Set (JSON) format
 	// used to validate the presented certificate chain (Rule 2).
 	GetTrustBundleBytes func() []byte
+
+	// GetClientAllowList is a function that returns the list of SPIFFE IDs permitted to connect.
+	// The peer's SPIFFE ID must appear in this list for the connection to be accepted.
+	// An empty list means no peer is allowed — all connections will be rejected.
+	GetClientAllowList func() []string
 }
 
 // NewMTLSClientConfig returns a *tls.Config suitable for a client performing
@@ -36,6 +42,9 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 	}
 	if len(cfg.GetTrustBundleBytes()) == 0 {
 		return nil, fmt.Errorf("TrustBundleBytes must not be empty")
+	}
+	if cfg.GetClientAllowList == nil {
+		return nil, fmt.Errorf("GetClientAllowList must not be nil")
 	}
 
 	tlsCfg := &tls.Config{
@@ -58,7 +67,7 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 }
 
 // buildVerifyPeerCertificates returns the VerifyPeerCertificates callback that
-// enforces the four SPIFFE verifier rules.
+// enforces the four SPIFFE verifier rules, followed by an allow-list check.
 func buildVerifyPeerCertificates(
 	cfg VerifierConfig,
 ) func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
@@ -146,7 +155,36 @@ func buildVerifyPeerCertificates(
 			return fmt.Errorf("rule 4: %w", err)
 		}
 
-		return nil
+		// ----------------------------------------------------------------
+		// Allow-list check — SPIFFE ID authorisation.
+		//
+		// After all cryptographic and structural checks pass, verify that
+		// the peer's SPIFFE ID is explicitly present in the configured
+		// allow list.  This enforces coarse-grained service-to-service
+		// authorisation at the TLS layer.
+		//
+		// An empty allow list is treated as "deny all": if no SPIFFE IDs
+		// are configured, every peer is rejected.  This fail-closed
+		// behaviour prevents accidental open access when the allow list
+		// has not been populated yet.
+		// ----------------------------------------------------------------
+		allowList := cfg.GetClientAllowList()
+		if len(allowList) == 0 {
+			return fmt.Errorf(
+				"allow-list check: peer SPIFFE ID %q rejected — allow list is empty (deny all)",
+				spiffeID,
+			)
+		}
+
+		if slices.Contains(allowList, spiffeID) {
+			// Peer is explicitly authorised; allow the connection.
+			return nil
+		}
+
+		return fmt.Errorf(
+			"allow-list check: peer SPIFFE ID %q is not in the configured allow list",
+			spiffeID,
+		)
 	}
 }
 

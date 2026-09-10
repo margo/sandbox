@@ -147,6 +147,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	wfmUrl := cfg.Wfm.SbiURL
 
 	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
+	// TODO: START HERE - add a middleware to check whether the client is from authorized list or not.
 
 	clientOptions = append(
 		clientOptions,
@@ -502,6 +503,7 @@ func mTLSVerifier(db database.DatabaseIfc) wfm.HTTPApiClientOptions {
 				v, _ := db.GetTrustBundle()
 				return v
 			},
+			GetClientAllowList: db.GetAuthorizedWFMs,
 		})
 		if err != nil {
 			return err

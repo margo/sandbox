@@ -69,6 +69,23 @@ pg==
 )
 
 // ---------------------------------------------------------------------------
+// Helper: allow-list provider
+// ---------------------------------------------------------------------------
+
+// allowedSpiffeID is the SPIFFE ID present in dummyClientCertPEM's URI SAN.
+const allowedSpiffeID = "spiffe://margo.org/margo/wfm/symphony-1"
+
+// getClientAllowList returns the default allow list used across tests.
+func getClientAllowList() []string {
+	return []string{allowedSpiffeID}
+}
+
+// emptyAllowList returns an empty allow list (deny-all).
+func emptyAllowList() []string {
+	return []string{}
+}
+
+// ---------------------------------------------------------------------------
 // Helper: trust domain provider
 // ---------------------------------------------------------------------------
 
@@ -209,6 +226,7 @@ func TestNewMTLSClientConfig_EmptyTrustDomain_ReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   func() string { return "" },
 		GetTrustBundleBytes: func() []byte { return []byte(`{"keys":[]}`) },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
@@ -222,6 +240,7 @@ func TestNewMTLSClientConfig_EmptyTrustBundle_ReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return nil },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
@@ -235,6 +254,7 @@ func TestNewMTLSClientConfig_EmptyTrustBundleSlice_ReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return []byte{} },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
@@ -244,6 +264,25 @@ func TestNewMTLSClientConfig_EmptyTrustBundleSlice_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "TrustBundleBytes must not be empty")
 }
 
+// TestNewMTLSClientConfig_NilAllowList_ReturnsError verifies that a nil
+// GetClientAllowList is rejected at construction time (fail-fast).
+func TestNewMTLSClientConfig_NilAllowList_ReturnsError(t *testing.T) {
+	clientCert := mustLoadClientCert(t)
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	cfg := VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  nil, // intentionally nil
+	}
+
+	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
+
+	assert.Nil(t, tlsCfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GetClientAllowList must not be nil")
+}
+
 func TestNewMTLSClientConfig_ValidInputs_ReturnsTLSConfig(t *testing.T) {
 	clientCert := mustLoadClientCert(t)
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
@@ -251,6 +290,7 @@ func TestNewMTLSClientConfig_ValidInputs_ReturnsTLSConfig(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
@@ -266,12 +306,12 @@ func TestNewMTLSClientConfig_InsecureSkipVerifyIsTrue(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
 	require.NoError(t, err)
 
-	// InsecureSkipVerify must be true because SPIFFE uses URI SANs, not DNS names.
 	assert.True(t, tlsCfg.InsecureSkipVerify)
 }
 
@@ -282,6 +322,7 @@ func TestNewMTLSClientConfig_VerifyPeerCertificateIsSet(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
@@ -298,6 +339,7 @@ func TestNewMTLSClientConfig_ClientCertIsIncluded(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
@@ -310,8 +352,8 @@ func TestNewMTLSClientConfig_ClientCertIsIncluded(t *testing.T) {
 // Tests for VerifyPeerCertificate callback (via NewMTLSClientConfig)
 // ---------------------------------------------------------------------------
 
-// verifyPeerCertificate extracts and invokes the VerifyPeerCertificate hook
-// from a freshly built *tls.Config so individual rule paths can be exercised.
+// buildVerifier constructs the VerifyPeerCertificate hook from a VerifierConfig.
+// Callers that do not need a custom allow list should pass getClientAllowList.
 func buildVerifier(t *testing.T, cfg VerifierConfig) func([][]byte, [][]*x509.Certificate) error {
 	t.Helper()
 	clientCert := mustLoadClientCert(t)
@@ -325,6 +367,7 @@ func TestVerifyPeerCertificate_NoCertificates_ReturnsError(t *testing.T) {
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	})
 
 	err := verify([][]byte{}, nil)
@@ -338,6 +381,7 @@ func TestVerifyPeerCertificate_InvalidLeafDER_ReturnsError(t *testing.T) {
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	})
 
 	err := verify([][]byte{selfSignedDERCert(t)}, nil)
@@ -347,28 +391,42 @@ func TestVerifyPeerCertificate_InvalidLeafDER_ReturnsError(t *testing.T) {
 }
 
 func TestVerifyPeerCertificate_TrustDomainMismatch_ReturnsRule1Error(t *testing.T) {
-	// Skip if real certs are not provided — this test needs a valid SPIFFE SVID
-	// whose trust domain differs from "margo.org".
 	clientCert := mustLoadClientCert(t)
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 
-	// Use a different trust domain so Rule 1 fires.
-	verify := func() func([][]byte, [][]*x509.Certificate) error {
-		tlsCfg, err := NewMTLSClientConfig(clientCert, VerifierConfig{
-			GetOwnTrustDomain:   func() string { return "other.org" },
-			GetTrustBundleBytes: func() []byte { return trustBundle },
-		})
-		require.NoError(t, err)
-		return tlsCfg.VerifyPeerCertificate
-	}()
+	tlsCfg, err := NewMTLSClientConfig(clientCert, VerifierConfig{
+		GetOwnTrustDomain:   func() string { return "other.org" },
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
+	})
+	require.NoError(t, err)
+	verify := tlsCfg.VerifyPeerCertificate
 
-	// Present the real client cert DER as the peer leaf.
 	leafDER := clientCert.Certificate[0]
-	err := verify([][]byte{leafDER}, nil)
+	err = verify([][]byte{leafDER}, nil)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rule 1")
 	assert.Contains(t, err.Error(), "trust domain mismatch")
+}
+
+func TestVerifyPeerCertificate_UntrustedChain_ReturnsRule2Error(t *testing.T) {
+	clientCert := mustLoadClientCert(t)
+	emptyBundle := []byte(`{"keys":[]}`)
+
+	tlsCfg, err := NewMTLSClientConfig(clientCert, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return emptyBundle },
+		GetClientAllowList:  getClientAllowList,
+	})
+	require.NoError(t, err)
+	verify := tlsCfg.VerifyPeerCertificate
+
+	leafDER := clientCert.Certificate[0]
+	err = verify([][]byte{leafDER}, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rule 2")
 }
 
 func TestVerifyPeerCertificate_ValidSVID_NoError(t *testing.T) {
@@ -378,10 +436,9 @@ func TestVerifyPeerCertificate_ValidSVID_NoError(t *testing.T) {
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	})
 
-	// Present the real client cert DER as the peer leaf (no intermediates).
-	// leafDER := clientCert.Certificate[0]
 	var rawCerts [][]byte
 	for _, c := range clientCert.Certificate {
 		rawCerts = append(rawCerts, c)
@@ -405,6 +462,7 @@ func TestVerifyPeerCertificate_ValidSVIDWithIntermediates_NoError(t *testing.T) 
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
 	})
 
 	var rawCerts [][]byte
@@ -417,26 +475,113 @@ func TestVerifyPeerCertificate_ValidSVIDWithIntermediates_NoError(t *testing.T) 
 	assert.NoError(t, err)
 }
 
-func TestVerifyPeerCertificate_UntrustedChain_ReturnsRule2Error(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Tests for allow-list check (Rule 5 — SPIFFE ID authorisation)
+// ---------------------------------------------------------------------------
+
+// TestVerifyPeerCertificate_AllowedSPIFFEID_NoError verifies that a peer whose
+// SPIFFE ID is present in the allow list passes all checks successfully.
+func TestVerifyPeerCertificate_AllowedSPIFFEID_NoError(t *testing.T) {
 	clientCert := mustLoadClientCert(t)
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 
-	// Provide a trust bundle that does NOT contain the signing CA.
-	emptyBundle := []byte(`{"keys":[]}`)
+	verify := buildVerifier(t, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		// Explicitly list the peer's SPIFFE ID — connection must succeed.
+		GetClientAllowList: func() []string {
+			return []string{allowedSpiffeID}
+		},
+	})
 
-	verify := func() func([][]byte, [][]*x509.Certificate) error {
-		tlsCfg, err := NewMTLSClientConfig(clientCert, VerifierConfig{
-			GetOwnTrustDomain:   getOwnTrustDomain,
-			GetTrustBundleBytes: func() []byte { return emptyBundle },
-		})
-		require.NoError(t, err)
-		return tlsCfg.VerifyPeerCertificate
-	}()
+	var rawCerts [][]byte
+	for _, c := range clientCert.Certificate {
+		rawCerts = append(rawCerts, c)
+	}
 
-	leafDER := clientCert.Certificate[0]
-	err := verify([][]byte{leafDER}, nil)
+	err := verify(rawCerts, nil)
+
+	assert.NoError(t, err)
+}
+
+// TestVerifyPeerCertificate_EmptyAllowList_ReturnsError verifies that an empty
+// allow list causes every peer to be rejected (deny-all / fail-closed).
+func TestVerifyPeerCertificate_EmptyAllowList_ReturnsError(t *testing.T) {
+	clientCert := mustLoadClientCert(t)
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	verify := buildVerifier(t, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  emptyAllowList, // deny all
+	})
+
+	var rawCerts [][]byte
+	for _, c := range clientCert.Certificate {
+		rawCerts = append(rawCerts, c)
+	}
+
+	err := verify(rawCerts, nil)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rule 2")
+	assert.Contains(t, err.Error(), "allow-list check")
+	assert.Contains(t, err.Error(), "allow list is empty")
+}
+
+// TestVerifyPeerCertificate_SpiffeIDNotInAllowList_ReturnsError verifies that a
+// peer whose SPIFFE ID is absent from a non-empty allow list is rejected.
+func TestVerifyPeerCertificate_SpiffeIDNotInAllowList_ReturnsError(t *testing.T) {
+	clientCert := mustLoadClientCert(t)
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	verify := buildVerifier(t, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		// Allow list contains a different service — peer must be rejected.
+		GetClientAllowList: func() []string {
+			return []string{"spiffe://margo.org/margo/other-service/instance-1"}
+		},
+	})
+
+	var rawCerts [][]byte
+	for _, c := range clientCert.Certificate {
+		rawCerts = append(rawCerts, c)
+	}
+
+	err := verify(rawCerts, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "allow-list check")
+	assert.Contains(t, err.Error(), allowedSpiffeID)
+}
+
+// TestVerifyPeerCertificate_MultipleAllowedIDs_CorrectIDPasses verifies that
+// when the allow list contains multiple entries the peer is accepted when its
+// SPIFFE ID matches any one of them.
+func TestVerifyPeerCertificate_MultipleAllowedIDs_CorrectIDPasses(t *testing.T) {
+	clientCert := mustLoadClientCert(t)
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	verify := buildVerifier(t, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList: func() []string {
+			return []string{
+				"spiffe://margo.org/margo/other-service/instance-1",
+				allowedSpiffeID, // peer's actual ID — must pass
+				"spiffe://margo.org/margo/another-service/instance-2",
+			}
+		},
+	})
+
+	var rawCerts [][]byte
+	for _, c := range clientCert.Certificate {
+		rawCerts = append(rawCerts, c)
+	}
+
+	err := verify(rawCerts, nil)
+
+	assert.NoError(t, err)
 }
 
 // ---------------------------------------------------------------------------

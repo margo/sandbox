@@ -3,6 +3,60 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
+get_margo_media_type() {
+  local file="$1"
+  local filename
+  filename=$(basename "$file")
+  local ext="${filename##*.}"
+  ext=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
+
+  local format="$ext"
+  case "$ext" in
+    md)       format="markdown" ;;
+    txt)      format="plain" ;;
+    jpg|jpeg) format="jpeg" ;;
+    png)      format="png" ;;
+    svg)      format="svg" ;;
+    pdf)      format="pdf" ;;
+    yaml|yml) format="yaml" ;;
+    json)     format="json" ;;
+  esac
+
+  # Match margo.yaml catalog references if yq is available
+  if command -v yq &>/dev/null && [ -f "margo.yaml" ]; then
+    local icon desc notes license
+    icon=$(yq eval '.metadata.catalog.application.icon // ""' margo.yaml 2>/dev/null)
+    desc=$(yq eval '.metadata.catalog.application.descriptionFile // ""' margo.yaml 2>/dev/null)
+    notes=$(yq eval '.metadata.catalog.application.releaseNotes // ""' margo.yaml 2>/dev/null)
+    license=$(yq eval '.metadata.catalog.application.licenseFile // ""' margo.yaml 2>/dev/null)
+
+    if [ "$file" = "$icon" ] || [ "./$file" = "$icon" ] || [ "$file" = "${icon#./}" ]; then
+      echo "application/vnd.margo.app.icon.v1+${format}"; return
+    elif [ "$file" = "$desc" ] || [ "./$file" = "$desc" ] || [ "$file" = "${desc#./}" ]; then
+      echo "application/vnd.margo.app.descriptionFile.v1+${format}"; return
+    elif [ "$file" = "$notes" ] || [ "./$file" = "$notes" ] || [ "$file" = "${notes#./}" ]; then
+      echo "application/vnd.margo.app.releaseNotes.v1+${format}"; return
+    elif [ "$file" = "$license" ] || [ "./$file" = "$license" ] || [ "$file" = "${license#./}" ]; then
+      echo "application/vnd.margo.app.licenseFile.v1+${format}"; return
+    fi
+  fi
+
+  # Fallback based on filename patterns
+  local lower_name
+  lower_name=$(echo "$filename" | tr '[:upper:]' '[:lower:]')
+  if [[ "$lower_name" =~ (icon|logo) ]]; then
+    echo "application/vnd.margo.app.icon.v1+${format}"
+  elif [[ "$lower_name" =~ (readme|description) ]]; then
+    echo "application/vnd.margo.app.descriptionFile.v1+${format}"
+  elif [[ "$lower_name" =~ (release_notes|releasenotes|changelog) ]]; then
+    echo "application/vnd.margo.app.releaseNotes.v1+${format}"
+  elif [[ "$lower_name" =~ (license|licence) ]]; then
+    echo "application/vnd.margo.app.licenseFile.v1+${format}"
+  else
+    echo "application/octet-stream"
+  fi
+}
+
 push_nextcloud_to_oci() {
   echo "📦 Pushing Nextcloud application package to OCI Registry (HTTPS)..."
 
@@ -33,7 +87,9 @@ push_nextcloud_to_oci() {
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
     while IFS= read -r file; do
       if [ -f "$file" ]; then
-        files+=("$file:application/octet-stream")
+        local media_type
+        media_type=$(get_margo_media_type "$file")
+        files+=("$file:${media_type}")
       fi
     done < <(find resources -type f 2>/dev/null)
   fi
@@ -74,7 +130,9 @@ push_custom_otel_to_oci() {
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
     while IFS= read -r file; do
       if [ -f "$file" ]; then
-        files+=("$file:application/octet-stream")
+        local media_type
+        media_type=$(get_margo_media_type "$file")
+        files+=("$file:${media_type}")
       fi
     done < <(find resources -type f 2>/dev/null)
   fi
@@ -122,7 +180,6 @@ build_custom_otel_container_images() {
 
   echo "Pushing chart to Harbor (HTTPS)..."
   helm push "custom-otel-helm-${CHART_VERSION}.tgz" "oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library" 
-
 
   HELM_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm"
   HELM_REVISION="$CHART_VERSION"

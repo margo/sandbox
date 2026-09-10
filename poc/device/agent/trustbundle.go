@@ -14,7 +14,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 )
 
-type TrustBundleCacherIface interface {
+type TrustBundleCacherIfc interface {
 	Start() error // This returns first update, so that rest of the flow can start.
 	Stop()
 }

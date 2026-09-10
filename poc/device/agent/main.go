@@ -20,7 +20,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
-	"github.com/margo/sandbox/shared-lib/crypto"
+	"github.com/margo/sandbox/shared-lib/mis/mtls"
 	"github.com/margo/sandbox/shared-lib/mis/parser"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/shared-lib/mis/validators"
@@ -43,7 +43,7 @@ type Agent struct {
 	deployer       DeploymentManagerIfc
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
-	tbCacher       TrustBundleCacherIface
+	tbCacher       TrustBundleCacherIfc
 }
 
 func NewAgent(configPath string) (*Agent, error) {
@@ -59,27 +59,6 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	// Create database
 	db := database.NewDatabase(cfg.Database.DataDir)
-
-	// Prepare request editors (e.g., request signer) for WFM client
-	clientOptions := []wfm.HTTPApiClientOptions{}
-
-	// Create WFM client using configured URL
-	wfmUrl := cfg.Wfm.SbiURL
-
-	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
-
-	// TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are replaced by mTLS.
-	// This entire RequestSigner plugin block should be removed when MIAF is implemented.
-	// Replace with: mTLS client certificate (X.509-SVID) configured in tls.Config.
-	// See: shared-lib/crypto/signer.go — marked for deletion on MIAF implementation.
-
-	// clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
-
-	// TODO: START HERE - mTLS related changes need to be done here
-	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create WFM client: %w", err)
-	}
 
 	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
 	if err != nil {
@@ -160,6 +139,24 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	// parsed & validated MIAF Configuration (with certificates etc) added to database
 	opts = append(opts, WithParsedMIAFConfig(pmc))
+
+	// Prepare request editors (e.g., request signer) for WFM client
+	clientOptions := []wfm.HTTPApiClientOptions{}
+
+	// Create WFM client using configured URL
+	wfmUrl := cfg.Wfm.SbiURL
+
+	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
+
+	clientOptions = append(
+		clientOptions,
+		mTLSVerifier(db),
+	)
+
+	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create WFM client: %w", err)
+	}
 
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
@@ -288,6 +285,7 @@ func (a *Agent) Start() error {
 		"Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
+		"trustBundleRefreshInterval", "", // Enter here --
 		"sbiUrl", a.config.Wfm.SbiURL,
 	)
 	return nil
@@ -484,9 +482,8 @@ func PreflightLogger(
 	}
 }
 
-// TODO: Move these functions so that they can be reused for calling MIS service
-// pass caPath if you want to use some particular ca to verify the certificates
-func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
+// Verifies mTLS based on trust bundle and trust domain read from database, updated separately by trustbundle handler
+func mTLSVerifier(db database.DatabaseIfc) wfm.HTTPApiClientOptions {
 	// TODO: we should instead create our own http client and then set that into the openapi client
 	// the current way is a slightly longer route to acheive things
 	return func(client *sbi.Client) error {
@@ -496,15 +493,18 @@ func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
 		}
 
 		// Create TLS config
-		tlsConfig := &tls.Config{}
-
-		// Load and configure custom CA if provided
-		if caPath != nil && *caPath != "" {
-			var err error
-			tlsConfig, err = crypto.LoadCustomCA(*caPath)
-			if err != nil {
-				return err
-			}
+		tlsConfig, err := mtls.NewMTLSClientConfig(tls.Certificate{}, mtls.VerifierConfig{
+			GetOwnTrustDomain: func() string {
+				v, _ := db.GetTrustDomain()
+				return v
+			},
+			GetTrustBundleBytes: func() []byte {
+				v, _ := db.GetTrustBundle()
+				return v
+			},
+		})
+		if err != nil {
+			return err
 		}
 
 		// Configure HTTP client with TLS

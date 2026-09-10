@@ -19,18 +19,21 @@ import (
 )
 
 // ── Test Helpers ──────────────────────────────────────────────────────────────
+// ── generateCert: add keyUsage support to certOptions ────────────────────────
 
+// Add keyUsage field to certOptions (update the existing struct):
 type certOptions struct {
-	spiffeID  string   // URI SAN; empty = no URI SAN
-	extraURIs []string // additional URI SANs (to trigger multi-SAN errors)
+	spiffeID  string
+	extraURIs []string
 	isCA      bool
+	keyUsage  x509.KeyUsage // NEW: explicit key usage override for leaf certs
 	notBefore time.Time
 	notAfter  time.Time
-	parent    *x509.Certificate // nil = self-signed
+	parent    *x509.Certificate
 	parentKey *ecdsa.PrivateKey
 }
 
-// generateCert creates a certificate according to opts and returns (certDER, key).
+// Update generateCert to apply keyUsage when set (update the existing function):
 func generateCert(t *testing.T, opts certOptions) ([]byte, *ecdsa.PrivateKey) {
 	t.Helper()
 
@@ -57,6 +60,11 @@ func generateCert(t *testing.T, opts certOptions) ([]byte, *ecdsa.PrivateKey) {
 		tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 	}
 
+	// NEW: apply explicit key usage override (for leaf constraint tests)
+	if opts.keyUsage != 0 {
+		tmpl.KeyUsage = opts.keyUsage
+	}
+
 	if opts.spiffeID != "" {
 		u, err := url.Parse(opts.spiffeID)
 		require.NoError(t, err)
@@ -78,6 +86,143 @@ func generateCert(t *testing.T, opts certOptions) ([]byte, *ecdsa.PrivateKey) {
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, signerCert, &key.PublicKey, signerKey)
 	require.NoError(t, err)
 	return der, key
+}
+
+// ── validateSVIDLeafConstraints ───────────────────────────────────────────────
+
+func TestValidateSVIDLeafConstraints_Valid(t *testing.T) {
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/margo/wfm/w1"})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	assert.NoError(t, ValidateSVIDLeafConstraints(cert))
+}
+
+func TestValidateSVIDLeafConstraints_IsCA(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		isCA:     true,
+	})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be a CA")
+}
+
+func TestValidateSVIDLeafConstraints_KeyCertSignSet(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCertSign,
+	})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "keyCertSign")
+}
+
+func TestValidateSVIDLeafConstraints_CRLSignSet(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCRLSign,
+	})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cRLSign")
+}
+
+func TestValidateSVIDLeafConstraints_RootPath(t *testing.T) {
+	// SPIFFE ID with root path "/" — must be rejected
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/"})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "non-root path")
+}
+
+func TestValidateSVIDLeafConstraints_EmptyPath(t *testing.T) {
+	// SPIFFE ID with no path — must be rejected
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org"})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "non-root path")
+}
+
+func TestValidateSVIDLeafConstraints_NoURISAN(t *testing.T) {
+	der, _ := generateCert(t, certOptions{}) // no spiffeID
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exactly one URI SAN")
+}
+
+func TestValidateSVIDLeafConstraints_MultipleURISANs(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID:  "spiffe://example.org/margo/wfm/w1",
+		extraURIs: []string{"spiffe://example.org/margo/wfm/w2"},
+	})
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	err = ValidateSVIDLeafConstraints(cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exactly one URI SAN")
+}
+
+// ── ValidateX509SVID: new leaf constraint cases ───────────────────────────────
+
+func TestValidateX509SVID_RejectsCACert(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		isCA:     true,
+	})
+	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be a CA")
+}
+
+func TestValidateX509SVID_RejectsKeyCertSign(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCertSign,
+	})
+	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "keyCertSign")
+}
+
+func TestValidateX509SVID_RejectsCRLSign(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCRLSign,
+	})
+	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cRLSign")
+}
+
+func TestValidateX509SVID_RejectsRootPath(t *testing.T) {
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/"})
+	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "spiffe ID path must not contain empty segments")
+}
+
+func TestValidateX509SVID_RejectsEmptyPath(t *testing.T) {
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org"})
+	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "spiffe ID must contain a path after the trust domain")
 }
 
 // toPEM wraps DER bytes in a CERTIFICATE PEM block.
@@ -303,7 +448,7 @@ func TestValidateX509SVID_UnknownPrincipal(t *testing.T) {
 func TestGetTrustBundleFromJWK_Valid(t *testing.T) {
 	caDER, _ := generateCert(t, certOptions{isCA: true})
 	bundle := buildTrustBundle(t, caDER)
-	certs, err := getTrustBundleFromJWK(bundle)
+	certs, err := GetTrustBundleFromJWK(bundle)
 	require.NoError(t, err)
 	assert.Len(t, certs, 1)
 }
@@ -312,7 +457,7 @@ func TestGetTrustBundleFromJWK_SkipsNonX509SVID(t *testing.T) {
 	// A key with use != "x509-svid" should be skipped
 	keys := []jwkKey{{Use: "sig", Kty: "EC", X5C: []string{"aGVsbG8="} /* "hello" */}}
 	b, _ := json.Marshal(jwkSet{Keys: keys})
-	_, err := getTrustBundleFromJWK(b)
+	_, err := GetTrustBundleFromJWK(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no x509-svid trust anchors found")
 }
@@ -320,7 +465,7 @@ func TestGetTrustBundleFromJWK_SkipsNonX509SVID(t *testing.T) {
 func TestGetTrustBundleFromJWK_MissingX5C(t *testing.T) {
 	keys := []jwkKey{{Use: "x509-svid", Kty: "EC"}} // no X5C
 	b, _ := json.Marshal(jwkSet{Keys: keys})
-	_, err := getTrustBundleFromJWK(b)
+	_, err := GetTrustBundleFromJWK(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing x5c field")
 }
@@ -328,7 +473,7 @@ func TestGetTrustBundleFromJWK_MissingX5C(t *testing.T) {
 func TestGetTrustBundleFromJWK_InvalidBase64(t *testing.T) {
 	keys := []jwkKey{{Use: "x509-svid", Kty: "EC", X5C: []string{"!!!not-base64!!!"}}}
 	b, _ := json.Marshal(jwkSet{Keys: keys})
-	_, err := getTrustBundleFromJWK(b)
+	_, err := GetTrustBundleFromJWK(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to base64 decode")
 }
@@ -341,20 +486,20 @@ func TestGetTrustBundleFromJWK_InvalidCertInX5C(t *testing.T) {
 		X5C: []string{base64.StdEncoding.EncodeToString([]byte("not-a-cert"))},
 	}}
 	b, _ := json.Marshal(jwkSet{Keys: keys})
-	_, err := getTrustBundleFromJWK(b)
+	_, err := GetTrustBundleFromJWK(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse certificate")
 }
 
 func TestGetTrustBundleFromJWK_InvalidJSON(t *testing.T) {
-	_, err := getTrustBundleFromJWK([]byte("{invalid json"))
+	_, err := GetTrustBundleFromJWK([]byte("{invalid json"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JWK Set")
 }
 
 func TestGetTrustBundleFromJWK_EmptyKeySet(t *testing.T) {
 	b, _ := json.Marshal(jwkSet{Keys: []jwkKey{}})
-	_, err := getTrustBundleFromJWK(b)
+	_, err := GetTrustBundleFromJWK(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no x509-svid trust anchors found")
 }
@@ -363,7 +508,7 @@ func TestGetTrustBundleFromJWK_MultipleCAs(t *testing.T) {
 	ca1DER, _ := generateCert(t, certOptions{isCA: true})
 	ca2DER, _ := generateCert(t, certOptions{isCA: true})
 	bundle := buildTrustBundle(t, ca1DER, ca2DER)
-	certs, err := getTrustBundleFromJWK(bundle)
+	certs, err := GetTrustBundleFromJWK(bundle)
 	require.NoError(t, err)
 	assert.Len(t, certs, 2)
 }

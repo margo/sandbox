@@ -39,7 +39,12 @@ func ValidateX509SVID(svidBytes []byte, principal string) (bool, error) {
 		return false, err
 	}
 
-	// 3. Validate certificate time validity
+	// 3. Enforce SPIFFE X.509-SVID leaf constraints
+	if err := ValidateSVIDLeafConstraints(cert); err != nil {
+		return false, err
+	}
+
+	// 4. Validate certificate time validity
 	now := time.Now()
 	if now.Before(cert.NotBefore) {
 		return false, fmt.Errorf("certificate is not yet valid: NotBefore is %s", cert.NotBefore)
@@ -49,6 +54,48 @@ func ValidateX509SVID(svidBytes []byte, principal string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ValidateSVIDLeafConstraints enforces SPIFFE X.509-SVID leaf certificate requirements:
+//   - basicConstraints cA MUST be false
+//   - keyCertSign and cRLSign MUST NOT be set in key usage
+//   - the SPIFFE ID MUST have a non-root path (i.e. path must not be empty or "/")
+//   - the certificate MUST carry exactly one URI SAN
+func ValidateSVIDLeafConstraints(cert *x509.Certificate) error {
+	// cA MUST be false
+	if cert.IsCA {
+		return fmt.Errorf("SVID leaf certificate must not be a CA (basicConstraints cA is true)")
+	}
+
+	// keyCertSign and cRLSign MUST NOT be set
+	if cert.KeyUsage&x509.KeyUsageCertSign != 0 {
+		return fmt.Errorf("SVID leaf certificate must not have keyCertSign key usage set")
+	}
+	if cert.KeyUsage&x509.KeyUsageCRLSign != 0 {
+		return fmt.Errorf("SVID leaf certificate must not have cRLSign key usage set")
+	}
+
+	// Exactly one URI SAN (redundant with validateSPIFFEID but enforced explicitly here)
+	if len(cert.URIs) != 1 {
+		return fmt.Errorf(
+			"SVID leaf certificate must carry exactly one URI SAN, found %d",
+			len(cert.URIs),
+		)
+	}
+
+	// SPIFFE ID MUST use the spiffe scheme with a non-root path
+	spiffeID := cert.URIs[0]
+	if spiffeID.Scheme != "spiffe" {
+		return fmt.Errorf("URI SAN scheme must be 'spiffe', got %q", spiffeID.Scheme)
+	}
+	if spiffeID.Path == "" || spiffeID.Path == "/" {
+		return fmt.Errorf(
+			"SPIFFE ID %q must have a non-root path (path is %q)",
+			spiffeID.String(), spiffeID.Path,
+		)
+	}
+
+	return nil
 }
 
 // ValidateX509SVIDAgainstTrustBundle verifies that the given X.509 SVID certificate
@@ -152,7 +199,7 @@ func validateAgainstTrustBundle(cert *x509.Certificate, trustBundle []byte) erro
 		return fmt.Errorf("certificate is a CA certificate; SVID must be a leaf certificate")
 	}
 
-	trustBundleCerts, err := getTrustBundleFromJWK(trustBundle)
+	trustBundleCerts, err := GetTrustBundleFromJWK(trustBundle)
 	if err != nil {
 		return fmt.Errorf("failed to obtain trust bundle: %w", err)
 	}
@@ -180,10 +227,10 @@ func validateAgainstTrustBundle(cert *x509.Certificate, trustBundle []byte) erro
 	return nil
 }
 
-// getTrustBundleFromJWK parses a SPIFFE trust bundle in JWK Set format
+// GetTrustBundleFromJWK parses a SPIFFE trust bundle in JWK Set format
 // and returns the X.509 trust anchor certificates.
 // Only keys with use="x509-svid" are considered.
-func getTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
+func GetTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
 	var keySet jwkSet
 	if err := json.Unmarshal(jwkBytes, &keySet); err != nil {
 		return nil, fmt.Errorf("failed to parse JWK Set: %w", err)
@@ -224,10 +271,3 @@ func getTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
 
 	return certs, nil
 }
-
-/*
-TODO: START HERE
-Extra Functions:
-1. Extract SPIFFE ID -- for validation and saving
-
-*/

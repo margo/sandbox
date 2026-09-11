@@ -102,7 +102,11 @@ On each VM, you need to configure environment variables (settings that tell the 
 > **Note:** If during setup you see any error like the following: ```ERROR:  429 Too Many Requests
    toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit```. This is because docker allows certain number of anonymous image pulls in a day, and yours have exhausted. Please login using your dockerhub account. The command to do so is: `docker login -u <your-dockerhub-account-name>` , then it'll ask for the password once you execute this command.
 
-### On the MIS VM:
+### On the WFM VM:
+
+> **Note:** Margo Identity Service(MIS) is installed on WFM VM. This can be installed on a separate VM.
+
+#### Build and Run MIS
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -128,7 +132,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 3: Factory Bootstrap: Generate Root CAs`
 
    It will place Root CAs in `$HOME/mis-deployment/certs`
-   These are the files and their use cases: 
+   These are the files and their use cases:
 
    | File Path | Description |
    |-----------|-------------|
@@ -158,13 +162,44 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    You should see log messages indicating the service is running. Press `Ctrl+C` to exit.
 
-> Note: Services are configured to auto-start on VM reboot.
-  However, if you encounter issues after reboot, you can manually restart them using the same menu options.
 
 <!-- TODO: Add Documentation of adding HTTPS CA certificates to WFM Machine & WFM Client machines, after integration plan is in place  -->
-<!-- TODO: Add Documentation of generating SVIDs for WFM Client & WFM & placing them in required VMs/directories, after integration plan is in place  -->
-<!-- Documentation is STALE below this point -->
-### On the WFM VM:
+
+##### Generate X.509-SVIDs for WFM and WFM client
+
+1. **Navigate to the /scripts/lib/mis folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts/lib/mis
+   ```
+
+2. **Generate SVIDs interactively for both WFM and WFM client**
+   ```bash
+      sudo -E bash svid-gen.sh
+   ```
+
+   This step produces below files at the path `$HOME/workspace/sandbox/scripts/lib/mis`
+
+   **For WFM**
+   ```
+   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm
+   -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
+   -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
+   ```
+   >**Note:** where `wfm` is WFM ID provided while running generator script interactively
+
+   **For WFM Client**
+   ```
+   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-wfm-client
+   -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
+   -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
+   ```
+   >**Note:** where `wfm-client` is WFM client ID provided while running generator script interactively
+
+
+   <!-- TODO: Add Documentation for WFM Client & WFM & placing SVIDs in required VMs/directories, after integration plan is in place  -->
+  <!-- Documentation is STALE below this point -->
+
+#### Build and Run WFM(Symphony)
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -180,7 +215,6 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 1: PreRequisites Setup`
 
    This installs everything needed like Redis, Docker, Helm, and other tools. This may take 10-15 minutes.
-
 
 3. **Start the Workload Fleet Manager**
    ```bash
@@ -216,7 +250,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 1. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
 
    You need to copy a security file from the WFM VM to each Device VM.
-   > Note: create the certs directory before copying the security files 
+   > Note: create the certs directory before copying the security files
    > Use: `mkdir -p $HOME/certs`
 
    #### Step 1: Preparation on WFM VM

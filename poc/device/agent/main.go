@@ -146,12 +146,22 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create WFM client using configured URL
 	wfmUrl := cfg.Wfm.SbiURL
 
-	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
-	// TODO: START HERE - add a middleware to check whether the client is from authorized list or not.
+	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
+		GetOwnTrustDomain: func() string {
+			v, _ := db.GetTrustDomain()
+			return v
+		},
+		GetTrustBundleBytes: func() []byte {
+			v, _ := db.GetTrustBundle()
+			return v
+		},
+		GetClientAllowList: db.GetAuthorizedWFMs,
+	})
 
 	clientOptions = append(
 		clientOptions,
-		mTLSVerifier(db),
+		mTlsVerifierOpt,
+		sbi.WithRequestEditorFn(PreflightLogger(100, log)),
 	)
 
 	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
@@ -269,6 +279,7 @@ func (a *Agent) Start() error {
 
 	// 2. Report capabilities
 
+	// TODO: START HERE - find the occurances of deviceId, deviceClientId & logically replace them with either capabilties.properties.id OR device-agent's spiffeId
 	a.capabilities.Properties.Id = deviceId
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -483,8 +494,7 @@ func PreflightLogger(
 	}
 }
 
-// Verifies mTLS based on trust bundle, trust domain and allowlist read from database, updated separately by trustbundle handler
-func mTLSVerifier(db database.DatabaseIfc) wfm.HTTPApiClientOptions {
+func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
 	// TODO: we should instead create our own http client and then set that into the openapi client
 	// the current way is a slightly longer route to acheive things
 	return func(client *sbi.Client) error {
@@ -493,18 +503,14 @@ func mTLSVerifier(db database.DatabaseIfc) wfm.HTTPApiClientOptions {
 			return fmt.Errorf("client cannot be nil")
 		}
 
+		// Get certificates from DB and apply here
+		pc, err := parser.CertificateFromBytes(cert, key)
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate from bytes, err: %w", err)
+		}
+
 		// Create TLS config
-		tlsConfig, err := mtls.NewMTLSClientConfig(tls.Certificate{}, mtls.VerifierConfig{
-			GetOwnTrustDomain: func() string {
-				v, _ := db.GetTrustDomain()
-				return v
-			},
-			GetTrustBundleBytes: func() []byte {
-				v, _ := db.GetTrustBundle()
-				return v
-			},
-			GetClientAllowList: db.GetAuthorizedWFMs,
-		})
+		tlsConfig, err := mtls.NewMTLSClientConfig(pc, *config)
 		if err != nil {
 			return err
 		}

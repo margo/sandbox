@@ -225,7 +225,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 3. **Copy WFM SVIDs and HTTPS server CA**
    ```bash
-   cp $HOME/mis-deployment/certs/https-server.crt $HOME/symphony/api/mis
+   cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
    cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
    cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
    ```

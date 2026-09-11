@@ -21,7 +21,7 @@ export SYMPHONY_BRANCH=main #it can be a tag also
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
 ```
 
-**For k3s/docker device-agent.sh script**
+**For compose/helm capable device-agent.sh script**
 
 Environment file path:- $HOME/workspace/sandbox/scripts/device-agent.env
 

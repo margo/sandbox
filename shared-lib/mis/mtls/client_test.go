@@ -203,6 +203,33 @@ func stringContains(s, sub string) bool {
 	return false
 }
 
+// buildVerifier constructs the VerifyConnection hook from a VerifierConfig.
+func buildVerifier(t *testing.T, cfg VerifierConfig) func(tls.ConnectionState) error {
+	t.Helper()
+	clientCert := mustLoadClientCert(t)
+	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
+	require.NoError(t, err)
+	return tlsCfg.VerifyConnection
+}
+
+// buildConnectionState creates a tls.ConnectionState populated with the
+// provided parsed peer certificates.
+func buildConnectionState(certs ...*x509.Certificate) tls.ConnectionState {
+	return tls.ConnectionState{PeerCertificates: certs}
+}
+
+// parseDERCerts parses a slice of DER-encoded certificates.
+func parseDERCerts(t *testing.T, rawCerts [][]byte) []*x509.Certificate {
+	t.Helper()
+	out := make([]*x509.Certificate, 0, len(rawCerts))
+	for _, raw := range rawCerts {
+		cert, err := x509.ParseCertificate(raw)
+		require.NoError(t, err)
+		out = append(out, cert)
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------------
 // Helper: build a minimal self-signed cert for unit tests that do NOT need
 // real SPIFFE SVIDs (e.g. "no certificates" / parse-error paths).
@@ -315,7 +342,7 @@ func TestNewMTLSClientConfig_InsecureSkipVerifyIsTrue(t *testing.T) {
 	assert.True(t, tlsCfg.InsecureSkipVerify)
 }
 
-func TestNewMTLSClientConfig_VerifyPeerCertificateIsSet(t *testing.T) {
+func TestNewMTLSClientConfig_VerifyConnectionIsSet(t *testing.T) {
 	clientCert := mustLoadClientCert(t)
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 
@@ -328,8 +355,8 @@ func TestNewMTLSClientConfig_VerifyPeerCertificateIsSet(t *testing.T) {
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
 	require.NoError(t, err)
 
-	assert.NotNil(t, tlsCfg.VerifyPeerCertificate,
-		"VerifyPeerCertificate callback must be set to enforce SPIFFE rules")
+	assert.NotNil(t, tlsCfg.VerifyConnection,
+		"VerifyConnection callback must be set to enforce SPIFFE rules")
 }
 
 func TestNewMTLSClientConfig_ClientCertIsIncluded(t *testing.T) {
@@ -352,16 +379,6 @@ func TestNewMTLSClientConfig_ClientCertIsIncluded(t *testing.T) {
 // Tests for VerifyPeerCertificate callback (via NewMTLSClientConfig)
 // ---------------------------------------------------------------------------
 
-// buildVerifier constructs the VerifyPeerCertificate hook from a VerifierConfig.
-// Callers that do not need a custom allow list should pass getClientAllowList.
-func buildVerifier(t *testing.T, cfg VerifierConfig) func([][]byte, [][]*x509.Certificate) error {
-	t.Helper()
-	clientCert := mustLoadClientCert(t)
-	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
-	require.NoError(t, err)
-	return tlsCfg.VerifyPeerCertificate
-}
-
 func TestVerifyPeerCertificate_NoCertificates_ReturnsError(t *testing.T) {
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 	verify := buildVerifier(t, VerifierConfig{
@@ -370,13 +387,16 @@ func TestVerifyPeerCertificate_NoCertificates_ReturnsError(t *testing.T) {
 		GetClientAllowList:  getClientAllowList,
 	})
 
-	err := verify([][]byte{}, nil)
+	// ConnectionState with no peer certificates.
+	err := verify(tls.ConnectionState{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer presented no certificates")
 }
 
-func TestVerifyPeerCertificate_InvalidLeafDER_ReturnsError(t *testing.T) {
+// TestVerifyPeerCertificate_NoSpiffeURISAN_ReturnsRule1Error verifies that a
+// certificate without a SPIFFE URI SAN is rejected at rule 1.
+func TestVerifyPeerCertificate_NoSpiffeURISAN_ReturnsRule1Error(t *testing.T) {
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
@@ -384,10 +404,16 @@ func TestVerifyPeerCertificate_InvalidLeafDER_ReturnsError(t *testing.T) {
 		GetClientAllowList:  getClientAllowList,
 	})
 
-	err := verify([][]byte{selfSignedDERCert(t)}, nil)
+	// dummyRootCAPEM has no URI SAN — it will fail SPIFFE ID extraction (rule 1).
+	block, _ := pem.Decode([]byte(dummyRootCAPEM))
+	require.NotNil(t, block)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	err = verify(buildConnectionState(cert))
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse peer leaf certificate")
+	assert.Contains(t, err.Error(), "rule 1")
 }
 
 func TestVerifyPeerCertificate_TrustDomainMismatch_ReturnsRule1Error(t *testing.T) {
@@ -400,10 +426,11 @@ func TestVerifyPeerCertificate_TrustDomainMismatch_ReturnsRule1Error(t *testing.
 		GetClientAllowList:  getClientAllowList,
 	})
 	require.NoError(t, err)
-	verify := tlsCfg.VerifyPeerCertificate
 
-	leafDER := clientCert.Certificate[0]
-	err = verify([][]byte{leafDER}, nil)
+	leaf, err := x509.ParseCertificate(clientCert.Certificate[0])
+	require.NoError(t, err)
+
+	err = tlsCfg.VerifyConnection(buildConnectionState(leaf))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rule 1")
@@ -420,10 +447,11 @@ func TestVerifyPeerCertificate_UntrustedChain_ReturnsRule2Error(t *testing.T) {
 		GetClientAllowList:  getClientAllowList,
 	})
 	require.NoError(t, err)
-	verify := tlsCfg.VerifyPeerCertificate
 
-	leafDER := clientCert.Certificate[0]
-	err = verify([][]byte{leafDER}, nil)
+	leaf, err := x509.ParseCertificate(clientCert.Certificate[0])
+	require.NoError(t, err)
+
+	err = tlsCfg.VerifyConnection(buildConnectionState(leaf))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rule 2")
@@ -439,12 +467,8 @@ func TestVerifyPeerCertificate_ValidSVID_NoError(t *testing.T) {
 		GetClientAllowList:  getClientAllowList,
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	assert.NoError(t, err)
 }
@@ -465,12 +489,8 @@ func TestVerifyPeerCertificate_ValidSVIDWithIntermediates_NoError(t *testing.T) 
 		GetClientAllowList:  getClientAllowList,
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	assert.NoError(t, err)
 }
@@ -488,18 +508,11 @@ func TestVerifyPeerCertificate_AllowedSPIFFEID_NoError(t *testing.T) {
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
-		// Explicitly list the peer's SPIFFE ID — connection must succeed.
-		GetClientAllowList: func() []string {
-			return []string{allowedSpiffeID}
-		},
+		GetClientAllowList:  func() []string { return []string{allowedSpiffeID} },
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	assert.NoError(t, err)
 }
@@ -513,15 +526,11 @@ func TestVerifyPeerCertificate_EmptyAllowList_ReturnsError(t *testing.T) {
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
-		GetClientAllowList:  emptyAllowList, // deny all
+		GetClientAllowList:  emptyAllowList,
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "allow-list check")
@@ -537,18 +546,13 @@ func TestVerifyPeerCertificate_SpiffeIDNotInAllowList_ReturnsError(t *testing.T)
 	verify := buildVerifier(t, VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
-		// Allow list contains a different service — peer must be rejected.
 		GetClientAllowList: func() []string {
 			return []string{"spiffe://margo.org/margo/other-service/instance-1"}
 		},
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "allow-list check")
@@ -568,18 +572,14 @@ func TestVerifyPeerCertificate_MultipleAllowedIDs_CorrectIDPasses(t *testing.T) 
 		GetClientAllowList: func() []string {
 			return []string{
 				"spiffe://margo.org/margo/other-service/instance-1",
-				allowedSpiffeID, // peer's actual ID — must pass
+				allowedSpiffeID,
 				"spiffe://margo.org/margo/another-service/instance-2",
 			}
 		},
 	})
 
-	var rawCerts [][]byte
-	for _, c := range clientCert.Certificate {
-		rawCerts = append(rawCerts, c)
-	}
-
-	err := verify(rawCerts, nil)
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err := verify(buildConnectionState(peerCerts...))
 
 	assert.NoError(t, err)
 }

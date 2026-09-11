@@ -8,34 +8,35 @@ import (
 	"path/filepath"
 
 	"github.com/go-playground/validator/v10"
+	miafParser "github.com/margo/sandbox/shared-lib/mis/parser"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"gopkg.in/yaml.v2"
 )
 
-// DeviceRootIdentity represents the device's root identity/attestation used for onboarding.
-type DeviceRootIdentity struct {
-	IdentityType string            `yaml:"identityType" validate:"required"`
-	Attestation  DeviceAttestation `yaml:"attestation"  validate:"required"`
+// MIAFConfig holds the Margo Identity and Authorization Framework configuration.
+// X509 contains the device's X.509-SVID paths issued by the Margo Identity Service (MIS).
+type MIAFConfig struct {
+	X509      MIAFX509Config `yaml:"x509"      validate:"required"`
+	MIS       MISConfig      `yaml:"mis"       validate:"required"`
+	AuthzPath string         `yaml:"authzPath" validate:"required"`
 }
 
-type DeviceAttestation struct {
-	Random *RandomAttestation `yaml:"random,omitempty"`
-	PKI    *PKIAttestation    `yaml:"pki,omitempty"`
+type MIAFX509Config struct {
+	CertPath string `yaml:"certPath" validate:"required"`
+	KeyPath  string `yaml:"keyPath"  validate:"required"`
+}
+type TrustBundleConfig struct {
+	URI  string `yaml:"uri"`
+	Path string `yaml:"path"`
 }
 
-type RandomAttestation struct {
-	Value string `yaml:"value" validate:"required"`
+type MISConfig struct {
+	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
+	CacheInterval uint               `yaml:"cacheInterval"` // in seconds
+	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
+	TrustDomain   string             `yaml:"trustDomain"`   // required when endpoint+caPath are absent
+	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format
 }
-
-type PKIAttestation struct {
-	PubCertPath string `yaml:"pubCertPath"      validate:"required"`
-	Issuer      string `yaml:"issuer,omitempty"`
-}
-
-// Note: Key references and signer configuration are intentionally not part of
-// PKIAttestation to keep the public identity (certificate) decoupled from
-// how the device performs request signing. Request-signing key references are
-// configured under the RequestSignerConfig below.
 
 type DeviceOnboardState string
 
@@ -47,13 +48,13 @@ const (
 
 // Config struct
 type Config struct {
-	Logging            LoggingConfig               `yaml:"logging"            validate:"required"`
-	Database           DatabaseConfig              `yaml:"database"           validate:"required"`
-	DeviceRootIdentity DeviceRootIdentity          `yaml:"deviceRootIdentity" validate:"required"`
-	Wfm                WFMConfig                   `yaml:"wfm"                validate:"required"`
-	StateSeeking       StateSeekingConfig          `yaml:"stateSeeking"       validate:"required"`
-	Capabilities       CapabilitiesDiscoveryConfig `yaml:"capabilities"       validate:"required"`
-	Runtimes           []RuntimeInfo               `yaml:"runtimes"           validate:"required"`
+	Logging      LoggingConfig               `yaml:"logging"      validate:"required"`
+	Database     DatabaseConfig              `yaml:"database"     validate:"required"`
+	MIAF         MIAFConfig                  `yaml:"miaf"         validate:"required"`
+	Wfm          WFMConfig                   `yaml:"wfm"          validate:"required"`
+	StateSeeking StateSeekingConfig          `yaml:"stateSeeking" validate:"required"`
+	Capabilities CapabilitiesDiscoveryConfig `yaml:"capabilities" validate:"required"`
+	Runtimes     []RuntimeInfo               `yaml:"runtimes"     validate:"required"`
 }
 
 type DatabaseConfig struct {
@@ -65,43 +66,7 @@ type StateSeekingConfig struct {
 }
 
 type WFMConfig struct {
-	SbiURL        string              `yaml:"sbiUrl"                  validate:"required"`
-	ClientPlugins ClientPluginsConfig `yaml:"clientPlugins,omitempty"`
-}
-
-type ClientPluginsConfig struct {
-	RequestSigner *RequestSignerConfig `yaml:"requestSigner,omitempty"`
-	AuthHelper    *AuthHelperConfig    `yaml:"authHelper,omitempty"`
-	TLSHelper     *TLSHelperConfig     `yaml:"tlsHelper,omitempty"`
-}
-
-type RequestSignerConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	SignatureAlgo   string `yaml:"signatureAlgo"   validate:"required"`
-	HashAlgo        string `yaml:"hashAlgo"        validate:"required"`
-	SignatureFormat string `yaml:"signatureFormat" validate:"required"`
-	// KeyRef describes where the private key used for request signing is located.
-	KeyRef *KeyRef `yaml:"keyRef,omitempty"`
-}
-
-type AuthHelperConfig struct {
-	Enabled  bool       `yaml:"enabled"`
-	AuthType string     `yaml:"authType"`
-	JWT      *JWTConfig `yaml:"jwt"`
-}
-
-type TLSHelperConfig struct {
-	Enabled        bool    `yaml:"enabled"`
-	ServerCAKeyRef *KeyRef `yaml:"caKeyRef,omitempty"`
-	// you can support the following to enable client side tls as well
-	// ClientCertPath string `yaml:"certPath"`
-	// ClientKeyPath  string `yaml:"keyPath"`
-}
-
-type JWTConfig struct {
-	ClientId     string `yaml:"clientId,omitempty"`
-	ClientSecret string `yaml:"clientSecret,omitempty"`
-	TokenUrl     string `yaml:"tokenUrl,omitempty"`
+	SbiURL string `yaml:"sbiUrl" validate:"required"`
 }
 
 type CapabilitiesDiscoveryConfig struct {
@@ -139,14 +104,12 @@ func LoadConfig(configPath string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	// fmt.Println("read config", string(data))
 
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	// fmt.Println("parsed config", pretty.Sprint(config))
 	return &config, validateConfig(&config)
 }
 
@@ -168,7 +131,6 @@ func LoadCapabilities(capabilitiesPath string) (*sbi.DeviceCapabilitiesManifest,
 func validateConfig(config *Config) error {
 	v := validator.New()
 	if err := v.Struct(config); err != nil {
-		// Return the validator error directly so caller can inspect validation failures
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
@@ -176,19 +138,53 @@ func validateConfig(config *Config) error {
 		return errors.New("database.dataDir is required in configuration")
 	}
 
-	// logging.level must be present
 	if config.Logging.Level == "" {
 		return fmt.Errorf("logging.level is required in configuration")
 	}
-	// If request signer plugin is enabled, require a KeyRef for signing (explicitly decoupled from
-	// deviceRootIdentity)
-	if config.Wfm.ClientPlugins.RequestSigner != nil &&
-		config.Wfm.ClientPlugins.RequestSigner.Enabled {
-		if config.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
+
+	if config.MIAF.X509.CertPath == "" {
+		return fmt.Errorf("miaf.x509.certPath is required in configuration")
+	}
+
+	if config.MIAF.X509.KeyPath == "" {
+		return fmt.Errorf("miaf.x509.keyPath is required in configuration")
+	}
+
+	// Rule 1: mis.endpoint and mis.caPath must be present together
+	if (config.MIAF.MIS.Endpoint == "") != (config.MIAF.MIS.CAPath == "") {
+		return fmt.Errorf("miaf.mis.endpoint and miaf.mis.caPath must both be configured together")
+	}
+
+	// Rule 2: if trustBundle.uri is present, mis.endpoint & mis.caPath must be present
+	if config.MIAF.MIS.TrustBundle != nil && config.MIAF.MIS.TrustBundle.URI != "" {
+		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
 			return fmt.Errorf(
-				"wfm.clientPlugins.requestSigner.keyRef is required when request signer is enabled",
+				"miaf.mis.endpoint and miaf.mis.caPath are required when miaf.mis.trustBundle.uri is configured",
 			)
 		}
+	}
+
+	// Rule 3: if neither trustBundle.path nor endpoint is configured, fail
+	// (trustBundle.path makes endpoint+caPath optional; without it, endpoint+caPath are required)
+	if config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "" {
+		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
+			return fmt.Errorf(
+				"either miaf.mis.trustBundle.path must be configured, or both miaf.mis.endpoint and miaf.mis.caPath must be provided",
+			)
+		}
+	}
+
+	// Rule 4: trustDomain is required when endpoint+caPath are absent (static trust bundle mode)
+	if config.MIAF.MIS.Endpoint == "" && config.MIAF.MIS.CAPath == "" {
+		if config.MIAF.MIS.TrustDomain == "" {
+			return fmt.Errorf(
+				"miaf.mis.trustDomain is required when miaf.mis.endpoint and miaf.mis.caPath are not configured",
+			)
+		}
+	}
+
+	if config.MIAF.AuthzPath == "" {
+		return fmt.Errorf("miaf.authzPath is required in configuration")
 	}
 
 	if config.Wfm.SbiURL == "" {
@@ -203,41 +199,40 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("capabilities.readFromFile is required in configuration")
 	}
 
-	// Basic checks for client plugins (no strict validation here; plugin-specific validation should
-	// exist in plugin)
+	if config.MIAF.MIS.CacheInterval == 0 {
+		config.MIAF.MIS.CacheInterval = 60
+	}
+
 	return nil
 }
 
-// PublicCertificatePEM returns the public certificate PEM content if available for PKI attestation.
-func (d DeviceRootIdentity) PublicCertificatePEM() (string, error) {
-	if d.Attestation.PKI != nil && d.Attestation.PKI.PubCertPath != "" {
-		certBytes, err := os.ReadFile(d.Attestation.PKI.PubCertPath)
-		if err != nil {
-			return "", fmt.Errorf(
-				"failed to read certificate file %s: %w",
-				d.Attestation.PKI.PubCertPath,
-				err,
-			)
+// ToMIAFInput converts a MIAFConfig (from the types package) into a miaf.MIAFInput
+// suitable for use with miaf.ParseMIAFConfig.
+//
+// This adapter exists so that the miaf package remains independent of the types
+// package — only the wiring layer (e.g. main or a factory) needs to import both.
+func (c MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
+	input := miafParser.MIAFInput{
+		X509: miafParser.MIAFx509Input{
+			CertPath: c.X509.CertPath,
+			KeyPath:  c.X509.KeyPath,
+		},
+		MIS: miafParser.MISInput{
+			Endpoint:    c.MIS.Endpoint,
+			CAPath:      c.MIS.CAPath,
+			TrustDomain: c.MIS.TrustDomain,
+		},
+		AuthzPath: c.AuthzPath,
+	}
+
+	if c.MIS.TrustBundle != nil {
+		input.MIS.TrustBundle = &miafParser.TrustBundleInput{
+			URI:  c.MIS.TrustBundle.URI,
+			Path: c.MIS.TrustBundle.Path,
 		}
-		return string(certBytes), nil
 	}
-	return "", nil
-}
 
-// PublicCertificatePath returns the public certificate file path if available for PKI attestation.
-func (d DeviceRootIdentity) PublicCertificatePath() string {
-	if d.Attestation.PKI != nil {
-		return d.Attestation.PKI.PubCertPath
-	}
-	return ""
-}
-
-// HasCertificateReference returns true if a certificate reference is present.
-func (d DeviceRootIdentity) HasCertificateReference() bool {
-	if d.Attestation.PKI != nil && d.Attestation.PKI.PubCertPath != "" {
-		return true
-	}
-	return false
+	return input
 }
 
 // KeyRef describes where the private key used for signing can be found.

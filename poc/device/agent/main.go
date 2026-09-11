@@ -20,7 +20,10 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
-	"github.com/margo/sandbox/shared-lib/crypto"
+	"github.com/margo/sandbox/shared-lib/mis/mtls"
+	"github.com/margo/sandbox/shared-lib/mis/parser"
+	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
@@ -40,6 +43,7 @@ type Agent struct {
 	deployer       DeploymentManagerIfc
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
+	tbCacher       TrustBundleCacherIfc
 }
 
 func NewAgent(configPath string) (*Agent, error) {
@@ -56,63 +60,14 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create database
 	db := database.NewDatabase(cfg.Database.DataDir)
 
-	// Prepare request editors (e.g., request signer) for WFM client
-	clientOptions := []wfm.HTTPApiClientOptions{}
-
-	// Create WFM client using configured URL
-	wfmUrl := cfg.Wfm.SbiURL
-
-	clientOptions = append(clientOptions, sbi.WithRequestEditorFn(PreflightLogger(100, log)))
-
-	// TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are replaced by mTLS.
-	// This entire RequestSigner plugin block should be removed when MIAF is implemented.
-	// Replace with: mTLS client certificate (X.509-SVID) configured in tls.Config.
-	// See: shared-lib/crypto/signer.go — marked for deletion on MIAF implementation.
-
-	hasRequestSigningKey := false
-	// If request signer plugin enabled in the configuration, then create signer object and add it
-	// as http client option/RequestEditorFn
-	if cfg.Wfm.ClientPlugins.RequestSigner != nil && cfg.Wfm.ClientPlugins.RequestSigner.Enabled {
-		if cfg.Wfm.ClientPlugins.RequestSigner.KeyRef == nil {
-			return nil, fmt.Errorf("request signer enabled but no keyRef provided in configuration")
-		}
-		// read private key from file
-		signer, err := crypto.NewSignerFromFile(
-			cfg.Wfm.ClientPlugins.RequestSigner.KeyRef.Path,
-			cfg.Wfm.ClientPlugins.RequestSigner.SignatureAlgo,
-			cfg.Wfm.ClientPlugins.RequestSigner.HashAlgo,
-			cfg.Wfm.ClientPlugins.RequestSigner.SignatureFormat,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request signer: %w", err)
-		}
-
-		hasRequestSigningKey = true
-		// adapter to the generated client's RequestEditorFn signature
-		clientOptions = append(clientOptions, sbi.WithRequestEditorFn(signer.SignRequest))
-	}
-
-	hasServerTLSVerificationEnabled := false
-	// If tls plugin is enabled in the configuration, then pass the http tls client
-	// option/RequestEditorFn
-	if cfg.Wfm.ClientPlugins.TLSHelper != nil && cfg.Wfm.ClientPlugins.TLSHelper.Enabled {
-		if cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef == nil {
-			return nil, fmt.Errorf(
-				"tls helper plugin is enabled but no caKeyRef is not provided in configuration",
-			)
-		}
-
-		// adapter to the generated client's RequestEditorFn signature
-		clientOptions = append(
-			clientOptions,
-			TLSVerifier(&cfg.Wfm.ClientPlugins.TLSHelper.ServerCAKeyRef.Path),
-		)
-		hasServerTLSVerificationEnabled = true
-	}
-
-	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
+	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create WFM client: %w", err)
+		log.Errorw(
+			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
+			"err",
+			err.Error(),
+		)
+		// TODO: This should return? is there a case where capabilities are not required?
 	}
 
 	opts := []Option{}
@@ -150,77 +105,95 @@ func NewAgent(configPath string) (*Agent, error) {
 		)
 	}
 
-	opts = append(opts, WithDeviceRootIdentity(findDeviceRootIdentity(*cfg)))
+	// adding MIAF configuration in database
+	opts = append(opts, WithMIAFConfig(cfg.MIAF))
+
+	// This validates disk parameters (SVID, Key, CA etc) as well.
+	pmc, err := mc.ParseMIAFConfig(cfg.MIAF.ToMIAFInput(), validators.PrincipalWFMClient)
+	if err != nil {
+		log.Errorw(
+			"failed to parse MIAF config",
+			"err",
+			err.Error(),
+		)
+		return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
+	}
+
+	// Validate Authorized spiffe Ids here
+	for _, spid := range pmc.AuthorizedSPIFFEIDs {
+		// Authorization list for device-agent will contain SPIFFE IDs of WFMs, hence using principal WFM here.
+		err := validators.ValidateSpiffeID(spid, validators.PrincipalWFM)
+		if err != nil {
+			log.Errorw(
+				"spiffe id is invalid ",
+				"spiffeId",
+				spid,
+				"err",
+				err.Error(),
+			)
+			return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
+		}
+	}
+
+	// parsed & validated MIAF Configuration (with certificates etc) added to database
+	opts = append(opts, WithParsedMIAFConfig(pmc))
+
+	// Prepare request editors (e.g., request signer) for WFM client
+	clientOptions := []wfm.HTTPApiClientOptions{}
+
+	// Create WFM client using configured URL
+	wfmUrl := cfg.Wfm.SbiURL
+
+	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
+		GetOwnTrustDomain: func() string {
+			v, _ := db.GetTrustDomain()
+			return v
+		},
+		GetTrustBundleBytes: func() []byte {
+			v, _ := db.GetTrustBundle()
+			return v
+		},
+		GetClientAllowList: db.GetAuthorizedWFMs,
+	})
+
+	clientOptions = append(
+		clientOptions,
+		mTlsVerifierOpt,
+		sbi.WithRequestEditorFn(PreflightLogger(100, log)),
+	)
+
+	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, capabilities.Properties.Id, clientOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create WFM client: %w", err)
+	}
+
 	var deviceSettings *DeviceClientSettings
 	deviceSettings, err = NewDeviceSettings(wfmClient, db, log, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize device settings: %w", err)
 	}
-	isOnboarded, err := deviceSettings.IsOnboarded()
-	if err != nil {
-		log.Errorw("failed to check onboarding status", "error", err)
-		return nil, err
-	}
 
-	if !isOnboarded {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		deviceId, err := deviceSettings.OnboardWithRetries(ctx, 10)
-		if err != nil {
-			log.Errorw("device onboarding failed", "error", err)
-			return nil, fmt.Errorf("'failed to onboard' the device, %s", err.Error())
-		}
-		log.Infow("Device onboarded", "deviceId", deviceId)
-	} else {
-		log.Infow("Device already onboarded, skipping onboarding")
-	}
-
-	// Determine signature/certificate availability from deviceSettings (adapt to new attestation
-	// model)
-	hasValidDeviceCertificate := false
-	if deviceSettings != nil {
-		if deviceSettings.deviceRootIdentity.HasCertificateReference() {
-			hasValidDeviceCertificate = true
-		}
-		if deviceSettings.deviceRootIdentity.IdentityType == "Random" &&
-			deviceSettings.deviceRootIdentity.Attestation.Random != nil &&
-			deviceSettings.deviceRootIdentity.Attestation.Random.Value != "" {
-			hasValidDeviceCertificate = true
-		}
-	}
-
-	log.Infow("Device details",
-		"deviceId", deviceSettings.deviceClientId,
-		"deviceSignatureType", deviceSettings.deviceRootIdentity.IdentityType,
-		"hasValidDeviceCertificate", hasValidDeviceCertificate,
-		"hasServerTLSVerificationEnabled", hasServerTLSVerificationEnabled,
+	log.Infow(
+		"Device details",
+		"deviceId", capabilities.Properties.Id,
+		// "hasValidDeviceCertificate", hasValidDeviceCertificate, // Uncomment when MIAF Related stuff is implemented
 		// TODO: MIAF SUP — hasRequestSigningKey rename to "hasMTLSClientCert" when RFC 9421 removed
-		"canSignRequests", hasRequestSigningKey,
+		// "canSignRequests", hasRequestSigningKey, // Uncomment when MIAF related stuff is implemented
 		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
-		"isAuthEnabled", deviceSettings.authEnabled,
 	)
-
-	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
-	if err != nil {
-		log.Errorw(
-			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
-			"err",
-			err.Error(),
-		)
-	}
 
 	// Create components
 	deployer := NewDeploymentManager(db, capabilities, helmClient, composeClient, log)
-	monitor := NewDeploymentMonitor(db, helmClient, composeClient, log)
+	monitor := NewDeploymentMonitor(db, capabilities, helmClient, composeClient, log)
 	syncer := NewStateSyncer(
 		db,
 		wfmClient,
-		deviceSettings.deviceClientId,
 		cfg.StateSeeking.Interval,
 		log,
 	)
-	statusReporter := NewStatusReporter(db, wfmClient, deviceSettings.deviceClientId, log)
+	statusReporter := NewStatusReporter(db, wfmClient, log)
+	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
 
 	return &Agent{
 		database:       db,
@@ -232,25 +205,66 @@ func NewAgent(configPath string) (*Agent, error) {
 		log:            log,
 		config:         *cfg,
 		capabilities:   capabilities,
+		tbCacher:       tbCacher,
 	}, nil
 }
 
 func (a *Agent) Start() error {
 	a.log.Info("Starting Workload Fleet Management Client")
 
-	var deviceId string
-	var err error
-
-	// 1. Onboard device
-	deviceSettings, err := a.database.GetDeviceSettings()
+	err := a.tbCacher.Start()
 	if err != nil {
 		return err
 	}
-	deviceId = deviceSettings.DeviceClientId
+
+	td, err := a.database.GetTrustDomain()
+	if err != nil {
+		return fmt.Errorf("trustdomain not found, cannot proceed. err: %w", err)
+	}
+	// * Extract SPIFFE ID from Certificate & Validate it against trust domain
+	c, _, err := a.database.GetSVID()
+	if err != nil {
+		return fmt.Errorf("SVID not found, cannot proceed. err: %w", err)
+	}
+	sid, err := parser.ParseSpiffeIdFromX509Svid(c)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spiffeid from certificate, err: %w", err)
+	}
+
+	if err := validators.ValidateSpiffeIDWithTrustDomain(
+		sid,
+		td,
+		validators.PrincipalWFMClient,
+	); err != nil {
+		return fmt.Errorf("validation failed for device-agent Spiffe Id, err: %w", err)
+	}
+
+	a.database.SetSpiffeId(sid)
+
+	// * Validate Certificate against TrustBundle
+	tb, err := a.database.GetTrustBundle()
+	if err != nil {
+		return fmt.Errorf("trustbundle not found, cannot proceed. err: %w", err)
+	}
+	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, tb); !ok {
+		return fmt.Errorf("svid validation failed against trustbundle, err: %w", err)
+	}
+
+	authzIds := a.database.GetAuthorizedWFMs()
+
+	// * Validate Authorized SPIFFE IDs against trust domain
+	for _, aid := range authzIds {
+		// principal will be WFM as these spiffeIDs belong to WFMs.
+		if err := validators.ValidateSpiffeIDWithTrustDomain(
+			aid,
+			td,
+			validators.PrincipalWFM,
+		); err != nil {
+			return fmt.Errorf("authorized wfm spiffe id validation failed, err:%w", err)
+		}
+	}
 
 	// 2. Report capabilities
-
-	a.capabilities.Properties.Id = deviceId
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := a.auth.ReportCapabilities(ctx, *a.capabilities); err != nil {
@@ -263,12 +277,11 @@ func (a *Agent) Start() error {
 	a.monitor.Start()
 	a.syncer.Start()
 
-	hasCfgPubCert := a.config.DeviceRootIdentity.HasCertificateReference()
-
-	a.log.Infow("Workload Fleet Management Client started successfully",
+	a.log.Infow(
+		"Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
-		"hasDeviceSignature", hasCfgPubCert,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
+		"trustBundleRefreshInterval", "", // Enter here --
 		"sbiUrl", a.config.Wfm.SbiURL,
 	)
 	return nil
@@ -276,7 +289,7 @@ func (a *Agent) Start() error {
 
 func (a *Agent) Stop() error {
 	a.log.Info("Stopping Workload Fleet Management Client")
-
+	a.tbCacher.Stop()
 	a.syncer.Stop()
 	a.deployer.Stop()
 	a.monitor.Stop()
@@ -285,10 +298,6 @@ func (a *Agent) Stop() error {
 
 	a.log.Info("Workload Fleet Management Client stopped")
 	return nil
-}
-
-func findDeviceRootIdentity(cfg types.Config) types.DeviceRootIdentity {
-	return cfg.DeviceRootIdentity
 }
 
 func main() {
@@ -469,8 +478,7 @@ func PreflightLogger(
 	}
 }
 
-// pass caPath if you want to use some particular ca to verify the certificates
-func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
+func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
 	// TODO: we should instead create our own http client and then set that into the openapi client
 	// the current way is a slightly longer route to acheive things
 	return func(client *sbi.Client) error {
@@ -479,16 +487,16 @@ func TLSVerifier(caPath *string) wfm.HTTPApiClientOptions {
 			return fmt.Errorf("client cannot be nil")
 		}
 
-		// Create TLS config
-		tlsConfig := &tls.Config{}
+		// Get certificates from DB and apply here
+		pc, err := parser.CertificateFromBytes(cert, key)
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate from bytes, err: %w", err)
+		}
 
-		// Load and configure custom CA if provided
-		if caPath != nil && *caPath != "" {
-			var err error
-			tlsConfig, err = crypto.LoadCustomCA(*caPath)
-			if err != nil {
-				return err
-			}
+		// Create TLS config
+		tlsConfig, err := mtls.NewMTLSClientConfig(pc, *config)
+		if err != nil {
+			return err
 		}
 
 		// Configure HTTP client with TLS

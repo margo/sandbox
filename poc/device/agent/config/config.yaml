@@ -10,62 +10,22 @@ database:
 # Margo Identity Service (MIS). The PKI/Random identity types below are PR1 concepts.
 # Replace with SPIFFE ID + X.509-SVID when MIAF is implemented.
 
-# The device's root identity/attestation used for onboarding/registration of this device client with WFM (for auto-onboarding).
-deviceRootIdentity:
-  # Supported values: RANDOM, PKI, later on you can use it to add support for something like TPM, FIDO etc.
-  identityType: "PKI"
-  # Type-specific attestation or credential data. Keep only the keys that you need.
-  attestation:
-    # if you have set identity type as Random, then set these details
-    # random:
-    #   value: "this-is-a-unique-random-identity-attached-with-this-device"
-
-    # if you have set identity type as PKI, then set these details
-    pki:
-      # certificate that the device client will present to the wfm during registration
-      pubCertPath: ./config/device-public.crt
+miaf:
+  x509:
+    certPath: "./config/identity/payload-cert.pem"  # SVID certificate
+    keyPath: "./config/identity/payload-key.pem"    # Private key
+  mis:
+    endpoint: "https://mis.margo.org:9443"          # MIS service URL
+    caPath: "./config/mis/https-ca.crt"             # CA certificate
+    cacheInterval: 60                               # cache interval in seconds set by operator
+    trustDomain: "margo.org"                        # Operator provided trust domain
+    trustBundle:
+      uri: "/.well-known/spiffe/bundle.json"        # URI provided by operator in case discovery is unavailable
+      path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured)
+  authzPath: "./config/authorized.json"             # Authorized clients
 
 wfm:
   sbiUrl: https://symphony.machine:8082/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
-  clientPlugins:
-    # TODO: MIAF SUP (PR2) — RFC 9421 HTTP Message Signatures (PR1) are DEPRECATED.
-    # requestSigner will be REMOVED when mTLS (X.509-SVID) is implemented.
-    # mTLS replaces application-layer payload signing for both authentication and integrity.
-    # To disable for PR2 testing: set enabled: false
-    requestSigner:
-      enabled: true
-      hashAlgo: "sha256" # supported: sha256, used to create a hash of the payload
-      signatureAlgo: "rsa" # supported: rsa, or ecdsa, these are used to sign the hash
-      signatureFormat: "structured" # supported: structured, http-signature, how the signature will be added to the http request
-      keyRef:
-        path: "./config/device-private.key" # this should be the path to the private key pem file
-
-    # the auth info is auto-fetched by the agent when it gets onboarded
-    # but if you, for any reason, want to specify the oauth info, then you can pass that info over here
-    authHelper:
-      # if the wfm doesn't have oauth enabled on its endpoints, then set enable: false
-      # and the agent will not add any authorization header in the request
-      enabled: false
-
-
-    # Server CA verification for initial trust bootstrap (MIAF §5 Initial Trust Bootstrap).
-    # KEEP: required under MIAF for authenticating the WFM's TLS certificate before
-    # the Trust Bundle is retrieved. Will evolve to mTLS client cert config in PR2.
-    # TODO: MIAF SUP — add clientCertRef and clientKeyRef here for mTLS client certificate
-    # (X.509-SVID) when MIAF is implemented.
-
-
-    tlsHelper:
-      enabled: true
-      # path to the ca certificate that will be used to verify server certificates
-      caKeyRef:
-        path: "./config/ca-cert.pem"
-
-      # TODO: MIAF SUP — add when mTLS implemented:
-      # clientCertRef:
-      #   path: "./config/device-svid.crt"  # X.509-SVID (SPIFFE ID in URI SAN)
-      # clientKeyRef:
-      #   path: "./config/device-svid.key"
 
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm

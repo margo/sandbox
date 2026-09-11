@@ -13,7 +13,6 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/archive"
-	"github.com/margo/sandbox/shared-lib/http/auth"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -37,13 +36,12 @@ type StateSyncer struct {
 func NewStateSyncer(
 	db *database.Database,
 	client wfm.SBIAPIClientInterface,
-	deviceID string,
 	stateSeekingIntervalInSec uint16,
-	log *zap.SugaredLogger) *StateSyncer {
+	log *zap.SugaredLogger,
+) *StateSyncer {
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
-		deviceID:                  deviceID,
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
@@ -79,19 +77,6 @@ func (ss *StateSyncer) performSync() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Get device settings
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		ss.log.Errorw(
-			"Sync failed",
-			"err",
-			err.Error(),
-			"msg",
-			"failed to fetch device settings",
-		)
-		return
-	}
-
 	// Calculate current ETag for If-None-Match header
 	currentETag := ss.getLastSyncedETag()
 
@@ -99,33 +84,15 @@ func (ss *StateSyncer) performSync() {
 	var desiredStateManifest *sbi.UnsignedAppStateManifest
 	var response *http.Response
 
-	if device.AuthEnabled {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-		)
-	}
-
+	desiredStateManifest, response, err := ss.apiClient.SyncStateWithResponse(
+		ctx,
+		currentETag,
+	)
 	if err != nil {
 		ss.log.Errorw(
 			"Sync failed",
 			"err",
 			err.Error(),
-			"deviceId",
-			device.DeviceClientId,
 		)
 		return
 	}
@@ -372,35 +339,13 @@ func (ss *StateSyncer) fetchDeploymentYAML(
 		"deploymentId", deploymentRef.DeploymentId,
 		"digest", deploymentRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	var yamlContent []byte
 
-	if device.AuthEnabled {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-		)
-	}
-
+	yamlContent, err := ss.apiClient.FetchDeploymentYAML(
+		ctx,
+		deploymentRef.DeploymentId,
+		deploymentRef.Digest,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch deployment: %w", err)
 	}
@@ -441,33 +386,13 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 
 	ss.log.Infow("Downloading bundle", "digest", *bundleRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	// Download bundle
 	var bundleData []byte
-	if device.AuthEnabled {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-		)
-	}
 
+	bundleData, err := ss.apiClient.DownloadBundle(
+		ctx,
+		*bundleRef.Digest,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download bundle: %w", err)
 	}

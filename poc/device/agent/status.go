@@ -19,7 +19,6 @@ type StatusReporterIfc interface {
 type StatusReporter struct {
 	database  database.DatabaseIfc
 	apiClient wfm.SBIAPIClientInterface
-	deviceID  string
 	log       *zap.SugaredLogger
 	stopChan  chan struct{}
 }
@@ -27,13 +26,11 @@ type StatusReporter struct {
 func NewStatusReporter(
 	db database.DatabaseIfc,
 	client wfm.SBIAPIClientInterface,
-	deviceID string,
 	log *zap.SugaredLogger,
 ) *StatusReporter {
 	return &StatusReporter{
 		database:  db,
 		apiClient: client,
-		deviceID:  deviceID,
 		log:       log,
 		stopChan:  make(chan struct{}),
 	}
@@ -180,8 +177,7 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		"appId", appID,
 		"phase", record.Phase,
 		"state", deploymentState,
-		"componentCount", len(components),
-		"deviceID", sr.deviceID)
+		"componentCount", len(components))
 
 	// Report deployment status with error recovery
 	defer func() {
@@ -196,13 +192,11 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 
 	err := sr.apiClient.ReportDeploymentStatus(
 		ctx,
-		sr.deviceID,
 		appID,
 		deploymentState,
 		components,
 		deploymentErr,
 	)
-
 	if err != nil {
 		sr.log.Errorw("Failed to report status", "appId", appID, "error", err)
 		return

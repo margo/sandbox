@@ -35,7 +35,7 @@ generate_instance_yaml_from_oci() {
   app_identifier=$(echo "$app_identifier" | cut -c1-40)
 
   # Determine deployment type
-  local deployment_type=$(awk '/deploymentProfiles:/,0 {if (/^\s*-\s*type:/) print}' margo.yaml | sed 's/.*type:\s*//' | tr -d '"' | tr -d "'" | xargs | head -1)
+  local deployment_type=$(awk '/deploymentProfiles:/,0 {if (/^[[:space:]]{2}-[[:space:]]*type:/) print}' margo.yaml | sed 's/.*type:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs | head -1)
 
   if [ -z "$deployment_type" ]; then
     if [[ "$package_name" =~ compose ]]; then

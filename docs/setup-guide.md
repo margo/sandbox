@@ -7,7 +7,6 @@
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
 | **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager |
-| **Margo Identity Service VM (MIS)** | 4 | 8GB | 50GB | Margo Identity Service |
 | **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
 | **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
@@ -24,7 +23,7 @@
 
 ## Step 1: Get the Setup Files
 
-You need to download the setup files to all four VMs. Follow these steps on **each VM**:
+You need to download the setup files to all 3 VMs. Follow these steps on **each VM**:
 
 1. **Open Terminal**
    - On your WFM VM, open the terminal/command line application
@@ -93,7 +92,7 @@ On each VM, you need to configure environment variables (settings that tell the 
       192.11.11.11 mis.margo.org # <--- newly appended line with ip
       ```
 
-🔴 **Important:** Complete this step on all four VMs before proceeding.
+🔴 **Important:** Complete this step on all 3 VMs before proceeding.
 
 ---
 
@@ -106,7 +105,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 > **Note:** Margo Identity Service(MIS) is installed on WFM VM. This can be installed on a separate VM.
 
-#### Build and Run MIS
+#### Run MIS
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -145,16 +144,16 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    The script also verifies the generated chain and prints a summary on completion.
 
+   >Note: Docker image for Margo Identity Service has been already built and pushed to Margo GHCR registry from where the below script pull the image and starts MIS.
+
 3. **Start the Margo Identity Service**
    ```bash
-    sudo -E bash wfm.sh
+    sudo -E bash mis.sh
    ```
    - Type `4` and press Enter
    - Choose: `Option 4:  Margo Identity Service: Install`
 
    This starts the Margo Identity Service.
-
-   Note: Docker image for Margo Identity Service has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts MIS.
 
 4. **Verify the Margo Identity Service Is Running Correctly**
    ```bash
@@ -163,9 +162,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    You should see log messages indicating the service is running. Press `Ctrl+C` to exit.
 
 
-<!-- TODO: Add Documentation of adding HTTPS CA certificates to WFM Machine & WFM Client machines, after integration plan is in place  -->
-
-##### Generate X.509-SVIDs for WFM and WFM client
+### Generate X.509-SVIDs for WFM and WFM client
 
 1. **Navigate to the /scripts/lib/mis folder**
    ```bash
@@ -181,23 +178,31 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    **For WFM**
    ```
+   STEP: Principal Selection: Select the principal for which to generate, Enter option 1)
+
    $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm
    -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
    -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
    ```
-   >**Note:** where `wfm` is WFM ID provided while running generator script interactively
+   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively
 
    **For WFM Client**
    ```
-   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-wfm-client
+    STEP: Principal Selection: Select the principal for which to generate, Enter option 2)
+
+   🔴 This needs to be ran twice one for `Compose-capable device` and another for `Helm-capable device`
+
+   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client
+   -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
+   -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
+
+   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client
    -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
    -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
    ```
-   >**Note:** where `wfm-client` is WFM client ID provided while running generator script interactively
+   >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
+   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively
 
-
-   <!-- TODO: Add Documentation for WFM Client & WFM & placing SVIDs in required VMs/directories, after integration plan is in place  -->
-  <!-- Documentation is STALE below this point -->
 
 #### Build and Run WFM(Symphony)
 
@@ -216,6 +221,8 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This installs everything needed like Redis, Docker, Helm, and other tools. This may take 10-15 minutes.
 
+   > Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
+
 3. **Start the Workload Fleet Manager**
    ```bash
     sudo -E bash wfm.sh
@@ -224,7 +231,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 3: Symphony Start`
 
    This starts the Workload Fleet Manager service.
-> Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
+
 
 4. **Add Monitoring Tools**
    ```bash
@@ -247,7 +254,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 ### On Each Device VM:
 
-1. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
+1. **Copy Security Files Between VMs (WFM Client SVIDs, HTTPS server CA and Harbor's CA to Device VM)**
 
    You need to copy a security file from the WFM VM to each Device VM.
    > Note: create the certs directory before copying the security files
@@ -258,12 +265,12 @@ On each VM, you need to configure environment variables (settings that tell the 
    | Step | Action | Command | Expected Result |
    |------|--------|---------|-----------------|
    | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) |
-   | 2 | Locate WFM certificate | `cd $HOME/symphony/api/certificates`<br>`ls -la ca-cert.pem` | File: `ca-cert.pem` |
-   | 3 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
-
+   | 2 | Locate Compose capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/lib/mis`<br>`ls -la x509svid-wfm-docker-client` | Files: `payload-key.pem` and `payload-cert.pem`|
+   | 3 |  Locate Helm capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/lib/mis`<br>`ls -la x509svid-wfm-helm-client` | Files: `payload-key.pem` and `payload-cert.pem`|
+   | 4 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
+   | 5 | Locate HTTPs server certificate | `cd $HOME/mis-deployment/certs`<br>`ls -la https-ca.crt` | File: `https-ca.crt` |
 
    **Note:** Write down the IP address from Step 1 for use in the copy commands below.
-
 
    #### Step 2: Copy Methods
 
@@ -271,11 +278,10 @@ On each VM, you need to configure environment variables (settings that tell the 
    🔴 **(Recommended - Run from Device VMs)**
 
 
-
    | Target VM | Run From | SCP Command | Example |
    |-----------|----------|-------------|---------|
-   | **Docker Device** | Docker Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
-   | **K3s Device** | K3s Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
+   | **Docker Device** | Compose Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt` `$HOME/workspace/sandbox/poc/device/agent/config/mis` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/workspace/sandbox/poc/device/agent/config/mis`|
+   | **K3s Device** | Helm Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt` `$HOME/workspace/sandbox/poc/device/agent/config/mis` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/workspace/sandbox/poc/device/agent/config/mis` |
 
    **Note:** Run with **sudo** if fails.
 
@@ -283,13 +289,9 @@ On each VM, you need to configure environment variables (settings that tell the 
    - `username` with your WFM VM username
    - `WFM-VM-IP` with the IP address from Step 1
 
-   **Option B - Manual Copy**
 
-   | Step | Docker Device VM | K3s Device VM |
-   |------|------------------|---------------|
-   | 1 | Open `ca-cert.pem` on WFM VM and copy contents | Open `ca-cert.pem` on WFM VM and copy contents |
-   | 2 | Create file `ca-cert.pem` in `$HOME/certs/` | Create file `ca-cert.pem` in `$HOME/certs/` |
-   | 3 | Paste contents and save | Paste contents and save |
+   **Option B - Manual Copy by creating respective files and copying contents**
+
 
 2. **Navigate to the scripts folder**
    ```bash
@@ -891,11 +893,3 @@ If you want to remove everything and start over:
 These applications are pre-loaded and ready to deploy to your device VMs for testing.
 
 ---
-
-## Need Help?
-
-If something doesn't work:
-1. Check that all VMs can communicate with each other (ping test)
-2. Verify environment variables are set correctly
-3. Make sure the ca-cert.pem file was copied correctly
-4. Check the logs using the commands in "Check Everything is Working" section

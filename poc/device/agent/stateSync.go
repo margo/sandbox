@@ -36,14 +36,12 @@ type StateSyncer struct {
 func NewStateSyncer(
 	db *database.Database,
 	client wfm.SBIAPIClientInterface,
-	deviceID string,
 	stateSeekingIntervalInSec uint16,
 	log *zap.SugaredLogger,
 ) *StateSyncer {
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
-		deviceID:                  deviceID,
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
@@ -79,19 +77,6 @@ func (ss *StateSyncer) performSync() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Get device settings
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		ss.log.Errorw(
-			"Sync failed",
-			"err",
-			err.Error(),
-			"msg",
-			"failed to fetch device settings",
-		)
-		return
-	}
-
 	// Calculate current ETag for If-None-Match header
 	currentETag := ss.getLastSyncedETag()
 
@@ -99,9 +84,8 @@ func (ss *StateSyncer) performSync() {
 	var desiredStateManifest *sbi.UnsignedAppStateManifest
 	var response *http.Response
 
-	desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
+	desiredStateManifest, response, err := ss.apiClient.SyncStateWithResponse(
 		ctx,
-		device.DeviceClientId,
 		currentETag,
 	)
 	if err != nil {
@@ -109,8 +93,6 @@ func (ss *StateSyncer) performSync() {
 			"Sync failed",
 			"err",
 			err.Error(),
-			"deviceId",
-			device.DeviceClientId,
 		)
 		return
 	}
@@ -357,16 +339,10 @@ func (ss *StateSyncer) fetchDeploymentYAML(
 		"deploymentId", deploymentRef.DeploymentId,
 		"digest", deploymentRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	var yamlContent []byte
 
-	yamlContent, err = ss.apiClient.FetchDeploymentYAML(
+	yamlContent, err := ss.apiClient.FetchDeploymentYAML(
 		ctx,
-		device.DeviceClientId,
 		deploymentRef.DeploymentId,
 		deploymentRef.Digest,
 	)
@@ -410,17 +386,11 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 
 	ss.log.Infow("Downloading bundle", "digest", *bundleRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	// Download bundle
 	var bundleData []byte
 
-	bundleData, err = ss.apiClient.DownloadBundle(
+	bundleData, err := ss.apiClient.DownloadBundle(
 		ctx,
-		device.DeviceClientId,
 		*bundleRef.Digest,
 	)
 	if err != nil {

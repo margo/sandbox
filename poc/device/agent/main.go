@@ -107,8 +107,6 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	// adding MIAF configuration in database
 	opts = append(opts, WithMIAFConfig(cfg.MIAF))
-	// Adding deviceId from capabilities
-	opts = append(opts, WithDeviceClientID(capabilities.Properties.Id))
 
 	// This validates disk parameters (SVID, Key, CA etc) as well.
 	pmc, err := mc.ParseMIAFConfig(cfg.MIAF.ToMIAFInput(), validators.PrincipalWFMClient)
@@ -164,7 +162,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		sbi.WithRequestEditorFn(PreflightLogger(100, log)),
 	)
 
-	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, clientOptions...)
+	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, capabilities.Properties.Id, clientOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WFM client: %w", err)
 	}
@@ -177,7 +175,7 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	log.Infow(
 		"Device details",
-		"deviceId", deviceSettings.deviceClientId,
+		"deviceId", capabilities.Properties.Id,
 		// "hasValidDeviceCertificate", hasValidDeviceCertificate, // Uncomment when MIAF Related stuff is implemented
 		// TODO: MIAF SUP — hasRequestSigningKey rename to "hasMTLSClientCert" when RFC 9421 removed
 		// "canSignRequests", hasRequestSigningKey, // Uncomment when MIAF related stuff is implemented
@@ -187,15 +185,14 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	// Create components
 	deployer := NewDeploymentManager(db, capabilities, helmClient, composeClient, log)
-	monitor := NewDeploymentMonitor(db, helmClient, composeClient, log)
+	monitor := NewDeploymentMonitor(db, capabilities, helmClient, composeClient, log)
 	syncer := NewStateSyncer(
 		db,
 		wfmClient,
-		deviceSettings.deviceClientId,
 		cfg.StateSeeking.Interval,
 		log,
 	)
-	statusReporter := NewStatusReporter(db, wfmClient, deviceSettings.deviceClientId, log)
+	statusReporter := NewStatusReporter(db, wfmClient, log)
 	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
 
 	return &Agent{
@@ -215,17 +212,7 @@ func NewAgent(configPath string) (*Agent, error) {
 func (a *Agent) Start() error {
 	a.log.Info("Starting Workload Fleet Management Client")
 
-	var deviceId string
-	var err error
-
-	// 1. Onboard device
-	deviceSettings, err := a.database.GetDeviceSettings()
-	if err != nil {
-		return err
-	}
-	deviceId = deviceSettings.DeviceClientId
-
-	err = a.tbCacher.Start()
+	err := a.tbCacher.Start()
 	if err != nil {
 		return err
 	}
@@ -278,9 +265,6 @@ func (a *Agent) Start() error {
 	}
 
 	// 2. Report capabilities
-
-	// TODO: START HERE - find the occurances of deviceId, deviceClientId & logically replace them with either capabilties.properties.id OR device-agent's spiffeId
-	a.capabilities.Properties.Id = deviceId
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := a.auth.ReportCapabilities(ctx, *a.capabilities); err != nil {

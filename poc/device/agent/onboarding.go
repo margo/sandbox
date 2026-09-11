@@ -15,7 +15,6 @@ import (
 
 // onboarding.go
 type DeviceClientSettings struct {
-	deviceClientId           string
 	wfmEndpointsForClient    []string
 	log                      *zap.SugaredLogger
 	apiClient                wfm.SBIAPIClientInterface
@@ -64,12 +63,6 @@ func WithEnableHelmDeployment() Option {
 	}
 }
 
-func WithDeviceClientID(id string) Option {
-	return func(auth *DeviceClientSettings) {
-		auth.deviceClientId = id
-	}
-}
-
 func NewDeviceSettings(
 	client wfm.SBIAPIClientInterface,
 	db database.DatabaseIfc,
@@ -81,18 +74,15 @@ func NewDeviceSettings(
 		return nil, fmt.Errorf("failed to get device settings from database, %s", err.Error())
 	}
 
-	deviceClientId := ""
 	var supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
 	var supportedRuntimes []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
 
 	if existingRecord != nil {
-		deviceClientId = existingRecord.DeviceClientId
 		supportedDeploymentTypes = existingRecord.SupportedDeploymentTypes
 		supportedRuntimes = existingRecord.SupportedRuntimes
 	}
 
 	settings := &DeviceClientSettings{
-		deviceClientId:           deviceClientId,
 		apiClient:                client,
 		log:                      log,
 		db:                       db,
@@ -110,7 +100,6 @@ func NewDeviceSettings(
 	}
 	newDeviceRecord.SupportedDeploymentTypes = settings.supportedDeploymentTypes
 	newDeviceRecord.SupportedRuntimes = settings.supportedRuntimes
-	newDeviceRecord.DeviceClientId = settings.deviceClientId
 
 	if err := db.SetDeviceSettings(newDeviceRecord); err != nil {
 		return nil, err
@@ -123,19 +112,17 @@ func (da *DeviceClientSettings) ReportCapabilities(
 	ctx context.Context,
 	capabilities sbi.DeviceCapabilitiesManifest,
 ) error {
-	da.log.Infow("Starting capabilities reporting", "deviceClientId", da.deviceClientId)
-	err := da.apiClient.ReportCapabilities(ctx, da.deviceClientId, capabilities)
+	da.log.Infow("Starting capabilities reporting")
+	err := da.apiClient.ReportCapabilities(ctx, capabilities.Properties.Id, capabilities)
 	if err != nil {
 		da.log.Errorw(
 			"Failed to report capabilities",
 			"error",
 			err,
-			"deviceClientId",
-			da.deviceClientId,
 		)
 		return fmt.Errorf("failed to report capabilities: %w", err)
 	}
 
-	da.log.Infow("Capabilities reported successfully", "deviceClientId", da.deviceClientId)
+	da.log.Infow("Capabilities reported successfully", "deviceClientId", capabilities.Properties.Id)
 	return nil
 }

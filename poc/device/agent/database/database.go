@@ -70,13 +70,13 @@ type TrustDomainCache struct {
 }
 
 type DeviceSettingsRecord struct {
-	DeviceClientId string                   `json:"deviceClientId"`
-	SpiffeId       string                   `json:"spiffeId"`
-	TrustDomain    TrustDomainCache         `json:"trustDomain"` // This contains finally usable Trustdomain with ETag if obtained using MIS server
-	TrustBundle    TrustBundleCache         `json:"trustBundle"` // This contains finally usable TrustBundle with ETag if obtained using MIS server
-	MIAF           types.MIAFConfig         `json:"miafConfig"`
-	ParsedMIAF     mc.ParsedMIAFConfig      `json:"parsedMiafConfig"`
-	State          types.DeviceOnboardState `json:"state"`
+	// DeviceClientId string                   `json:"deviceClientId"`
+	SpiffeId    string                   `json:"spiffeId"`
+	TrustDomain TrustDomainCache         `json:"trustDomain"` // This contains finally usable Trustdomain with ETag if obtained using MIS server
+	TrustBundle TrustBundleCache         `json:"trustBundle"` // This contains finally usable TrustBundle with ETag if obtained using MIS server
+	MIAF        types.MIAFConfig         `json:"miafConfig"`
+	ParsedMIAF  mc.ParsedMIAFConfig      `json:"parsedMiafConfig"`
+	State       types.DeviceOnboardState `json:"state"`
 	// the applications that the device can deploy
 	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
 	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`

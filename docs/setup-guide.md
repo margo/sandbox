@@ -105,7 +105,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 > **Note:** Margo Identity Service(MIS) is installed on WFM VM. This can be installed on a separate VM.
 
-#### Run MIS
+#### Build and MIS
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -223,7 +223,14 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    > Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
-3. **Start the Workload Fleet Manager**
+3. **Copy WFM SVIDs and HTTPS server CA**
+   ```bash
+   cp $HOME/mis-deployment/certs/https-server.crt $HOME/symphony/api/mis
+   cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
+   cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
+   ```
+
+4. **Start the Workload Fleet Manager**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -233,7 +240,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    This starts the Workload Fleet Manager service.
 
 
-4. **Add Monitoring Tools**
+5. **Add Monitoring Tools**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -242,7 +249,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This adds tools to monitor workloads observability.
 
-5. **Verify the Workload Fleet Manager Is Running Correctly**
+6. **Verify the Workload Fleet Manager Is Running Correctly**
    ```bash
    sudo docker logs -f symphony-api-container
    ```
@@ -309,16 +316,6 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 1: Install-prerequisites`
 
    This may take 10-15 minutes.
-
-4. **Create Security Certificates**
-   ```bash
-    sudo -E bash device-agent.sh docker # for docker-compose device
-    sudo -E bash device-agent.sh k3s    # for k3s device
-   ```
-   - First, type `11` and press Enter to choose: `Option 11: create_device_rsa_certs`
-   - Then run the command again and type `12` and press Enter to choose: `Option 12: create_device_ecdsa_certs`
-
-   These certificates allow secure communication between VMs and are automatically saved in `$HOME/certs` directory.
 
 ---
 
@@ -865,25 +862,7 @@ If you want to remove everything and start over:
    sudo -E bash ./device-agent.sh  # Type 10 - cleanup-residual
    ```
 
-
-
 ---
-
-## Quick Summary
-
-**The setup process in simple terms:**
-
-1. **Build**: Install tools and start services on all VMs
-   - WFM VM: Installs management tools and starts the Workload Fleet Manager
-   - Device VMs: Installs device software and creates security certificates
-
-2. **Deploy**: Connect devices to the WFM VM using security certificates
-   - Copy the security file from WFM VM to each Device VM
-   - Start the device services
-
-3. **Run**: Use the EasyCLI to manage applications on your devices
-   - Use the menu-driven EasyCLI tool to deploy applications
-   - Monitor everything through web dashboards
 
 **Sample Applications Included:**
 - **Custom OTEL**: Monitoring application that demonstrates telemetry capabilities. It is pre-loaded helm application to run on k3s device.

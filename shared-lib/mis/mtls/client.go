@@ -59,7 +59,7 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 
 		// VerifyConnection is called after the TLS handshake completes,
 		// with access to the full ConnectionState including parsed peer certificates.
-		VerifyConnection: buildVerifyConnection(cfg),
+		VerifyConnection: buildVerifyConnection(cfg, validators.PrincipalWFM),
 	}
 
 	return tlsCfg, nil
@@ -67,7 +67,8 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 
 // buildVerifyConnection returns the VerifyConnection callback that enforces
 // the four SPIFFE verifier rules, followed by an allow-list check.
-func buildVerifyConnection(cfg VerifierConfig) func(tls.ConnectionState) error {
+// Principal is the peer of config user (wfm or wfm-client)
+func buildVerifyConnection(cfg VerifierConfig, principal string) func(tls.ConnectionState) error {
 	return func(cs tls.ConnectionState) error {
 		if len(cs.PeerCertificates) == 0 {
 			return fmt.Errorf("peer presented no certificates")
@@ -116,7 +117,7 @@ func buildVerifyConnection(cfg VerifierConfig) func(tls.ConnectionState) error {
 		// ----------------------------------------------------------------
 		// Rule 3 — Validity period.
 		// ----------------------------------------------------------------
-		if ok, err := validators.ValidateX509SVID(leaf.Raw, validators.PrincipalWFM); !ok {
+		if ok, err := validators.ValidateX509SVID(leaf.Raw, principal); !ok {
 			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
 		}
 

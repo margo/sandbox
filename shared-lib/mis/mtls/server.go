@@ -3,6 +3,8 @@ package mtls
 import (
 	"crypto/tls"
 	"fmt"
+
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
 
 // NewMTLSServerConfig returns a *tls.Config suitable for a server performing
@@ -38,6 +40,6 @@ func NewMTLSServerConfig(serverCert tls.Certificate, cfg VerifierConfig) (*tls.C
 
 		// VerifyConnection is called after the TLS handshake completes,
 		// with access to the full ConnectionState including parsed peer certificates.
-		VerifyConnection: buildVerifyConnection(cfg),
+		VerifyConnection: buildVerifyConnection(cfg, validators.PrincipalWFMClient),
 	}, nil
 }

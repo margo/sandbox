@@ -163,14 +163,15 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 	}
 
 	// --- MIS trust domain (pass-through after basic check) ---
-	if ok := validators.ValidateTrustDomain(input.MIS.TrustDomain); !ok {
-		return nil, fmt.Errorf(
-			"miaf.mis.trustDomain: trust domain %q must be valid",
-			input.MIS.TrustBundle.Path,
-		)
+	if input.MIS.TrustDomain != "" {
+		if ok := validators.ValidateTrustDomain(input.MIS.TrustDomain); !ok {
+			return nil, fmt.Errorf(
+				"miaf.mis.trustDomain: trust domain %q must be valid",
+				input.MIS.TrustBundle.Path,
+			)
+		}
+		out.MIS.TrustDomain = input.MIS.TrustDomain
 	}
-
-	out.MIS.TrustDomain = input.MIS.TrustDomain
 
 	// --- Trust bundle ---
 	if input.MIS.TrustBundle != nil {

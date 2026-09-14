@@ -71,6 +71,7 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
+  ensure_symphony_mis_dir
 
   setup_harbor
   trust_harbor_certificate
@@ -108,15 +109,15 @@ install_basic_utilities() {
   install_helm
 }
 
-enable_tls_in_symphony_api() {
-  cd $HOME
-  echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
-  collect_certs_info
-  generate_server_certs
-  # replace value of "tls": false, to "tls": true
-  sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
-  echo "TLS Config is setup and seeded in symphony-api-margo.json"
-}
+# enable_tls_in_symphony_api() {
+#   cd $HOME
+#   echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
+#   collect_certs_info
+#   generate_server_certs
+#   # replace value of "tls": false, to "tls": true
+#   sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
+#   echo "TLS Config is setup and seeded in symphony-api-margo.json"
+# }
 
 
 observability_stack_install(){
@@ -334,7 +335,7 @@ start_symphony() {
   # Build phase
   build_maestro_cli
   # verify_symphony_api
-  enable_tls_in_symphony_api
+  # enable_tls_in_symphony_api
   start_symphony_api_container
 }
 
@@ -375,6 +376,15 @@ stop_symphony() {
   fi
 }
 
+ensure_symphony_mis_dir() {
+    local base_dir="${HOME}/symphony/api"
+    local mis_dir="${base_dir}/mis"
+
+    mkdir -p "${mis_dir}" || {
+        echo "Failed to create required directory: ${mis_dir}" >&2
+        return 1
+    }
+}
 
 # Update the show_menu function to include uninstall option
 show_menu() {

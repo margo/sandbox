@@ -58,12 +58,6 @@ enable_kubernetes_runtime() {
   -e 's/^[[:space:]]*url:/  # url:/' \
   "$CONFIG_FILE"
 
-  sed -i \
-    -e 's|pubCertPath:.*|pubCertPath: /certs/device-public.crt|' \
-    -e 's|path: "./config/device-private.key"|path: "/certs/device-private.key"|' \
-    -e 's|path: "./config/ca-cert.pem"|path: "/certs/ca-cert.pem"|' \
-    "$CONFIG_FILE"
-
   sed -i 's|kubeconfigPath:.*|kubeconfigPath: ""|' "$CONFIG_FILE"
 
   echo "✅ Kubernetes runtime enabled with ServiceAccount authentication"

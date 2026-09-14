@@ -211,7 +211,7 @@ func validateConfig(config *Config) error {
 //
 // This adapter exists so that the miaf package remains independent of the types
 // package — only the wiring layer (e.g. main or a factory) needs to import both.
-func (c MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
+func (c *MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
 	input := miafParser.MIAFInput{
 		X509: miafParser.MIAFx509Input{
 			CertPath: c.X509.CertPath,

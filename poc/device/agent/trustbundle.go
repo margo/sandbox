@@ -81,16 +81,23 @@ func (tbc *TrustBundleCacher) Start() error {
 		return err
 	}
 
-	miafCfg := deviceSettings.ParsedMIAF
-
 	// ── Step 2: Construct the trust bundle getter ─────────────────────────────
 
+	miafCfg := deviceSettings.ParsedMIAF
+	tburi := ""
+	tb := make([]byte, 0)
+
+	if miafCfg.MIS.TrustBundle != nil {
+		tburi = miafCfg.MIS.TrustBundle.URI
+		tb = miafCfg.MIS.TrustBundle.BundleJSON
+	}
+
 	getter, err := trustbundle.New(
-		miafCfg.MIS.Endpoint,               // base HTTPS URL of the MIS server
-		miafCfg.MIS.CAPEM,                  // PEM-encoded CA cert for TLS verification
-		miafCfg.MIS.TrustBundle.URI,        // optional well-known URI path (may be empty)
-		miafCfg.MIS.TrustBundle.BundleJSON, // optional operator-supplied fallback bundle (may be nil)
-		miafCfg.MIS.TrustDomain,            // SPIFFE trust domain (may be empty if not yet known)
+		miafCfg.MIS.Endpoint,    // base HTTPS URL of the MIS server
+		miafCfg.MIS.CAPEM,       // PEM-encoded CA cert for TLS verification
+		tburi,                   // optional well-known URI path (may be empty)
+		tb,                      // optional operator-supplied fallback bundle (may be nil)
+		miafCfg.MIS.TrustDomain, // SPIFFE trust domain (may be empty if not yet known)
 	)
 	if err != nil {
 		tbc.log.Errorw("Failed to create trust bundle getter; TrustBundleCacher will not start",

@@ -98,6 +98,10 @@ func NewDeviceSettings(
 	if existingRecord != nil {
 		newDeviceRecord = *existingRecord
 	}
+	newDeviceRecord.MIAF = settings.miaf
+	if settings.parsedMiaf != nil {
+		newDeviceRecord.ParsedMIAF = *settings.parsedMiaf
+	}
 	newDeviceRecord.SupportedDeploymentTypes = settings.supportedDeploymentTypes
 	newDeviceRecord.SupportedRuntimes = settings.supportedRuntimes
 

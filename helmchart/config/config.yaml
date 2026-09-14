@@ -39,11 +39,11 @@ wfm:
 
     # this plugin will be used to verify server tls certificates
     # note: we do not support mTLS hence client side certificates are not part of this configuration
-    tlsHelper:
-      enabled: true
-      # path to the ca certificate that will be used to verify server certificates
-      caKeyRef:
-        path: "./config/ca-cert.pem"
+    # tlsHelper:
+    #   enabled: true
+    #   # path to the ca certificate that will be used to verify server certificates
+    #   caKeyRef:
+    #     path: "./config/ca-cert.pem"
 
 stateSeeking:
   # How frequently the workload-fleet-management-client attempts to seek for the desired state from wfm

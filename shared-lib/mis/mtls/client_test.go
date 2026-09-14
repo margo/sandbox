@@ -249,7 +249,7 @@ func selfSignedDERCert(t *testing.T) []byte {
 // Tests for NewMTLSClientConfig
 // ---------------------------------------------------------------------------
 
-func TestNewMTLSClientConfig_EmptyTrustDomain_ReturnsError(t *testing.T) {
+func TestNewMTLSClientConfig_EmptyTrustDomain_VerifyConnectionReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   func() string { return "" },
 		GetTrustBundleBytes: func() []byte { return []byte(`{"keys":[]}`) },
@@ -257,13 +257,16 @@ func TestNewMTLSClientConfig_EmptyTrustDomain_ReturnsError(t *testing.T) {
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, tlsCfg)
 
-	assert.Nil(t, tlsCfg)
+	// Error is deferred to connection verification.
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "OwnTrustDomain must not be empty")
+	assert.Contains(t, err.Error(), "Trustdomain is unavailable")
 }
 
-func TestNewMTLSClientConfig_EmptyTrustBundle_ReturnsError(t *testing.T) {
+func TestNewMTLSClientConfig_EmptyTrustBundle_VerifyConnectionReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return nil },
@@ -271,13 +274,15 @@ func TestNewMTLSClientConfig_EmptyTrustBundle_ReturnsError(t *testing.T) {
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, tlsCfg)
 
-	assert.Nil(t, tlsCfg)
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "TrustBundleBytes must not be empty")
+	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
 }
 
-func TestNewMTLSClientConfig_EmptyTrustBundleSlice_ReturnsError(t *testing.T) {
+func TestNewMTLSClientConfig_EmptyTrustBundleSlice_VerifyConnectionReturnsError(t *testing.T) {
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return []byte{} },
@@ -285,29 +290,33 @@ func TestNewMTLSClientConfig_EmptyTrustBundleSlice_ReturnsError(t *testing.T) {
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, tlsCfg)
 
-	assert.Nil(t, tlsCfg)
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "TrustBundleBytes must not be empty")
+	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
 }
 
 // TestNewMTLSClientConfig_NilAllowList_ReturnsError verifies that a nil
 // GetClientAllowList is rejected at construction time (fail-fast).
-func TestNewMTLSClientConfig_NilAllowList_ReturnsError(t *testing.T) {
+func TestNewMTLSClientConfig_NilAllowList_VerifyConnectionReturnsError(t *testing.T) {
 	clientCert := mustLoadClientCert(t)
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
 
 	cfg := VerifierConfig{
 		GetOwnTrustDomain:   getOwnTrustDomain,
 		GetTrustBundleBytes: func() []byte { return trustBundle },
-		GetClientAllowList:  nil, // intentionally nil
+		GetClientAllowList:  nil,
 	}
 
 	tlsCfg, err := NewMTLSClientConfig(clientCert, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, tlsCfg)
 
-	assert.Nil(t, tlsCfg)
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "GetClientAllowList must not be nil")
+	assert.Contains(t, err.Error(), "Connections are not allowed")
 }
 
 func TestNewMTLSClientConfig_ValidInputs_ReturnsTLSConfig(t *testing.T) {
@@ -617,4 +626,43 @@ func TestRootCAPEMToJWKSet_InvalidPEM_FailsTest(t *testing.T) {
 	t.Log(
 		"rootCAPEMToJWKSet calls require.NotNil / require.NoError — invalid PEM will fail the test immediately",
 	)
+}
+
+func TestNewMTLSClientConfig_ZeroConfig_ConstructionSucceeds(t *testing.T) {
+	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, VerifierConfig{})
+	require.NoError(t, err)
+	require.NotNil(t, tlsCfg)
+	assert.NotNil(t, tlsCfg.VerifyConnection)
+}
+
+func TestVerifyConnection_EmptyTrustDomain_TakesPrecedenceOverEmptyBundle(t *testing.T) {
+	cfg := VerifierConfig{
+		GetOwnTrustDomain:   func() string { return "" },
+		GetTrustBundleBytes: func() []byte { return nil },
+		GetClientAllowList:  getClientAllowList,
+	}
+
+	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
+	require.NoError(t, err)
+
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Trustdomain is unavailable")
+	assert.NotContains(t, err.Error(), "Trustbundle")
+}
+
+func TestVerifyConnection_EmptyBundle_TakesPrecedenceOverNilAllowList(t *testing.T) {
+	cfg := VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return nil },
+		GetClientAllowList:  nil,
+	}
+
+	tlsCfg, err := NewMTLSClientConfig(tls.Certificate{}, cfg)
+	require.NoError(t, err)
+
+	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
+	assert.NotContains(t, err.Error(), "Connections are not allowed")
 }

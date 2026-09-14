@@ -2,7 +2,6 @@ package mtls
 
 import (
 	"crypto/tls"
-	"fmt"
 
 	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
@@ -17,16 +16,6 @@ import (
 // The caller is responsible for supplying the server's own certificate/key pair
 // via tls.Certificate so the client can authenticate the server in return.
 func NewMTLSServerConfig(serverCert tls.Certificate, cfg VerifierConfig) (*tls.Config, error) {
-	if cfg.GetOwnTrustDomain() == "" {
-		return nil, fmt.Errorf("OwnTrustDomain must not be empty")
-	}
-	if len(cfg.GetTrustBundleBytes()) == 0 {
-		return nil, fmt.Errorf("TrustBundleBytes must not be empty")
-	}
-	if cfg.GetClientAllowList == nil {
-		return nil, fmt.Errorf("GetClientAllowList must not be nil")
-	}
-
 	return &tls.Config{
 		MinVersion:       tls.VersionTLS13,
 		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384},

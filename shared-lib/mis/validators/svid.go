@@ -160,7 +160,7 @@ func validateSPIFFEID(cert *x509.Certificate, principal string) error {
 		return fmt.Errorf("invalid SPIFFE ID %q: %w", spiffeID.String(), err)
 	}
 
-	// Validate nased on principal as well
+	// Validate based on principal as well
 	if err := ValidateSpiffeID(spiffeID.String(), principal); err != nil {
 		return fmt.Errorf("invalid SPIFFE ID %q: %w", spiffeID.String(), err)
 	}

@@ -154,22 +154,14 @@ start_device_agent_docker_service() {
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
 
-
-  if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
-    echo "Creating TLS secrets..."
-    cp "$HOME/certs/device-private.key"  ./config
-    cp "$HOME/certs/device-public.crt"   ./config
-    cp "$HOME/certs/device-ecdsa.key"    ./config
-    cp "$HOME/certs/device-ecdsa.crt"    ./config
-    cp "$HOME/certs/ca-cert.pem"         ./config
-    echo "Copied certs from \$HOME/certs to ./config"
-  else
-    echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
-    return 1
-  fi
+  cp -r ../poc/device/agent/config/* ./config/
 
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
+  cp ../poc/device/agent/config/identity/* ./config/identity/
+  cp ../poc/device/agent/config/mis/* ./config/mis/
+  cp ../poc/device/agent/config/authorized.json ./config/
+
   set_capabilities_deployment_type compose
 
   mkdir -p data

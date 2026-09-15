@@ -25,7 +25,7 @@ miaf:
   authzPath: "./config/authorized.json"             # Authorized clients
 
 wfm:
-  sbiUrl: https://symphony.machine:8082/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
+  sbiUrl: https://symphony.machine:8084/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
 
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm

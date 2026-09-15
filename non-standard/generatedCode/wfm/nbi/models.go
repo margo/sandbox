@@ -957,9 +957,6 @@ type DeviceOnboardStatus string
 // DeviceSpec defines model for DeviceSpec.
 type DeviceSpec struct {
 	Capabilities interface{} `json:"capabilities"`
-
-	// Signature Unique signature of the device
-	Signature string `json:"signature"`
 }
 
 // DeviceState defines model for DeviceState.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/types"
+	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
@@ -56,17 +57,26 @@ const (
 	DeploymentChangeTypeCurrentStateAdded     DeploymentRecordChangeType = "CURRENT-STATE-ADDED"
 )
 
+type TrustBundleCache struct {
+	Value       []byte
+	ETag        string
+	LastUpdated time.Time
+}
+
+type TrustDomainCache struct {
+	Value       string
+	ETag        string
+	LastUpdated time.Time
+}
+
 type DeviceSettingsRecord struct {
-	DeviceClientId     string                   `json:"deviceClientId"`
-	DeviceRootIdentity types.DeviceRootIdentity `json:"deviceRootIdentity"`
-	State              types.DeviceOnboardState `json:"state"`
-	AuthEnabled        bool                     `json:"authEnabled"`
-	// OAuthClientId The client ID for OAuth 2.0 authentication.
-	OAuthClientId string `json:"clientId"`
-	// OAuthClientSecret The client secret for OAuth 2.0 authentication.
-	OAuthClientSecret string `json:"clientSecret"`
-	// OAuthTokenEndpointUrl The URL for the OAuth 2.0 token endpoint.
-	OAuthTokenEndpointUrl string `json:"tokenEndpointUrl"`
+	// DeviceClientId string                   `json:"deviceClientId"`
+	SpiffeId    string                   `json:"spiffeId"`
+	TrustDomain TrustDomainCache         `json:"trustDomain"` // This contains finally usable Trustdomain with ETag if obtained using MIS server
+	TrustBundle TrustBundleCache         `json:"trustBundle"` // This contains finally usable TrustBundle with ETag if obtained using MIS server
+	MIAF        types.MIAFConfig         `json:"miafConfig"`
+	ParsedMIAF  mc.ParsedMIAFConfig      `json:"parsedMiafConfig"`
+	State       types.DeviceOnboardState `json:"state"`
 	// the applications that the device can deploy
 	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
 	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`
@@ -93,6 +103,17 @@ type DatabaseIfc interface {
 	GetDeviceSettings() (*DeviceSettingsRecord, error)
 	SetDeviceSettings(settings DeviceSettingsRecord) error
 	IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error)
+
+	GetTrustBundle() ([]byte, error)
+	GetTrustBundleETag() string
+	SetTrustBundle([]byte, string)
+	GetTrustDomain() (string, error)
+	GetTrustDomainETag() string
+	SetTrustDomain(td string, eTag string)
+	GetSpiffeId() (string, error)
+	SetSpiffeId(string)
+	GetSVID() ([]byte, []byte, error)
+	GetAuthorizedWFMs() []string // returns spiffeIds of authorized WFMs if configured
 
 	GetLastSyncedETag() (string, error)
 	SetLastSyncedETag(etag string) error
@@ -166,6 +187,103 @@ func (db *Database) GetLastSyncedBundleDigest() (string, error) {
 	return db.deviceSettings.LastSyncedBundleDigest, nil
 }
 
+// Returns certificate & key; error if any
+func (db *Database) GetSVID() ([]byte, []byte, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if len(db.deviceSettings.ParsedMIAF.X509.CertPEM) == 0 {
+		return nil, nil, fmt.Errorf("no previous svid certificate found")
+	}
+
+	if len(db.deviceSettings.ParsedMIAF.X509.KeyPEM) == 0 {
+		return nil, nil, fmt.Errorf("no previous svid key found")
+	}
+	return db.deviceSettings.ParsedMIAF.X509.CertPEM, db.deviceSettings.ParsedMIAF.X509.KeyPEM, nil
+}
+
+// List can be empty
+func (db *Database) GetAuthorizedWFMs() []string {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	return db.deviceSettings.ParsedMIAF.AuthorizedSPIFFEIDs
+}
+
+func (db *Database) GetSpiffeId() (string, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if db.deviceSettings.SpiffeId == "" {
+		return "", fmt.Errorf("no previous spiffe id found")
+	}
+
+	return db.deviceSettings.SpiffeId, nil
+}
+
+func (db *Database) SetSpiffeId(sid string) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.SpiffeId = sid
+}
+
+// Trust Bundle  management
+func (db *Database) GetTrustBundle() ([]byte, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if len(db.deviceSettings.TrustBundle.Value) == 0 {
+		return nil, fmt.Errorf("no previous trustbundle found")
+	}
+	return db.deviceSettings.TrustBundle.Value, nil
+}
+
+// Note: ETag Can be empty.
+func (db *Database) GetTrustBundleETag() string {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	return db.deviceSettings.TrustBundle.ETag
+}
+
+func (db *Database) SetTrustBundle(tb []byte, eTag string) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.TrustBundle.Value = tb
+	db.deviceSettings.TrustBundle.ETag = eTag
+	db.deviceSettings.TrustBundle.LastUpdated = time.Now()
+}
+
+// Trust Bundle  management
+func (db *Database) GetTrustDomain() (string, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if db.deviceSettings.TrustDomain.Value == "" {
+		return "", fmt.Errorf("no previous trustdomain found")
+	}
+	return db.deviceSettings.TrustDomain.Value, nil
+}
+
+// Note: ETag Can be empty.
+func (db *Database) GetTrustDomainETag() string {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	return db.deviceSettings.TrustDomain.ETag
+}
+
+func (db *Database) SetTrustDomain(td string, eTag string) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.TrustDomain.Value = td
+	db.deviceSettings.TrustDomain.ETag = eTag
+	db.deviceSettings.TrustBundle.LastUpdated = time.Now()
+}
+
 func (db *Database) SetLastSyncedBundleDigest(digest string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -176,8 +294,7 @@ func (db *Database) SetLastSyncedBundleDigest(digest string) error {
 }
 
 func NewDatabase(dataDir string) *Database {
-
-	err := os.MkdirAll(dataDir, 0750)
+	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
 		panic(fmt.Sprintf("failed to create database directory, err %s", err.Error()))
@@ -227,7 +344,7 @@ func (db *Database) persistenceLoop() {
 
 func (db *Database) save() {
 	db.mu.RLock()
-	var dump = struct {
+	dump := struct {
 		Deployments    map[string]*DeploymentRecord `json:"deployments"`
 		DeviceSettings *DeviceSettingsRecord        `json:"deviceSettings"`
 	}{
@@ -242,14 +359,14 @@ func (db *Database) save() {
 		return
 	}
 
-	if err := os.MkdirAll(db.dataDir, 0750); err != nil {
+	if err := os.MkdirAll(db.dataDir, 0o750); err != nil {
 		return
 	}
 
 	tempFile := filepath.Join(db.dataDir, "agent.database.json.tmp")
 	finalFile := filepath.Join(db.dataDir, "agent.database.json")
 
-	if err := os.WriteFile(tempFile, data, 0600); err != nil {
+	if err := os.WriteFile(tempFile, data, 0o600); err != nil {
 		return
 	}
 
@@ -265,7 +382,7 @@ func (db *Database) load() {
 		return // File doesn't exist, start fresh
 	}
 
-	var dump = struct {
+	dump := struct {
 		Deployments    map[string]*DeploymentRecord `json:"deployments"`
 		DeviceSettings *DeviceSettingsRecord        `json:"deviceSettings"`
 	}{}

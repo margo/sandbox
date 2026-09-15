@@ -7,4 +7,6 @@ metadata:
 type: Opaque
 data:
   harbor.crt: {{ .Files.Get "harbor.crt" | b64enc | quote }}
+  payload-cert.pem: {{ .Files.Get "payload-cert.pem" | b64enc | quote }}
+  payload-key.pem: {{ .Files.Get "payload-key.pem" | b64enc | quote }}
 {{- end }}

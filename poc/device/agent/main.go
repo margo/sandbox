@@ -21,8 +21,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
-	"github.com/margo/sandbox/shared-lib/mis/parser"
-	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	mp "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -109,7 +108,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	opts = append(opts, WithMIAFConfig(cfg.MIAF))
 
 	// This validates disk parameters (SVID, Key, CA etc) as well.
-	pmc, err := mc.ParseMIAFConfig(cfg.MIAF.ToMIAFInput(), validators.PrincipalWFMClient)
+	pmc, err := mp.ParseMIAFConfig(cfg.MIAF.ToMIAFInput(), validators.PrincipalWFMClient)
 	if err != nil {
 		log.Errorw(
 			"failed to parse MIAF config",
@@ -226,7 +225,7 @@ func (a *Agent) Start() error {
 	if err != nil {
 		return fmt.Errorf("SVID not found, cannot proceed. err: %w", err)
 	}
-	sid, err := parser.ParseSpiffeIdFromX509Svid(c)
+	sid, err := mp.ParseSpiffeIdFromX509Svid(c)
 	if err != nil {
 		return fmt.Errorf("failed to obtain spiffeid from certificate, err: %w", err)
 	}
@@ -488,7 +487,7 @@ func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTP
 		}
 
 		// Get certificates from DB and apply here
-		pc, err := parser.CertificateFromBytes(cert, key)
+		pc, err := mp.CertificateFromBytes(cert, key)
 		if err != nil {
 			return fmt.Errorf("failed to parse certificate from bytes, err: %w", err)
 		}

@@ -60,15 +60,21 @@ func ValidatePrivateKey(keyBytes []byte) error {
 	return nil
 }
 
-// validateECDSAKey validates an ECDSA key using crypto/ecdh (replaces deprecated IsOnCurve).
+// validateECDSAKey validates an ECDSA key using crypto/ecdh.
 func validateECDSAKey(key *ecdsa.PrivateKey) error {
 	ecdhCurve, err := curveToECDH(key.Curve)
 	if err != nil {
 		return err
 	}
 
-	// Marshal the public key and attempt to parse it via ecdh — this performs the on-curve check.
-	pubKeyBytes := elliptic.Marshal(key.Curve, key.PublicKey.X, key.PublicKey.Y)
+	ecdhPubKey, err := key.PublicKey.ECDH()
+	if err != nil {
+		return fmt.Errorf("ECDSA public key is invalid: %w", err)
+	}
+
+	pubKeyBytes := ecdhPubKey.Bytes()
+
+	// This performs the on-curve check.
 	if _, err := ecdhCurve.NewPublicKey(pubKeyBytes); err != nil {
 		return fmt.Errorf("ECDSA public key is invalid: %w", err)
 	}

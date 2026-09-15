@@ -29,7 +29,11 @@ type SbiHttpClient struct {
 }
 
 // Note: deviceId is capabilities.properties.id or gatewayId, not SpiffeId
-func NewSbiHTTPClient(url string, deviceId string, options ...HTTPApiClientOptions) (*SbiHttpClient, error) {
+func NewSbiHTTPClient(
+	url string,
+	deviceId string,
+	options ...HTTPApiClientOptions,
+) (*SbiHttpClient, error) {
 	client, err := sbi.NewClient(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -385,7 +389,11 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	}
 
 	// Store in cache (digest verification happens inside cache.Store)
-	if err := sbiClient.bundleCache.StoreBundle(sbiClient.deviceId, digest, bundleData); err != nil {
+	if err := sbiClient.bundleCache.StoreBundle(
+		sbiClient.deviceId,
+		digest,
+		bundleData,
+	); err != nil {
 		fmt.Printf("WARNING: [Cache] Failed to cache bundle for device %s: %v\n",
 			sbiClient.deviceId, err)
 	} else {

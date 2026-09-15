@@ -33,7 +33,7 @@ uugSDeilDpccpujCSm5eMDIGA1UdEQQrMCmGJ3NwaWZmZTovL21hcmdvLm9yZy9t
 YXJnby93Zm0vc3ltcGhvbnktMTAKBggqhkjOPQQDAgNHADBEAiBy7RQLbuv2LRjq
 Q7tRMSH9fQPQBK+CHcsRcL5HEs0RygIgVQMQr0Xil7mRMxpdYH+b8m2VFdp+Q0nH
 M9ngT2ktr3M=
------END CERTIFICATE-----`
+-----END CERTIFICATE-----` // #nosec G101 -- dummy certificate for testcase
 
 	// dummyClientKeyPEM is the private key corresponding to dummyClientCertPEM.
 	// Replace with the matching private key in PEM format.
@@ -41,7 +41,7 @@ M9ngT2ktr3M=
 MHcCAQEEIEb4OuSK3LK3kvHHVUWvAH57LO9KpmdtzxXFeQf6n1TPoAoGCCqGSM49
 AwEHoUQDQgAE7hwn95MUTsmMrI+TpIJgUsgA/Tx8XP4Y8vfz96PiuY6hkUja8KTK
 659ifVa4ljYM8Slxqq24FxR+EOQgAzjTgw==
------END EC PRIVATE KEY-----`
+-----END EC PRIVATE KEY-----` // #nosec G101 -- dummy key for testcase
 
 	// dummyRootCAPEM is the root CA certificate in PEM format.
 	// This will be converted to a SPIFFE JWK Set trust bundle by rootCAPEMToJWKSet.
@@ -62,7 +62,7 @@ HRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUtWoRMu266BIN
 6KUOlxym6MJKbl4wCgYIKoZIzj0EAwIDSAAwRQIhAOgvPaa5k61R08MfSxC4gVXi
 UrK64imrA5ZkqCd98OR2AiBefw1v0DWz2Ln2gz4x5/KHkD056ht23ATq5Advrg52
 pg==
------END CERTIFICATE-----`
+-----END CERTIFICATE-----` // #nosec G101 -- dummy root certificate for testcase
 
 	// dummyTrustDomain is the SPIFFE trust domain used across all tests.
 	dummyTrustDomain = "margo.org"

@@ -23,12 +23,12 @@ type TrustBundleCacher struct {
 	database *database.Database
 	log      *zap.SugaredLogger
 	stopChan chan struct{}
-	interval uint
+	interval uint32
 }
 
 func NewTrustBundleCacher(
 	db *database.Database,
-	interval uint,
+	interval uint32,
 	log *zap.SugaredLogger,
 ) *TrustBundleCacher {
 	return &TrustBundleCacher{
@@ -50,7 +50,7 @@ type spiffeBundleDoc struct {
 // extractRefreshHint parses a raw SPIFFE JWKS bundle and returns the value of
 // spiffe_refresh_hint if it is present and a positive non-zero integer.
 // Returns 0 and false if the hint is absent, zero, or invalid.
-func extractRefreshHint(bundle []byte) (uint, bool) {
+func extractRefreshHint(bundle []byte) (uint32, bool) {
 	var doc spiffeBundleDoc
 	if err := json.Unmarshal(bundle, &doc); err != nil {
 		return 0, false
@@ -60,7 +60,7 @@ func extractRefreshHint(bundle []byte) (uint, bool) {
 		return 0, false
 	}
 
-	return uint(*doc.RefreshHint), true
+	return uint32(*doc.RefreshHint), true
 }
 
 // Start initialises the trust bundle getter from device settings, performs an
@@ -134,7 +134,7 @@ func (tbc *TrustBundleCacher) Stop() {
 // It starts with initialInterval seconds and resets the ticker whenever a new
 // spiffe_refresh_hint is received that differs from the current interval.
 // The loop exits cleanly when stopChan is closed.
-func (tbc *TrustBundleCacher) refreshLoop(getter trustbundle.Getter, initialInterval uint) {
+func (tbc *TrustBundleCacher) refreshLoop(getter trustbundle.Getter, initialInterval uint32) {
 	tickInterval := time.Duration(initialInterval) * time.Second
 
 	tbc.log.Infow("Trust bundle refresh ticker started",
@@ -177,7 +177,7 @@ func (tbc *TrustBundleCacher) refreshLoop(getter trustbundle.Getter, initialInte
 // The returned interval is the spiffe_refresh_hint from the bundle when the
 // hint is present and a positive non-zero integer; otherwise the
 // TrustBundleCacher's configured interval is used as a fallback.
-func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint, error) {
+func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, error) {
 	ietag := tbc.database.GetTrustBundleETag()
 
 	// Use a plain background context. Cancellation is handled externally by
@@ -192,7 +192,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint, er
 		}
 		// Return the currently configured interval so the ticker keeps running.
 		return tbc.interval,
-			fmt.Errorf("Failed to retrieve Margo SPIFFE Trust Bundle, err : %w", err)
+			fmt.Errorf("failed to retrieve margo spiffe trust bundle, err : %w", err)
 	}
 
 	tbc.log.Infow("Trust bundle retrieved successfully",
@@ -215,7 +215,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint, er
 		tbc.log.Errorw("Invalid Margo SPIFFE Trust Bundle; will retry on next tick",
 			"error", err)
 		// Return the currently configured interval so the ticker keeps running.
-		return tbc.interval, fmt.Errorf("Invalid Margo SPIFFE Trust Bundle, err : %w", err)
+		return tbc.interval, fmt.Errorf("invalid margo spiffe trust bundle, err : %w", err)
 	}
 
 	// save in database if everything is fine

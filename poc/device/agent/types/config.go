@@ -32,7 +32,7 @@ type TrustBundleConfig struct {
 
 type MISConfig struct {
 	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
-	CacheInterval uint               `yaml:"cacheInterval"` // in seconds
+	CacheInterval uint32             `yaml:"cacheInterval"` // in seconds
 	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
 	TrustDomain   string             `yaml:"trustDomain"`   // required when endpoint+caPath are absent
 	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format

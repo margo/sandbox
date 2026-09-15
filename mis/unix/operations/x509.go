@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/margo/sandbox/mis/pkg/helpers"
@@ -28,6 +29,7 @@ func (mo *MintOperations) GenerateX509SVID(
 
 	// --- Load CA certificate ---
 	logger.Debug("reading CA certificate from disk", "path", caFilePath)
+	caFilePath = filepath.Clean(caFilePath)
 	caCertPEMBytes, err := os.ReadFile(caFilePath)
 	if err != nil {
 		logger.Error("failed to read CA certificate file", "path", caFilePath, "error", err)
@@ -51,6 +53,7 @@ func (mo *MintOperations) GenerateX509SVID(
 
 	// --- Load CA private key ---
 	logger.Debug("reading CA private key from disk", "path", caKeyPath)
+	caKeyPath = filepath.Clean(caKeyPath)
 	caKeyPEMBytes, err := os.ReadFile(caKeyPath)
 	if err != nil {
 		logger.Error("failed to read CA key file", "path", caKeyPath, "error", err)

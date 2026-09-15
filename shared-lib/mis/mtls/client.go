@@ -61,13 +61,13 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 func buildVerifyConnection(cfg VerifierConfig, principal string) func(tls.ConnectionState) error {
 	return func(cs tls.ConnectionState) error {
 		if cfg.GetOwnTrustDomain() == "" {
-			return fmt.Errorf("Trustdomain is unavailable")
+			return fmt.Errorf("trustdomain is unavailable")
 		}
 		if len(cfg.GetTrustBundleBytes()) == 0 {
-			return fmt.Errorf("Trustbundle is unavailable")
+			return fmt.Errorf("trustbundle is unavailable")
 		}
 		if cfg.GetClientAllowList == nil {
-			return fmt.Errorf("Connections are not allowed")
+			return fmt.Errorf("connections are not allowed")
 		}
 
 		if len(cs.PeerCertificates) == 0 {

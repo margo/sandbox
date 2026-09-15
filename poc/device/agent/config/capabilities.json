@@ -1,19 +1,30 @@
 {
     "apiVersion": "device.margo.org/v1alpha1",
     "kind": "DeviceCapabilitiesManifest",
+    "labels": {
+        "northstarida.com/hypervisor": "hyper-v",
+        "northstarida.com/wasm.runtime": [
+            "wamr"
+        ],
+        "northstarida.com/wasm.package.format": [
+            ".wasm",
+            ".aot"
+        ],
+        "northstarida.com/os": "zephyr"
+    },
     "properties": {
         "id": "northstarida.xtapro.k8s.edge",
         "vendor": "Northstar Industrial Devices",
         "modelNumber": "332ANZE1-N1",
         "serialNumber": "PF45343-AA",
-        "cpu": [
+        "cpus": [
             {
                 "cores": 24,
                 "architecture": "amd64"
             }
         ],
-        "memory": "59 Gi",
-        "storage": "1862 Gi",
+        "memory": "59Gi",
+        "storage": "1862Gi",
         "peripherals": [
             {
                 "type": "gpu",

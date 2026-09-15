@@ -10,6 +10,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/shared-lib/constraints"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/margo/sandbox/standard/pkg"
@@ -25,6 +26,7 @@ type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
 	composeClient *workloads.DockerComposeCliClient
+	capabilities  *sbi.DeviceCapabilitiesManifest
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 	//  Mutex to prevent concurrent reconciliation
@@ -33,6 +35,7 @@ type DeploymentManager struct {
 
 func NewDeploymentManager(
 	db database.DatabaseIfc,
+	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
 	composeClient *workloads.DockerComposeCliClient,
 	log *zap.SugaredLogger,
@@ -42,6 +45,7 @@ func NewDeploymentManager(
 		helmClient:     helmClient,
 		composeClient:  composeClient,
 		log:            log,
+		capabilities:   capabilities,
 		stopChan:       make(chan struct{}),
 		reconcileLocks: sync.Map{},
 	}
@@ -197,6 +201,25 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 	}
 }
 
+func (dm *DeploymentManager) checkDeviceEligibility(
+	desiredState database.AppDeploymentState,
+) (bool, string, error) {
+	dc := constraints.New()
+	ok, reason, err := dc.IsDeviceEligible(
+		dm.capabilities,
+		desiredState.Spec.DeploymentProfile.DeviceConstraints,
+	)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !ok {
+		return false, reason, nil
+	}
+
+	return true, "", nil
+}
+
 func (dm *DeploymentManager) deployOrUpdate(
 	ctx context.Context,
 	deploymentId string,
@@ -210,7 +233,8 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.log.Warnw(
 			"Failed to get device settings, cannot proceed",
 			"err",
-			err.Error())
+			err.Error(),
+		)
 
 		return
 	}
@@ -224,6 +248,35 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetPhase(deploymentId, "FAILED", "No components found")
 		return
 	}
+
+	ok, reason, err := dm.checkDeviceEligibility(desiredState)
+	if err != nil {
+		// Set current state even on failure
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(
+			deploymentId,
+			"FAILED",
+			fmt.Sprintf("failed to check for device eligibility, err : %s", err.Error()),
+		)
+		return
+	}
+
+	if !ok {
+		// Set current state even on failure
+		failedState := desiredState
+		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
+		dm.database.SetCurrentState(deploymentId, failedState)
+		dm.database.SetPhase(
+			deploymentId,
+			"FAILED",
+			fmt.Sprintf("device ineligibile, reason : %s", reason),
+		)
+		return
+	}
+
+	dm.log.Infow("device eligible for deployment", "appId", deploymentId)
 
 	// Initialize per-component status for ALL components before starting deployment.
 	// This ensures the status report always contains one entry per component (spec requirement).
@@ -328,7 +381,8 @@ func (dm *DeploymentManager) deployOrUpdateHelm(
 	appDeployment sbi.AppDeploymentManifest,
 ) error {
 	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-		dm.log.Infow("deploying app component",
+		dm.log.Infow(
+			"deploying app component",
 			"appId", deploymentId,
 			"componentName", component.Name,
 		)
@@ -352,7 +406,8 @@ func (dm *DeploymentManager) deployOrUpdateHelm(
 
 		release, err := dm.helmClient.GetReleaseStatus(ctx, releaseName, "")
 		if err != nil {
-			dm.log.Infow("release not found, will install",
+			dm.log.Infow(
+				"release not found, will install",
 				"releaseName", releaseName,
 				"deploymentId", deploymentId,
 				"err", err.Error(),
@@ -360,7 +415,8 @@ func (dm *DeploymentManager) deployOrUpdateHelm(
 		}
 
 		if release != nil {
-			dm.log.Infow("Updating existing Helm release",
+			dm.log.Infow(
+				"Updating existing Helm release",
 				"releaseName", releaseName,
 				"deploymentId", deploymentId,
 			)
@@ -377,7 +433,8 @@ func (dm *DeploymentManager) deployOrUpdateHelm(
 			return nil
 		}
 
-		dm.log.Infow("Installing new Helm release",
+		dm.log.Infow(
+			"Installing new Helm release",
 			"releaseName", releaseName,
 			"deploymentId", deploymentId,
 		)
@@ -397,7 +454,8 @@ func (dm *DeploymentManager) deployOrUpdateHelm(
 		if err != nil {
 			return err
 		}
-		dm.log.Infow("Helm deployment successful",
+		dm.log.Infow(
+			"Helm deployment successful",
 			"appId", deploymentId,
 			"releaseName", releaseName,
 		)
@@ -411,7 +469,8 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 	appDeployment sbi.AppDeploymentManifest,
 ) error {
 	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
-		dm.log.Infow("deploying app component",
+		dm.log.Infow(
+			"deploying app component",
 			"appId", deploymentId,
 			"componentName", component.Name,
 		)
@@ -452,13 +511,15 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 		}
 
 		if exists {
-			dm.log.Infow("Updating existing Docker Compose project",
+			dm.log.Infow(
+				"Updating existing Docker Compose project",
 				"projectName", projectName,
 				"deploymentId", deploymentId,
 			)
 			err = dm.composeClient.UpdateCompose(ctx, projectName, composeFilename, envVars)
 		} else {
-			dm.log.Infow("Deploying new Docker Compose project",
+			dm.log.Infow(
+				"Deploying new Docker Compose project",
 				"projectName", projectName,
 				"deploymentId", deploymentId,
 			)
@@ -469,7 +530,8 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 			return fmt.Errorf("docker compose operation failed: %v", err)
 		}
 
-		dm.log.Infow("Docker Compose deployment successful",
+		dm.log.Infow(
+			"Docker Compose deployment successful",
 			"appId", deploymentId,
 			"componentName", component.Name,
 			"projectName", projectName,
@@ -490,7 +552,8 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		dm.log.Warnw(
 			"Failed to get device settings, cannot proceed",
 			"err",
-			err.Error())
+			err.Error(),
+		)
 
 		return
 	}
@@ -632,20 +695,23 @@ func (dm *DeploymentManager) removeHelm(
 
 	for _, component := range appDeployment.Spec.DeploymentProfile.Components {
 		releaseName := fmt.Sprintf("%s-%s", component.Name, deploymentId[:8])
-		dm.log.Infow("Removing Helm release",
+		dm.log.Infow(
+			"Removing Helm release",
 			"releaseName", releaseName,
 			"componentName", component.Name,
 			"deploymentId", deploymentId,
 		)
 
 		if err := dm.helmClient.UninstallChart(ctx, releaseName, ""); err != nil {
-			dm.log.Warnw("Failed to uninstall Helm chart",
+			dm.log.Warnw(
+				"Failed to uninstall Helm chart",
 				"releaseName", releaseName,
 				"componentName", component.Name,
 				"error", err,
 			)
 		} else {
-			dm.log.Infow("Helm release removed successfully",
+			dm.log.Infow(
+				"Helm release removed successfully",
 				"releaseName", releaseName,
 				"componentName", component.Name,
 			)
@@ -668,20 +734,23 @@ func (dm *DeploymentManager) removeCompose(
 		projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
 		projectName = strings.ReplaceAll(projectName, "_", "-")
 
-		dm.log.Infow("Removing Docker Compose project",
+		dm.log.Infow(
+			"Removing Docker Compose project",
 			"projectName", projectName,
 			"componentName", component.Name,
 			"deploymentId", deploymentId,
 		)
 
 		if err := dm.composeClient.RemoveCompose(ctx, projectName); err != nil {
-			dm.log.Warnw("Failed to remove Docker Compose project",
+			dm.log.Warnw(
+				"Failed to remove Docker Compose project",
 				"projectName", projectName,
 				"componentName", component.Name,
 				"error", err,
 			)
 		} else {
-			dm.log.Infow("Docker Compose project removed successfully",
+			dm.log.Infow(
+				"Docker Compose project removed successfully",
 				"projectName", projectName,
 				"componentName", component.Name,
 			)

@@ -44,7 +44,7 @@ func NewTrustBundleCacher(
 type spiffeBundleDoc struct {
 	// RefreshHint is the suggested polling interval in seconds, as defined by
 	// the SPIFFE Bundle Endpoint Profile specification.
-	RefreshHint *int `json:"spiffe_refresh_hint"`
+	RefreshHint *int32 `json:"spiffe_refresh_hint"`
 }
 
 // extractRefreshHint parses a raw SPIFFE JWKS bundle and returns the value of

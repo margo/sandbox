@@ -74,10 +74,12 @@ func validECKey(t *testing.T) map[string]interface{} {
 		"kty": "EC",
 		"crv": "P-256",
 		"x": base64.RawURLEncoding.EncodeToString(
-			key.PublicKey.X.Bytes(), //lint:ignore QF1008 embedding is by standard package
+			//nolint:staticcheck // ignore QF1008 embedding is by standard package
+			key.PublicKey.X.Bytes(),
 		),
 		"y": base64.RawURLEncoding.EncodeToString(
-			key.PublicKey.Y.Bytes(), //lint:ignore QF1008 embedding is by standard package
+			//nolint:staticcheck // ignore QF1008 embedding is by standard package
+			key.PublicKey.Y.Bytes(),
 		),
 		"use": "x509-svid",
 		"x5c": []string{certBase64},
@@ -295,10 +297,12 @@ func TestValidateSpiffeTrustBundle(t *testing.T) {
 				"kty": "EC",
 				"crv": "P-256",
 				"x": base64.RawURLEncoding.EncodeToString(
-					pk.PublicKey.X.Bytes(), //lint:ignore QF1008 embedding is by standard package
+					//nolint:staticcheck // ignore QF1008 embedding is by standard package
+					pk.PublicKey.X.Bytes(),
 				),
 				"y": base64.RawURLEncoding.EncodeToString(
-					pk.PublicKey.Y.Bytes(), //lint:ignore QF1008 embedding is by standard package
+					//nolint:staticcheck // ignore QF1008 embedding is by standard package
+					pk.PublicKey.Y.Bytes(),
 				),
 				"use": "x509-svid",
 				"x5c": []string{certB64},

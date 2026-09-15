@@ -263,7 +263,7 @@ func TestNewMTLSClientConfig_EmptyTrustDomain_VerifyConnectionReturnsError(t *te
 	// Error is deferred to connection verification.
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Trustdomain is unavailable")
+	assert.Contains(t, err.Error(), "trustdomain is unavailable")
 }
 
 func TestNewMTLSClientConfig_EmptyTrustBundle_VerifyConnectionReturnsError(t *testing.T) {
@@ -279,7 +279,7 @@ func TestNewMTLSClientConfig_EmptyTrustBundle_VerifyConnectionReturnsError(t *te
 
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
+	assert.Contains(t, err.Error(), "trustbundle is unavailable")
 }
 
 func TestNewMTLSClientConfig_EmptyTrustBundleSlice_VerifyConnectionReturnsError(t *testing.T) {
@@ -295,7 +295,7 @@ func TestNewMTLSClientConfig_EmptyTrustBundleSlice_VerifyConnectionReturnsError(
 
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
+	assert.Contains(t, err.Error(), "trustbundle is unavailable")
 }
 
 // TestNewMTLSClientConfig_NilAllowList_ReturnsError verifies that a nil
@@ -316,7 +316,7 @@ func TestNewMTLSClientConfig_NilAllowList_VerifyConnectionReturnsError(t *testin
 
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Connections are not allowed")
+	assert.Contains(t, err.Error(), "connections are not allowed")
 }
 
 func TestNewMTLSClientConfig_ValidInputs_ReturnsTLSConfig(t *testing.T) {
@@ -647,8 +647,8 @@ func TestVerifyConnection_EmptyTrustDomain_TakesPrecedenceOverEmptyBundle(t *tes
 
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Trustdomain is unavailable")
-	assert.NotContains(t, err.Error(), "Trustbundle")
+	assert.Contains(t, err.Error(), "trustdomain is unavailable")
+	assert.NotContains(t, err.Error(), "trustbundle")
 }
 
 func TestVerifyConnection_EmptyBundle_TakesPrecedenceOverNilAllowList(t *testing.T) {
@@ -663,6 +663,6 @@ func TestVerifyConnection_EmptyBundle_TakesPrecedenceOverNilAllowList(t *testing
 
 	err = tlsCfg.VerifyConnection(tls.ConnectionState{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Trustbundle is unavailable")
-	assert.NotContains(t, err.Error(), "Connections are not allowed")
+	assert.Contains(t, err.Error(), "trustbundle is unavailable")
+	assert.NotContains(t, err.Error(), "connections are not allowed")
 }

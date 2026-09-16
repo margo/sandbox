@@ -153,14 +153,30 @@ start_device_agent_docker_service() {
   echo 'Starting workload-fleet-management-client...'
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
-
   cp -r ../poc/device/agent/config/* ./config/
+
+  if compgen -G "$HOME/sandbox/poc/device/agent/config/identity/*" > /dev/null && \
+    compgen -G "$HOME/sandbox/poc/device/agent/config/mis/*" > /dev/null && \
+    [ -f "$HOME/sandbox/poc/device/agent/config/authorized.json" ]; then
+
+      # Ensure target directories exist before copying
+      mkdir -p ./config/identity ./config/mis
+
+      cp "$HOME/sandbox/poc/device/agent/config/identity/"* ./config/identity/
+      cp "$HOME/sandbox/poc/device/agent/config/mis/"* ./config/mis/
+      cp "$HOME/sandbox/poc/device/agent/config/authorized.json" ./config/
+
+      echo "Copied config files successfully"
+  else
+  
+      echo "❌ device-start-failed: Required configuration files are missing."
+      return 1
+  fi
+
 
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
-  cp ../poc/device/agent/config/identity/* ./config/identity/
-  cp ../poc/device/agent/config/mis/* ./config/mis/
-  cp ../poc/device/agent/config/authorized.json ./config/
+
 
   set_capabilities_deployment_type compose
 

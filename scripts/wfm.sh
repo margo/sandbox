@@ -109,15 +109,15 @@ install_basic_utilities() {
   install_helm
 }
 
-# enable_tls_in_symphony_api() {
-#   cd $HOME
-#   echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
-#   collect_certs_info
-#   generate_server_certs
-#   # replace value of "tls": false, to "tls": true
-#   sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
-#   echo "TLS Config is setup and seeded in symphony-api-margo.json"
-# }
+enable_tls_in_symphony_api() {
+  cd $HOME
+  echo "Enabling tls in symphony API server (will generate certs and seed their settings in symphony-api-margo.json)..."
+  collect_certs_info
+  generate_server_certs
+  # replace value of "tls": false, to "tls": true
+  sed -i "s|\"tls\": false|\"tls\": true|" "$HOME/symphony/api/symphony-api-margo.json"
+  echo "TLS Config is setup and seeded in symphony-api-margo.json"
+}
 
 
 observability_stack_install(){
@@ -335,7 +335,7 @@ start_symphony() {
   # Build phase
   build_maestro_cli
   # verify_symphony_api
-  # enable_tls_in_symphony_api
+  enable_tls_in_symphony_api
   start_symphony_api_container
 }
 

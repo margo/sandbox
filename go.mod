@@ -3,6 +3,7 @@ module github.com/margo/sandbox
 go 1.25.10
 
 require (
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/google/go-containerregistry v0.20.6

@@ -37,17 +37,22 @@ spec:
             - name: agent-config-volume
               mountPath: /config
               readOnly: true
-
             - name: data-volume
               mountPath: /data
-
             - name: certs
               mountPath: /certs
               readOnly: true
-
             - name: certs
               mountPath: /usr/local/share/ca-certificates/harbor.crt
               subPath: harbor.crt
+              readOnly: true
+            # --- ADDED FOR HOSTPATH MIS FOLDER ---
+            - name: mis-host-volume
+              mountPath: /config/mis
+              readOnly: true
+            - name: authorized-json-volume
+              mountPath: /config/authorized.json
+              subPath: authorized.json
               readOnly: true
 
       volumes:
@@ -66,3 +71,15 @@ spec:
         - name: certs
           secret:
             secretName: {{ include "agentchart.certsecretname" . }}
+
+        # --- ADDED FOR HOSTPATH MIS FOLDER ---
+        - name: mis-host-volume
+          hostPath:
+            path: /home/runner/sandbox/poc/device/agent/config/mis
+            type: Directory
+
+        # --- ADDED FOR INDIVIDUAL AUTHORIZED.JSON MOUNT ---
+        - name: authorized-json-volume
+          hostPath:
+            path: /home/runner/sandbox/poc/device/agent/config/authorized.json
+            type: File

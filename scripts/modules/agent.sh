@@ -281,28 +281,42 @@ build_start_device_agent_k3s_service() {
     fi
     enable_kubernetes_runtime
 
-    if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
-        echo "Creating TLS secrets..."
-        kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
-        kubectl create secret generic workload-fleet-management-client-certs \
-            --from-file=device-private.key="$HOME/certs/device-private.key" \
-            --from-file=device-public.crt="$HOME/certs/device-public.crt" \
-            --from-file=device-ecdsa.key="$HOME/certs/device-ecdsa.key" \
-            --from-file=device-ecdsa.crt="$HOME/certs/device-ecdsa.crt" \
-            --from-file=ca-cert.pem="$HOME/certs/ca-cert.pem" \
-            --from-file=harbor.crt="$HOME/certs/harbor.crt" \
-            --namespace=default
+    echo "Creating device-agent configuration secret..."
 
-        if [ $? -eq 0 ]; then
-            echo "✅ TLS secrets created successfully"
-        else
-            echo "❌ Failed to create TLS secrets"
+    local CLIENT_CONFIG="$HOME/sandbox/poc/device/agent/config"
+
+    # Validate required configuration files
+    for file in \
+        "$CLIENT_CONFIG/authorized.json" \
+        "$CLIENT_CONFIG/identity/payload-cert.pem" \
+        "$CLIENT_CONFIG/identity/payload-key.pem" \
+        "$CLIENT_CONFIG/mis/https-ca.crt" ; do
+
+        if [ ! -f "$file" ]; then
+            echo "❌ Required configuration file not found: $file"
             return 1
         fi
+    done
+
+    # Recreate the device-agent configuration secret
+    kubectl delete secret workload-fleet-management-client-certs \
+        --namespace=default 2>/dev/null || true
+
+    kubectl create secret generic workload-fleet-management-client-certs \
+        --from-file=authorized.json="$CLIENT_CONFIG/authorized.json" \
+        --from-file=payload-cert.pem="$CLIENT_CONFIG/identity/payload-cert.pem" \
+        --from-file=payload-key.pem="$CLIENT_CONFIG/identity/payload-key.pem" \
+        --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
+        --from-file=harbor.crt="$HOME/certs/harbor.crt" \
+        --namespace=default
+
+    if [ $? -eq 0 ]; then
+        echo "✅ Device-agent configuration secret created successfully"
     else
-        echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
+        echo "❌ Failed to create device-agent configuration secret"
         return 1
     fi
+
 
     echo "Cleaning up any existing resources..."
     kubectl delete clusterrole workload-fleet-management-client-role 2>/dev/null || true

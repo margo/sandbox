@@ -53,6 +53,36 @@ func TestValidateConfig(t *testing.T) {
 			wantErr: false,
 		},
 
+		// ── Rule 0: refreshHint ───────────────────────────────────────────────────
+		{
+			name: "zero refreshHint is valid",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.RefreshHint = 0
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "positive refreshHint is valid",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.RefreshHint = 500
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative refreshHint returns error",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.RefreshHint = -1
+				return cfg
+			},
+			wantErr:     true,
+			errContains: []string{"refresh hint cannot be negative"},
+		},
+
 		// ── Rule 1: trustDomain ───────────────────────────────────────────────
 		{
 			name: "empty trustDomain returns error",
@@ -309,10 +339,12 @@ func TestValidateConfig(t *testing.T) {
 		},
 
 		// ── Multiple errors collected ─────────────────────────────────────────
+		// ── Multiple errors collected ─────────────────────────────────────────
 		{
 			name: "multiple violations are all reported",
 			setup: func(t *testing.T) *Config {
 				cfg := validConfig(t)
+				cfg.RefreshHint = -10
 				cfg.TrustDomain = ""
 				cfg.Log = &LogConfig{Level: "trace"}
 				cfg.CA.Cert = ""
@@ -321,6 +353,7 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantErr: true,
 			errContains: []string{
+				"refresh hint cannot be negative",
 				"trustDomain cannot be empty",
 				`log.level "trace" is invalid`,
 				"ca.cert cannot be empty",

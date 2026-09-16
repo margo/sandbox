@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spiffe/go-spiffe/v2/bundle/spiffebundle"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
@@ -70,6 +71,10 @@ func (o *Operation) GetTrustBundle() (*spiffebundle.Bundle, error) {
 		"subject",
 		caCert.Subject.CommonName,
 	)
+	// TODO: hardcoding initial sequence number
+	// Change here when rotation is implemented.
+	bundle.SetSequenceNumber(1)
+	bundle.SetRefreshHint(time.Duration(o.refreshHint))
 
 	return bundle, nil
 }

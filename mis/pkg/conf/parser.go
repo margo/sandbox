@@ -12,6 +12,7 @@ import (
 
 type Config struct {
 	TrustDomain    string       `json:"trustDomain"`
+	RefreshHint    int64        `json:"refreshHint"`
 	Log            *LogConfig   `json:"log"`
 	TrustBundleURI string       `json:"trustBundleURI"`
 	CA             *CAConfig    `json:"ca"`
@@ -60,6 +61,10 @@ func fileExists(path string) bool {
 
 func validateConfig(cfg *Config) error {
 	var errs []error
+
+	if cfg.RefreshHint < 0 {
+		errs = append(errs, errors.New("refresh hint cannot be negative"))
+	}
 
 	// 1. trustDomain cannot be empty
 	if cfg.TrustDomain == "" {

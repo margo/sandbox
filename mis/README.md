@@ -83,6 +83,7 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
 ```json
 {
   "trustDomain": "margo.org",
+  "refreshHint": 500,
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"
@@ -105,6 +106,7 @@ MIS requires a JSON configuration file passed to the `start` command via `--conf
 | Field | Type | Description |
 |-------|------|-------------|
 | `trustDomain` | `string` | The SPIFFE trust domain for this deployment (e.g. `margo.org`). Used as the authority in SPIFFE IDs: `spiffe://<trustDomain>/...` |
+| `refreshHint` | `integer` | Hint (in seconds) indicating how frequently clients should refresh the SPIFFE trust bundle from MIS. Must be a positive integer. |
 | `trustBundleURI` | `string` | The URI path at which the SPIFFE trust bundle is served (e.g. `.well-known/spiffe/bundle.json`) |
 | `log.level` | `string` | Logging verbosity. Accepted values: `debug`, `info`, `warn`, `error` |
 | `ca.cert` | `string` | Path to the Minter CA certificate used to sign X.509 SVIDs |

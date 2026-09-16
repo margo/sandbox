@@ -58,6 +58,12 @@ const (
 // ProblemContentType is the RFC 9457 media type.
 const ProblemContentType = "application/problem+json"
 
+// FieldError represents a single field-level validation error.
+type FieldError struct {
+    Field   string `json:"field"`
+    Message string `json:"message"`
+}
+
 // ── error interface ───────────────────────────────────────────────────────────
 
 func (p *ProblemDetail) Error() string {
@@ -114,11 +120,25 @@ func NewInvalidRequest(detail, instance string) *ProblemDetail {
         WithRetryable(false).WithBackoffStrategy(None)
 }
 
-func NewSemanticError(detail, instance string) *ProblemDetail {
-    return NewProblemDetail(ProblemTypeSemanticError, "Semantic Error", http.StatusUnprocessableEntity).
+func NewSemanticError(detail, instance string, fieldErrors ...FieldError) *ProblemDetail {
+    pd := NewProblemDetail(ProblemTypeSemanticError, "Semantic Error", http.StatusUnprocessableEntity).
         WithDetail(detail).WithInstance(instance).
         WithRetryable(false).WithBackoffStrategy(None)
+    if len(fieldErrors) > 0 {
+        errs := make([]struct {
+            Field   *string `json:"field,omitempty"`
+            Message *string `json:"message,omitempty"`
+        }, len(fieldErrors))
+        for i, fe := range fieldErrors {
+            f, m := fe.Field, fe.Message
+            errs[i].Field = &f
+            errs[i].Message = &m
+        }
+        pd.Errors = &errs
+    }
+    return pd
 }
+
 
 func NewNotAuthorized(detail, instance string) *ProblemDetail {
     return NewProblemDetail(ProblemTypeNotAuthorized, "Not Authorized", http.StatusForbidden).

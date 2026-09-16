@@ -10,4 +10,5 @@ data:
   https-ca.crt: {{ .Files.Get "https-ca.crt" | b64enc | quote }}
   payload-cert.pem: {{ .Files.Get "payload-cert.pem" | b64enc | quote }}
   payload-key.pem: {{ .Files.Get "payload-key.pem" | b64enc | quote }}
+  authorized.json: {{ .Files.Get "authorized.json" | b64enc | quote }}
 {{- end }}

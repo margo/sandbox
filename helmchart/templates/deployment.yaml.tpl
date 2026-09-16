@@ -5,23 +5,29 @@ metadata:
   namespace: {{ include "agentchart.namespace" . }}
   labels:
     {{- include "agentchart.labels" . | nindent 4 }}
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app: {{ include "agentchart.podname" . }}
+
   template:
     metadata:
       labels:
         app: {{ include "agentchart.podname" . }}
+
     spec:
       serviceAccountName: {{ include "agentchart.serviceaccountname" . }}
+
       containers:
         - name: {{ include "agentchart.podname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
           command: ["/bin/sh", "-c"]
+
           args:
             - |
               update-ca-certificates
@@ -30,36 +36,59 @@ spec:
           env:
             - name: KUBERNETES_SERVICE_HOST
               value: "kubernetes.default.svc"
+
             - name: KUBERNETES_SERVICE_PORT
               value: "443"
 
           volumeMounts:
+            # ConfigMap + device-agent Secret are combined here.
             - name: agent-config-volume
               mountPath: /config
               readOnly: true
+
+            # Persistent application data.
             - name: data-volume
               mountPath: /data
+
+            # Harbor CA certificate.
             - name: certs
               mountPath: /certs
               readOnly: true
+
             - name: certs
               mountPath: /usr/local/share/ca-certificates/harbor.crt
               subPath: harbor.crt
               readOnly: true
-            # --- ADDED FOR HOSTPATH MIS FOLDER ---
-            - name: mis-host-volume
-              mountPath: /config/mis
-              readOnly: true
-            - name: authorized-json-volume
-              mountPath: /config/authorized.json
-              subPath: authorized.json
-              readOnly: true
 
       volumes:
-        - name: agent-config-volume
-          configMap:
-            name: {{ include "agentchart.configmapname" . }}
 
+        # Combine the non-sensitive ConfigMap files with the
+        # sensitive device-agent configuration Secret.
+        - name: agent-config-volume
+          projected:
+            sources:
+
+              # config.yaml and capabilities.json
+              - configMap:
+                  name: {{ include "agentchart.configmapname" . }}
+
+              # Identity, MIS and authorization files
+              - secret:
+                  name: {{ .Values.secrets.existingSecret }}
+                  items:
+                    - key: payload-cert.pem
+                      path: identity/payload-cert.pem
+
+                    - key: payload-key.pem
+                      path: identity/payload-key.pem
+
+                    - key: https-ca.crt
+                      path: mis/https-ca.crt
+
+                    - key: authorized.json
+                      path: authorized.json
+
+        # Persistent storage.
         - name: data-volume
 {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
@@ -68,18 +97,7 @@ spec:
           emptyDir: {}
 {{- end }}
 
+        # Harbor certificate Secret.
         - name: certs
           secret:
             secretName: {{ include "agentchart.certsecretname" . }}
-
-        # --- ADDED FOR HOSTPATH MIS FOLDER ---
-        - name: mis-host-volume
-          hostPath:
-            path: /home/runner/sandbox/poc/device/agent/config/mis
-            type: Directory
-
-        # --- ADDED FOR INDIVIDUAL AUTHORIZED.JSON MOUNT ---
-        - name: authorized-json-volume
-          hostPath:
-            path: /home/runner/sandbox/poc/device/agent/config/authorized.json
-            type: File

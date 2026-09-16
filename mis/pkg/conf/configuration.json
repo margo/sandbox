@@ -1,5 +1,6 @@
 {
   "trustDomain": "margo.org",
+  "refreshHint": 500,
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"

@@ -6,6 +6,7 @@ OUTPUT_FILE="$(pwd)/configuration.json"
 
 # ── Defaults ────────────────────────────────────────────────────────────────
 DEFAULT_TRUST_DOMAIN="margo.org"
+DEFAULT_REFRESH_HINT=500
 DEFAULT_TRUST_BUNDLE_URI=".well-known/spiffe/bundle.json"
 DEFAULT_LOG_LEVEL="info"
 DEFAULT_CA_CERT="./ca.crt"
@@ -32,10 +33,29 @@ prompt() {
   fi
 }
 
+prompt_int() {
+  local var_name="$1"
+  local prompt_text="$2"
+  local default="$3"
+  local example="$4"
+
+  while true; do
+    prompt "${var_name}" "${prompt_text}" "${default}" "${example}"
+    local value
+    value=$(eval echo "\$${var_name}")
+    if [[ "${value}" =~ ^[0-9]+$ ]]; then
+      break
+    else
+      echo "  ⚠️  Invalid value: must be a non-negative integer."
+    fi
+  done
+}
+
 write_config() {
   cat > "${OUTPUT_FILE}" <<EOF
 {
   "trustDomain": "${TRUST_DOMAIN}",
+  "refreshHint": ${REFRESH_HINT},
   "trustBundleURI": "${TRUST_BUNDLE_URI}",
   "log": {
     "level": "${LOG_LEVEL}"
@@ -75,6 +95,7 @@ case "${MODE}" in
   --automated)
     echo "Running in automated mode — using defaults..."
     TRUST_DOMAIN="${DEFAULT_TRUST_DOMAIN}"
+    REFRESH_HINT="${DEFAULT_REFRESH_HINT}"
     TRUST_BUNDLE_URI="${DEFAULT_TRUST_BUNDLE_URI}"
     LOG_LEVEL="${DEFAULT_LOG_LEVEL}"
     CA_CERT="${DEFAULT_CA_CERT}"
@@ -94,6 +115,11 @@ case "${MODE}" in
       "Trust Domain" \
       "${DEFAULT_TRUST_DOMAIN}" \
       "margo.org, example.org, mycompany.io"
+
+    prompt_int REFRESH_HINT \
+      "Refresh Hint (seconds)" \
+      "${DEFAULT_REFRESH_HINT}" \
+      "300, 500, 3600"
 
     prompt TRUST_BUNDLE_URI \
       "Trust Bundle URI" \

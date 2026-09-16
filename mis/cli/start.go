@@ -56,7 +56,9 @@ Examples:
 		}
 		logger := log.New(cnf.Log.Level)
 
-		fmt.Printf("printing log file here: %s", pretty.Sprint(cnf))
+		fmt.Printf("printing conf file here: %s", pretty.Sprint(cnf))
+
+		// TODO: Initiate File watcher here for Normative Server
 
 		normativeServer := https.New(cnf, logger.With("server-type", "Normative"))
 		mintServer := unix.New(cnf, logger.With("server-type", "Mint"))

@@ -58,13 +58,14 @@ type CancelFunc func()
 // itself) so that atomic replacements via `mv` / `cp` are also detected.
 // Only events that concern the target filename are forwarded.
 func New[T any](filePath string, parse ParseFunc[T], bufSize int) (CancelFunc, <-chan T, error) {
-	// cleaning the filepath first before use.
-	filePath = filepath.Clean(filePath)
 	// ── Resolve the absolute path so directory derivation is reliable ──
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("filewatcher: cannot resolve path %q: %w", filePath, err)
 	}
+
+	// cleaning the filepath first before use.
+	absPath = filepath.Clean(absPath)
 
 	// The directory that contains the target file.
 	dir := filepath.Dir(absPath)
@@ -80,7 +81,7 @@ func New[T any](filePath string, parse ParseFunc[T], bufSize int) (CancelFunc, <
 	// Watch the parent directory so that mv/cp (which change the inode)
 	// are also captured via Create / Rename events on the directory entry.
 	if err := watcher.Add(dir); err != nil {
-		watcher.Close()
+		_ = watcher.Close()
 		return nil, nil, fmt.Errorf("filewatcher: cannot watch directory %q: %w", dir, err)
 	}
 
@@ -97,8 +98,8 @@ func New[T any](filePath string, parse ParseFunc[T], bufSize int) (CancelFunc, <
 			return
 		}
 		cancelled = true
-		close(done)     // signal goroutine
-		watcher.Close() // unblock watcher.Events / watcher.Errors
+		close(done)         // signal goroutine
+		_ = watcher.Close() // unblock watcher.Events / watcher.Errors
 	}
 
 	// ── Helper: read the file and push a parsed value into ch ──────────

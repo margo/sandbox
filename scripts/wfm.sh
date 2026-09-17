@@ -71,6 +71,7 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
+  ensure_symphony_mis_dir
 
   setup_harbor
   trust_harbor_certificate
@@ -375,6 +376,15 @@ stop_symphony() {
   fi
 }
 
+ensure_symphony_mis_dir() {
+    local base_dir="${HOME}/symphony/api"
+    local mis_dir="${base_dir}/mis"
+
+    mkdir -p "${mis_dir}" || {
+        echo "Failed to create required directory: ${mis_dir}" >&2
+        return 1
+    }
+}
 
 # Update the show_menu function to include uninstall option
 show_menu() {

@@ -28,6 +28,7 @@ get_ip_from_hosts() {
         return 1
     fi
 
+
     if [[ ! "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
         echo "[ERROR] Invalid IPv4 address '${ip}' for '${hostname}'." >&2
         return 1
@@ -84,9 +85,11 @@ configure_coredns_hosts() {
 
     local harbor_host="${EXPOSED_HARBOR_HOST}"
     local symphony_host="${WFM_HOST}"
+    local mis_host="mis.margo.org"
 
     local harbor_ip
     local symphony_ip
+    local mis_host_ip
 
     local nodehosts
     local updated
@@ -104,6 +107,7 @@ configure_coredns_hosts() {
 
     harbor_ip=$(get_ip_from_hosts "$harbor_host")
     symphony_ip=$(get_ip_from_hosts "$symphony_host")
+    mis_host_ip=$(get_ip_from_hosts "$mis_host")
 
     echo "[INFO] Verifying CoreDNS ConfigMap..."
 
@@ -121,6 +125,7 @@ configure_coredns_hosts() {
 
     add_or_update_host "$harbor_ip" "$harbor_host"
     add_or_update_host "$symphony_ip" "$symphony_host"
+    add_or_update_host "$mis_host_ip" "$mis_host"
 
     updated=$(sed '/^[[:space:]]*$/d' <<<"$updated")
 

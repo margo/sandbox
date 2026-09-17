@@ -119,14 +119,18 @@ func (da *DeviceClientSettings) ReportCapabilities(
 	da.log.Infow("Starting capabilities reporting")
 	err := da.apiClient.ReportCapabilities(ctx, capabilities.Properties.Id, capabilities)
 	if err != nil {
-		da.log.Errorw(
-			"Failed to report capabilities",
-			"error",
-			err,
-		)
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			da.log.Errorw("WFM returned problem detail on capabilities report",
+				"deviceId", capabilities.Properties.Id,
+				"type", pd.Type,
+				"status", pd.Status,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			return fmt.Errorf("WFM rejected capabilities [%d] %s: %w", pd.Status, pd.Title, err)
+		}
 		return fmt.Errorf("failed to report capabilities: %w", err)
 	}
-
 	da.log.Infow("Capabilities reported successfully", "deviceClientId", capabilities.Properties.Id)
 	return nil
 }

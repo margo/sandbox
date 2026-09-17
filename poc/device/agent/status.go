@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
@@ -198,7 +199,23 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		deploymentErr,
 	)
 	if err != nil {
-		sr.log.Errorw("Failed to report status", "appId", appID, "error", err)
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			sr.log.Errorw("WFM returned problem detail on status report",
+				"appId", appID,
+				"type", pd.Type,
+				"status", pd.Status,
+				"title", pd.Title,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			// 403 — device relationship retired, stop retrying
+			if pd.Status == http.StatusForbidden {
+				sr.log.Errorw("Device not authorized — capabilities may need re-registration",
+					"appId", appID, "type", pd.Type)
+			}
+		} else {
+			sr.log.Errorw("Failed to report status", "appId", appID, "error", err)
+		}
 		return
 	}
 

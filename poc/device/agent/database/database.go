@@ -202,6 +202,13 @@ func (db *Database) GetSVID() ([]byte, []byte, error) {
 	return db.deviceSettings.ParsedMIAF.X509.CertPEM, db.deviceSettings.ParsedMIAF.X509.KeyPEM, nil
 }
 
+func (db *Database) SetAuthorizedWFMs(wfms []string) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.deviceSettings.ParsedMIAF.AuthorizedSPIFFEIDs = wfms
+}
+
 // List can be empty
 func (db *Database) GetAuthorizedWFMs() []string {
 	db.mu.RLock()

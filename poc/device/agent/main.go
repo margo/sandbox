@@ -43,6 +43,7 @@ type Agent struct {
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
 	tbCacher       TrustBundleCacherIfc
+	afWatcher      AuthFileWatcherIfc
 }
 
 func NewAgent(configPath string) (*Agent, error) {
@@ -193,6 +194,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, log)
 	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
+	afWatcher := NewAuthFileWatcher(cfg.MIAF.AuthzPath, db, log)
 
 	return &Agent{
 		database:       db,
@@ -205,6 +207,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		config:         *cfg,
 		capabilities:   capabilities,
 		tbCacher:       tbCacher,
+		afWatcher:      afWatcher,
 	}, nil
 }
 
@@ -212,6 +215,11 @@ func (a *Agent) Start() error {
 	a.log.Info("Starting Workload Fleet Management Client")
 
 	err := a.tbCacher.Start()
+	if err != nil {
+		return err
+	}
+
+	err = a.afWatcher.Start()
 	if err != nil {
 		return err
 	}
@@ -293,6 +301,7 @@ func (a *Agent) Stop() error {
 	a.deployer.Stop()
 	a.monitor.Stop()
 	a.statusReporter.Stop()
+	a.afWatcher.Stop()
 	a.database.TriggerDataPersist()
 
 	a.log.Info("Workload Fleet Management Client stopped")

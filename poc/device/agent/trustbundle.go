@@ -184,12 +184,15 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 	// the ticker loop via stopChan; we do not want a deadline here.
 	trustDomain, bundle, etag, err := getter.GetTrustBundle(context.Background(), ietag)
 	if err != nil {
-		tbc.log.Errorw("Failed to retrieve trust bundle or not modified; will retry on next tick",
-			"error", err)
+
 		if errors.Is(err, trustbundle.ErrNotModified) {
+
+			tbc.log.Warn("reusing trust bundle cache", "message", err.Error())
 			// This is not an error
 			return tbc.interval, nil
 		}
+		tbc.log.Errorw("Failed to retrieve trust bundle; will retry on next tick",
+			"error", err)
 		// Return the currently configured interval so the ticker keeps running.
 		return tbc.interval,
 			fmt.Errorf("failed to retrieve margo spiffe trust bundle, err : %w", err)

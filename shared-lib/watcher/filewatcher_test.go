@@ -25,6 +25,7 @@ func jsonParse(data []byte) (Config, error) {
 
 func writeFile(t *testing.T, path string, content []byte) {
 	t.Helper()
+	// #nosec G306 -- this is a unit test file
 	require.NoError(t, os.WriteFile(path, content, 0o644))
 }
 

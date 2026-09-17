@@ -520,15 +520,21 @@ func configureClientTLS(client *sbi.Client, tlsConfig *tls.Config) error {
 	}
 
 	// Get or create transport
+	// Keep Alives need to be disabled so that Authorized client verification happens everytime
 	var transport *http.Transport
 	if httpClient.Transport != nil {
 		if existingTransport, ok := httpClient.Transport.(*http.Transport); ok {
 			transport = existingTransport.Clone()
+			transport.DisableKeepAlives = true
 		} else {
-			transport = &http.Transport{}
+			transport = &http.Transport{
+				DisableKeepAlives: true,
+			}
 		}
 	} else {
-		transport = &http.Transport{}
+		transport = &http.Transport{
+			DisableKeepAlives: true,
+		}
 	}
 
 	// Configure TLS

@@ -89,21 +89,25 @@ func (ss *StateSyncer) performSync() {
 		currentETag,
 	)
 	if err != nil {
-		ss.log.Errorw(
-			"Sync failed",
-			"err",
-			err.Error(),
-		)
-		return
-	}
-
-	// Handle 304 Not Modified
-	if response != nil && response.StatusCode == http.StatusNotModified {
-		ss.log.Infow(
-			"Sync completed",
-			"msg",
-			"No change in desired and current states (304 Not Modified)",
-		)
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			if pd.Status == http.StatusNotModified {
+				// 304 — expected cache hit, not an error
+				ss.log.Infow("No change in desired and current states (304 Not Modified)",
+					"status", pd.Status)
+			} else {
+				// 4xx/5xx — genuine WFM error
+				ss.log.Errorw("WFM returned error response",
+					"type", pd.Type,
+					"status", pd.Status,
+					"title", pd.Title,
+					"detail", pd.Detail,
+					"retryable", pd.IsRetryable(),
+					"backoff", pd.BackoffStrategy,
+				)
+			}
+		} else {
+			ss.log.Errorw("Sync failed", "err", err.Error())
+		}
 		return
 	}
 
@@ -347,6 +351,16 @@ func (ss *StateSyncer) fetchDeploymentYAML(
 		deploymentRef.Digest,
 	)
 	if err != nil {
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			ss.log.Errorw("WFM returned problem detail fetching deployment YAML",
+				"deploymentId", deploymentRef.DeploymentId,
+				"type", pd.Type,
+				"status", pd.Status,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			return nil, fmt.Errorf("WFM error [%d] %s: %w", pd.Status, pd.Title, err)
+		}
 		return nil, fmt.Errorf("failed to fetch deployment: %w", err)
 	}
 
@@ -394,6 +408,16 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 		*bundleRef.Digest,
 	)
 	if err != nil {
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			ss.log.Errorw("WFM returned problem detail downloading bundle",
+				"digest", *bundleRef.Digest,
+				"type", pd.Type,
+				"status", pd.Status,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			return nil, fmt.Errorf("WFM error [%d] %s: %w", pd.Status, pd.Title, err)
+		}
 		return nil, fmt.Errorf("failed to download bundle: %w", err)
 	}
 

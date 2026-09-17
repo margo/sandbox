@@ -78,7 +78,7 @@ func (p *ProblemDetail) IsRetryable() bool {
 }
 
 func (p *ProblemDetail) ShouldRetry() bool {
-    return p.IsRetryable() || p.Status >= 500
+    return p.IsRetryable()
 }
 
 // ── Builder ───────────────────────────────────────────────────────────────────
@@ -179,13 +179,13 @@ func NewServerCannotGenerateResponse(detail, instance string) *ProblemDetail {
 func NewInternalError(detail, instance string) *ProblemDetail {
     return NewProblemDetail(ProblemTypeAboutBlank, "Internal Server Error", http.StatusInternalServerError).
         WithDetail(detail).WithInstance(instance).
-        WithRetryable(true).WithBackoffStrategy(Exponential)
+        WithRetryable(false).WithBackoffStrategy(None)
 }
 
 func NewServiceUnavailable(detail, instance string) *ProblemDetail {
     return NewProblemDetail(ProblemTypeAboutBlank, "Service Unavailable", http.StatusServiceUnavailable).
         WithDetail(detail).WithInstance(instance).
-        WithRetryable(true).WithBackoffStrategy(Exponential)
+        WithRetryable(false).WithBackoffStrategy(None)
 }
 
 func NewConflict(detail, instance string) *ProblemDetail {

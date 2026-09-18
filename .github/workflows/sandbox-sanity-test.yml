@@ -60,7 +60,8 @@ jobs:
       MIS_IMAGE_REF: "mis:ci-test"
       MIS_CERTS_DIR: "/home/runner/mis-deployment/certs"
       MIS_DEPLOY_DIR: "/home/runner/mis-deployment"
-      SVID_WORK_DIR: "/home/runner/sandbox/scripts/lib/mis"
+      SANDBOX_DIR: "/home/runner/sandbox"
+      SVID_DIR: "/home/runner/sandbox/scripts/lib/mis"
 
       # Principal IDs. svid-gen.sh builds SPIFFE IDs as:
       #   WFM     : spiffe://<trust-domain>/margo/wfm/<wfm-id>
@@ -198,20 +199,15 @@ jobs:
           sudo chown -R $USER:$USER $HOME/.docker/buildx 2>/dev/null || true
           echo "✅ Docker permissions fixed"
 
-      - name: Build Images in Parallel
+      # Symphony is deliberately NOT built here. Its image bakes in the api/ tree,
+      # so ./mis/https-ca.crt, ./mis/authorized-clients.json and ./certificates/payload-*.pem
+      # must exist on disk before the build - and those depend on MIS being up.
+      # Build order: MIS + client -> root CAs -> MIS start -> SVIDs -> stage files -> build Symphony.
+      - name: Build MIS and WFM-Client Images in Parallel
         run: |
           echo "🔨 Building fresh images"
           (
-            cd "$HOME/symphony"
-            DOCKER_BUILDKIT=1 docker build \
-              --no-cache \
-              --tag symphony-api:ci-test \
-              --file api/Dockerfile .
-          ) &
-          SYMPHONY_PID=$!
-
-          (
-            cd "$HOME/sandbox"
+            cd "${SANDBOX_DIR}"
             DOCKER_BUILDKIT=1 docker build \
               --no-cache \
               --tag workload-fleet-management-client:ci-test \
@@ -220,15 +216,14 @@ jobs:
           CLIENT_PID=$!
 
           (
-            cd "$HOME/sandbox/mis"
+            cd "${SANDBOX_DIR}/mis"
             make container IMAGE_NAME=mis IMAGE_TAG=ci-test
           ) &
           MIS_PID=$!
 
-          wait $SYMPHONY_PID || exit 1
-          wait $CLIENT_PID   || exit 1
-          wait $MIS_PID      || exit 1
-          echo "✅ All images built successfully"
+          wait $CLIENT_PID || exit 1
+          wait $MIS_PID    || exit 1
+          echo "✅ MIS and WFM-Client images built successfully"
 
           # Import WFM-Client into K3s
           docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
@@ -279,6 +274,7 @@ jobs:
         working-directory: /home/runner/sandbox/scripts/lib/mis
         run: |
           set -euo pipefail
+          chmod +x ./svid-gen.sh
 
           echo "🪪 WFM SVID"
           sudo -E bash ./svid-gen.sh --automated \
@@ -323,8 +319,8 @@ jobs:
           sudo mkdir -p "$MIS_DIR" "$CERT_DIR"
 
           echo "📥 WFM SVID -> $CERT_DIR"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm/payload-cert.pem" "$CERT_DIR/"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm/payload-key.pem"  "$CERT_DIR/"
+          sudo cp "${SVID_DIR}/x509svid-wfm/payload-cert.pem" "$CERT_DIR/"
+          sudo cp "${SVID_DIR}/x509svid-wfm/payload-key.pem"  "$CERT_DIR/"
 
           echo "📥 MIS HTTPS Root CA -> $MIS_DIR"
           sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$MIS_DIR/"
@@ -358,6 +354,39 @@ jobs:
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
           sudo ls -la "$MIS_DIR" "$CERT_DIR"
+
+          # The build below runs as the runner user and must be able to read these.
+          sudo chown -R $USER:$USER "$MIS_DIR" "$CERT_DIR"
+
+      - name: Build Symphony Image
+        run: |
+          set -euo pipefail
+          echo "🔨 Building Symphony with MIAF identity material already in api/"
+          ls -la "$HOME/symphony/api/mis" "$HOME/symphony/api/certificates"
+
+          # .dockerignore can silently drop these paths from the build context.
+          if [ -f "$HOME/symphony/.dockerignore" ]; then
+            echo "📄 .dockerignore:"
+            cat "$HOME/symphony/.dockerignore"
+          fi
+
+          cd "$HOME/symphony"
+          DOCKER_BUILDKIT=1 docker build \
+            --no-cache \
+            --tag symphony-api:ci-test \
+            --file api/Dockerfile .
+
+          echo "🔍 Verifying the identity material landed in the image..."
+          WORKDIR=$(docker image inspect symphony-api:ci-test --format '{{.Config.WorkingDir}}')
+          echo "Image WorkingDir: ${WORKDIR:-/}"
+          docker run --rm --entrypoint sh symphony-api:ci-test -c \
+            'ls -la ./mis ./certificates' || {
+              echo "❌ ./mis or ./certificates missing inside the image."
+              echo "   Either api/Dockerfile does not COPY them, or .dockerignore excludes them."
+              echo "   If Symphony instead expects these bind-mounted at runtime, mount them in wfm.sh start."
+              exit 1
+            }
+          echo "✅ MIAF material present in the Symphony image"
 
       - name: Start WFM
         timeout-minutes: 5
@@ -404,7 +433,7 @@ jobs:
           echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
 
           # Trust Harbor CA certificate first
-          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+          HARBOR_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           if [ -f "$HARBOR_CERT" ]; then
             sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
             sudo update-ca-certificates
@@ -424,7 +453,7 @@ jobs:
 
       - name: Copy CA certs (Harbor + MIS HTTPS Root CA)
         run: |
-          Harbor_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+          Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
           cp "$Harbor_CERT" "$HOME/certs/"
           sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$HOME/certs/"
@@ -495,12 +524,12 @@ jobs:
           set -euo pipefail
           sudo -E bash ./device-agent.sh k3s install
 
-          CONFIG_DIR="$HOME/sandbox/poc/device/agent/config"
+          CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
           sudo mkdir -p "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
 
           echo "📥 Helm-capable client SVID -> $CONFIG_DIR/identity"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm-helm-client/payload-cert.pem" "$CONFIG_DIR/identity/"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm-helm-client/payload-key.pem"  "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-cert.pem" "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-key.pem"  "$CONFIG_DIR/identity/"
           sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                              "$CONFIG_DIR/mis/"
 
           echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
@@ -549,11 +578,11 @@ jobs:
         working-directory: scripts
         run: |
           set -euo pipefail
-          CONFIG_DIR="$HOME/sandbox/poc/device/agent/config"
+          CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
 
           echo "📥 Compose-capable client SVID -> $CONFIG_DIR/identity"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm-docker-client/payload-cert.pem" "$CONFIG_DIR/identity/"
-          sudo cp "${SVID_WORK_DIR}/x509svid-wfm-docker-client/payload-key.pem"  "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-cert.pem" "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-key.pem"  "$CONFIG_DIR/identity/"
           sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                                "$CONFIG_DIR/mis/"
           # authorized.json (WFM SPIFFE ID) was written in the K3s setup step and is shared.
           sudo cat "$CONFIG_DIR/authorized.json"
@@ -708,13 +737,13 @@ jobs:
           echo "Symphony authorized-clients.json:"
           sudo cat "$HOME/symphony/api/mis/authorized-clients.json" 2>&1 || echo "not present"
           echo "Device agent authorized.json:"
-          sudo cat "$HOME/sandbox/poc/device/agent/config/authorized.json" 2>&1 || echo "not present"
+          sudo cat "${SANDBOX_DIR}/poc/device/agent/config/authorized.json" 2>&1 || echo "not present"
           echo "Cached trust bundle:"
           sudo cat "$HOME/symphony/api/mis/trust-bundle.json" 2>&1 | head -c 500 || echo "not present"
           echo ""
           for d in x509svid-wfm x509svid-wfm-helm-client x509svid-wfm-docker-client; do
             echo "--- $d ---"
-            sudo openssl x509 -in "${SVID_WORK_DIR}/$d/payload-cert.pem" -noout -subject -dates -ext subjectAltName 2>&1 \
+            sudo openssl x509 -in "${SVID_DIR}/$d/payload-cert.pem" -noout -subject -dates -ext subjectAltName 2>&1 \
               || echo "⚠️ SVID $d not available"
           done
 
@@ -883,5 +912,5 @@ jobs:
         run: |
           echo "🗑️ Stopping Margo Identity Service"
           sudo -E bash ./mis.sh mis-uninstall || echo "⚠️ mis.sh mis-uninstall failed or not required"
-          sudo rm -rf "${SVID_WORK_DIR}"/x509svid-* || true
+          sudo rm -rf "${SVID_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

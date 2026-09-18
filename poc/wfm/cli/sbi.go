@@ -184,6 +184,7 @@ func (sbiClient *SbiHttpClient) SyncStateWithResponse(
 func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	ctx context.Context,
 	appID string,
+	adoptedManifestVersion uint64,
 	overallAppStatus sbi.DeploymentStatusManifestStatusState,
 	components []sbi.ComponentStatus,
 	deploymentErr error,
@@ -212,8 +213,9 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	}
 
 	deploymentStatus := sbi.DeploymentStatusManifest{
-		Components:   components,
-		DeploymentId: appUUID.String(),
+		Components:             components,
+		DeploymentId:           appUUID.String(),
+		AdoptedManifestVersion: sbi.ManifestVersion(adoptedManifestVersion),
 		Status: struct {
 			Error *struct {
 				Code    *string "json:\"code,omitempty\""

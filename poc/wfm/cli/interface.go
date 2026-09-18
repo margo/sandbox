@@ -40,6 +40,7 @@ type SBIAPIClientInterface interface {
 	ReportDeploymentStatus(
 		ctx context.Context,
 		appID string,
+		adoptedManifestVersion uint64,
 		overallAppStatus sbi.DeploymentStatusManifestStatusState,
 		components []sbi.ComponentStatus,
 		err error,

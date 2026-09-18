@@ -165,9 +165,13 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 
 	adoptedVersion, err := sr.database.GetAdoptedManifestVersion(appID)
 	if err != nil {
-		sr.log.Warnw("Could not get adopted manifest version, defaulting to 0",
-			"appId", appID, "error", err)
-		adoptedVersion = 0
+		// Record may already be deleted (e.g. REMOVED state) — use snapshot from record
+		adoptedVersion = record.AdoptedManifestVersion
+		sr.log.Debugw("Using snapshot adopted manifest version from record",
+			"appId", appID,
+			"adoptedManifestVersion", adoptedVersion,
+			"error", err,
+		)
 	}
 	// Add defensive logging
 	sr.log.Debugw("Reporting status",

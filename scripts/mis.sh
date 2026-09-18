@@ -215,6 +215,7 @@ invoke_pki_gen() {
 # ----------------------------
 install_mis() {
   # TODO: Add Github CI related changes here
+  
 
   # If it is not Github CI then: 
   setup_mis_deployment
@@ -306,7 +307,8 @@ start_mis_deployment() {
         return 1
     fi
 
-    export mis_IMAGE_REF="${mis_IMAGE_REF}"
+    setup_mis_image || return 1
+    
     echo "[INFO] Starting Margo Identity Service Docker Container"
     if ! docker compose -f docker-compose.yaml up -d; then
         echo "[ERROR] 'docker compose up -d' failed. Check Docker logs for details."
@@ -314,6 +316,23 @@ start_mis_deployment() {
     fi
 
     echo "[INFO] Margo Identity Service started successfully."
+}
+
+setup_mis_image() {
+    if [[ "${CI:-false}" == "true" ]]; then
+        echo "🔧 CI mode: Using locally built MIS image"
+        export mis_IMAGE_REF="mis:ci-test"
+
+        if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${mis_IMAGE_REF}$"; then
+            echo "❌ Local CI image not found: ${mis_IMAGE_REF}"
+            return 1
+        fi
+
+        echo "✅ Local CI image found: ${mis_IMAGE_REF}"
+    else
+        export mis_IMAGE_REF="${mis_IMAGE_REF}"
+        echo "📦 Using GHCR image: ${mis_IMAGE_REF}"
+    fi
 }
 
 

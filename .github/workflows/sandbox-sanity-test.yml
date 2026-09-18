@@ -241,7 +241,7 @@ jobs:
         working-directory: scripts
         run: |
           echo "🔐 Generating HTTPS Root CA + server cert and SVID Root CA"
-          sudo -E bash ./mis.sh generate-root-ca
+          sudo -E bash ./mis.sh setup-factory
 
           echo "Verifying generated PKI in ${MIS_CERTS_DIR}"
           for f in https-ca.crt https-ca.key https-server.crt https-server.key ca.crt ca.key; do
@@ -255,7 +255,7 @@ jobs:
         run: |
           echo "Starting MIS with locally built image..."
           export MIS_IMAGE_REF="${MIS_IMAGE_REF}"
-          sudo -E bash ./mis.sh start
+          sudo -E bash ./mis.sh mis-install
 
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do
@@ -283,7 +283,6 @@ jobs:
         working-directory: /home/runner/sandbox/scripts/lib/mis
         run: |
           set -euo pipefail
-          chmod +x ./svid-gen.sh
 
           echo "🪪 WFM SVID"
           sudo -E bash ./svid-gen.sh --automated \
@@ -911,6 +910,6 @@ jobs:
         working-directory: scripts
         run: |
           echo "🗑️ Stopping Margo Identity Service"
-          sudo -E bash ./mis.sh stop || echo "⚠️ mis.sh stop failed or not required"
+          sudo -E bash ./mis.sh mis-uninstall || echo "⚠️ mis.sh mis-uninstall failed or not required"
           sudo rm -rf "${SVID_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

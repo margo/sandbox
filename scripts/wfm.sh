@@ -162,7 +162,7 @@ observability_stack_uninstall(){
 }
 
 manage_spiffe_ids() {
-  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH"
+  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfmclient"
 }
 
 # ----------------------------

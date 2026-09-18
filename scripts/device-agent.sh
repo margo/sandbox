@@ -266,7 +266,7 @@ pause() {
 }
 
 manage_spiffe_ids() {
-  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH"
+  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
 }
 
 ensure_identity_and_mis_dirs() {

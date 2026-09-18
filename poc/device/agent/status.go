@@ -101,26 +101,18 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 	// Allow reporting failures even without current state
 	// If phase is FAILED but no current state, create one from desired state
 	if record.CurrentState == nil {
+
 		if record.Phase == "FAILED" && record.DesiredState != nil {
 			sr.log.Infow("Creating current state for failed deployment", "appId", appID)
-
 			// Create failed current state from desired state
 			failedState := *record.DesiredState
 			failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
-
 			// This will trigger another status report via the subscriber
 			sr.database.SetCurrentState(appID, failedState)
 			return
 		}
-
 		// For non-failed states, skip reporting
-		sr.log.Debugw(
-			"Skipping status report - no current state yet",
-			"appId",
-			appID,
-			"phase",
-			record.Phase,
-		)
+		sr.log.Debugw("Skipping status report - no current state yet", "appId", appID, "phase", record.Phase)
 		return
 	}
 
@@ -136,10 +128,9 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		components = []sbi.ComponentStatus{}
 	}
 
-	// Derive overall deployment state from component states per the Margo spec.
+	// Derive overall deployment state
 	// Precedence: failed > removing > installing > pending > removed > installed
 	deploymentState := deriveOverallState(record.ComponentViseStatus)
-
 	// If no components have been tracked yet, fall back to the internal phase
 	if len(record.ComponentViseStatus) == 0 {
 		switch record.Phase {
@@ -156,29 +147,29 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		case "REMOVED", "removed":
 			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
 		default:
-			sr.log.Warnw(
-				"Unknown deployment phase, defaulting to PENDING",
-				"appId",
-				appID,
-				"phase",
-				record.Phase,
-			)
+			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING", "appId", appID, "phase", record.Phase)
 			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
 		}
 	}
 
-	// Propagate error information when the deployment has failed
 	var deploymentErr error
 	if deploymentState == sbi.DeploymentStatusManifestStatusStateFailed && record.Message != "" {
 		deploymentErr = fmt.Errorf("%s", record.Message)
 	}
 
+	adoptedVersion, err := sr.database.GetAdoptedManifestVersion(appID)
+	if err != nil {
+		sr.log.Warnw("Could not get adopted manifest version, defaulting to 0",
+			"appId", appID, "error", err)
+		adoptedVersion = 0
+	}
 	// Add defensive logging
 	sr.log.Debugw("Reporting status",
 		"appId", appID,
 		"phase", record.Phase,
 		"state", deploymentState,
-		"componentCount", len(components))
+		"componentCount", len(components),
+		"adoptedManifestVersion", adoptedVersion)
 
 	// Report deployment status with error recovery
 	defer func() {
@@ -191,14 +182,16 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		}
 	}()
 
-	err := sr.apiClient.ReportDeploymentStatus(
+	err = sr.apiClient.ReportDeploymentStatus(
 		ctx,
 		appID,
+		adoptedVersion,
 		deploymentState,
 		components,
 		deploymentErr,
 	)
 	if err != nil {
+
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			sr.log.Errorw("WFM returned problem detail on status report",
 				"appId", appID,
@@ -219,15 +212,11 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		return
 	}
 
-	sr.log.Infow(
-		"Status reported successfully",
-		"appId",
-		appID,
-		"phase",
-		record.Phase,
-		"state",
-		deploymentState,
-	)
+	sr.log.Infow("Status reported successfully",
+		"appId", appID,
+		"phase", record.Phase,
+		"state", deploymentState,
+		"adoptedManifestVersion", adoptedVersion)
 }
 
 // deriveOverallState computes the overall deployment state from component states

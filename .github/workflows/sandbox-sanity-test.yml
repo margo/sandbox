@@ -241,7 +241,7 @@ jobs:
         working-directory: scripts
         run: |
           echo "🔐 Generating HTTPS Root CA + server cert and SVID Root CA"
-          sudo -E bash ./mis.sh setup-factory
+          sudo -E bash ./mis.sh generate-root-ca
 
           echo "Verifying generated PKI in ${MIS_CERTS_DIR}"
           for f in https-ca.crt https-ca.key https-server.crt https-server.key ca.crt ca.key; do
@@ -255,7 +255,7 @@ jobs:
         run: |
           echo "Starting MIS with locally built image..."
           export MIS_IMAGE_REF="${MIS_IMAGE_REF}"
-          sudo -E bash ./mis.sh mis-install
+          sudo -E bash ./mis.sh start
 
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do
@@ -283,6 +283,7 @@ jobs:
         working-directory: /home/runner/sandbox/scripts/lib/mis
         run: |
           set -euo pipefail
+          chmod +x ./svid-gen.sh
 
           echo "🪪 WFM SVID"
           sudo -E bash ./svid-gen.sh --automated \
@@ -335,28 +336,20 @@ jobs:
 
           echo "📝 Authorizing both device client SPIFFE IDs on the SBI binding"
           AUTHZ="$MIS_DIR/authorized-clients.json"
+          # Confirmed via Symphony's own error message: miaf.authzPath unmarshals into []string,
+          # i.e. a bare JSON array of SPIFFE ID strings - not an object with a wrapper key.
+          EXISTING="[]"
           if sudo test -f "$AUTHZ"; then
-            # Preserve whatever shape the repo ships and append the two client IDs.
             sudo cp "$AUTHZ" /tmp/authz-existing.json
             sudo chown $USER:$USER /tmp/authz-existing.json
             if jq -e 'type == "array"' /tmp/authz-existing.json >/dev/null 2>&1; then
-              jq --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
-                '. + [$h, $d] | unique' /tmp/authz-existing.json > /tmp/authz.json
+              EXISTING=$(cat /tmp/authz-existing.json)
             else
-              KEY=$(jq -r 'to_entries | map(select(.value | type == "array")) | .[0].key // empty' /tmp/authz-existing.json)
-              if [ -n "$KEY" ]; then
-                jq --arg k "$KEY" --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
-                  '.[$k] = ((.[$k] + [$h, $d]) | unique)' /tmp/authz-existing.json > /tmp/authz.json
-              else
-                echo "⚠️ Unrecognised authorized-clients.json shape; overwriting with default"
-                jq -n --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
-                  '{authorizedClients: [$h, $d]}' > /tmp/authz.json
-              fi
+              echo "⚠️ Existing authorized-clients.json isn't a JSON array; ignoring its contents"
             fi
-          else
-            jq -n --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
-              '{authorizedClients: [$h, $d]}' > /tmp/authz.json
           fi
+          echo "$EXISTING" | jq --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
+            '. + [$h, $d] | unique' > /tmp/authz.json
           sudo cp /tmp/authz.json "$AUTHZ"
 
           # wfm.sh mounts the WHOLE api/ dir as one bind mount into the container
@@ -399,6 +392,10 @@ jobs:
           sleep 3
           echo "Symphony container status after patching + restart:"
           docker ps -a --filter "name=symphony-api-container" --format "table {{.Names}}\t{{.Status}}"
+
+          echo "📄 authorized-clients.json as it actually sits inside the container (not the host copy):"
+          docker exec symphony-api-container cat /mis/authorized-clients.json 2>&1 || \
+            echo "⚠️ Could not read it back from the container - restart may still be in progress"
 
           echo "⏳ Waiting for Symphony's internal API (port ${SYMPHONY_INTERNAL_PORT}) to be ready..."
           echo "(This is just a generic liveness check - sandbox tooling itself uses port ${EXPOSED_SYMPHONY_PORT} for both NBI and SBI/agent traffic)"
@@ -542,24 +539,19 @@ jobs:
 
           echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
           AUTHZ="$CONFIG_DIR/authorized.json"
+          # Same []string schema as Symphony's authorized-clients.json (confirmed via its
+          # unmarshal error) - a bare JSON array, not an object with a wrapper key.
+          EXISTING="[]"
           if sudo test -f "$AUTHZ"; then
             sudo cp "$AUTHZ" /tmp/dev-authz-existing.json
             sudo chown $USER:$USER /tmp/dev-authz-existing.json
             if jq -e 'type == "array"' /tmp/dev-authz-existing.json >/dev/null 2>&1; then
-              jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' /tmp/dev-authz-existing.json > /tmp/dev-authz.json
+              EXISTING=$(cat /tmp/dev-authz-existing.json)
             else
-              KEY=$(jq -r 'to_entries | map(select(.value | type == "array")) | .[0].key // empty' /tmp/dev-authz-existing.json)
-              if [ -n "$KEY" ]; then
-                jq --arg k "$KEY" --arg w "${WFM_SPIFFE_ID}" \
-                  '.[$k] = ((.[$k] + [$w]) | unique)' /tmp/dev-authz-existing.json > /tmp/dev-authz.json
-              else
-                echo "⚠️ Unrecognised authorized.json shape; overwriting with default"
-                jq -n --arg w "${WFM_SPIFFE_ID}" '{authorized: [$w]}' > /tmp/dev-authz.json
-              fi
+              echo "⚠️ Existing authorized.json isn't a JSON array; ignoring its contents"
             fi
-          else
-            jq -n --arg w "${WFM_SPIFFE_ID}" '{authorized: [$w]}' > /tmp/dev-authz.json
           fi
+          echo "$EXISTING" | jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' > /tmp/dev-authz.json
           sudo cp /tmp/dev-authz.json "$AUTHZ"
 
           echo "📄 $AUTHZ:"
@@ -919,6 +911,6 @@ jobs:
         working-directory: scripts
         run: |
           echo "🗑️ Stopping Margo Identity Service"
-          sudo -E bash ./mis.sh mis-uninstall || echo "⚠️ mis.sh mis-uninstall failed or not required"
+          sudo -E bash ./mis.sh stop || echo "⚠️ mis.sh stop failed or not required"
           sudo rm -rf "${SVID_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

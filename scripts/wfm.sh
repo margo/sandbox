@@ -74,7 +74,7 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
-  ensure_symphony_mis_dir
+  create_symphony_api_dirs                  
 
   setup_harbor
   trust_harbor_certificate
@@ -88,6 +88,29 @@ install_prerequisites() {
   push_nextcloud_compose_to_oci
   echo "✅ Setup completed!"
   echo "-----------------------------------------------------------------------"
+
+  echo ""
+  echo "======================================================================="
+  echo "⚠️  MANUAL STEPS REQUIRED BEFORE STARTING SYMPHONY"
+  echo "======================================================================="
+  echo ""
+  echo "  Complete the following steps before proceeding to Symphony setup:"
+  echo ""
+  echo "  1️⃣  Place your WFM SVID & Key in:"
+  echo "       📁 ${HOME}/symphony/api/certificates/"
+  echo "       (copy files as-is, no renaming needed)"
+  echo ""
+  echo "  2️⃣  Place the MIS HTTPS CA certificate in:"
+  echo "       📄 ${HOME}/symphony/api/https-ca.crt"
+  echo ""
+  echo "  3️⃣  Register SPIFFE IDs of all WFM Clients that will interact"
+  echo "       with this WFM instance."
+  echo "       → Use menu option 7) Manage SPIFFE ID allowlist"
+  echo ""
+  echo "  Once all steps above are complete, proceed to:"
+  echo "  ▶️   Menu option 3) Symphony: Start"
+  echo ""
+  echo "======================================================================="
 }
 
 install_basic_utilities() {
@@ -383,14 +406,16 @@ stop_symphony() {
   fi
 }
 
-ensure_symphony_mis_dir() {
+create_symphony_api_dirs() {
     local base_dir="${HOME}/symphony/api"
-    local mis_dir="${base_dir}/mis"
 
-    mkdir -p "${mis_dir}" || {
-        echo "Failed to create required directory: ${mis_dir}" >&2
-        return 1
-    }
+    for dir in mis certificates; do
+        mkdir -p "${base_dir}/${dir}" || {
+            echo "❌ Failed to create required directory: ${base_dir}/${dir}" >&2
+            return 1
+        }
+        echo "✅ Created directory: ${base_dir}/${dir}"
+    done
 }
 
 # Update the show_menu function to include uninstall option

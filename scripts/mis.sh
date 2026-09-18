@@ -395,7 +395,7 @@ else
   case "$1" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;
-    setup-factory) setup_initial_trust ;;
+    setup-factory) setup_factory ;;
     mis-install) install_mis ;;
     mis-uninstall) uninstall_mis ;;
     *)

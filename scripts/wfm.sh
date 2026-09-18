@@ -41,6 +41,8 @@ SYMPHONY_IMAGE="margo-symphony-api"
 SYMPHONY_TAG="latest"
 SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
 SYMPHONY_IMAGE_REF="${SYMPHONY_IMAGE_REF:-${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}}"
+SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/authorized-clients.json"}"
+
 
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -58,6 +60,7 @@ source "${SCRIPT_DIR}/modules/certificates.sh"
 source "${SCRIPT_DIR}/modules/symphony.sh"
 source "${SCRIPT_DIR}/modules/observability.sh"
 source "${SCRIPT_DIR}/modules/packages.sh"
+source "${SCRIPT_DIR}/modules/manage-spiffe-ids.sh"
 
 
 # Main orchestration
@@ -156,6 +159,10 @@ observability_stack_uninstall(){
     rm -f prometheus-values.yaml loki-values.yaml
 
     echo "Observability stack uninstall completed"
+}
+
+manage_spiffe_ids() {
+  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH"
 }
 
 # ----------------------------
@@ -397,7 +404,8 @@ show_menu() {
   echo "4) Symphony: Stop"
   echo "5) ObservabilityStack: Start"
   echo "6) ObservabilityStack: Stop"
-  echo "7) Exit"
+  echo "7) Manage SPIFFE ID allowlist"
+  echo "8) Exit"
   read -p "Enter choice [1-7]: " choice
   case $choice in
     1) install_prerequisites ;;
@@ -406,7 +414,8 @@ show_menu() {
     4) stop_symphony ;;
     5) observability_stack_install ;;
     6) observability_stack_uninstall ;;
-    7) echo "👋 Goodbye!"; exit 0 ;;
+    7) manage_spiffe_ids ;;
+    8) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
 
@@ -433,8 +442,9 @@ else
     stop) stop_symphony ;;
     obs-install) observability_stack_install ;;
     obs-uninstall) observability_stack_uninstall ;;
+    manage-spiffe-ids) manage_spiffe_ids ;;
     *)
-      echo "Usage: $0 {install|uninstall|start|stop|obs-install|obs-uninstall}"
+      echo "Usage: $0 {install|uninstall|start|stop|obs-install|obs-uninstall|manage-spiffe-ids}"
       exit 1
       ;;
   esac

@@ -199,13 +199,18 @@ jobs:
           sudo chown -R $USER:$USER $HOME/.docker/buildx 2>/dev/null || true
           echo "✅ Docker permissions fixed"
 
-      # Symphony is deliberately NOT built here. Its image bakes in the api/ tree,
-      # so ./mis/https-ca.crt, ./mis/authorized-clients.json and ./certificates/payload-*.pem
-      # must exist on disk before the build - and those depend on MIS being up.
-      # Build order: MIS + client -> root CAs -> MIS start -> SVIDs -> stage files -> build Symphony.
-      - name: Build MIS and WFM-Client Images in Parallel
+      - name: Build Images in Parallel
         run: |
           echo "🔨 Building fresh images"
+          (
+            cd "$HOME/symphony"
+            DOCKER_BUILDKIT=1 docker build \
+              --no-cache \
+              --tag symphony-api:ci-test \
+              --file api/Dockerfile .
+          ) &
+          SYMPHONY_PID=$!
+
           (
             cd "${SANDBOX_DIR}"
             DOCKER_BUILDKIT=1 docker build \
@@ -221,9 +226,10 @@ jobs:
           ) &
           MIS_PID=$!
 
-          wait $CLIENT_PID || exit 1
-          wait $MIS_PID    || exit 1
-          echo "✅ MIS and WFM-Client images built successfully"
+          wait $SYMPHONY_PID || exit 1
+          wait $CLIENT_PID   || exit 1
+          wait $MIS_PID      || exit 1
+          echo "✅ All images built successfully"
 
           # Import WFM-Client into K3s
           docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
@@ -250,9 +256,8 @@ jobs:
 
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do
-            if curl -k -s --cacert /dev/null \
-                 "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" >/dev/null 2>&1 \
-               || curl -k -s "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" >/dev/null 2>&1; then
+            if curl -k -s -H "Accept: application/json" \
+                 "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" >/dev/null 2>&1; then
               echo "✅ MIS trust bundle endpoint is serving"
               break
             fi
@@ -261,7 +266,8 @@ jobs:
           done
 
           echo "Trust bundle response:"
-          curl -k -s "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" | head -c 500 || true
+          curl -k -s -H "Accept: application/json" \
+            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" | head -c 500 || true
           echo ""
           docker ps --filter "name=margo-identity-service" \
             --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
@@ -354,39 +360,6 @@ jobs:
           sudo cat "$AUTHZ"
           sudo ls -la "$MIS_DIR" "$CERT_DIR"
 
-          # The build below runs as the runner user and must be able to read these.
-          sudo chown -R $USER:$USER "$MIS_DIR" "$CERT_DIR"
-
-      - name: Build Symphony Image
-        run: |
-          set -euo pipefail
-          echo "🔨 Building Symphony with MIAF identity material already in api/"
-          ls -la "$HOME/symphony/api/mis" "$HOME/symphony/api/certificates"
-
-          # .dockerignore can silently drop these paths from the build context.
-          if [ -f "$HOME/symphony/.dockerignore" ]; then
-            echo "📄 .dockerignore:"
-            cat "$HOME/symphony/.dockerignore"
-          fi
-
-          cd "$HOME/symphony"
-          DOCKER_BUILDKIT=1 docker build \
-            --no-cache \
-            --tag symphony-api:ci-test \
-            --file api/Dockerfile .
-
-          echo "🔍 Verifying the identity material landed in the image..."
-          WORKDIR=$(docker image inspect symphony-api:ci-test --format '{{.Config.WorkingDir}}')
-          echo "Image WorkingDir: ${WORKDIR:-/}"
-          docker run --rm --entrypoint sh symphony-api:ci-test -c \
-            'ls -la ./mis ./certificates' || {
-              echo "❌ ./mis or ./certificates missing inside the image."
-              echo "   Either api/Dockerfile does not COPY them, or .dockerignore excludes them."
-              echo "   If Symphony instead expects these bind-mounted at runtime, mount them in wfm.sh start."
-              exit 1
-            }
-          echo "✅ MIAF material present in the Symphony image"
-
       - name: Start WFM
         timeout-minutes: 5
         working-directory: scripts
@@ -394,6 +367,27 @@ jobs:
           echo "Starting Symphony with locally built image..."
           export SYMPHONY_IMAGE_REF="symphony-api:ci-test"
           sudo -E bash ./wfm.sh start
+
+          echo "🔍 Verifying MIAF identity material is visible inside the running container..."
+          echo "(Symphony's WorkingDir is / so ./mis and ./certificates resolve to /mis and /certificates)"
+          for i in {1..20}; do
+            if docker exec symphony-api-container ls /mis /certificates >/dev/null 2>&1; then
+              echo "✅ /mis and /certificates are present in the container"
+              docker exec symphony-api-container ls -la /mis /certificates
+              break
+            fi
+            if [ $i -eq 20 ]; then
+              echo "❌ /mis or /certificates not found inside symphony-api-container."
+              echo "   The Dockerfile does not COPY these (confirmed - only /dist, /extensions and the"
+              echo "   two symphony-api*.json files are baked in), so they must be bind-mounted by"
+              echo "   wfm.sh start / its docker-compose file. Check that it mounts:"
+              echo "     $HOME/symphony/api/mis          -> /mis"
+              echo "     $HOME/symphony/api/certificates -> /certificates"
+              docker inspect symphony-api-container --format '{{ json .Mounts }}' 2>&1 | jq . || true
+              exit 1
+            fi
+            sleep 1
+          done
 
           echo "⏳ Waiting for Symphony NBI (port ${SYMPHONY_NBI_PORT}) to be ready..."
           for i in {1..40}; do

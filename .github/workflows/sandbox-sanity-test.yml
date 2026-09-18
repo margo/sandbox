@@ -883,6 +883,6 @@ jobs:
         working-directory: scripts
         run: |
           echo "🗑️ Stopping Margo Identity Service"
-          sudo -E bash ./mis.sh stop || echo "⚠️ mis.sh stop failed or not required"
+          sudo -E bash ./mis.sh mis-uninstall || echo "⚠️ mis.sh mis-uninstall failed or not required"
           sudo rm -rf "${SVID_WORK_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

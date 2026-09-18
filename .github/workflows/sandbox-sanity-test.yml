@@ -38,8 +38,10 @@ jobs:
       EXPOSED_HARBOR_PORT: 8443
       # Sandbox side talks to the SBI / Margo Management Interface binding (mTLS, port 8084).
       EXPOSED_SYMPHONY_PORT: 8084
-      # Symphony's own NBI binding (TLS, port 8082) - used by wfm-cli / Maestro only.
-      SYMPHONY_NBI_PORT: 8082
+      # Symphony's own internal HTTP port (TLS, plain Symphony API - health, generic
+      # catalog/solution CRUD). Sandbox tooling (wfm-cli, device-agent) does NOT talk to
+      # this port; it's only used here for a basic Symphony liveness check.
+      SYMPHONY_INTERNAL_PORT: 8082
       # MIS HTTPS normative server, per symphony-api-margo.json: https://mis.margo.org:9443
       EXPOSED_MIS_PORT: 9443
 
@@ -133,7 +135,7 @@ jobs:
           EXPOSED_HARBOR_HOST=harbor.machine
           EXPOSED_SYMPHONY_HOST=symphony.machine
           EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
-          SYMPHONY_NBI_PORT=${SYMPHONY_NBI_PORT}
+          SYMPHONY_INTERNAL_PORT=${SYMPHONY_INTERNAL_PORT}
           EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
           EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
           TRUST_DOMAIN=${TRUST_DOMAIN}
@@ -152,7 +154,8 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           WFM_HOST=symphony.machine
-          # SBI / Margo Management Interface port (mTLS), not the 8082 NBI port
+          # All Margo/MIAF traffic (margo/nbi/v1 AND margo/api/v1) goes over 8084 (mTLS),
+          # not the 8082 Symphony-internal port.
           WFM_PORT=${EXPOSED_SYMPHONY_PORT}
           EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
           EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
@@ -356,6 +359,15 @@ jobs:
           fi
           sudo cp /tmp/authz.json "$AUTHZ"
 
+          # wfm.sh mounts the WHOLE api/ dir as one bind mount into the container
+          # (confirmed via docker inspect: api -> /configs, api/certificates -> /certificates
+          # separately). The files were just copied with sudo (root:root, key files 600),
+          # which may not be readable by whatever user the Symphony process runs as inside
+          # the container. Relax to world-readable - this is a throwaway CI sandbox, not prod.
+          sudo chmod 644 "$CERT_DIR"/payload-cert.pem "$CERT_DIR"/payload-key.pem
+          sudo chmod 644 "$MIS_DIR"/https-ca.crt "$AUTHZ"
+          sudo chmod 755 "$MIS_DIR" "$CERT_DIR"
+
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
           sudo ls -la "$MIS_DIR" "$CERT_DIR"
@@ -368,50 +380,61 @@ jobs:
           export SYMPHONY_IMAGE_REF="symphony-api:ci-test"
           sudo -E bash ./wfm.sh start
 
-          echo "🔍 Verifying MIAF identity material is visible inside the running container..."
-          echo "(Symphony's WorkingDir is / so ./mis and ./certificates resolve to /mis and /certificates)"
-          for i in {1..20}; do
-            if docker exec symphony-api-container ls /mis /certificates >/dev/null 2>&1; then
-              echo "✅ /mis and /certificates are present in the container"
-              docker exec symphony-api-container ls -la /mis /certificates
-              break
-            fi
-            if [ $i -eq 20 ]; then
-              echo "❌ /mis or /certificates not found inside symphony-api-container."
-              echo "   The Dockerfile does not COPY these (confirmed - only /dist, /extensions and the"
-              echo "   two symphony-api*.json files are baked in), so they must be bind-mounted by"
-              echo "   wfm.sh start / its docker-compose file. Check that it mounts:"
-              echo "     $HOME/symphony/api/mis          -> /mis"
-              echo "     $HOME/symphony/api/certificates -> /certificates"
-              docker inspect symphony-api-container --format '{{ json .Mounts }}' 2>&1 | jq . || true
-              exit 1
-            fi
+          echo "🔍 Locating MIAF identity material inside the running container..."
+          echo "(wfm.sh mounts the whole api/ dir into the container - not just /mis - so the"
+          echo " destination depends on wfm.sh's own docker-compose/run config; checking known"
+          echo " candidate layouts rather than assuming one.)"
+          docker inspect symphony-api-container --format '{{ json .Mounts }}' | jq .
+
+          FOUND=""
+          for i in {1..30}; do
+            for candidate in /mis /configs/mis; do
+              if docker exec symphony-api-container test -f "${candidate}/https-ca.crt" 2>/dev/null; then
+                FOUND="$candidate"
+                break 2
+              fi
+            done
             sleep 1
           done
 
-          echo "⏳ Waiting for Symphony NBI (port ${SYMPHONY_NBI_PORT}) to be ready..."
+          if [ -n "$FOUND" ]; then
+            echo "✅ MIS trust anchor found at ${FOUND}/https-ca.crt inside the container"
+            docker exec symphony-api-container ls -la "$FOUND"
+          else
+            echo "❌ https-ca.crt not found at /mis or /configs/mis inside symphony-api-container."
+            echo "   Known bind mounts (from docker inspect above) don't match either candidate."
+            echo "   Dumping container logs for the actual error:"
+            docker logs symphony-api-container --tail=200 2>&1 || true
+            exit 1
+          fi
+
+          echo "⏳ Waiting for Symphony's internal API (port ${SYMPHONY_INTERNAL_PORT}) to be ready..."
+          echo "(This is just a generic liveness check - sandbox tooling itself uses port ${EXPOSED_SYMPHONY_PORT} for both NBI and SBI/agent traffic)"
           for i in {1..40}; do
-            if curl -k -s "https://symphony.machine:${SYMPHONY_NBI_PORT}/health" >/dev/null 2>&1; then
-              echo "✅ Symphony NBI is ready"
+            if curl -k -s "https://symphony.machine:${SYMPHONY_INTERNAL_PORT}/health" >/dev/null 2>&1; then
+              echo "✅ Symphony internal API is up"
               break
             fi
             echo "Waiting for Symphony API... ($i/40)"
             sleep 1
           done
 
-          echo "⏳ Checking the SBI / MMI mTLS binding on port ${EXPOSED_SYMPHONY_PORT}..."
+          echo "⏳ Checking the Margo/MIAF mTLS port ${EXPOSED_SYMPHONY_PORT} (carries both NBI and SBI/agent traffic)..."
           for i in {1..30}; do
             # A bare TLS handshake is expected to fail without a client SVID;
             # a refused connection means the binding never came up.
             if timeout 2 bash -c "cat < /dev/null > /dev/tcp/symphony.machine/${EXPOSED_SYMPHONY_PORT}" 2>/dev/null; then
-              echo "✅ SBI port ${EXPOSED_SYMPHONY_PORT} is listening (mTLS)"
+              echo "✅ Port ${EXPOSED_SYMPHONY_PORT} is listening (mTLS)"
               break
             fi
-            echo "Waiting for SBI port... ($i/30)"
+            echo "Waiting for the Margo/MIAF port... ($i/30)"
             sleep 2
             if [ $i -eq 30 ]; then
-              echo "❌ SBI port ${EXPOSED_SYMPHONY_PORT} never opened"
-              docker logs symphony-api-container --tail=200 2>&1 || true
+              echo "❌ Port ${EXPOSED_SYMPHONY_PORT} never opened"
+              echo "--- Full container log ---"
+              docker logs symphony-api-container 2>&1 || true
+              echo "--- Lines mentioning port ${EXPOSED_SYMPHONY_PORT} / miaf / mtls / mis ---"
+              docker logs symphony-api-container 2>&1 | grep -iE "${EXPOSED_SYMPHONY_PORT}|miaf|mtls|mis[^s]|trust.?bundle|authoriz" || echo "(no matching lines)"
               exit 1
             fi
           done

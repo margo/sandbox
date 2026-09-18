@@ -93,6 +93,8 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 
+SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/poc/device/agent/config/authorized.json"}"
+
 # ----------------------------
 # GHCR Image References
 # ----------------------------
@@ -116,6 +118,7 @@ source "${SCRIPT_DIR}/modules/certificates.sh"
 source "${SCRIPT_DIR}/modules/agent.sh"
 source "${SCRIPT_DIR}/modules/observability.sh"
 source "${SCRIPT_DIR}/modules/dns-host-config.sh"
+source "${SCRIPT_DIR}/modules/manage-spiffe-ids.sh"
 
 export GOINSECURE='github.com/margo/*'
 export GONOPROXY='github.com/margo/*'
@@ -262,6 +265,10 @@ pause() {
   read -rp "Press Enter to continue..." _
 }
 
+manage_spiffe_ids() {
+  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH"
+}
+
 ensure_identity_and_mis_dirs() {
     local base_dir="${HOME}/sandbox/poc/device/agent/config"
     local identity_dir="${base_dir}/identity"
@@ -294,8 +301,9 @@ show_menu() {
   echo "8) OTEL-collector-promtail-installation"
   echo "9) OTEL-collector-promtail-uninstallation"
   echo "10) cleanup-residual"
-  echo "11) Exit"
-  read -rp "Enter choice [1-11]: " choice
+  echo "11) Manage SPIFFE ID allowlist"
+  echo "12) Exit"
+  read -rp "Enter choice [1-12]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
@@ -306,8 +314,9 @@ show_menu() {
     7) show_status ;;
     8) install_otel_collector_promtail_wrapper ;;
     9) uninstall_otel_collector_promtail_wrapper ;;
-    10) cleanup_residual;;
-    11) echo "👋 Goodbye!"; exit 0 ;;
+    10) cleanup_residual ;;
+    11) manage_spiffe_ids ;;
+    12) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
 
@@ -353,9 +362,10 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     otel-install) install_otel_collector_promtail_wrapper ;;
     otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
     cleanup) cleanup_residual ;;
+    manage-spiffe-ids) manage_spiffe_ids ;;
     *)
       echo "[ERROR] Unknown command: $2"
-      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup"
+      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, manage-spiffe-ids"
       exit 1
       ;;
   esac

@@ -112,7 +112,10 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 			return
 		}
 		// For non-failed states, skip reporting
-		sr.log.Debugw("Skipping status report - no current state yet", "appId", appID, "phase", record.Phase)
+		sr.log.Debugw("Skipping status report - no current state yet",
+			"appId", appID,
+			"phase", record.Phase,
+		)
 		return
 	}
 

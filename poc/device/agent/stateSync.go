@@ -505,7 +505,12 @@ func (ss *StateSyncer) processDeploymentsIndividually(
 		}
 
 		// Store deployment
-		ss.storeDeployment(deploymentRef.DeploymentId, deploymentRef, deploymentYAML, manifestVersion)
+		ss.storeDeployment(
+			deploymentRef.DeploymentId,
+			deploymentRef,
+			deploymentYAML,
+			manifestVersion,
+		)
 	}
 }
 

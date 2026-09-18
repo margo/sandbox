@@ -237,7 +237,7 @@ jobs:
         working-directory: scripts
         run: |
           echo "🔐 Generating HTTPS Root CA + server cert and SVID Root CA"
-          sudo -E bash ./mis.sh generate-root-ca
+          sudo -E bash ./mis.sh setup-factory
 
           echo "Verifying generated PKI in ${MIS_CERTS_DIR}"
           for f in https-ca.crt https-ca.key https-server.crt https-server.key ca.crt ca.key; do
@@ -251,7 +251,7 @@ jobs:
         run: |
           echo "Starting MIS with locally built image..."
           export MIS_IMAGE_REF="${MIS_IMAGE_REF}"
-          sudo -E bash ./mis.sh start
+          sudo -E bash ./mis.sh mis-install
 
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do

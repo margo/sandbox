@@ -337,6 +337,29 @@ setup_mis_image() {
 
 
 # ----------------------------
+# SVID Generation
+# ----------------------------
+generate_svid() {
+  local svid_script="$SCRIPT_DIR/lib/mis/svid-gen.sh"
+
+  if [[ ! -f "$svid_script" ]]; then
+    echo "[ERROR] ❌ svid-gen.sh not found at: $svid_script"
+    return 1
+  fi
+
+  echo "[INFO] 🔐 Launching SVID generator..."
+  bash "$svid_script" --interactive
+  local exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    echo "[INFO] ✅ SVID generation completed successfully."
+  else
+    echo "[WARN] ⚠️  SVID generation exited with code: $exit_code"
+  fi
+}
+
+
+# ----------------------------
 # MIS Uninstallation 
 # ----------------------------
 
@@ -382,15 +405,17 @@ show_menu() {
   echo "3) Factory Bootstrap: Generate Root CAs"
   echo "4) Margo Identity Service: Install"
   echo "5) Margo Identity Service: Uninstall"
-  echo "6) Exit"
-  read -p "Enter choice [1-6]: " choice
+  echo "6) Generate SVID"
+  echo "7) Exit"
+  read -p "Enter choice [1-7]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
     3) setup_factory ;;
     4) install_mis ;;
     5) uninstall_mis ;;
-    6) echo "👋 Goodbye!"; exit 0 ;;
+    6) generate_svid ;;
+    7) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
 
@@ -417,8 +442,9 @@ else
     setup-factory) setup_factory ;;
     mis-install) install_mis ;;
     mis-uninstall) uninstall_mis ;;
+    generate-svid) generate_svid ;;
     *)
-      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall}"
+      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall|generate-svid}"
       exit 1
       ;;
   esac

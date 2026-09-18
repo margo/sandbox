@@ -150,7 +150,10 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		case "REMOVED", "removed":
 			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
 		default:
-			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING", "appId", appID, "phase", record.Phase)
+			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING",
+				"appId", appID,
+				"phase", record.Phase,
+			)
 			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
 		}
 	}

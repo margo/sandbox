@@ -279,7 +279,6 @@ jobs:
         working-directory: /home/runner/sandbox/scripts/lib/mis
         run: |
           set -euo pipefail
-          chmod +x ./svid-gen.sh
 
           echo "🪪 WFM SVID"
           sudo -E bash ./svid-gen.sh --automated \

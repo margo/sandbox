@@ -9,6 +9,7 @@
 
 _manage_spiffe_ids_menu() {
   local default_path="${1:-}"
+  local role="${2:-}"  # optional: "wfm" or "wfmclient"
   local json_file=""
 
   # --- Step 1: Resolve file path ---
@@ -74,8 +75,8 @@ _manage_spiffe_ids_menu() {
     read -rp "Enter choice [1-3]: " action
 
     case "$action" in
-      1) _spiffe_add_entries "$json_file" ;;
-      2) _spiffe_remove_entries "$json_file" ;;
+      1) _spiffe_add_entries "$json_file" "$role" ;;
+      2) _spiffe_remove_entries "$json_file" "$role" ;;
       3)
         echo "[INFO] 🔙 Returning to previous menu."
         return 0
@@ -90,15 +91,35 @@ _manage_spiffe_ids_menu() {
 # --- Add entries ---
 _spiffe_add_entries() {
   local json_file="$1"
+  local role="${2:-}"
 
   echo ""
   echo "➕ Enter SPIFFE IDs to add (space-separated):"
-  echo "   Example: spiffe://margo.org/margo/wfm/symphony-1  spiffe://margo.org/margo/wfm/symphony-2"
+
+  case "$role" in
+    wfm)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      echo "   💡 Tip: Only one WFM SPIFFE ID is expected. Adding multiple is discouraged."
+      ;;
+    wfmclient)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1  spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-2"
+      echo "   💡 Tip: Multiple WFM client SPIFFE IDs are supported and encouraged."
+      ;;
+    *)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      ;;
+  esac
+
   read -rp "   > " -a new_ids
 
   if [[ "${#new_ids[@]}" -eq 0 ]]; then
     echo "[WARN] ⚠️  No SPIFFE IDs provided. Nothing to add."
     return 0
+  fi
+
+  # Role-specific warning after input is collected
+  if [[ "$role" == "wfm" && "${#new_ids[@]}" -gt 1 ]]; then
+    echo "[WARN] ⚠️  Multiple WFM SPIFFE IDs provided. Only a single WFM entry is recommended."
   fi
 
   local added_count=0
@@ -141,10 +162,25 @@ _spiffe_add_entries() {
 # --- Remove entries ---
 _spiffe_remove_entries() {
   local json_file="$1"
+  local role="${2:-}"
 
   echo ""
   echo "🗑️  Enter SPIFFE IDs to remove (space-separated):"
-  echo "   Example: spiffe://domain/app1 spiffe://domain/app2"
+
+  case "$role" in
+    wfm)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      echo "   💡 Tip: Only one WFM SPIFFE ID is expected. Removing it will leave the allowlist empty."
+      ;;
+    wfmclient)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1  spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-2"
+      echo "   💡 Tip: You can remove multiple WFM client SPIFFE IDs at once."
+      ;;
+    *)
+      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      ;;
+  esac
+
   read -rp "   > " -a remove_ids
 
   if [[ "${#remove_ids[@]}" -eq 0 ]]; then

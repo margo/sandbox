@@ -96,14 +96,14 @@ install_prerequisites() {
   echo ""
   echo "  Complete the following steps before proceeding to Symphony setup:"
   echo ""
-  echo "  1️⃣  Place your WFM SVID & Key in:"
+  echo "  1  Place your WFM SVID & Key in:"
   echo "       📁 ${HOME}/symphony/api/certificates/"
   echo "       (copy files as-is, no renaming needed)"
   echo ""
-  echo "  2️⃣  Place the MIS HTTPS CA certificate in:"
+  echo "  2  Place the MIS HTTPS CA certificate in:"
   echo "       📄 ${HOME}/symphony/api/https-ca.crt"
   echo ""
-  echo "  3️⃣  Register SPIFFE IDs of all WFM Clients that will interact"
+  echo "  3  Register SPIFFE IDs of all WFM Clients that will interact"
   echo "       with this WFM instance."
   echo "       → Use menu option 7) Manage SPIFFE ID allowlist"
   echo ""
@@ -416,6 +416,9 @@ create_symphony_api_dirs() {
         }
         echo "✅ Created directory: ${base_dir}/${dir}"
     done
+
+    # creating empty authorized-clients.json file
+    echo "[]" >  "${base_dir}/mis/authorized-clients.json"
 }
 
 # Update the show_menu function to include uninstall option

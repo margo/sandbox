@@ -380,33 +380,25 @@ jobs:
           export SYMPHONY_IMAGE_REF="symphony-api:ci-test"
           sudo -E bash ./wfm.sh start
 
-          echo "🔍 Locating MIAF identity material inside the running container..."
-          echo "(wfm.sh mounts the whole api/ dir into the container - not just /mis - so the"
-          echo " destination depends on wfm.sh's own docker-compose/run config; checking known"
-          echo " candidate layouts rather than assuming one.)"
+          echo "Symphony container status before patching:"
+          docker ps -a --filter "name=symphony-api-container" --format "table {{.Names}}\t{{.Status}}"
+
+          echo "🔎 Confirmed bind mounts on symphony-api-container:"
           docker inspect symphony-api-container --format '{{ json .Mounts }}' | jq .
 
-          FOUND=""
-          for i in {1..30}; do
-            for candidate in /mis /configs/mis; do
-              if docker exec symphony-api-container test -f "${candidate}/https-ca.crt" 2>/dev/null; then
-                FOUND="$candidate"
-                break 2
-              fi
-            done
-            sleep 1
-          done
-
-          if [ -n "$FOUND" ]; then
-            echo "✅ MIS trust anchor found at ${FOUND}/https-ca.crt inside the container"
-            docker exec symphony-api-container ls -la "$FOUND"
-          else
-            echo "❌ https-ca.crt not found at /mis or /configs/mis inside symphony-api-container."
-            echo "   Known bind mounts (from docker inspect above) don't match either candidate."
-            echo "   Dumping container logs for the actual error:"
-            docker logs symphony-api-container --tail=200 2>&1 || true
-            exit 1
-          fi
+          echo "🔧 wfm.sh on this branch has a dedicated bind mount for api/certificates -> /certificates"
+          echo "   (confirmed working - certProvider reads ./certificates/payload-*.pem fine) but no"
+          echo "   equivalent mount for api/mis -> /mis, so miaf.mis.caPath (./mis/https-ca.crt) and"
+          echo "   miaf.authzPath (./mis/authorized-clients.json) fail to resolve, which can make the"
+          echo "   second HttpBinding's Launch() exit the whole process even though the first (port"
+          echo "   ${SYMPHONY_INTERNAL_PORT}) started fine - so the container may already be stopped here."
+          echo "   docker cp works on stopped containers too and creates the destination directory,"
+          echo "   so this doesn't depend on the container still being up."
+          docker cp "$HOME/symphony/api/mis" symphony-api-container:/
+          docker restart symphony-api-container
+          sleep 3
+          echo "Symphony container status after patching + restart:"
+          docker ps -a --filter "name=symphony-api-container" --format "table {{.Names}}\t{{.Status}}"
 
           echo "⏳ Waiting for Symphony's internal API (port ${SYMPHONY_INTERNAL_PORT}) to be ready..."
           echo "(This is just a generic liveness check - sandbox tooling itself uses port ${EXPOSED_SYMPHONY_PORT} for both NBI and SBI/agent traffic)"

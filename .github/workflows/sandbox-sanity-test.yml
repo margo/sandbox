@@ -650,14 +650,27 @@ jobs:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "Deploying to both devices in parallel..."
+          UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
 
           (
             echo "📋 Deploying to K3s..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" | tail -n1)
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1)
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" 2>&1)
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-              echo "❌ K3s: Invalid IDs"
+            # Beyond empty/"null": reject anything that isn't shaped like a real UUID.
+            # wfm-cli.sh's easy-cli helpers have been observed returning a friendly
+            # "❌ ..." string (or worse, an internal jq parse-error banner) as their
+            # last printed line on failure, which is non-empty and non-null but is
+            # NOT a usable ID - passing it to deploy-non-interactive only produces a
+            # confusing cascade of further errors instead of a clear failure here.
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+              echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Full get-package-id-by-name output ---"
+              echo "$PACKAGE_RAW"
+              echo "--- Full get-device-id-by-deployment-type output ---"
+              echo "$DEVICE_RAW"
               exit 1
             fi
             echo "🪪 K3s device ID: $DEVICE_ID"
@@ -684,11 +697,17 @@ jobs:
 
           (
             echo "📋 Deploying to Docker..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" | tail -n1)
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1)
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" 2>&1)
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-              echo "❌ Docker: Invalid IDs"
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+              echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Full get-package-id-by-name output ---"
+              echo "$PACKAGE_RAW"
+              echo "--- Full get-device-id-by-deployment-type output ---"
+              echo "$DEVICE_RAW"
               exit 1
             fi
             echo "🪪 Docker device ID: $DEVICE_ID"

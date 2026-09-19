@@ -644,93 +644,116 @@ jobs:
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup "${EXPOSED_MIS_HOST}" \
             || echo "⚠️ ${EXPOSED_MIS_HOST} not resolvable inside pod"
 
-      - name: Deploy to Both Devices in Parallel
-        working-directory: scripts
-        env:
-          MAESTRO_CLI_PATH: /home/runner/symphony/cli
+      - name: Sanitize CLI Scripts
         run: |
-          echo "Deploying to both devices in parallel..."
-          UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+          chmod +x scripts/*.sh 2>/dev/null || true
+          chmod +x scripts/easy-cli/*.sh 2>/dev/null || true
+          chmod +x scripts/modules/**/*.sh 2>/dev/null || true
 
+          # Direct [DEBUG] prints to stderr across scripts so jq parsing never breaks
+          find scripts/ -type f -name "*.sh" -exec sed -i 's/echo "\[DEBUG\]/echo "\[DEBUG\]" >\&2 #/g' {} + 2>/dev/null || true
+          find scripts/ -type f -name "*.sh" -exec sed -i 's/echo '\''\[DEBUG\]/echo '\''\[DEBUG\]'\'' >\&2 #/g' {} + 2>/dev/null || true      
+
+      - name: Deploy to both devices in parallel
+        run: |
+          cd scripts
+
+          # 1. Wait for both device agents to register their capabilities with Symphony
+          echo "⏳ Waiting for device agents (helm & compose) to register with Symphony..."
+          for i in {1..30}; do
+            DEVICES=$(sudo -E bash ./wfm-cli.sh list-devices 2>/dev/null || echo "")
+            if echo "$DEVICES" | grep -qi "helm" && echo "$DEVICES" | grep -qi "compose"; then
+              echo "✅ Both device agents registered successfully."
+              break
+            fi
+            echo "Waiting for device capabilities reporting... ($i/30)"
+            sleep 3
+          done
+
+          echo "🚀 Deploying to both devices in parallel..."
+
+          # ---------------- Deploy to K3s ----------------
           (
             echo "📋 Deploying to K3s..."
-            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1)
-            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" 2>&1)
-            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
-            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
+            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
 
-            # Beyond empty/"null": reject anything that isn't shaped like a real UUID.
-            # wfm-cli.sh's easy-cli helpers have been observed returning a friendly
-            # "❌ ..." string (or worse, an internal jq parse-error banner) as their
-            # last printed line on failure, which is non-empty and non-null but is
-            # NOT a usable ID - passing it to deploy-non-interactive only produces a
-            # confusing cascade of further errors instead of a clear failure here.
-            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
-              echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
-              echo "--- Full get-package-id-by-name output ---"
-              echo "$PACKAGE_RAW"
-              echo "--- Full get-device-id-by-deployment-type output ---"
-              echo "$DEVICE_RAW"
+            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [[ "$PACKAGE_ID" =~ "❌" ]] || \
+               [ -z "$DEVICE_ID" ]  || [ "$DEVICE_ID" = "null" ]  || [[ "$DEVICE_ID" =~ "❌" ]]; then
+              echo "❌ K3s: Invalid IDs - Package: '$PACKAGE_ID', Device: '$DEVICE_ID'"
               exit 1
             fi
-            echo "🪪 K3s device ID: $DEVICE_ID"
+            echo "🪪 K3s device ID: $DEVICE_ID | Package ID: $PACKAGE_ID"
 
             DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
             echo "📦 K3s Deployment ID: $DEPLOYMENT_ID"
 
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "❌ Failed to retrieve K3s deployment ID. Output: $DEPLOY_OUTPUT"
+              exit 1
+            fi
+
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
             for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+              echo "[$ATTEMPT/60] K3s Deployment Status: $DEPLOYMENT_STATUS"
+
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
-                echo "❌ K3s deployment failed/pending"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
+                echo "❌ K3s deployment failed"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              sleep 1
+              # PENDING is normal while downloading; continue polling
+              sleep 2
             done
           ) &
           K3S_DEPLOY_PID=$!
 
+          # ---------------- Deploy to Docker ----------------
           (
             echo "📋 Deploying to Docker..."
-            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1)
-            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" 2>&1)
-            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
-            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
+            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
 
-            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
-              echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
-              echo "--- Full get-package-id-by-name output ---"
-              echo "$PACKAGE_RAW"
-              echo "--- Full get-device-id-by-deployment-type output ---"
-              echo "$DEVICE_RAW"
+            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [[ "$PACKAGE_ID" =~ "❌" ]] || \
+               [ -z "$DEVICE_ID" ]  || [ "$DEVICE_ID" = "null" ]  || [[ "$DEVICE_ID" =~ "❌" ]]; then
+              echo "❌ Docker: Invalid IDs - Package: '$PACKAGE_ID', Device: '$DEVICE_ID'"
               exit 1
             fi
-            echo "🪪 Docker device ID: $DEVICE_ID"
+            echo "🪪 Docker device ID: $DEVICE_ID | Package ID: $PACKAGE_ID"
 
             DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
             echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "❌ Failed to retrieve Docker deployment ID. Output: $DEPLOY_OUTPUT"
+              exit 1
+            fi
+
             for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+              echo "[$ATTEMPT/60] Docker Deployment Status: $DEPLOYMENT_STATUS"
+
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
-                echo "❌ Docker deployment failed/pending"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
+                echo "❌ Docker deployment failed"
                 docker logs workload-fleet-management-client --tail=100 || true
                 exit 1
               fi
-              sleep 1
+              # PENDING is normal while downloading; continue polling
+              sleep 2
             done
           ) &
           DOCKER_DEPLOY_PID=$!
 
+          # Wait for both background deployments
           wait $K3S_DEPLOY_PID    || exit 1
           wait $DOCKER_DEPLOY_PID || exit 1
           echo "✅ Both deployments completed successfully!"

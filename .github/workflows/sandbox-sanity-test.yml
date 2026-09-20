@@ -36,12 +36,14 @@ jobs:
 
       # Ports
       EXPOSED_HARBOR_PORT: 8443
-      # Sandbox side talks to the SBI / Margo Management Interface binding (mTLS, port 8084).
+      # SBI (device-agent) mTLS port only. Never used by wfm-cli.sh/maestro.
       EXPOSED_SYMPHONY_PORT: 8084
-      # Symphony's own internal HTTP port (TLS, plain Symphony API - health, generic
-      # catalog/solution CRUD). Sandbox tooling (wfm-cli, device-agent) does NOT talk to
-      # this port; it's only used here for a basic Symphony liveness check.
-      SYMPHONY_INTERNAL_PORT: 8082
+      # NBI port: plain TLS, no client cert. wfm-cli.sh/maestro (packages, devices,
+      # deployments) MUST use this port - maestro's Go client (cli/cmd/margo.go) has
+      # no client-certificate support at all, so it can only ever talk to a non-mTLS
+      # binding. Every example in the canonical setup guide shows "Port: 8082" in the
+      # wfm-cli Server Config banner, and margo.go's own --port flag defaults to 8082.
+      SYMPHONY_NBI_PORT: 8082
       # MIS HTTPS normative server, per symphony-api-margo.json: https://mis.margo.org:9443
       EXPOSED_MIS_PORT: 9443
 
@@ -134,8 +136,10 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           EXPOSED_SYMPHONY_HOST=symphony.machine
-          EXPOSED_SYMPHONY_PORT=${EXPOSED_SYMPHONY_PORT}
-          SYMPHONY_INTERNAL_PORT=${SYMPHONY_INTERNAL_PORT}
+          # cli-config.sh reads this literal variable name for maestro's --port flag.
+          # Must be the NBI port (8082, plain TLS) - maestro has no client-cert support,
+          # so it can never be pointed at the 8084 mTLS SBI binding.
+          EXPOSED_SYMPHONY_PORT=${SYMPHONY_NBI_PORT}
           EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
           EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
           TRUST_DOMAIN=${TRUST_DOMAIN}
@@ -154,8 +158,9 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           WFM_HOST=symphony.machine
-          # All Margo/MIAF traffic (margo/nbi/v1 AND margo/api/v1) goes over 8084 (mTLS),
-          # not the 8082 Symphony-internal port.
+          # SBI (device-agent) traffic goes over the mTLS binding, port 8084. This is
+          # separate from wfm.env's EXPOSED_SYMPHONY_PORT, which is the NBI port (8082)
+          # used by wfm-cli.sh/maestro - the two must never be the same value.
           WFM_PORT=${EXPOSED_SYMPHONY_PORT}
           EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
           EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
@@ -383,7 +388,7 @@ jobs:
           echo "   equivalent mount for api/mis -> /mis, so miaf.mis.caPath (./mis/https-ca.crt) and"
           echo "   miaf.authzPath (./mis/authorized-clients.json) fail to resolve, which can make the"
           echo "   second HttpBinding's Launch() exit the whole process even though the first (port"
-          echo "   ${SYMPHONY_INTERNAL_PORT}) started fine - so the container may already be stopped here."
+          echo "   ${SYMPHONY_NBI_PORT}) started fine - so the container may already be stopped here."
           echo "   docker cp works on stopped containers too and creates the destination directory,"
           echo "   so this doesn't depend on the container still being up."
           docker cp "$HOME/symphony/api/mis" symphony-api-container:/
@@ -396,18 +401,20 @@ jobs:
           docker exec symphony-api-container cat /mis/authorized-clients.json 2>&1 || \
             echo "⚠️ Could not read it back from the container - restart may still be in progress"
 
-          echo "⏳ Waiting for Symphony's internal API (port ${SYMPHONY_INTERNAL_PORT}) to be ready..."
-          echo "(This is just a generic liveness check - sandbox tooling itself uses port ${EXPOSED_SYMPHONY_PORT} for both NBI and SBI/agent traffic)"
+          echo "⏳ Waiting for Symphony's NBI (port ${SYMPHONY_NBI_PORT}) to be ready..."
+          echo "(This is the real port wfm-cli.sh/maestro uses for packages/devices/deployments -"
+          echo " plain TLS, no client cert. Device-agent SBI traffic uses the separate mTLS port"
+          echo " ${EXPOSED_SYMPHONY_PORT} instead, checked below.)"
           for i in {1..40}; do
-            if curl -k -s "https://symphony.machine:${SYMPHONY_INTERNAL_PORT}/health" >/dev/null 2>&1; then
-              echo "✅ Symphony internal API is up"
+            if curl -k -s "https://symphony.machine:${SYMPHONY_NBI_PORT}/health" >/dev/null 2>&1; then
+              echo "✅ Symphony NBI is up"
               break
             fi
             echo "Waiting for Symphony API... ($i/40)"
             sleep 1
           done
 
-          echo "⏳ Checking the Margo/MIAF mTLS port ${EXPOSED_SYMPHONY_PORT} (carries both NBI and SBI/agent traffic)..."
+          echo "⏳ Checking the SBI mTLS port ${EXPOSED_SYMPHONY_PORT} (device-agent traffic only)..."
           for i in {1..30}; do
             # A bare TLS handshake is expected to fail without a client SVID;
             # a refused connection means the binding never came up.
@@ -415,7 +422,7 @@ jobs:
               echo "✅ Port ${EXPOSED_SYMPHONY_PORT} is listening (mTLS)"
               break
             fi
-            echo "Waiting for the Margo/MIAF port... ($i/30)"
+            echo "Waiting for the SBI mTLS port... ($i/30)"
             sleep 2
             if [ $i -eq 30 ]; then
               echo "❌ Port ${EXPOSED_SYMPHONY_PORT} never opened"
@@ -644,116 +651,111 @@ jobs:
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup "${EXPOSED_MIS_HOST}" \
             || echo "⚠️ ${EXPOSED_MIS_HOST} not resolvable inside pod"
 
-      - name: Sanitize CLI Scripts
+      - name: Deploy to Both Devices in Parallel
+        working-directory: scripts
+        env:
+          MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
-          chmod +x scripts/*.sh 2>/dev/null || true
-          chmod +x scripts/easy-cli/*.sh 2>/dev/null || true
-          chmod +x scripts/modules/**/*.sh 2>/dev/null || true
+          echo "Deploying to both devices in parallel..."
+          UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
 
-          # Direct [DEBUG] prints to stderr across scripts so jq parsing never breaks
-          find scripts/ -type f -name "*.sh" -exec sed -i 's/echo "\[DEBUG\]/echo "\[DEBUG\]" >\&2 #/g' {} + 2>/dev/null || true
-          find scripts/ -type f -name "*.sh" -exec sed -i 's/echo '\''\[DEBUG\]/echo '\''\[DEBUG\]'\'' >\&2 #/g' {} + 2>/dev/null || true      
-
-      - name: Deploy to both devices in parallel
-        run: |
-          cd scripts
-
-          # 1. Wait for both device agents to register their capabilities with Symphony
-          echo "⏳ Waiting for device agents (helm & compose) to register with Symphony..."
-          for i in {1..30}; do
-            DEVICES=$(sudo -E bash ./wfm-cli.sh list-devices 2>/dev/null || echo "")
-            if echo "$DEVICES" | grep -qi "helm" && echo "$DEVICES" | grep -qi "compose"; then
-              echo "✅ Both device agents registered successfully."
-              break
-            fi
-            echo "Waiting for device capabilities reporting... ($i/30)"
-            sleep 3
-          done
-
-          echo "🚀 Deploying to both devices in parallel..."
-
-          # ---------------- Deploy to K3s ----------------
           (
             echo "📋 Deploying to K3s..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1) || true
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" 2>&1) || true
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [[ "$PACKAGE_ID" =~ "❌" ]] || \
-               [ -z "$DEVICE_ID" ]  || [ "$DEVICE_ID" = "null" ]  || [[ "$DEVICE_ID" =~ "❌" ]]; then
-              echo "❌ K3s: Invalid IDs - Package: '$PACKAGE_ID', Device: '$DEVICE_ID'"
+            # Beyond empty/"null": reject anything that isn't shaped like a real UUID.
+            # wfm-cli.sh's easy-cli helpers have been observed returning a friendly
+            # "❌ ..." string (or worse, an internal jq parse-error banner) as their
+            # last printed line on failure, which is non-empty and non-null but is
+            # NOT a usable ID - passing it to deploy-non-interactive only produces a
+            # confusing cascade of further errors instead of a clear failure here.
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+              echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Full get-package-id-by-name output ---"
+              echo "$PACKAGE_RAW"
+              echo "--- Full get-device-id-by-deployment-type output ---"
+              echo "$DEVICE_RAW"
               exit 1
             fi
-            echo "🪪 K3s device ID: $DEVICE_ID | Package ID: $PACKAGE_ID"
+            echo "🪪 K3s device ID: $DEVICE_ID"
 
-            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
+              echo "❌ K3s: deploy-non-interactive failed"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            }
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
-            echo "📦 K3s Deployment ID: $DEPLOYMENT_ID"
-
             if [ -z "$DEPLOYMENT_ID" ]; then
-              echo "❌ Failed to retrieve K3s deployment ID. Output: $DEPLOY_OUTPUT"
+              echo "❌ K3s: deploy-non-interactive returned no deploymentId"
+              echo "$DEPLOY_OUTPUT"
               exit 1
             fi
+            echo "📦 K3s Deployment ID: $DEPLOYMENT_ID"
 
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
             for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
-              echo "[$ATTEMPT/60] K3s Deployment Status: $DEPLOYMENT_STATUS"
-
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
-                echo "❌ K3s deployment failed"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ K3s deployment failed/pending"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              # PENDING is normal while downloading; continue polling
-              sleep 2
+              sleep 1
             done
           ) &
           K3S_DEPLOY_PID=$!
 
-          # ---------------- Deploy to Docker ----------------
           (
             echo "📋 Deploying to Docker..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" | grep -v '\[DEBUG\]' | grep -v '❌' | tail -n1 | tr -d '\r\n[:space:]')
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1) || true
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" 2>&1) || true
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [[ "$PACKAGE_ID" =~ "❌" ]] || \
-               [ -z "$DEVICE_ID" ]  || [ "$DEVICE_ID" = "null" ]  || [[ "$DEVICE_ID" =~ "❌" ]]; then
-              echo "❌ Docker: Invalid IDs - Package: '$PACKAGE_ID', Device: '$DEVICE_ID'"
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+              echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Full get-package-id-by-name output ---"
+              echo "$PACKAGE_RAW"
+              echo "--- Full get-device-id-by-deployment-type output ---"
+              echo "$DEVICE_RAW"
               exit 1
             fi
-            echo "🪪 Docker device ID: $DEVICE_ID | Package ID: $PACKAGE_ID"
+            echo "🪪 Docker device ID: $DEVICE_ID"
 
-            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
+              echo "❌ Docker: deploy-non-interactive failed"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            }
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
-            echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
-
             if [ -z "$DEPLOYMENT_ID" ]; then
-              echo "❌ Failed to retrieve Docker deployment ID. Output: $DEPLOY_OUTPUT"
+              echo "❌ Docker: deploy-non-interactive returned no deploymentId"
+              echo "$DEPLOY_OUTPUT"
               exit 1
             fi
+            echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
             for ATTEMPT in {1..60}; do
               DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
-              echo "[$ATTEMPT/60] Docker Deployment Status: $DEPLOYMENT_STATUS"
-
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
-                echo "❌ Docker deployment failed"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
+                echo "❌ Docker deployment failed/pending"
                 docker logs workload-fleet-management-client --tail=100 || true
                 exit 1
               fi
-              # PENDING is normal while downloading; continue polling
-              sleep 2
+              sleep 1
             done
           ) &
           DOCKER_DEPLOY_PID=$!
 
-          # Wait for both background deployments
           wait $K3S_DEPLOY_PID    || exit 1
           wait $DOCKER_DEPLOY_PID || exit 1
           echo "✅ Both deployments completed successfully!"
@@ -768,7 +770,7 @@ jobs:
           echo "========================================="
           echo "📋 FINAL DEPLOYMENT STATUS"
           echo "========================================="
-          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
 
           echo ""
@@ -944,7 +946,7 @@ jobs:
           echo "✅ Deployment instances cleanup completed"
           echo ""
           echo "Final verification - listing all deployments and packages:"
-          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
 
       - name: Cleanup - Stop MIS and remove SVID material
@@ -952,6 +954,6 @@ jobs:
         working-directory: scripts
         run: |
           echo "🗑️ Stopping Margo Identity Service"
-          sudo -E bash ./mis.sh mis-uninstall || echo "⚠️ mis.sh mis-uninstall failed or not required"
+          sudo -E bash ./mis.sh mis-unistall || echo "⚠️ mis.sh mis-unistall failed or not required"
           sudo rm -rf "${SVID_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

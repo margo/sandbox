@@ -682,10 +682,9 @@ jobs:
         run: |
           echo "Deploying to both devices in parallel..."
           UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-          # Device IDs on this branch are SPIFFE URIs (per the MIAF device-id migration),
-          # not UUIDs - package IDs are unaffected and still plain UUIDs.
           DEVICE_ID_RE='^spiffe://[^[:space:]]+$'
 
+          # ---------------- Deploy to K3s ----------------
           (
             echo "📋 Deploying to K3s..."
             PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1) || true
@@ -693,13 +692,10 @@ jobs:
             PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
             DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            # Validate: PACKAGE_ID is a UUID and DEVICE_ID is a SPIFFE URI
             if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
               echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
-              echo "--- Full get-package-id-by-name output ---"
-              echo "$PACKAGE_RAW"
-              echo "--- Full get-device-id-by-deployment-type output ---"
-              echo "$DEVICE_RAW"
+              echo "--- Package Raw --- $PACKAGE_RAW"
+              echo "--- Device Raw  --- $DEVICE_RAW"
               exit 1
             fi
             echo "🪪 K3s device ID: $DEVICE_ID"
@@ -720,11 +716,13 @@ jobs:
 
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
             K3S_INSTALLED=""
-            for ATTEMPT in {1..60}; do
+            
+            # 90 attempts x 2s = 180s (3 minutes)
+            for ATTEMPT in {1..90}; do
               RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
               DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
                 awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
-              echo "[$ATTEMPT/60] K3s Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
+              echo "[$ATTEMPT/90] K3s Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
@@ -732,20 +730,35 @@ jobs:
                 break
               elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
                 echo "❌ K3s deployment failed"
+                echo "--- K3s Agent Logs ---"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
+
+              # Print live progress every 15 attempts (every 30s)
+              if (( ATTEMPT % 15 == 0 )); then
+                echo "--- [Progress Check] K3s Pod Status & Events ---"
+                $K get pods -A
+                $K logs deployment/workload-fleet-management-client-deploy --tail=20 || true
+              fi
+
               sleep 2
             done
+
             if [ -z "$K3S_INSTALLED" ]; then
-              echo "❌ K3s deployment did not reach INSTALLED within the timeout"
-              echo "--- Last raw list-deployments output ---"
+              echo "❌ K3s deployment did not reach INSTALLED within 180s"
+              echo "--- Last Raw list-deployments ---"
               echo "$RAW_DEPLOYMENTS"
+              echo "--- Full K3s Agent Logs ---"
+              $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+              echo "--- All K8s Pods ---"
+              $K get pods -A
               exit 1
             fi
           ) &
           K3S_DEPLOY_PID=$!
 
+          # ---------------- Deploy to Docker ----------------
           (
             echo "📋 Deploying to Docker..."
             PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1) || true
@@ -753,13 +766,10 @@ jobs:
             PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
             DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            # Validate: PACKAGE_ID is a UUID and DEVICE_ID is a SPIFFE URI
             if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
               echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
-              echo "--- Full get-package-id-by-name output ---"
-              echo "$PACKAGE_RAW"
-              echo "--- Full get-device-id-by-deployment-type output ---"
-              echo "$DEVICE_RAW"
+              echo "--- Package Raw --- $PACKAGE_RAW"
+              echo "--- Device Raw  --- $DEVICE_RAW"
               exit 1
             fi
             echo "🪪 Docker device ID: $DEVICE_ID"
@@ -779,11 +789,11 @@ jobs:
             echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
             DOCKER_INSTALLED=""
-            for ATTEMPT in {1..60}; do
+            for ATTEMPT in {1..90}; do
               RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
               DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
                 awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
-              echo "[$ATTEMPT/60] Docker Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
+              echo "[$ATTEMPT/90] Docker Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
@@ -796,10 +806,10 @@ jobs:
               fi
               sleep 2
             done
+
             if [ -z "$DOCKER_INSTALLED" ]; then
-              echo "❌ Docker deployment did not reach INSTALLED within the timeout"
-              echo "--- Last raw list-deployments output ---"
-              echo "$RAW_DEPLOYMENTS"
+              echo "❌ Docker deployment did not reach INSTALLED within 180s"
+              docker logs workload-fleet-management-client --tail=100 || true
               exit 1
             fi
           ) &

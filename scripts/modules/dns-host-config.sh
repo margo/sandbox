@@ -83,9 +83,10 @@ configure_coredns_hosts() {
     local namespace="kube-system"
     local configmap="coredns"
 
-    local harbor_host="${EXPOSED_HARBOR_HOST}"
-    local symphony_host="${WFM_HOST}"
-    local mis_host="mis.margo.org"
+    # Use defaults if env variables are not exported
+    local harbor_host="${EXPOSED_HARBOR_HOST:-harbor.machine}"
+    local symphony_host="${WFM_HOST:-symphony.machine}"
+    local mis_host="${EXPOSED_MIS_HOST:-mis.margo.org}"
 
     local harbor_ip
     local symphony_ip
@@ -103,7 +104,7 @@ configure_coredns_hosts() {
         fi
     done
 
-    echo "[INFO] Reading IP addresses from /etc/hosts..."
+    echo "[INFO] Reading IP addresses from /etc/hosts for ($harbor_host, $symphony_host, $mis_host)..."
 
     harbor_ip=$(get_ip_from_hosts "$harbor_host")
     symphony_ip=$(get_ip_from_hosts "$symphony_host")
@@ -148,11 +149,9 @@ EOF
 )"
 
     echo "[INFO] Restarting CoreDNS..."
-
     kubectl -n "$namespace" rollout restart deployment/coredns
 
     echo "[INFO] Waiting for CoreDNS rollout to complete..."
-
     kubectl -n "$namespace" rollout status deployment/coredns --timeout=180s
 
     echo "[INFO] CoreDNS NodeHosts updated successfully."

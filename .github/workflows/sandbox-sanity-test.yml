@@ -607,49 +607,72 @@ jobs:
             sleep 2
           done
 
-      - name: Verify DNS resolution in WFM-Client pod
+      - name: Verify DNS Resolution in WFM-Client Pod
         run: |
-          echo "🔍 Verifying DNS resolution in WFM-Client pod..."
-          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
-            -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
+          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+          echo "🔍 Verifying DNS resolution inside WFM-Client pod..."
 
-          echo "Testing DNS resolution for harbor.machine..."
-          for i in {1..30}; do
-            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
-              nslookup harbor.machine >/dev/null 2>&1; then
-              RESOLVED_IP=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
-                nslookup harbor.machine 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
-              echo "✅ DNS working - harbor.machine resolves to: $RESOLVED_IP"
-              if [ "$RESOLVED_IP" = "${RUNNER_IP}" ]; then
-                echo "✅ DNS resolves to correct IP (${RUNNER_IP})"
-                break
-              else
-                echo "⚠️ DNS resolves to wrong IP. Expected: ${RUNNER_IP}, Got: $RESOLVED_IP"
-              fi
-            fi
-            echo "Waiting for DNS propagation in pod... ($i/30)"
-            sleep 2
-          done
-
-          echo "Final DNS check:"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup harbor.machine || {
-            echo "❌ DNS still not working after 60 seconds"
-            echo ""
-            echo "Debugging information:"
-            echo "CoreDNS pods:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n kube-system -l k8s-app=kube-dns
-            echo ""
-            echo "CoreDNS logs:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs -n kube-system deployment/coredns --tail=50
-            echo ""
-            echo "Pod's /etc/resolv.conf:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- cat /etc/resolv.conf
+          # 1. Wait for pod to be running and extract POD_NAME
+          echo "Waiting for workload-fleet-management-client pod to be ready..."
+          $K wait --for=condition=Ready pod -l app.kubernetes.io/name=workload-fleet-management-client -n default --timeout=60s || {
+            echo "❌ Pod was not ready in time"
+            $K get pods -n default
             exit 1
           }
 
-          # The agent must also resolve the MIS host to fetch the trust bundle.
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup "${EXPOSED_MIS_HOST}" \
-            || echo "⚠️ ${EXPOSED_MIS_HOST} not resolvable inside pod"
+          POD_NAME=$($K get pods -n default -l app.kubernetes.io/name=workload-fleet-management-client -o jsonpath='{.items[0].metadata.name}')
+          echo "Target Pod: $POD_NAME"
+
+          # 2. Define all hosts the MIAF agent depends on
+          MIS_HOST="${EXPOSED_MIS_HOST:-mis.margo.org}"
+          HOSTS_TO_TEST=("harbor.machine" "$MIS_HOST" "symphony.machine")
+
+          # 3. Test DNS resolution for each host
+          for HOST in "${HOSTS_TO_TEST[@]}"; do
+            echo ""
+            echo "🔎 Testing DNS resolution for: $HOST ..."
+            RESOLVED=false
+
+            for ATTEMPT in {1..30}; do
+              if $K exec "$POD_NAME" -n default -- nslookup "$HOST" >/dev/null 2>&1; then
+                RESOLVED_IP=$($K exec "$POD_NAME" -n default -- nslookup "$HOST" 2>/dev/null \
+                  | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 | tr -d '\r\n[:space:]')
+
+                if [ -n "$RESOLVED_IP" ]; then
+                  echo "✅ $HOST resolves to: $RESOLVED_IP"
+                  
+                  if [ -n "${RUNNER_IP}" ] && [ "$RESOLVED_IP" != "${RUNNER_IP}" ]; then
+                    echo "⚠️ Warning: Expected IP ${RUNNER_IP}, but got $RESOLVED_IP"
+                  fi
+                  
+                  RESOLVED=true
+                  break
+                fi
+              fi
+              echo "[$ATTEMPT/30] Waiting for CoreDNS propagation for $HOST..."
+              sleep 2
+            done
+
+            if [ "$RESOLVED" != true ]; then
+              echo "❌ Failed to resolve $HOST inside pod $POD_NAME after 60 seconds!"
+              echo ""
+              echo "📋 CoreDNS Diagnostics:"
+              $K get pods -n kube-system -l k8s-app=kube-dns
+              echo ""
+              echo "📋 CoreDNS Logs:"
+              $K logs -n kube-system deployment/coredns --tail=40 || true
+              echo ""
+              echo "📋 Pod /etc/resolv.conf:"
+              $K exec "$POD_NAME" -n default -- cat /etc/resolv.conf || true
+              echo ""
+              echo "📋 Pod /etc/hosts:"
+              $K exec "$POD_NAME" -n default -- cat /etc/hosts || true
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "🎉 All required hosts (harbor.machine, $MIS_HOST, symphony.machine) resolved successfully!"
 
       - name: Deploy to Both Devices in Parallel
         working-directory: scripts

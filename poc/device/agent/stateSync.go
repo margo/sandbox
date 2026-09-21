@@ -140,8 +140,8 @@ func (ss *StateSyncer) performSync() {
 	// Process deployments from the manifest
 	ss.log.Debugf("Setting desired states....")
 
-	ss.detectRemovedDeployments(desiredStateManifest.Deployments)
 	manifestVersion := uint64(desiredStateManifest.ManifestVersion)
+	ss.detectRemovedDeployments(desiredStateManifest.Deployments, manifestVersion)
 
 	if len(desiredStateManifest.Deployments) > 0 {
 		// Decide: bundle download vs individual fetch
@@ -196,6 +196,7 @@ func (ss *StateSyncer) performSync() {
 
 func (ss *StateSyncer) detectRemovedDeployments(
 	desiredDeployments []sbi.DeploymentManifestRef,
+	manifestVersion uint64,
 ) {
 	currentDeployments := ss.database.ListDeployments()
 
@@ -225,6 +226,17 @@ func (ss *StateSyncer) detectRemovedDeployments(
 					"deploymentId", current.DeploymentID,
 					"error", err)
 			}
+
+			if err := ss.database.SetAdoptedManifestVersion(
+				current.DeploymentID,
+				manifestVersion,
+			); err != nil {
+				ss.log.Warnw("Failed to update adopted manifest version on removal",
+					"deploymentId", current.DeploymentID,
+					"manifestVersion", manifestVersion,
+					"error", err)
+			}
+
 		}
 	}
 }

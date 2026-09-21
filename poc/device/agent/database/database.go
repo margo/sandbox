@@ -500,6 +500,8 @@ func (db *Database) SetCurrentState(deploymentId string, state AppDeploymentStat
 
 	record.CurrentState = &state
 	record.LastUpdated = time.Now()
+	db.notify(deploymentId, record, DeploymentChangeTypeCurrentStateAdded)
+
 }
 
 func (db *Database) SetPhase(deploymentId, phase, message string) {

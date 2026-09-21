@@ -27,17 +27,18 @@ type AppDeploymentState struct {
 }
 
 type DeploymentRecord struct {
-	AppID               string
-	DeploymentID        string
-	Digest              string
-	Path                string
-	URL                 string
-	DesiredState        *AppDeploymentState
-	CurrentState        *AppDeploymentState
-	ComponentViseStatus map[string]sbi.ComponentStatus
-	Phase               string // "deploying", "running", "failed", "removing", "removed"
-	Message             string
-	LastUpdated         time.Time
+	AppID                  string
+	DeploymentID           string
+	Digest                 string
+	Path                   string
+	URL                    string
+	DesiredState           *AppDeploymentState
+	CurrentState           *AppDeploymentState
+	ComponentViseStatus    map[string]sbi.ComponentStatus
+	Phase                  string // "deploying", "running", "failed", "removing", "removed"
+	Message                string
+	LastUpdated            time.Time
+	AdoptedManifestVersion uint64
 }
 
 type DeploymentBundleRecord struct {
@@ -121,6 +122,8 @@ type DatabaseIfc interface {
 	SetLastSyncedManifestVersion(version uint64) error
 	GetLastSyncedBundleDigest() (string, error)
 	SetLastSyncedBundleDigest(digest string) error
+	SetAdoptedManifestVersion(deploymentId string, version uint64) error
+	GetAdoptedManifestVersion(deploymentId string) (uint64, error)
 }
 
 type Database struct {
@@ -300,6 +303,31 @@ func (db *Database) SetLastSyncedBundleDigest(digest string) error {
 	return nil
 }
 
+func (db *Database) SetAdoptedManifestVersion(deploymentId string, version uint64) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	record, exists := db.deployments[deploymentId]
+	if !exists {
+		return fmt.Errorf("deployment %s not found", deploymentId)
+	}
+	record.AdoptedManifestVersion = version
+	record.LastUpdated = time.Now()
+	db.TriggerDataPersist()
+	return nil
+}
+
+func (db *Database) GetAdoptedManifestVersion(deploymentId string) (uint64, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	record, exists := db.deployments[deploymentId]
+	if !exists {
+		return 0, fmt.Errorf("deployment %s not found", deploymentId)
+	}
+	return record.AdoptedManifestVersion, nil
+}
+
 func NewDatabase(dataDir string) *Database {
 	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
@@ -472,6 +500,8 @@ func (db *Database) SetCurrentState(deploymentId string, state AppDeploymentStat
 
 	record.CurrentState = &state
 	record.LastUpdated = time.Now()
+	db.notify(deploymentId, record, DeploymentChangeTypeCurrentStateAdded)
+
 }
 
 func (db *Database) SetPhase(deploymentId, phase, message string) {

@@ -140,7 +140,8 @@ func (ss *StateSyncer) performSync() {
 	// Process deployments from the manifest
 	ss.log.Debugf("Setting desired states....")
 
-	ss.detectRemovedDeployments(desiredStateManifest.Deployments)
+	manifestVersion := uint64(desiredStateManifest.ManifestVersion)
+	ss.detectRemovedDeployments(desiredStateManifest.Deployments, manifestVersion)
 
 	if len(desiredStateManifest.Deployments) > 0 {
 		// Decide: bundle download vs individual fetch
@@ -160,6 +161,7 @@ func (ss *StateSyncer) performSync() {
 				ss.processDeploymentsIndividually(
 					ctx,
 					desiredStateManifest.Deployments,
+					manifestVersion,
 				)
 			} else {
 				// Process deployments from bundle
@@ -167,6 +169,7 @@ func (ss *StateSyncer) performSync() {
 					ctx,
 					desiredStateManifest.Deployments,
 					bundleYAMLs,
+					manifestVersion,
 				)
 			}
 		} else {
@@ -174,6 +177,7 @@ func (ss *StateSyncer) performSync() {
 			ss.processDeploymentsIndividually(
 				ctx,
 				desiredStateManifest.Deployments,
+				manifestVersion,
 			)
 		}
 	}
@@ -192,6 +196,7 @@ func (ss *StateSyncer) performSync() {
 
 func (ss *StateSyncer) detectRemovedDeployments(
 	desiredDeployments []sbi.DeploymentManifestRef,
+	manifestVersion uint64,
 ) {
 	currentDeployments := ss.database.ListDeployments()
 
@@ -221,6 +226,17 @@ func (ss *StateSyncer) detectRemovedDeployments(
 					"deploymentId", current.DeploymentID,
 					"error", err)
 			}
+
+			if err := ss.database.SetAdoptedManifestVersion(
+				current.DeploymentID,
+				manifestVersion,
+			); err != nil {
+				ss.log.Warnw("Failed to update adopted manifest version on removal",
+					"deploymentId", current.DeploymentID,
+					"manifestVersion", manifestVersion,
+					"error", err)
+			}
+
 		}
 	}
 }
@@ -479,6 +495,7 @@ func (ss *StateSyncer) shouldDownloadBundle(
 func (ss *StateSyncer) processDeploymentsIndividually(
 	ctx context.Context,
 	deploymentRefs []sbi.DeploymentManifestRef,
+	manifestVersion uint64,
 ) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
@@ -500,7 +517,12 @@ func (ss *StateSyncer) processDeploymentsIndividually(
 		}
 
 		// Store deployment
-		ss.storeDeployment(deploymentId, deploymentRef, deploymentYAML)
+		ss.storeDeployment(
+			deploymentRef.DeploymentId,
+			deploymentRef,
+			deploymentYAML,
+			manifestVersion,
+		)
 	}
 }
 
@@ -510,6 +532,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 	_ context.Context,
 	deploymentRefs []sbi.DeploymentManifestRef,
 	bundleYAMLs map[string][]byte,
+	manifestVersion uint64,
 ) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
@@ -582,7 +605,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 		}
 
 		// Store deployment
-		ss.storeDeployment(deploymentId, deploymentRef, &deployment)
+		ss.storeDeployment(deploymentId, deploymentRef, &deployment, manifestVersion)
 	}
 }
 
@@ -591,6 +614,7 @@ func (ss *StateSyncer) storeDeployment(
 	deploymentId string,
 	deploymentRef sbi.DeploymentManifestRef,
 	deploymentYAML *sbi.AppDeploymentManifest,
+	manifestVersion uint64,
 ) {
 	desiredState := database.AppDeploymentState{
 		AppDeploymentManifest: *deploymentYAML,
@@ -624,9 +648,17 @@ func (ss *StateSyncer) storeDeployment(
 		return
 	}
 
+	if err := ss.database.SetAdoptedManifestVersion(deploymentId, manifestVersion); err != nil {
+		ss.log.Warnw("Failed to set adopted manifest version",
+			"deploymentId", deploymentId,
+			"manifestVersion", manifestVersion,
+			"error", err)
+	}
+
 	ss.log.Infow("Set desired state for deployment",
 		"deploymentId", deploymentId,
-		"digest", deploymentRef.Digest)
+		"digest", deploymentRef.Digest,
+		"adoptedManifestVersion", manifestVersion)
 }
 
 // convertYAMLToJSON converts YAML-style maps (interface{} keys) to JSON-compatible maps (string

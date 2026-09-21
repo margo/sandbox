@@ -690,16 +690,11 @@ jobs:
             echo "📋 Deploying to K3s..."
             PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1) || true
             DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" 2>&1) || true
-            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
-            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            # Beyond empty/"null": reject anything that isn't shaped like a real UUID.
-            # wfm-cli.sh's easy-cli helpers have been observed returning a friendly
-            # "❌ ..." string (or worse, an internal jq parse-error banner) as their
-            # last printed line on failure, which is non-empty and non-null but is
-            # NOT a usable ID - passing it to deploy-non-interactive only produces a
-            # confusing cascade of further errors instead of a clear failure here.
-            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+            # Validate: PACKAGE_ID is a UUID and DEVICE_ID is a SPIFFE URI
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
               echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
               echo "--- Full get-package-id-by-name output ---"
               echo "$PACKAGE_RAW"
@@ -708,6 +703,7 @@ jobs:
               exit 1
             fi
             echo "🪪 K3s device ID: $DEVICE_ID"
+            echo "📦 K3s package ID: $PACKAGE_ID"
 
             DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
               echo "❌ K3s: deploy-non-interactive failed"
@@ -726,14 +722,10 @@ jobs:
             K3S_INSTALLED=""
             for ATTEMPT in {1..60}; do
               RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
-              # list-deployments prints a box-drawn "| COL | COL | ... |" table. The row
-              # ends "... | RUNNINGSTATE | UPDATED |", so splitting on whitespace (the old
-              # `awk '{print $NF}'`) always grabs the trailing "|" character, never the
-              # actual status - deployments can finish successfully while this reports
-              # nothing but "|" forever. Split on "|" instead and take field 7
-              # (empty, ID, NAME, PKG, DEVICE, OP, RUNNINGSTATE, UPDATED, empty).
               DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
                 awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
+              echo "[$ATTEMPT/60] K3s Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
+
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
                 K3S_INSTALLED="true"
@@ -743,8 +735,6 @@ jobs:
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              # PENDING (and any other in-progress state) is normal while images download;
-              # keep polling rather than treating it as a failure.
               sleep 2
             done
             if [ -z "$K3S_INSTALLED" ]; then
@@ -760,10 +750,11 @@ jobs:
             echo "📋 Deploying to Docker..."
             PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1) || true
             DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" 2>&1) || true
-            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1)
-            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1)
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $UUID_RE ]]; then
+            # Validate: PACKAGE_ID is a UUID and DEVICE_ID is a SPIFFE URI
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
               echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
               echo "--- Full get-package-id-by-name output ---"
               echo "$PACKAGE_RAW"
@@ -772,6 +763,7 @@ jobs:
               exit 1
             fi
             echo "🪪 Docker device ID: $DEVICE_ID"
+            echo "📦 Docker package ID: $PACKAGE_ID"
 
             DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
               echo "❌ Docker: deploy-non-interactive failed"
@@ -791,6 +783,8 @@ jobs:
               RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
               DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
                 awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
+              echo "[$ATTEMPT/60] Docker Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
+
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
                 DOCKER_INSTALLED="true"

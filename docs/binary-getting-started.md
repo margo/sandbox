@@ -1,4 +1,4 @@
-# 🚀 Device Agent – Binary Getting Started Guide
+# 🚀 Device Agent - Binary Getting Started Guide
 
 This guide explains how to setup, configure, and run the `device-agent` binary.
 
@@ -24,6 +24,8 @@ Ensure the following before proceeding:
 - A running Margo Identity Service (MIS) — either your operator's own deployment or the sandbox MIS
 - The required backend service (e.g., WFM) is running
 - Observability stack is available as part of the Margo ecosystem (e.g., OTEL Collector, Grafana, Jaeger, Prometheus, etc.)
+
+For MIS startup instructions, see [Build and MIS](./setup-guide.md#build-and-run-mis) for the sandbox deployment or [Run locally](../mis/README.md#run-locally) for the MIS binary.
 
 👉 Note: Device-agent is not strictly dependent on the observability stack, but skipping it may result in non-compliance with Margo device requirements.
 

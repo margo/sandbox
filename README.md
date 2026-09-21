@@ -12,7 +12,7 @@
   - [Symphony WFM](#symphony-wfm)
   - [Repositories and Registry](#repositories-and-registry)
   - [Telemetry and Monitoring](#telemetry-and-monitoring)
-- [HTTP/1.1 and API Security](#http11-and-api-security)
+- [Margo Identity and Authorization Framework (MIAF)](#margo-identity-and-authorization-framework-miaf) 
 - [Release Notes](#release-notes)
 - [Comments and Feedback](#comments-and-feedback)
 
@@ -126,13 +126,12 @@ This includes the following elements -
 
 ---
 
-### HTTP/1.1 and API Security
-- Sandbox utilizes HTTP/1.1 to ensure maximum support for existing infrastructure.
-- Server-side TLS is utilized instead of mTLS due to potential issues with TLS-terminating HTTPS load-balancer or HTTPS proxies doing lawful inspection.
-- Use of X.509 certificates to represent both parties within the REST API construction. These certificates are utilized to prove each participant's identity, establish a secure TLS session, and securely transport information within secure envelopes. Supports client authentication using X.509 certificates conforming to RFC 5280.
-- The device establishes a secure HTTPS connection using server-side TLS. It validates the server's identity using the public root CA certificate. By utilizing the certificates to create payload envelopes (HTTP request body), the device's management client can ensure secure transport between the device's management client and the Workload Fleet Management web service.
-- For API security, server side TLS 1.3 (minimum) is used, where the keys are obtained from the Server's X.509 Certificate as defined in the standard HTTP over TLS.
-- For API integrity, the device's management client is issued a client-specific X.509 certificate. The issuer of the client X.509 certificate is trusted under the assumption that the root CA download to the Workload Fleet Management server occurs as a precondition to onboarding the devices. This CA can be provided to the device in any offline mode.
+### Margo Identity and Authorization Framework (MIAF)
+- The Sandbox implements [MIAF](https://docs.margo.org/specification/identity/identity-framework) for the Workload Fleet Management interface between the WFM and WFM Clients.
+- Components authenticate using mutual TLS (mTLS) with X.509-SVIDs containing SPIFFE IDs. Each peer validates the other peer's SVID against the Trust Bundle for the shared Trust Domain.
+- The Margo Identity Service (MIS) issues SVIDs and publishes the Trust Domain discovery document and Trust Bundle over HTTPS. The Sandbox provisions these identities as part of its setup and onboarding workflows.
+- Authorization is performed locally by each verifier using the peer's validated SPIFFE ID and the applicable Margo policy; no central authorization server is used.
+- See the [Margo WFM Identity Profile](https://docs.margo.org/specification/identity/wfm-identity-profile) and [Transport Layer Security Requirements](https://docs.margo.org/specification/identity/tls-requirements) for the normative identity and transport requirements.
 
 ---
 
@@ -141,8 +140,10 @@ This includes the following elements -
 
 If you want to quickly try the device-agent without setting up the full sandbox environment, you can run the prebuilt binary directly from the release package.
 
+Running the binary requires identity material from a Margo Identity Service (MIS), unless your operator provides equivalent overrides.
+
 👉 Follow the Binary Quick Start Guide here:  
-[Device Agent – Binary Setup Guide](./docs/binary-getting-started.md)
+[Device Agent - Binary Setup Guide](./docs/binary-getting-started.md)
 
 This method is useful for:
 - Quick validation and testing

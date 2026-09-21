@@ -11,9 +11,6 @@ This repository contains the proof-of-concept components, shared libraries, stan
 
 ```
 sandbox/
-├── .devcontainer/  # Development container configuration
-├── .github/        # GitHub workflows and templates
-├── .vscode/        # VS Code configuration
 ├── docker-compose/ # Docker Compose files for the sandbox components
 ├── docs/           # Documentation related to the MARGO project
 ├── helmchart/      # Helm chart files for running the Workload Fleet Management Client
@@ -23,15 +20,8 @@ sandbox/
 ├── scripts/        # Automation scripts for build, deployment and run
 ├── shared-lib/     # Reusable libraries and utilities imported by the main codebase
 ├── standard/       # MARGO API definitions and generated schema code
-├── .gitignore      # Git ignore rules
-├── CODEOWNERS      # Code ownership definitions
-├── CONTRIBUTING.md # Contribution guidelines
 ├── go.mod          # Go module dependencies
 ├── go.sum          # Go module checksums
-├── justfile        # Common development commands
-├── LICENSE         # Project license
-├── README.md       # Main project documentation
-└── SECURITY.md     # Security policy
 ```
 
 ## Core Components

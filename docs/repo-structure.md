@@ -11,20 +11,27 @@ This repository contains the proof-of-concept components, shared libraries, stan
 
 ```
 sandbox/
+├── .devcontainer/  # Development container configuration
 ├── .github/        # GitHub workflows and templates
 ├── .vscode/        # VS Code configuration
-├── LICENSE         # Project license
-├── README.md       # Main markdown file for whole project which links to other .md files
-├── docs            # Documentation related to the code development that are done for the MARGO project
+├── docker-compose/ # Docker Compose files for the sandbox components
+├── docs/           # Documentation related to the MARGO project
+├── helmchart/      # Helm chart files for running the Workload Fleet Management Client
+├── mis/            # Margo Identity Service (MIS) implementation
+├── non-standard/   # Sandbox enabling APIs/components not defined by MARGO
+├── poc/            # Runnable implementations and code for the Code-first Sandbox
+├── scripts/        # Automation scripts for build, deployment and run
+├── shared-lib/     # Reusable libraries and utilities imported by the main codebase
+├── standard/       # MARGO API definitions and generated schema code
+├── .gitignore      # Git ignore rules
+├── CODEOWNERS      # Code ownership definitions
+├── CONTRIBUTING.md # Contribution guidelines
 ├── go.mod          # Go module dependencies
 ├── go.sum          # Go module checksums
-└── standard        # MARGO API definitions copied from the official sources and the auto-generated schema code is placed here. It is a Go-package and is imported in the main codebase.
-├── non-standard    # Sandbox enabling APIs/components (these are not defined in MARGO, but needed for a complete workflow for Code-first Sandbox). It is a Go-package and is imported in the main codebase.
-├── shared-lib      # Go-package. Reusable libraries, and utilities. It is a Go-package and is imported in the main codebase.
-├── poc             # The runnable implementations and code for code-first-sandbox.
-├── scripts        # Automation scripts for build, deployment and run.
-├── docker-compose  # Files related to running Workload Fleet Management Client using docker-compose
-├── helmchart       # Helmchart files to run Workload Fleet Management Client in kubernetes environment
+├── justfile        # Common development commands
+├── LICENSE         # Project license
+├── README.md       # Main project documentation
+└── SECURITY.md     # Security policy
 ```
 
 ## Core Components
@@ -93,9 +100,11 @@ Reusable Go libraries providing common functionality across MARGO components.
 
 **Libraries:**
 - **Git based operations** (`git/`) - Pull repos from Git etc...
+- **Caching utilities** (`cache/`) - Cache implementations for bundles and deployments
 - **File operations** (`file/`) - File download and manipulation utilities
 - **Cryptography based helpers** (`crypto/`) - TLS, payload signing using certificates etc.
 - **HTTP utilities** (`http/`) - HTTP client with authentication utilities
+- **Margo Identity Service helpers** (`mis/`) - MIS clients, encoders, mTLS, trust bundle, and certificate validation utilities
 - **Container image operations** (`oci/`) - Pull image from container image repos etc...
 - **Workload management** (`workloads/`) - Helm and Docker Compose clients
 - **Archive** (`archive/`) - Unpacking or packing archives(tar.gz) etc..
@@ -103,6 +112,7 @@ Reusable Go libraries providing common functionality across MARGO components.
 - **Device Constraint Selector Engine** (`constraints/`) - Reusable device eligibility checking library for the checks defined in [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/proposals/sup_device_specific_runtime_affinity_matching.md)
 - **Go Set Library** (`set/`) - A general purpose set implementation for Go, with commonly used operations in Go.
 - **IEC Quantity Parser** (`quantity/`) - A general purpose minimalist IEC mini quantity notation parser & comparer. 
+- **File watcher** (`watcher/`) - Utilities for monitoring file changes
 
 ### 🛠️ Development Tools (`scripts/`)
 Scripts and utilities for development, testing, and deployment automation.
@@ -131,6 +141,25 @@ This directory contains API definitions that fall outside the Margo specificatio
 **Example**: While Margo specifies that Application Descriptions are hosted in Git repositories, it doesn't define how WFM discovers repository locations or manages credentials. We created a custom WFM API for passing repository metadata. This non-standard API enables uploading Application Description metadata to WFM. Similarly, other APIs in this directory facilitate the other workflows.
 
 **Note**: These specifications are reference implementations only and are not part of official Margo. WFM developers may use these as guidance or implement their own solutions. No official support is provided for these non-standard components.
+
+### 🔐 Margo Identity Service (`mis/`)
+
+The Margo Identity Service (MIS) implements the identity and authorization capabilities defined by the Margo Identity and Authorization Framework (MIAF). It provides the services needed to establish trust between MARGO components, including SPIFFE trust bundle discovery and X.509 SVID management.
+
+**Contents:**
+- **MIS CLI and REST API** (`cli/`, `https/`) - Commands for running the service and managing identities, together with the HTTPS API operations
+- **Unix client and server** (`unix/`) - Local MIS communication and identity operations
+- **Standard models** (`pkg/standard/`) - Generated models for the MIS API specification
+- **Configuration and certificates** (`pkg/conf/`, `certs/`) - Service configuration and development PKI material
+
+Shared MIS-related validation, encoding, and mTLS helpers are available in [`shared-lib/mis/`](../shared-lib/mis/).
+
+For build, configuration, PKI setup, and deployment instructions, see the [MIS documentation](../mis/README.md).
+
+### 📦 Deployment Configuration (`docker-compose/` and `helmchart/`)
+
+- `docker-compose/` - Docker Compose configuration for running the sandbox components
+- `helmchart/` - Helm chart templates and values for deploying the Workload Fleet Management Client on Kubernetes
 
 ## Development Workflow
 

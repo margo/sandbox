@@ -19,6 +19,8 @@ export EXPOSED_HARBOR_PORT=8443
 export EXPOSED_SYMPHONY_PORT=8082
 export SYMPHONY_BRANCH=main #it can be a tag also
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
+export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable, should follow "mis.(TrustDomain)", where TrustDomain will be reused for minting x509 SVIDs  >
+export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
 
 **For compose/helm capable device-agent.sh script**
@@ -30,6 +32,8 @@ Update the following variables:
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
 export WFM_HOST=<wfm-machine-hostname-or-ip>
 export EXPOSED_HARBOR_HOST=<harbor-machine-hostname-or-ip>
+export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable, should follow "mis.(TrustDomain)", where TrustDomain will be reused for minting x509 SVIDs  >
+export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
 
 

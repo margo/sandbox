@@ -71,7 +71,7 @@ go test ./...
 
 # Run with coverage
 go test -cover ./...
-
+```
 
 ### 🤖 Device's Workload Fleet Management Client (`poc/device/agent/`)
 Edge device's workload fleet management client that manages workload deployments on device and communicates with the workload-orchestrator/fleet-manager for state seeking, deployment status updates and other operations.
@@ -79,7 +79,8 @@ Edge device's workload fleet management client that manages workload deployments
 **Key Features:**
 - Multi-runtime support (Kubernetes Distributions(for Helm workloads), Docker(for docker-compose workloads))
 - Event-driven architecture with state synchronization with workfleet-orchestrator/fleet-manager
-- Device onboarding and capability reporting
+- MIAF compliant mTLS communication with workload-orchestrator/fleet-manager.
+- Device capability reporting
 - Workload lifecycle management and monitoring
 - In-memory database with persistence on disk
 
@@ -99,7 +100,7 @@ Reusable Go libraries providing common functionality across MARGO components.
 - **Workload management** (`workloads/`) - Helm and Docker Compose clients
 - **Archive** (`archive/`) - Unpacking or packing archives(tar.gz) etc..
 - **Pointer operations** (`pointers/`) - Some helper functions to deep clone, safely get pointer to temp variables etc...
-- **Device Constraint Selector Engine** (`constraints/`) - Reusable device eligibility checking library for the checks defined in [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/proposals/sup_device_specific_runtime_affinity_matching.md)
+- **Device Constraint Selector Engine** (`constraints/`) - Reusable device eligibility checking library for the checks defined in [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/completed/sup_device_specific_runtime_affinity_matching.md)
 - **Go Set Library** (`set/`) - A general purpose set implementation for Go, with commonly used operations in Go.
 - **IEC Quantity Parser** (`quantity/`) - A general purpose minimalist IEC mini quantity notation parser & comparer. 
 - **File watcher** (`watcher/`) - Utilities for monitoring file changes
@@ -108,8 +109,9 @@ Reusable Go libraries providing common functionality across MARGO components.
 Scripts and utilities for development, testing, and deployment automation.
 
 **Tools:**
-- **Setup script** (`wfm.sh`, `device-agent.sh`) - Automated environment setup (Harbor, device's Workload Fleet Management Client, Symphony etc.)
-- **Label Generator Script** (`create-device-labels.sh`) - This script helps users generate labels for a device as per the guidelines defined here: [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/proposals/sup_device_specific_runtime_affinity_matching.md)
+- **Setup script** (`wfm.sh`, `device-agent.sh`, `mis.sh`) - Automated environment setup (Harbor, device's Workload Fleet Management Client, Symphony etc.)
+- **Label Generator Script** (`create-device-labels.sh`) - This script helps users generate labels for a device as per the guidelines defined here: [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/completed/sup_device_specific_runtime_affinity_matching.md)
+- **MIS Helper Scripts** (`lib/mis/pki_gen.sh`,`lib/mis/confbuilder.sh`,`lib/mis/svid_gen.sh`) - These three scripts together set up the complete PKI and identity infrastructure for the Margo Identity Service: pki_gen.sh generates the foundational CA certificates and server keys, confbuilder.sh uses those artifacts to produce the service's configuration.json, and svid-gen.sh mints X.509 SVID certificates for WFM principals via the running identity service container — all supporting both interactive and automated modes.
 - **EasyCLI** (`wfm-cli.sh`) - EasyCLI is an interactive menu with options to upload/apply/delete app packages, deploy/delete instances.
 
 

@@ -30,7 +30,7 @@ SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
 # ----------------------------
 GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
-mis_IMAGE="margo.org/margo-identity-service"
+mis_IMAGE="margo-identity-service"
 mis_IMAGE_TAG="latest"
 mis_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${mis_IMAGE}:${mis_IMAGE_TAG}"
 deploy_dir="$HOME/mis-deployment"

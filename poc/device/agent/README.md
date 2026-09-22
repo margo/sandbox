@@ -10,21 +10,22 @@ This repository contains a code-first-sandbox implementation that supports multi
 - Overview
 - Build and Run
 - Configuration
-- Runtimes & Examples
+- Runtimes & Features
 - Development & Tests
 - Troubleshooting
-- Contributing
+- Security
 
 
 ## Overview
 
 The Device Workload Fleet Management Client runs on edge devices and provides these core responsibilities:
 
-- Onboarding and authentication with the Margo compliant WFM
-- Reporting device capabilities (hardware, interfaces)
+- Establishing MIAF identity and authorization with the Margo compliant WFM
+- Reporting device capabilities (hardware, interfaces, labels and supported deployment types)
 - Managing application workloads (Helm charts for Kubernetes runtime, Docker Compose for Docker runtime)
 - Monitoring deployed workloads and reporting status changes in the deployments
-- Periodic and event-driven state synchronization and reconciliation for synchronized state seeking
+- Periodic desired-state synchronization and event-driven deployment reconciliation
+- Checking application device constraints before a workload is deployed
 
 Design goals: small footprint, modular runtime adapters, event-driven reconciliation, and clear observability.
 
@@ -33,13 +34,15 @@ Design goals: small footprint, modular runtime adapters, event-driven reconcilia
 Key components (see source):
 
 - `main.go` — application bootstrap, component wiring and lifecycle management
-- `database/database.go` — lightweight in-memory DB with persistence and event hooks
-- `onboarding.go` — device client registration, credentials and token management
-- `device/capabilities.go` — capability discovery and reporting
-- `stateSync.go` — reconciles desired vs actual state with the WFM
-- `deployment.go` — deploy/update/remove workloads through runtime clients
-- `monitor.go` — polls or subscribes to runtime state and emits status updates
-- `status.go` — status reporting API calls to the WFM
+- `database/database.go` — in-memory state store with on-disk persistence, subscriptions, MIAF state and sync metadata
+- `onboarding.go` — capability reporting and device-client settings
+- `stateSync.go` — polls desired state, validates manifest versions, and fetches deployment bundles or individual deployments
+- `deployment.go` — evaluates device constraints and deploys, updates or removes workloads through runtime clients
+- `monitor.go` — polls Helm release state and emits component status updates
+- `status.go` — deployment status reporting API calls to the WFM
+- `trustbundle.go` — retrieves, validates, caches and refreshes the MIAF SPIFFE trust bundle
+- `watcher.go` — watches and validates changes to the authorized-WFM SPIFFE ID list
+- `types/config.go` — YAML configuration and device-capability loading/validation
 
 Runtimes supported out of the box:
 
@@ -84,82 +87,63 @@ vim config/config.yaml
 
 ## Configuration
 
-Example minimal `config.yaml` (illustrative):
+`config/config.yaml` is the source of truth for the supported configuration. It currently defines:
+
+- `logging.level` — zap log level.
+- `database.dataDir` — directory used for persisted device, trust-bundle, desired-state and deployment data.
+- `miaf` — the device client's MIAF identity and authorization configuration. `x509.certPath` and `x509.keyPath` point to the device client's X.509-SVID certificate and private key. `mis.endpoint` and `mis.caPath` configure HTTPS access to the Margo Identity Service. Alternatively, `mis.trustBundle.path` and `mis.trustDomain` can be used with an operator-provided SPIFFE trust bundle. `mis.cacheInterval` is the fallback refresh interval in seconds. `authzPath` points to the authorized-WFM list.
+- `wfm.sbiUrl` — the WFM SBI endpoint.
+- `stateSeeking.interval` — desired-state polling interval in seconds.
+- `runtimes` — enabled runtime clients. The checked-in example enables Kubernetes/Helm; Docker Compose can be enabled by adding a `DOCKER` entry with its Docker socket URL.
+- `capabilities.readFromFile` — path to the device capabilities JSON document.
+
+Paths are resolved by the process, so use paths valid from the directory where the agent is started. The MIAF certificate, private key, CA certificate and trust bundle are sensitive trust material and must be readable only by the agent account.
+
+The checked-in configuration is intentionally a working example rather than a complete template:
 
 ```yaml
 logging:
-  # Log level (e.g., DEBUG, INFO, WARN, ERROR, FATAL)
   level: DEBUG
-
-# The device's root identity/attestation used for onboarding/registration of this device client with WFM (for auto-onboarding).
-deviceRootIdentity:
-  # Supported values: RANDOM, PKI, later on you can use it to add support for something like TPM, FIDO etc.
-  identityType: "PKI"
-  # Type-specific attestation or credential data. Keep only the keys that you need.
-  attestation:
-    # if you have set identity type as Random, then set these details
-    # random:
-    #   value: "this-is-a-unique-random-identity-attached-with-this-device"
-
-    # if you have set identity type as PKI, then set these details
-    pki:
-      # certificate that the device client will present to the wfm during registration
-      pubCertPath: ./config/device-public.crt
-
+database:
+  dataDir: "/var/lib/margo/device-agent/data"
+miaf:
+  x509:
+    certPath: "./config/identity/payload-cert.pem"
+    keyPath: "./config/identity/payload-key.pem"
+  mis:
+    endpoint: "https://mis.margo.org:9443"
+    caPath: "./config/mis/https-ca.crt"
+    cacheInterval: 60
+  authzPath: "./config/authorized.json"
 wfm:
-  sbiUrl: https://10.139.2.248:8082/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
-  clientPlugins:
-    requestSigner:
-      enabled: true
-      hashAlgo: "sha256" # supported: sha256, used to create a hash of the payload
-      signatureAlgo: "rsa" # supported: rsa, or ecdsa, these are used to sign the hash
-      signatureFormat: "structured" # supported: structured, http-signature, how the signature will be added to the http request
-      keyRef:
-        path: "./config/device-private.key" # this should be the path to the private key pem file
-
-    # NOTE: The oauth workflow is not yet defined in Margo spec, hence keep this disabled
-    # the auth info is auto-fetched by the workload-fleet-management-client when it gets onboarded
-    # but if you, for any reason, want to specify the oauth info, then you can pass that info over here
-    authHelper:
-      # if the wfm doesn't have oauth enabled on its endpoints, then set enable: false
-      # and the workload-fleet-management-client will not add any authorization header in the request
-      enabled: false
-
-    # this plugin will be used to verify server tls certificates
-    # note: we do not support mTLS hence client side certificates are not part of this configuration
-    tlsHelper:
-      enabled: true
-      # path to the ca certificate that will be used to verify server certificates
-      caKeyRef:
-        path: "./config/ca-cert.pem"
-
+  sbiUrl: "https://symphony.machine:8084/v1alpha2/margo"
 stateSeeking:
-  # How frequently the workload-fleet-management-client attempts to seek for the desired state from wfm
-  # in seconds
   interval: 15
-
-# the workload-fleet-management-client architecture is kept in a way that it is capable of managing more than one runtimes
-# but one client with multiple devices is not defined by Margo yet, as it comes with its own complexities,
-# for example: how would the client know which device should the application be deployed to? etc...
-# If this is needed please reach out to the Margo group and follow the formal approach of Margo for SUPs.
-# For now, always keep one runtime in this section, and comment all others
 runtimes:
   - type: KUBERNETES
     kubernetes:
       kubeconfigPath: /root/.kube/config
-  - type: DOCKER
-    docker:
-      url: unix:///var/run/docker.sock
-
-# Note: Auto-discovery of device capabilities is not defined and hence not implemented yet,
-# as a result you are supposed to provide the details in the file.
-# Path to the capabilities file (required).
 capabilities:
   readFromFile: ./config/capabilities.json
-
 ```
 
-Device capabilities are JSON documents describing hardware, and resources. Place a file at the configured path or if you want then you can implement your own provider that posts capabilities to the WFM.
+### Authorized WFM identities
+
+`config/authorized.json` is a JSON array of SPIFFE IDs for WFMs that are allowed to communicate with this device client. For example:
+
+```json
+["spiffe://margo.org/margo/wfm/symphony-1"]
+```
+
+An operator can minimally update this file by adding or removing an authorized WFM SPIFFE ID. The agent watches the file, validates every ID as a Margo WFM identity, and keeps the previous list if an update is invalid. Each ID must belong to the configured MIAF trust domain.
+
+### Device capabilities
+
+`config/capabilities.json` is the device capabilities manifest reported to the WFM. It contains `properties` describing resources and supported workload processing, and optional supplier-defined `labels` used for application eligibility matching. The current file reports the device `id`, vendor and model identity, CPU architecture and cores, memory, storage, peripherals, interfaces, OTEL collector availability, supported runtimes and supported deployment types.
+
+Only update values that describe resources actually delegated to Margo workloads. The minimal operator-editable fields are the device identity (`properties.id`, `vendor`, `modelNumber`, `serialNumber`), available capacity (`cpus`, `memory`, `storage`), available hardware and interfaces (`peripherals`, `interfaces`), and supported processing (`supportedRuntimes`, `supportedDeploymentTypes`). `labels` may contain stable, supplier-defined string, number, boolean, or homogeneous primitive-array values; prefix label keys with an organization domain to avoid collisions. Validate the JSON before restarting the agent.
+
+The Margo device-capabilities model uses `oci` for an OCI runtime and `helm` or `compose` for deployment types. The agent also adds the deployment types implied by the configured runtime clients when it initializes. See the [Margo Device Capabilities specification](https://docs.margo.org/specification/margo-management-interface/device-capabilities) for the complete schema and allowed values.
 
 ## Runtimes & features
 
@@ -176,6 +160,12 @@ Operational features:
 - Persistence: in-memory DB with optional on-disk persistence for state
 - Error handling: structured errors and retry classification
 
+### Device capability matching
+
+Before deploying an application, the agent evaluates the deployment profile's optional `deviceConstraints` against its loaded capabilities. Capacity requirements are checked for CPU cores and architecture, memory, and storage. Eligibility rules can match device `properties` with JSON Pointer property selectors and supplier-defined `labels` with label selectors; selector expressions follow the Margo application-description rules. If the device is not eligible, the deployment is failed locally with the matching reason and no runtime deployment is attempted.
+
+This check complements WFM placement. The WFM may use the same constraints to select a target, but the device remains responsible for determining whether the workload can run on its actual capabilities. See the [Margo Application Description device constraints](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) documentation for the constraint schema and matching operators.
+
 ## Development & tests
 
 Project structure (top-level of the agent):
@@ -188,15 +178,18 @@ poc/device/agent/
 ├─ deployment.go
 ├─ monitor.go
 ├─ status.go
+├─ trustbundle.go
+├─ watcher.go
 ├─ config/
+│  ├─ authorized.json
 │  ├─ config.yaml
 │  └─ capabilities.json
 ├─ database/
 │  └─ database.go
-├─ device/
-│  └─ capabilities.go
 └─ types/
-   └─ *.go (config, types, errors)
+  ├─ config.go
+  ├─ config_test.go
+  └─ error.go
 ```
 
 Key developer notes:
@@ -290,6 +283,10 @@ Debugging tips
 
 ## Security
 
-- **TLS Verification**: The client can verify server TLS certificates when connecting to WFM. Configure this using the `tlsHelper` settings in the configuration file.
-- **Plain HTTP (Not Recommended)**: For development or testing, the client supports unencrypted HTTP. Set `wfm.sbiUrl` to `http://` and `tlsHelper.enabled` to `false`. **Warning**: Only use HTTP in trusted networks.
-- **Request Signing**: The client signs requests by default for enhanced security. To disable this feature, set `requestSigner.enabled` to `false`. **Warning**: Note that request signing is defined in Official Margo spec. Disable this when in development or debugging phase.
+The agent uses the [Margo Identity and Authorization Framework (MIAF)](https://docs.margo.org/specification/identity/identity-framework) for WFM communication. MIAF uses a SPIFFE ID carried in an X.509-SVID, mutual TLS for peer authentication, a SPIFFE trust bundle for certificate validation, and local policy based on the peer's verified SPIFFE ID for authorization.
+
+- The device client's X.509-SVID and private key are configured under `miaf.x509`.
+- The trust bundle is retrieved from the MIS using `miaf.mis.endpoint` and `miaf.mis.caPath`, or loaded from the configured operator-provided bundle. The agent validates and caches the bundle and refreshes it periodically; a positive `spiffe_refresh_hint` in the bundle can change the effective refresh interval.
+- `miaf.authzPath` is the local allow-list of WFM SPIFFE IDs. It is validated at startup and revalidated when the file changes.
+- The WFM client is configured with the MIAF mTLS transport. The old request-signing, OAuth helper and standalone `tlsHelper` configuration are no longer part of this agent's configuration and must not be added to `config.yaml`.
+- Use an `https://` WFM endpoint and keep the SVID key, MIS CA certificate, trust bundle and authorization file protected. Plain HTTP is not a supported MIAF deployment mode.

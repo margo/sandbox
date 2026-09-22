@@ -214,11 +214,7 @@ invoke_pki_gen() {
 # MIS Installation 
 # ----------------------------
 install_mis() {
-  # TODO: Add Github CI related changes here
-  
-
-  # If it is not Github CI then: 
-  setup_mis_deployment
+    setup_mis_deployment
   update_config "$EXPOSED_MIS_HOST" "$EXPOSED_MIS_PORT" "$deploy_dir/configuration.json"
   start_mis_deployment
 }
@@ -307,7 +303,7 @@ start_mis_deployment() {
         return 1
     fi
 
-    setup_mis_image || return 1
+    setup_mis_image || return 1 # returns mis_IMAGE_REF based on the execution environment 
     
     echo "[INFO] Starting Margo Identity Service Docker Container"
     if ! docker compose -f docker-compose.yaml up -d; then

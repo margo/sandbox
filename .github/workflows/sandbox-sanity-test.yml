@@ -440,7 +440,7 @@ jobs:
           find "$DOCKER_CONFIG" -type f -exec chmod 600 {} \;
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-      - name: Copy CA certs (Harbor + MIS HTTPS Root CA)
+      - name: Copy Harbor certs 
         run: |
           Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
@@ -500,7 +500,7 @@ jobs:
           docker logs symphony-api-container --tail=100 2>&1 || echo "Could not retrieve Symphony logs"
 
       # ── Device agents: SVIDs + authorized.json replace the old RSA/ECDSA cert steps ──
-      - name: WFM-Client (K3s) - Setup
+      - name: WFM-Client - Setup
         working-directory: scripts
         run: |
           set -euo pipefail
@@ -804,23 +804,6 @@ jobs:
           echo "========================================="
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
-
-          echo ""
-          echo "========================================="
-          echo "📋 MIAF IDENTITY STATE"
-          echo "========================================="
-          echo "Symphony authorized-clients.json:"
-          sudo cat "$HOME/symphony/api/mis/authorized-clients.json" 2>&1 || echo "not present"
-          echo "Device agent authorized.json:"
-          sudo cat "${SANDBOX_DIR}/poc/device/agent/config/authorized.json" 2>&1 || echo "not present"
-          echo "Cached trust bundle:"
-          sudo cat "$HOME/symphony/api/mis/trust-bundle.json" 2>&1 | head -c 500 || echo "not present"
-          echo ""
-          for d in x509svid-wfm x509svid-wfm-helm-client x509svid-wfm-docker-client; do
-            echo "--- $d ---"
-            sudo openssl x509 -in "${SVID_DIR}/$d/payload-cert.pem" -noout -subject -dates -ext subjectAltName 2>&1 \
-              || echo "⚠️ SVID $d not available"
-          done
 
           echo ""
           echo "========================================="

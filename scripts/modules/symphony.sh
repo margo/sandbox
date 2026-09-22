@@ -17,6 +17,12 @@ create_symphony_api_systemd_service() {
 
   local symphony_dir="$HOME/symphony/api"
 
+  # symphony-api-margo.json uses caPath and authzPath to find files under ./mis.
+  # Since the container's working directory is /, ./mis points to /mis.
+  # Mounting the host mis directory to /mis is required so the mTLS/SBI HttpBinding
+  # can read https-ca.crt and authorized-clients.json.
+  mkdir -p "${symphony_dir}/mis"
+
   sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
 [Unit]
 Description=Margo Symphony API Server
@@ -36,6 +42,7 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -p 8082:8082 \
     -e LOG_LEVEL=Debug \
     -v ${symphony_dir}/certificates:/certificates \
+    -v ${symphony_dir}/mis:/mis \
     -v ${symphony_dir}:/configs \
     -e CONFIG=symphony-api-margo.json \
     ${SYMPHONY_IMAGE_REF}
@@ -105,6 +112,13 @@ start_symphony_api_container() {
       echo "✅ Harbor CA copied to Symphony certificates"
     fi
 
+ 
+  # $HOME/symphony/api/mis`). That directory must exist and be bind-mounted into the
+  # container as /mis, or the mTLS/SBI HttpBinding's mis config fails to load
+  # (./mis/... resolves against the container root, since neither the image nor this
+  # docker run set a working directory).
+  mkdir -p "$HOME/symphony/api/mis"
+
   # Only check/pull from GHCR if not using a local image
   if [[ "${SYMPHONY_IMAGE_REF}" != *":ci-test" ]] && [[ "${SYMPHONY_IMAGE_REF}" == ghcr.io/* ]]; then
     echo "Checking GHCR image: ${SYMPHONY_IMAGE_REF}"
@@ -127,6 +141,7 @@ start_symphony_api_container() {
       -p 8082:8082 \
       -e LOG_LEVEL=Debug \
       -v $HOME/symphony/api/certificates:/certificates \
+      -v $HOME/symphony/api/mis:/mis \
       -v $HOME/symphony/api:/configs \
       -e CONFIG=symphony-api-margo.json"
 
@@ -135,6 +150,7 @@ start_symphony_api_container() {
     DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
       --add-host harbor.machine:${RUNNER_IP} \
       --add-host symphony.machine:${RUNNER_IP} \
+      --add-host mis.margo.org:${RUNNER_IP} \
       -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
   fi
 
@@ -157,7 +173,8 @@ start_symphony_api_container() {
 
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
       echo "✅ Symphony API container started successfully"
-      echo "📡 Container is running on port 8082 (host network)"
+      echo "📡 Container is running on port 8082 (host network), for NBI (Easy-CLI)"
+      echo "📡 Container is running on port 8084 (host network), for Margo Management Interface"
       create_symphony_api_systemd_service
   else
       echo "❌ Failed to start Symphony API container"
@@ -165,4 +182,3 @@ start_symphony_api_container() {
       return 1
   fi
 }
-

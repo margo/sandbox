@@ -1,7 +1,6 @@
 name: sandbox-sanity-test
 
 on:
-
   push:
     branches:
       - development
@@ -30,16 +29,25 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI: "true"
+
       # Branches
       SYMPHONY_BRANCH: ${{ github.event.inputs.symphony_branch_override || 'development' }}
       SANDBOX_REPO_BRANCH: ${{ github.event.inputs.sandbox_repo_branch_override || 'development' }}
 
       # Ports
       EXPOSED_HARBOR_PORT: 8443
-      EXPOSED_SYMPHONY_PORT: 8082
+      # SBI (device-agent) mTLS port only. Never used by wfm-cli.sh/maestro.
+      EXPOSED_SYMPHONY_PORT: 8084
+      # NBI port: plain TLS, no client cert. wfm-cli.sh/maestro (packages, devices,
+      # deployments) MUST use this port
+      SYMPHONY_NBI_PORT: 8082
+      # MIS HTTPS normative server, per symphony-api-margo.json: https://mis.margo.org:9443
+      EXPOSED_MIS_PORT: 9443
+
       # Optional auth
       GITHUB_USER: ""
       GITHUB_TOKEN: ""
+
       APP_PACKAGE_NAME_K3S: custom-otel-helm-app-package
       APP_PACKAGE_NAME_DOCKER: nextcloud-compose-app-package
       MAESTRO_CLI_PATH: "/home/runner/symphony/cli"
@@ -47,17 +55,43 @@ jobs:
       REGISTRY_PASS: "${{ secrets.HARBOR_PASSWORD }}"
       REGISTRY: "harbor.machine:8443"
 
-    steps:
+      # --- MIAF / MIS ---
+      EXPOSED_MIS_HOST: mis.margo.org
+      TRUST_DOMAIN: margo.org
+      MIS_IMAGE_REF: "mis:ci-test"
+      MIS_CERTS_DIR: "/home/runner/mis-deployment/certs"
+      MIS_DEPLOY_DIR: "/home/runner/mis-deployment"
+      SANDBOX_DIR: "/home/runner/sandbox"
+      SVID_DIR: "/home/runner/sandbox/scripts/lib/mis"
 
+      # Principal IDs. svid-gen.sh builds SPIFFE IDs as:
+      #   WFM     : spiffe://<trust-domain>/margo/wfm/<wfm-id>
+      #   Client  : spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
+      WFM_ID: "sandbox-wfm"
+      HELM_CLIENT_ID: "helm-client"
+      DOCKER_CLIENT_ID: "docker-client"
+
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Environment - Detect runner IP
+      - name: Environment - Detect runner IP and derive SPIFFE IDs
         run: |
           RUNNER_IP=$(hostname -I | awk '{print $1}')
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
           echo "✅ Runner IP: $RUNNER_IP"
 
+          WFM_SPIFFE_ID="spiffe://${TRUST_DOMAIN}/margo/wfm/${WFM_ID}"
+          HELM_CLIENT_SPIFFE_ID="${WFM_SPIFFE_ID}/client/${HELM_CLIENT_ID}"
+          DOCKER_CLIENT_SPIFFE_ID="${WFM_SPIFFE_ID}/client/${DOCKER_CLIENT_ID}"
+
+          echo "WFM_SPIFFE_ID=$WFM_SPIFFE_ID"                     >> $GITHUB_ENV
+          echo "HELM_CLIENT_SPIFFE_ID=$HELM_CLIENT_SPIFFE_ID"     >> $GITHUB_ENV
+          echo "DOCKER_CLIENT_SPIFFE_ID=$DOCKER_CLIENT_SPIFFE_ID" >> $GITHUB_ENV
+
+          echo "🪪 WFM           : $WFM_SPIFFE_ID"
+          echo "🪪 Helm client   : $HELM_CLIENT_SPIFFE_ID"
+          echo "🪪 Docker client : $DOCKER_CLIENT_SPIFFE_ID"
 
       - name: Parallel Setup Phase
         run: |
@@ -66,32 +100,35 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y curl jq openssl git
             sudo install -m 0755 -d /etc/apt/keyrings
-            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo curl -fsSL \
+              https://download.docker.com/linux/ubuntu/gpg \
+              -o /etc/apt/keyrings/docker.asc
             sudo chmod a+r /etc/apt/keyrings/docker.asc
             echo \
-              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+              https://download.docker.com/linux/ubuntu \
               $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
               sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
             sudo apt-get update
           ) &
-
           (
             # Install K3s early (saves time in wfm.sh install)
-            curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
+            curl -sfL https://get.k3s.io | \
+              INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
           ) &
-
           (
             # Make scripts executable
             chmod +x scripts/*.sh
+            chmod +x scripts/lib/mis/*.sh 2>/dev/null || true
           ) &
-
           wait
 
       - name: Environment - Configure /etc/hosts
         run: |
           echo "🔧 Updating /etc/hosts"
-          echo "${RUNNER_IP} harbor.machine" | sudo tee -a /etc/hosts
-          echo "${RUNNER_IP} symphony.machine" | sudo tee -a /etc/hosts
+          echo "${RUNNER_IP} harbor.machine"       | sudo tee -a /etc/hosts
+          echo "${RUNNER_IP} symphony.machine"     | sudo tee -a /etc/hosts
+          echo "${RUNNER_IP} ${EXPOSED_MIS_HOST}"  | sudo tee -a /etc/hosts
           echo "✅ /etc/hosts updated:"
 
       - name: Generate All Config Files
@@ -100,6 +137,14 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           EXPOSED_SYMPHONY_HOST=symphony.machine
+          # cli-config.sh reads this literal variable name for maestro's --port flag.
+          # Must be the NBI port (8082, plain TLS) - maestro has no client-cert support,
+          # so it can never be pointed at the 8084 mTLS SBI binding.
+          EXPOSED_SYMPHONY_PORT=${SYMPHONY_NBI_PORT}
+          EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
+          EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
+          TRUST_DOMAIN=${TRUST_DOMAIN}
+          WFM_SPIFFE_ID=${WFM_SPIFFE_ID}
           SYMPHONY_BRANCH=${SYMPHONY_BRANCH}
           SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
           GITHUB_USER=${GITHUB_USER}
@@ -114,22 +159,46 @@ jobs:
           CI=true
           EXPOSED_HARBOR_HOST=harbor.machine
           WFM_HOST=symphony.machine
-          WFM_PORT=8082
+          # SBI (device-agent) traffic goes over the mTLS binding, port 8084. This is
+          # separate from wfm.env's EXPOSED_SYMPHONY_PORT, which is the NBI port (8082)
+          # used by wfm-cli.sh/maestro - the two must never be the same value.
+          WFM_PORT=${EXPOSED_SYMPHONY_PORT}
+          EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
+          EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
+          TRUST_DOMAIN=${TRUST_DOMAIN}
+          WFM_SPIFFE_ID=${WFM_SPIFFE_ID}
           SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
           GITHUB_USER=${GITHUB_USER}
           GITHUB_TOKEN=${GITHUB_TOKEN}
           workload_Fleet_Management_Client_IMAGE_REF=workload-fleet-management-client:ci-test
           EOF
 
+          cat > scripts/mis.env <<EOF
+          CI=true
+          EXPOSED_MIS_HOST=${EXPOSED_MIS_HOST}
+          EXPOSED_MIS_PORT=${EXPOSED_MIS_PORT}
+          TRUST_DOMAIN=${TRUST_DOMAIN}
+          SANDBOX_REPO_BRANCH=${SANDBOX_REPO_BRANCH}
+          GITHUB_USER=${GITHUB_USER}
+          GITHUB_TOKEN=${GITHUB_TOKEN}
+          RUNNER_IP=${RUNNER_IP}
+          MIS_IMAGE_REF=${MIS_IMAGE_REF}
+          EOF
+
           echo "✅ All config files generated"
 
+      # ── MIS: prerequisites, root CAs, start (menu options 1, 3, 4 of the MIAF guide) ──
+      - name: MIS - Install prerequisites
+        working-directory: scripts
+        run: |
+          echo "Installing MIS prerequisites"
+          sudo -E bash ./mis.sh install
 
       - name: Install WFM Components
         working-directory: scripts
         run: |
           echo "Installing WFM / Symphony"
           sudo -E bash ./wfm.sh install
-
 
       - name: Fix Docker Permissions
         run: |
@@ -142,7 +211,6 @@ jobs:
       - name: Build Images in Parallel
         run: |
           echo "🔨 Building fresh images"
-
           (
             cd "$HOME/symphony"
             DOCKER_BUILDKIT=1 docker build \
@@ -153,7 +221,7 @@ jobs:
           SYMPHONY_PID=$!
 
           (
-            cd "$HOME/sandbox"
+            cd "${SANDBOX_DIR}"
             DOCKER_BUILDKIT=1 docker build \
               --no-cache \
               --tag workload-fleet-management-client:ci-test \
@@ -161,37 +229,191 @@ jobs:
           ) &
           CLIENT_PID=$!
 
-          wait $SYMPHONY_PID || exit 1
-          wait $CLIENT_PID || exit 1
+          (
+            cd "${SANDBOX_DIR}/mis"
+            make container IMAGE_NAME=mis IMAGE_TAG=ci-test
+          ) &
+          MIS_PID=$!
 
+          wait $SYMPHONY_PID || exit 1
+          wait $CLIENT_PID   || exit 1
+          wait $MIS_PID      || exit 1
           echo "✅ All images built successfully"
 
           # Import WFM-Client into K3s
           docker save workload-fleet-management-client:ci-test | sudo k3s ctr images import -
 
+      - name: MIS - Factory bootstrap (generate Root CAs)
+        working-directory: scripts
+        run: |
+          echo "🔐 Generating HTTPS Root CA + server cert and SVID Root CA"
+          sudo -E bash ./mis.sh setup-factory
+
+          echo "Verifying generated PKI in ${MIS_CERTS_DIR}"
+          for f in https-ca.crt https-ca.key https-server.crt https-server.key ca.crt ca.key; do
+            sudo test -f "${MIS_CERTS_DIR}/$f" || { echo "❌ Missing ${MIS_CERTS_DIR}/$f"; exit 1; }
+            echo "  ✅ $f"
+          done
+
+      - name: MIS - Start Margo Identity Service
+        timeout-minutes: 5
+        working-directory: scripts
+        run: |
+          echo "Starting MIS with locally built image..."
+          export MIS_IMAGE_REF="${MIS_IMAGE_REF}"
+          sudo -E bash ./mis.sh mis-install
+
+          echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
+          for i in {1..40}; do
+              if curl -k -s -H "Accept: application/json" \
+                "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
+                "bundle.json" >/dev/null 2>&1; then
+              echo "✅ MIS trust bundle endpoint is serving"
+              break
+            fi
+            echo "Waiting for MIS... ($i/40)"
+            sleep 1
+          done
+
+          echo "Trust bundle response:"
+          curl -k -s -H "Accept: application/json" \
+            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
+            "bundle.json" | head -c 500 || true
+          echo ""
+          docker ps --filter "name=margo-identity-service" \
+            --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+
+      - name: MIS - Generate X.509 SVIDs (svid-gen.sh --automated)
+        working-directory: /home/runner/sandbox/scripts/lib/mis
+        run: |
+          set -euo pipefail
+
+          echo "🪪 WFM SVID"
+          sudo -E bash ./svid-gen.sh --automated \
+            --principal wfm \
+            --spiffe-id "${WFM_SPIFFE_ID}" \
+            --dns symphony.machine
+          sudo test -d ./x509svid-wfm
+
+          echo "🪪 Helm-capable client SVID"
+          sudo -E bash ./svid-gen.sh --automated \
+            --principal wfm-client \
+            --spiffe-id "${HELM_CLIENT_SPIFFE_ID}"
+          sudo rm -rf ./x509svid-wfm-helm-client
+          sudo mv ./x509svid-wfmclient ./x509svid-wfm-helm-client
+
+          echo "🪪 Compose-capable client SVID"
+          sudo -E bash ./svid-gen.sh --automated \
+            --principal wfm-client \
+            --spiffe-id "${DOCKER_CLIENT_SPIFFE_ID}"
+          sudo rm -rf ./x509svid-wfm-docker-client
+          sudo mv ./x509svid-wfmclient ./x509svid-wfm-docker-client
+
+          echo "📋 Generated SVIDs:"
+          for d in x509svid-wfm x509svid-wfm-helm-client x509svid-wfm-docker-client; do
+            sudo test -f "$d/payload-cert.pem" || { echo "❌ Missing $d/payload-cert.pem"; exit 1; }
+            sudo test -f "$d/payload-key.pem"  || { echo "❌ Missing $d/payload-key.pem"; exit 1; }
+            echo "--- $d ---"
+            sudo openssl x509 -in "$d/payload-cert.pem" -noout -subject -dates -ext subjectAltName
+          done
+
+      # ── Symphony: SVID, MIS trust anchor, and SBI authorization list ──
+      # Paths are relative to $HOME/symphony/api, matching symphony-api-margo.json:
+      #   certProvider.cert -> ./certificates/payload-cert.pem
+      #   certProvider.key  -> ./certificates/payload-key.pem
+      #   miaf.mis.caPath   -> ./mis/https-ca.crt
+      #   miaf.authzPath    -> ./mis/authorized-clients.json
+      - name: WFM - Install SVID, MIS CA and authorized-clients.json
+        run: |
+          set -euo pipefail
+          MIS_DIR="$HOME/symphony/api/mis"
+          CERT_DIR="$HOME/symphony/api/certificates"
+          sudo mkdir -p "$MIS_DIR" "$CERT_DIR"
+
+          echo "📥 WFM SVID -> $CERT_DIR"
+          sudo cp "${SVID_DIR}/x509svid-wfm/payload-cert.pem" "$CERT_DIR/"
+          sudo cp "${SVID_DIR}/x509svid-wfm/payload-key.pem"  "$CERT_DIR/"
+
+          echo "📥 MIS HTTPS Root CA -> $MIS_DIR"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$MIS_DIR/"
+
+          echo "📝 Authorizing both device client SPIFFE IDs on the SBI binding"
+          AUTHZ="$MIS_DIR/authorized-clients.json"
+          # Confirmed via Symphony's own error message: miaf.authzPath unmarshals into []string,
+          # i.e. a bare JSON array of SPIFFE ID strings - not an object with a wrapper key.
+          EXISTING="[]"
+          if sudo test -f "$AUTHZ"; then
+            sudo cp "$AUTHZ" /tmp/authz-existing.json
+            sudo chown $USER:$USER /tmp/authz-existing.json
+            if jq -e 'type == "array"' /tmp/authz-existing.json >/dev/null 2>&1; then
+              EXISTING=$(cat /tmp/authz-existing.json)
+            else
+              echo "⚠️ Existing authorized-clients.json isn't a JSON array; ignoring its contents"
+            fi
+          fi
+          echo "$EXISTING" | jq --arg h "${HELM_CLIENT_SPIFFE_ID}" --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
+            '. + [$h, $d] | unique' > /tmp/authz.json
+          sudo cp /tmp/authz.json "$AUTHZ"
+
+          # wfm.sh mounts the WHOLE api/ dir as one bind mount into the container
+          # (confirmed via docker inspect: api -> /configs, api/certificates -> /certificates
+          # separately). The files were just copied with sudo (root:root, key files 600),
+          # which may not be readable by whatever user the Symphony process runs as inside
+          # the container. Relax to world-readable - this is a throwaway CI sandbox, not prod.
+          sudo chmod 644 "$CERT_DIR"/payload-cert.pem "$CERT_DIR"/payload-key.pem
+          sudo chmod 644 "$MIS_DIR"/https-ca.crt "$AUTHZ"
+          sudo chmod 755 "$MIS_DIR" "$CERT_DIR"
+
+          echo "📄 $AUTHZ:"
+          sudo cat "$AUTHZ"
+          sudo ls -la "$MIS_DIR" "$CERT_DIR"
 
       - name: Start WFM
         timeout-minutes: 5
         working-directory: scripts
         run: |
           echo "Starting Symphony with locally built image..."
-
-          # Override SYMPHONY_IMAGE_REF to use local CI-built image
           export SYMPHONY_IMAGE_REF="symphony-api:ci-test"
-
-          # Start Symphony using wfm.sh (handles Maestro build + TLS + container start)
           sudo -E bash ./wfm.sh start
 
-          # Wait for Symphony API to be ready
-          echo "⏳ Waiting for Symphony API to be ready..."
+          echo "Symphony container status before patching:"
+          docker ps -a --filter "name=symphony-api-container" --format "table {{.Names}}\t{{.Status}}"
+
+          echo "🔎 Confirmed bind mounts on symphony-api-container:"
+          docker inspect symphony-api-container --format '{{ json .Mounts }}' | jq .
+
+          echo "⏳ Checking the NBI port ${SYMPHONY_NBI_PORT} (plain TLS)..."
           for i in {1..40}; do
-            if curl -k -s https://symphony.machine:8082/health >/dev/null 2>&1; then
-              echo "✅ Symphony API is ready"
+            if curl -k -s "https://symphony.machine:${SYMPHONY_NBI_PORT}/health" >/dev/null 2>&1; then
+              echo "✅ Symphony NBI is up"
               break
             fi
             echo "Waiting for Symphony API... ($i/40)"
             sleep 1
           done
+
+          echo "⏳ Checking the SBI mTLS port ${EXPOSED_SYMPHONY_PORT} (device-agent traffic only)..."
+          for i in {1..30}; do
+            # A bare TLS handshake is expected to fail without a client SVID;
+            # a refused connection means the binding never came up.
+            if timeout 2 bash -c "cat < /dev/null > /dev/tcp/symphony.machine/${EXPOSED_SYMPHONY_PORT}" 2>/dev/null; then
+              echo "✅ Port ${EXPOSED_SYMPHONY_PORT} is listening (mTLS)"
+              break
+            fi
+            echo "Waiting for the SBI mTLS port... ($i/30)"
+            sleep 2
+            if [ $i -eq 30 ]; then
+              echo "❌ Port ${EXPOSED_SYMPHONY_PORT} never opened"
+              echo "--- Full container log ---"
+              docker logs symphony-api-container 2>&1 || true
+              echo "--- Lines mentioning port ${EXPOSED_SYMPHONY_PORT} / miaf / mtls / mis ---"
+              docker logs symphony-api-container 2>&1 | grep -iE "${EXPOSED_SYMPHONY_PORT}|miaf|mtls|mis[^s]|trust.?bundle|authoriz" || echo "(no matching lines)"
+              exit 1
+            fi
+          done
+
+          docker ps --filter "name=symphony-api-container" \
+            --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
       - name: Setup ORAS authentication
         run: |
@@ -200,7 +422,7 @@ jobs:
           echo "Using DOCKER_CONFIG=$DOCKER_CONFIG"
 
           # Trust Harbor CA certificate first
-          HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+          HARBOR_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           if [ -f "$HARBOR_CERT" ]; then
             sudo cp "$HARBOR_CERT" /usr/local/share/ca-certificates/harbor.crt
             sudo update-ca-certificates
@@ -208,28 +430,23 @@ jobs:
           else
             echo "⚠️ Harbor certificate not found at $HARBOR_CERT"
           fi
-
           # Login to Harbor with HTTPS
           echo "${REGISTRY_PASS}" | oras login harbor.machine:${EXPOSED_HARBOR_PORT} \
             -u "${REGISTRY_USER}" \
             --password-stdin
 
-          # Ensure Docker config has correct permissions
           chmod 700 "$DOCKER_CONFIG"
           find "$DOCKER_CONFIG" -type f -exec chmod 600 {} \;
-
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-
-      - name: WFM - Copy the CA certs
+      - name: Copy Harbor certs
         run: |
-          CERT="$HOME/symphony/api/certificates/ca-cert.pem"
-          Harbor_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
+          Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
-          cp "$CERT" "$HOME/certs/"
           cp "$Harbor_CERT" "$HOME/certs/"
-          echo "✅ CA certs copied to $HOME/certs/"
-
+          sudo chown -R $USER:$USER "$HOME/certs"
+          echo "✅ Harbor CA and MIS HTTPS CA copied to $HOME/certs/"
+          ls -la "$HOME/certs"
 
       - name: Upload app packages in parallel
         working-directory: scripts
@@ -237,12 +454,9 @@ jobs:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📤 Uploading packages in parallel..."
-
-          # Upload custom-otel-helm-app-package in background
           (
             echo "📦 Uploading ${APP_PACKAGE_NAME_K3S}..."
             sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_K3S}"
-
             for i in {1..10}; do
               STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_K3S}" | grep -o "ONBOARDED" || echo "")
               if [ "$STATUS" = "ONBOARDED" ]; then
@@ -254,11 +468,9 @@ jobs:
           ) &
           K3S_PKG_PID=$!
 
-          # Upload nextcloud-compose-app-package in background
           (
             echo "📦 Uploading ${APP_PACKAGE_NAME_DOCKER}..."
             sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_DOCKER}"
-
             for i in {1..10}; do
               STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_DOCKER}" | grep -o "ONBOARDED" || echo "")
               if [ "$STATUS" = "ONBOARDED" ]; then
@@ -270,32 +482,57 @@ jobs:
           ) &
           DOCKER_PKG_PID=$!
 
-          # Wait for both uploads to complete
-          wait $K3S_PKG_PID || { echo "❌ ${APP_PACKAGE_NAME_K3S} upload failed"; exit 1; }
+          wait $K3S_PKG_PID    || { echo "❌ ${APP_PACKAGE_NAME_K3S} upload failed"; exit 1; }
           wait $DOCKER_PKG_PID || { echo "❌ ${APP_PACKAGE_NAME_DOCKER} upload failed"; exit 1; }
-
           echo "✅ All packages uploaded successfully"
 
-      - name: List  all packages and devices
+      - name: List all packages and devices
         working-directory: scripts
         env:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
-          echo ""
           echo "========================================="
           echo "📋 SYMPHONY API CONTAINER LOGS"
           echo "========================================="
           docker logs symphony-api-container --tail=100 2>&1 || echo "Could not retrieve Symphony logs"
 
-      - name: WFM-Client (K3s) - Setup
+      # ── Device agents: SVIDs + authorized.json replace the old RSA/ECDSA cert steps ──
+      - name: WFM-Client - Setup
         working-directory: scripts
         run: |
+          set -euo pipefail
           sudo -E bash ./device-agent.sh k3s install
-          sudo -E bash ./device-agent.sh k3s create-rsa-certs
-          sudo -E bash ./device-agent.sh k3s create-ecdsa-certs
 
+          CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
+          sudo mkdir -p "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
+
+          echo "📥 Helm-capable client SVID -> $CONFIG_DIR/identity"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-cert.pem" "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-key.pem"  "$CONFIG_DIR/identity/"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                              "$CONFIG_DIR/mis/"
+
+          echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
+          AUTHZ="$CONFIG_DIR/authorized.json"
+          # Same []string schema as Symphony's authorized-clients.json (confirmed via its
+          # unmarshal error) - a bare JSON array, not an object with a wrapper key.
+          EXISTING="[]"
+          if sudo test -f "$AUTHZ"; then
+            sudo cp "$AUTHZ" /tmp/dev-authz-existing.json
+            sudo chown $USER:$USER /tmp/dev-authz-existing.json
+            if jq -e 'type == "array"' /tmp/dev-authz-existing.json >/dev/null 2>&1; then
+              EXISTING=$(cat /tmp/dev-authz-existing.json)
+            else
+              echo "⚠️ Existing authorized.json isn't a JSON array; ignoring its contents"
+            fi
+          fi
+          echo "$EXISTING" | jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' > /tmp/dev-authz.json
+          sudo cp /tmp/dev-authz.json "$AUTHZ"
+          echo "📄 $AUTHZ:"
+          sudo cat "$AUTHZ"
+
+          sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start
         working-directory: scripts
@@ -306,7 +543,6 @@ jobs:
           for i in {1..30}; do
             if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
               echo "✅ WFM-Client pod is running"
-              # Wait for device to onboard
               sleep 3
               break
             fi
@@ -317,10 +553,17 @@ jobs:
       - name: WFM-Client (Compose-capable device) - Start
         working-directory: scripts
         run: |
-          sudo -E bash ./device-agent.sh docker create-rsa-certs
-          sudo -E bash ./device-agent.sh docker create-ecdsa-certs
-          sudo -E bash ./device-agent.sh docker start-docker
+          set -euo pipefail
+          CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
 
+          echo "📥 Compose-capable client SVID -> $CONFIG_DIR/identity"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-cert.pem" "$CONFIG_DIR/identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-key.pem"  "$CONFIG_DIR/identity/"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                                "$CONFIG_DIR/mis/"
+          # authorized.json (WFM SPIFFE ID) was written in the K3s setup step and is shared.
+          sudo cat "$CONFIG_DIR/authorized.json"
+
+          sudo -E bash ./device-agent.sh docker start-docker
 
           echo "⏳ Waiting for WFM-Client container to be ready..."
           for i in {1..30}; do
@@ -336,43 +579,71 @@ jobs:
 
       - name: Verify DNS resolution in WFM-Client pod
         run: |
-          echo "🔍 Verifying DNS resolution in WFM-Client pod..."
-          POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
-            -o name | grep workload-fleet-management-client | head -1 | cut -d'/' -f2)
-          echo "Testing DNS resolution for harbor.machine..."
-          for i in {1..30}; do
-            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
-              nslookup harbor.machine >/dev/null 2>&1; then
-              RESOLVED_IP=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- \
-                nslookup harbor.machine 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
-              echo "✅ DNS working - harbor.machine resolves to: $RESOLVED_IP"
-              if [ "$RESOLVED_IP" = "${RUNNER_IP}" ]; then
-                echo "✅ DNS resolves to correct IP (${RUNNER_IP})"
-                break
-              else
-                echo "⚠️ DNS resolves to wrong IP. Expected: ${RUNNER_IP}, Got: $RESOLVED_IP"
-              fi
-            fi
-            echo "Waiting for DNS propagation in pod... ($i/30)"
-            sleep 2
-          done
-          # Final verification with detailed output
-          echo "Final DNS check:"
-          sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- nslookup harbor.machine || {
-            echo "❌ DNS still not working after 60 seconds"
-            echo ""
-            echo "Debugging information:"
-            echo "CoreDNS pods:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n kube-system -l k8s-app=kube-dns
-            echo ""
-            echo "CoreDNS logs:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs -n kube-system deployment/coredns --tail=50
-            echo ""
-            echo "Pod's /etc/resolv.conf:"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec "$POD_NAME" -- cat /etc/resolv.conf
-            exit 1
-          }
+          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+          echo "🔍 Verifying DNS resolution inside WFM-Client pod..."
 
+          # 1. Wait for the pod name to appear
+          echo "Locating workload-fleet-management-client pod..."
+          POD_NAME=""
+          for i in {1..30}; do
+            POD_NAME=$($K get pods -n default --no-headers -o custom-columns=":metadata.name" \
+              | grep "^workload-fleet-management-client" | head -1 || true)
+            if [ -n "$POD_NAME" ]; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [ -z "$POD_NAME" ]; then
+            echo "❌ Pod was not created!"
+            $K get pods -n default
+            exit 1
+          fi
+
+          # 2. Wait for pod to enter Ready condition
+          echo "Waiting for pod/$POD_NAME to be Ready..."
+          $K wait --for=condition=Ready "pod/$POD_NAME" -n default --timeout=60s
+
+          echo "Target Pod: $POD_NAME"
+
+          # 3. Define all required endpoints
+          MIS_HOST="${EXPOSED_MIS_HOST:-mis.margo.org}"
+          SYMPHONY_HOST="${WFM_HOST:-symphony.machine}"
+          HARBOR_HOST="${EXPOSED_HARBOR_HOST:-harbor.machine}"
+
+          HOSTS_TO_TEST=("$HARBOR_HOST" "$MIS_HOST" "$SYMPHONY_HOST")
+
+          # 4. Verify resolution inside the pod
+          for HOST in "${HOSTS_TO_TEST[@]}"; do
+            echo ""
+            echo "🔎 Testing DNS resolution for: $HOST ..."
+            RESOLVED=false
+
+            for ATTEMPT in {1..30}; do
+              if $K exec "$POD_NAME" -n default -- nslookup "$HOST" >/dev/null 2>&1; then
+                RESOLVED_IP=$($K exec "$POD_NAME" -n default -- nslookup "$HOST" 2>/dev/null \
+                  | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 | tr -d '\r\n[:space:]')
+
+                if [ -n "$RESOLVED_IP" ]; then
+                  echo "✅ $HOST resolves to: $RESOLVED_IP"
+                  RESOLVED=true
+                  break
+                fi
+              fi
+              echo "[$ATTEMPT/30] Waiting for DNS propagation for $HOST..."
+              sleep 2
+            done
+
+            if [ "$RESOLVED" != true ]; then
+              echo "❌ Failed to resolve $HOST inside pod $POD_NAME after 60 seconds!"
+              echo "--- CoreDNS Logs ---"
+              $K logs -n kube-system deployment/coredns --tail=40 || true
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "🎉 All required hosts ($HARBOR_HOST, $MIS_HOST, $SYMPHONY_HOST) resolved successfully!"
 
       - name: Deploy to Both Devices in Parallel
         working-directory: scripts
@@ -380,76 +651,142 @@ jobs:
           MAESTRO_CLI_PATH: /home/runner/symphony/cli
         run: |
           echo "Deploying to both devices in parallel..."
+          UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+          DEVICE_ID_RE='^spiffe://[^[:space:]]+$'
 
-          # Deploy to K3s in background
+          # ---------------- Deploy to K3s ----------------
           (
             echo "📋 Deploying to K3s..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" | tail -n1)
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>&1) || true
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "helm" 2>&1) || true
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-              echo "❌ K3s: Invalid IDs"
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
+              echo "❌ K3s: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Package Raw --- $PACKAGE_RAW"
+              echo "--- Device Raw  --- $DEVICE_RAW"
               exit 1
             fi
+            echo "🪪 K3s device ID: $DEVICE_ID"
+            echo "📦 K3s package ID: $PACKAGE_ID"
 
-            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
+              echo "❌ K3s: deploy-non-interactive failed"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            }
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "❌ K3s: deploy-non-interactive returned no deploymentId"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            fi
             echo "📦 K3s Deployment ID: $DEPLOYMENT_ID"
 
-            # Monitor K3s deployment
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
-            for ATTEMPT in {1..60}; do
-              DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+            K3S_INSTALLED=""
+
+            # 90 attempts x 2s = 180s (3 minutes)
+            for ATTEMPT in {1..90}; do
+              RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
+              DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
+                awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
+              echo "[$ATTEMPT/90] K3s Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ K3s deployment completed!"
+                K3S_INSTALLED="true"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
-                echo "❌ K3s deployment failed/pending"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
+                echo "❌ K3s deployment failed"
+                echo "--- K3s Agent Logs ---"
                 $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
                 exit 1
               fi
-              sleep 1
+
+              # Print live progress every 15 attempts (every 30s)
+              if (( ATTEMPT % 15 == 0 )); then
+                echo "--- [Progress Check] K3s Pod Status & Events ---"
+                $K get pods -A
+                $K logs deployment/workload-fleet-management-client-deploy --tail=20 || true
+              fi
+
+              sleep 2
             done
+
+            if [ -z "$K3S_INSTALLED" ]; then
+              echo "❌ K3s deployment did not reach INSTALLED within 180s"
+              echo "--- Last Raw list-deployments ---"
+              echo "$RAW_DEPLOYMENTS"
+              echo "--- Full K3s Agent Logs ---"
+              $K logs deployment/workload-fleet-management-client-deploy --tail=100 || true
+              echo "--- All K8s Pods ---"
+              $K get pods -A
+              exit 1
+            fi
           ) &
           K3S_DEPLOY_PID=$!
 
-          # Deploy to Docker in background
+          # ---------------- Deploy to Docker ----------------
           (
             echo "📋 Deploying to Docker..."
-            PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" | tail -n1)
-            DEVICE_ID=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" | tail -n1)
+            PACKAGE_RAW=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>&1) || true
+            DEVICE_RAW=$(sudo -E bash ./wfm-cli.sh get-device-id-by-deployment-type "compose" 2>&1) || true
+            PACKAGE_ID=$(echo "$PACKAGE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
+            DEVICE_ID=$(echo "$DEVICE_RAW" | tail -n1 | tr -d '\r\n[:space:]')
 
-            if [ -z "$PACKAGE_ID" ] || [ "$PACKAGE_ID" = "null" ] || [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-              echo "❌ Docker: Invalid IDs"
+            if [[ ! "$PACKAGE_ID" =~ $UUID_RE ]] || [[ ! "$DEVICE_ID" =~ $DEVICE_ID_RE ]]; then
+              echo "❌ Docker: get-package-id-by-name / get-device-id-by-deployment-type didn't return usable IDs"
+              echo "--- Package Raw --- $PACKAGE_RAW"
+              echo "--- Device Raw  --- $DEVICE_RAW"
               exit 1
             fi
+            echo "🪪 Docker device ID: $DEVICE_ID"
+            echo "📦 Docker package ID: $PACKAGE_ID"
 
-            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID")
+            DEPLOY_OUTPUT=$(sudo -E bash ./wfm-cli.sh deploy-non-interactive "$PACKAGE_ID" "$DEVICE_ID" 2>&1) || {
+              echo "❌ Docker: deploy-non-interactive failed"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            }
             DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'deploymentId \K[a-f0-9-]+' | head -1)
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "❌ Docker: deploy-non-interactive returned no deploymentId"
+              echo "$DEPLOY_OUTPUT"
+              exit 1
+            fi
             echo "📦 Docker Deployment ID: $DEPLOYMENT_ID"
 
-            # Monitor Docker deployment
-            for ATTEMPT in {1..60}; do
-              DEPLOYMENT_STATUS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | grep "${DEPLOYMENT_ID:0:10}" | awk '{print $NF}' || echo "")
+            DOCKER_INSTALLED=""
+            for ATTEMPT in {1..90}; do
+              RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
+              DEPLOYMENT_STATUS=$(echo "$RAW_DEPLOYMENTS" | grep "${DEPLOYMENT_ID:0:10}" | \
+                awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $7); print $7}')
+              echo "[$ATTEMPT/90] Docker Deployment Status: ${DEPLOYMENT_STATUS:-PENDING}"
 
               if [ "$DEPLOYMENT_STATUS" = "INSTALLED" ]; then
                 echo "✅ Docker deployment completed!"
+                DOCKER_INSTALLED="true"
                 break
-              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ] || [ "$DEPLOYMENT_STATUS" = "PENDING" ]; then
-                echo "❌ Docker deployment failed/pending"
+              elif [ "$DEPLOYMENT_STATUS" = "FAILED" ]; then
+                echo "❌ Docker deployment failed"
                 docker logs workload-fleet-management-client --tail=100 || true
                 exit 1
               fi
-              sleep 1
+              sleep 2
             done
+
+            if [ -z "$DOCKER_INSTALLED" ]; then
+              echo "❌ Docker deployment did not reach INSTALLED within 180s"
+              docker logs workload-fleet-management-client --tail=100 || true
+              exit 1
+            fi
           ) &
           DOCKER_DEPLOY_PID=$!
 
-          # Wait for both deployments
-          wait $K3S_DEPLOY_PID || exit 1
+          wait $K3S_DEPLOY_PID    || exit 1
           wait $DOCKER_DEPLOY_PID || exit 1
-
           echo "✅ Both deployments completed successfully!"
 
       - name: Final Deployment Status
@@ -462,10 +799,14 @@ jobs:
           echo "========================================="
           echo "📋 FINAL DEPLOYMENT STATUS"
           echo "========================================="
-
-          # Get and display all deployments
-          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
+
+          echo ""
+          echo "========================================="
+          echo "📋 MIS CONTAINER LOGS"
+          echo "========================================="
+          docker logs margo-identity-service --tail=100 2>&1 || echo "Could not retrieve MIS logs"
 
           echo ""
           echo "========================================="
@@ -479,7 +820,6 @@ jobs:
           echo "========================================="
           POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
             -o name 2>/dev/null | grep workload-fleet-management-client | head -1 | cut -d'/' -f2 || echo "")
-
           if [ -n "$POD_NAME" ]; then
             echo "Pod: $POD_NAME"
             sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs "pod/$POD_NAME" --tail=100 2>&1 || echo "Could not retrieve K3s client logs"
@@ -503,19 +843,19 @@ jobs:
           echo "========================================="
           echo "📋 CONTAINER STATUS SUMMARY"
           echo "========================================="
+          echo "MIS Container:"
+          docker ps -a --filter "name=margo-identity-service" \
+            --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1 || echo "Could not get MIS status"
+          echo ""
           echo "Symphony Container:"
           docker ps -a --filter "name=symphony-api-container" \
             --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1 || echo "Could not get Symphony status"
-
           echo ""
           echo "All Containers:"
           docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>&1
-
           echo ""
           echo "K3s Pods:"
           sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -o wide 2>&1 || echo "Could not get pod status"
-
-
 
       - name: Cleanup - Delete App Packages
         if: always()
@@ -528,10 +868,8 @@ jobs:
           echo "🗑️ CLEANING UP APP PACKAGES"
           echo "========================================="
 
-          # Delete K3s app package
           echo "Getting K3s package ID..."
           K3S_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>/dev/null | tail -n1 || echo "")
-
           if [ -n "$K3S_PACKAGE_ID" ] && [ "$K3S_PACKAGE_ID" != "null" ]; then
             echo "Deleting K3s package: $K3S_PACKAGE_ID"
             sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$K3S_PACKAGE_ID" || echo "⚠️ Failed to delete K3s package"
@@ -539,10 +877,8 @@ jobs:
             echo "ℹ️ K3s package not found or already deleted"
           fi
 
-          # Delete Docker app package
           echo "Getting Docker package ID..."
           DOCKER_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>/dev/null | tail -n1 || echo "")
-
           if [ -n "$DOCKER_PACKAGE_ID" ] && [ "$DOCKER_PACKAGE_ID" != "null" ]; then
             echo "Deleting Docker package: $DOCKER_PACKAGE_ID"
             sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$DOCKER_PACKAGE_ID" || echo "⚠️ Failed to delete Docker package"
@@ -563,10 +899,7 @@ jobs:
           echo "🗑️ CLEANING UP DEPLOYMENT INSTANCES"
           echo "========================================="
 
-          # Get deployment IDs and delete them
           echo "Getting deployment IDs..."
-
-          # List all deployments to find IDs
           DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
 
           if [ -n "$DEPLOYMENTS" ]; then
@@ -574,18 +907,15 @@ jobs:
             echo "$DEPLOYMENTS"
             echo ""
 
-            # Extract lines containing INSTALLED status and get their deployment IDs
             INSTALLED_DEPLOYMENTS=$(echo "$DEPLOYMENTS" | grep "INSTALLED" || echo "")
 
             if [ -n "$INSTALLED_DEPLOYMENTS" ]; then
-              # Extract deployment IDs from INSTALLED deployments only
               DEPLOYMENT_IDS=$(echo "$INSTALLED_DEPLOYMENTS" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || echo "")
 
               if [ -n "$DEPLOYMENT_IDS" ]; then
                 echo "Found INSTALLED deployments to delete:"
                 echo "$DEPLOYMENT_IDS"
 
-                # Delete each deployment
                 while IFS= read -r deployment_id; do
                   if [ -n "$deployment_id" ]; then
                     echo "Deleting INSTALLED deployment: $deployment_id"
@@ -593,11 +923,9 @@ jobs:
                   fi
                 done <<< "$DEPLOYMENT_IDS"
 
-                # Wait for deployments to be fully removed
                 echo ""
                 echo "⏳ Waiting for deployments to be removed..."
                 for ATTEMPT in {1..30}; do
-                  # Count deployments that are NOT in TOTAL row and have INSTALLED or REMOVING status
                   REMAINING=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null | \
                     grep -E "INSTALLED|REMOVING" | \
                     grep -v "TOTAL" | \
@@ -628,11 +956,16 @@ jobs:
           fi
 
           echo "✅ Deployment instances cleanup completed"
-
           echo ""
           echo "Final verification - listing all deployments and packages:"
-          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive)
+          DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
 
-
-
+      - name: Cleanup - Stop MIS and remove SVID material
+        if: always()
+        working-directory: scripts
+        run: |
+          echo "🗑️ Stopping Margo Identity Service"
+          sudo -E bash ./mis.sh mis-uninstall
+          sudo rm -rf "${SVID_DIR}"/x509svid-* || true
+          echo "✅ MIS cleanup completed"

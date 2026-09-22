@@ -30,7 +30,7 @@ SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-main}"
 # ----------------------------
 GHCR_REGISTRY="ghcr.io"
 GHCR_ORG="margo"
-mis_IMAGE="margo.org/margo-identity-service"
+mis_IMAGE="margo-identity-service"
 mis_IMAGE_TAG="latest"
 mis_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${mis_IMAGE}:${mis_IMAGE_TAG}"
 deploy_dir="$HOME/mis-deployment"
@@ -214,10 +214,7 @@ invoke_pki_gen() {
 # MIS Installation 
 # ----------------------------
 install_mis() {
-  # TODO: Add Github CI related changes here
-
-  # If it is not Github CI then: 
-  setup_mis_deployment
+    setup_mis_deployment
   update_config "$EXPOSED_MIS_HOST" "$EXPOSED_MIS_PORT" "$deploy_dir/configuration.json"
   start_mis_deployment
 }
@@ -306,7 +303,8 @@ start_mis_deployment() {
         return 1
     fi
 
-    export mis_IMAGE_REF="${mis_IMAGE_REF}"
+    setup_mis_image || return 1 # returns mis_IMAGE_REF based on the execution environment 
+    
     echo "[INFO] Starting Margo Identity Service Docker Container"
     if ! docker compose -f docker-compose.yaml up -d; then
         echo "[ERROR] 'docker compose up -d' failed. Check Docker logs for details."
@@ -316,15 +314,52 @@ start_mis_deployment() {
     echo "[INFO] Margo Identity Service started successfully."
 }
 
+setup_mis_image() {
+    if [[ "${CI:-false}" == "true" ]]; then
+        echo "🔧 CI mode: Using locally built MIS image"
+        export mis_IMAGE_REF="mis:ci-test"
+
+        if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${mis_IMAGE_REF}$"; then
+            echo "❌ Local CI image not found: ${mis_IMAGE_REF}"
+            return 1
+        fi
+
+        echo "✅ Local CI image found: ${mis_IMAGE_REF}"
+    else
+        export mis_IMAGE_REF="${mis_IMAGE_REF}"
+        echo "📦 Using GHCR image: ${mis_IMAGE_REF}"
+    fi
+}
+
+
+# ----------------------------
+# SVID Generation
+# ----------------------------
+generate_svid() {
+  local svid_script="$SCRIPT_DIR/lib/mis/svid-gen.sh"
+
+  if [[ ! -f "$svid_script" ]]; then
+    echo "[ERROR] ❌ svid-gen.sh not found at: $svid_script"
+    return 1
+  fi
+
+  echo "[INFO] 🔐 Launching SVID generator..."
+  bash "$svid_script" --interactive
+  local exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    echo "[INFO] ✅ SVID generation completed successfully."
+  else
+    echo "[WARN] ⚠️  SVID generation exited with code: $exit_code"
+  fi
+}
+
 
 # ----------------------------
 # MIS Uninstallation 
 # ----------------------------
 
 uninstall_mis(){
-  # TODO: Add Github CI related changes here
-
-  # If it is not Github CI then: 
   echo "[INFO] Changing directory to: $deploy_dir"
   cd "$deploy_dir" || { echo "[ERROR] Failed to change directory to '$deploy_dir'. Aborting."; return 1; }
 
@@ -363,15 +398,17 @@ show_menu() {
   echo "3) Factory Bootstrap: Generate Root CAs"
   echo "4) Margo Identity Service: Install"
   echo "5) Margo Identity Service: Uninstall"
-  echo "6) Exit"
-  read -p "Enter choice [1-6]: " choice
+  echo "6) Generate SVID"
+  echo "7) Exit"
+  read -p "Enter choice [1-7]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
     3) setup_factory ;;
     4) install_mis ;;
     5) uninstall_mis ;;
-    6) echo "👋 Goodbye!"; exit 0 ;;
+    6) generate_svid ;;
+    7) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
 
@@ -395,11 +432,12 @@ else
   case "$1" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;
-    setup-factory) setup_initial_trust ;;
+    setup-factory) setup_factory ;;
     mis-install) install_mis ;;
     mis-uninstall) uninstall_mis ;;
+    generate-svid) generate_svid ;;
     *)
-      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall}"
+      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall|generate-svid}"
       exit 1
       ;;
   esac

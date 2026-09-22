@@ -73,7 +73,7 @@ EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8443}"
 #--- branch details (can be overridden via env)
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-dev-sprint-6}"
 WFM_HOST="${WFM_HOST:-localhost}"
-WFM_PORT="${WFM_PORT:-8082}"
+WFM_PORT="${WFM_PORT:-8084}" #8084 we are referring to SBI (Margo Management Interface) port here
 
 
 #--- Registry settings (can be overridden via env)
@@ -92,6 +92,8 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
+
+SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/poc/device/agent/config/authorized.json"}"
 
 # ----------------------------
 # GHCR Image References
@@ -116,6 +118,7 @@ source "${SCRIPT_DIR}/modules/certificates.sh"
 source "${SCRIPT_DIR}/modules/agent.sh"
 source "${SCRIPT_DIR}/modules/observability.sh"
 source "${SCRIPT_DIR}/modules/dns-host-config.sh"
+source "${SCRIPT_DIR}/modules/manage-spiffe-ids.sh"
 
 export GOINSECURE='github.com/margo/*'
 export GONOPROXY='github.com/margo/*'
@@ -174,6 +177,7 @@ install_prerequisites() {
   install_basic_utilities
   install_docker_and_compose
   clone_dev_repo
+  ensure_identity_and_mis_dirs
   # Only install k3s for k3s device type
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     setup_k3s
@@ -255,58 +259,31 @@ cleanup_residual() {
   rm -rf "$HOME/symphony"
 }
 
-create_device_rsa_certs() {
-  CERT_DIR="$HOME/certs"
 
-  # If certs exists but is not a directory, remove it
-  if [ -e "$CERT_DIR" ] && [ ! -d "$CERT_DIR" ]; then
-    echo "[WARNING] $CERT_DIR exists but is not a directory — removing."
-    rm -f "$CERT_DIR"
-  fi
-
-  mkdir -p "$CERT_DIR"
-  cd "$CERT_DIR" || exit 1
-
-  echo "Generating RSA device certs..."
-  # Generate RSA private key (2048-bit)
-  openssl genrsa -out device-private.key 2048
-
-  # Generate self-signed certificate
-  openssl req -new -x509 -key device-private.key -out device-public.crt -days 365 \
-    -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
-  echo "✅ RSA Cert generation has been completed."
-
-
-
-}
-
-create_device_ecdsa_certs() {
-  CERT_DIR="$HOME/certs"
-
-  if [ ! -d "$CERT_DIR" ]; then
-    echo "Cert directory not found. Creating $CERT_DIR ..."
-    mkdir -p "$CERT_DIR"
-  else
-    echo "Using existing cert directory: $CERT_DIR"
-  fi
-
-  cd "$CERT_DIR" || exit 1
-  echo "Generating ECDSA device certs..."
-  # Generate ECDSA private key (P-256 curve)
-  openssl ecparam -genkey -name prime256v1 -out device-ecdsa.key
-
-  # Generate self-signed certificate
-  openssl req -new -x509 -key device-ecdsa.key -out device-ecdsa.crt -days 365 \
-    -subj "/C=IN/ST=GGN/L=Sector 48/O=Margo/CN=margo-device"
-  echo "✅ ECDSA Cert generation has been completed."
-
-
-
-}
 pause() {
   echo
   read -rp "Press Enter to continue..." _
 }
+
+manage_spiffe_ids() {
+  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
+}
+
+ensure_identity_and_mis_dirs() {
+    local base_dir="${HOME}/sandbox/poc/device/agent/config"
+    local identity_dir="${base_dir}/identity"
+    local mis_dir="${base_dir}/mis"
+
+    echo "Ensuring directories exist:"
+    echo "  ${identity_dir}"
+    echo "  ${mis_dir}"
+
+    mkdir -p "${identity_dir}" "${mis_dir}" || {
+        echo "Failed to create required directories" >&2
+        return 1
+    }
+}
+
 
 # ----------------------------
 # Menu Functions
@@ -324,10 +301,9 @@ show_menu() {
   echo "8) OTEL-collector-promtail-installation"
   echo "9) OTEL-collector-promtail-uninstallation"
   echo "10) cleanup-residual"
-  echo "11) create_device_rsa_certs"
-  echo "12) create_device_ecdsa_certs"
-  echo "13) Exit"
-  read -rp "Enter choice [1-13]: " choice
+  echo "11) Manage SPIFFE ID allowlist"
+  echo "12) Exit"
+  read -rp "Enter choice [1-12]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
@@ -338,10 +314,9 @@ show_menu() {
     7) show_status ;;
     8) install_otel_collector_promtail_wrapper ;;
     9) uninstall_otel_collector_promtail_wrapper ;;
-    10) cleanup_residual;;
-    11) create_device_rsa_certs ;;
-    12) create_device_ecdsa_certs ;;
-    13) echo "👋 Goodbye!"; exit 0 ;;
+    10) cleanup_residual ;;
+    11) manage_spiffe_ids ;;
+    12) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
 
@@ -387,11 +362,10 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     otel-install) install_otel_collector_promtail_wrapper ;;
     otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
     cleanup) cleanup_residual ;;
-    create-rsa-certs) create_device_rsa_certs ;;
-    create-ecdsa-certs) create_device_ecdsa_certs ;;
+    manage-spiffe-ids) manage_spiffe_ids ;;
     *)
       echo "[ERROR] Unknown command: $2"
-      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, create-rsa-certs, create-ecdsa-certs"
+      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, manage-spiffe-ids"
       exit 1
       ;;
   esac

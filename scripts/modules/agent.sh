@@ -297,7 +297,8 @@ build_start_device_agent_k3s_service() {
             return 1
         fi
     done
-
+    
+    kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
     # Recreate the device-agent configuration secret
     kubectl create secret generic workload-fleet-management-client-certs \
         --from-file=authorized.json="$CLIENT_CONFIG/authorized.json" \

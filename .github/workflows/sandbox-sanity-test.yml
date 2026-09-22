@@ -1,25 +1,25 @@
-name: sandbox-sanity-test-miaf
+name: sandbox-sanity-test
 
 on:
   push:
     branches:
-      - feature/miaf
+      - development
     paths-ignore:
       - "**.md"
       - "docs/**"
   pull_request:
     branches:
-      - feature/miaf
+      - development
   workflow_dispatch:
     inputs:
       symphony_branch_override:
         description: "Override SYMPHONY_BRANCH"
         required: false
-        default: "feature/miaf"
+        default: "development"
       sandbox_repo_branch_override:
         description: "Override SANDBOX_REPO_BRANCH"
         required: false
-        default: "feature/miaf"
+        default: "development"
 
 permissions:
   contents: read
@@ -39,10 +39,7 @@ jobs:
       # SBI (device-agent) mTLS port only. Never used by wfm-cli.sh/maestro.
       EXPOSED_SYMPHONY_PORT: 8084
       # NBI port: plain TLS, no client cert. wfm-cli.sh/maestro (packages, devices,
-      # deployments) MUST use this port - maestro's Go client (cli/cmd/margo.go) has
-      # no client-certificate support at all, so it can only ever talk to a non-mTLS
-      # binding. Every example in the canonical setup guide shows "Port: 8082" in the
-      # wfm-cli Server Config banner, and margo.go's own --port flag defaults to 8082.
+      # deployments) MUST use this port
       SYMPHONY_NBI_PORT: 8082
       # MIS HTTPS normative server, per symphony-api-margo.json: https://mis.margo.org:9443
       EXPOSED_MIS_PORT: 9443
@@ -103,17 +100,21 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y curl jq openssl git
             sudo install -m 0755 -d /etc/apt/keyrings
-            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo curl -fsSL \
+              https://download.docker.com/linux/ubuntu/gpg \
+              -o /etc/apt/keyrings/docker.asc
             sudo chmod a+r /etc/apt/keyrings/docker.asc
             echo \
-              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+              https://download.docker.com/linux/ubuntu \
               $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
               sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
             sudo apt-get update
           ) &
           (
             # Install K3s early (saves time in wfm.sh install)
-            curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
+            curl -sfL https://get.k3s.io | \
+              INSTALL_K3S_VERSION="v1.31.4+k3s1" sh -s - --write-kubeconfig-mode 644
           ) &
           (
             # Make scripts executable
@@ -264,8 +265,9 @@ jobs:
 
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do
-            if curl -k -s -H "Accept: application/json" \
-                 "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" >/dev/null 2>&1; then
+              if curl -k -s -H "Accept: application/json" \
+                "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
+                "bundle.json" >/dev/null 2>&1; then
               echo "✅ MIS trust bundle endpoint is serving"
               break
             fi
@@ -275,15 +277,12 @@ jobs:
 
           echo "Trust bundle response:"
           curl -k -s -H "Accept: application/json" \
-            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" | head -c 500 || true
+            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
+            "bundle.json" | head -c 500 || true
           echo ""
           docker ps --filter "name=margo-identity-service" \
             --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
 
-      # ── SVIDs via the repo's own generator in automated mode ──
-      # NOTE: in --automated mode svid-gen.sh always writes to ./x509svid-wfm (wfm) or
-      # ./x509svid-wfmclient (wfm-client), relative to $(pwd). Both client runs therefore
-      # collide, so each client directory is renamed immediately after it is produced.
       - name: MIS - Generate X.509 SVIDs (svid-gen.sh --automated)
         working-directory: /home/runner/sandbox/scripts/lib/mis
         run: |
@@ -383,28 +382,7 @@ jobs:
           echo "🔎 Confirmed bind mounts on symphony-api-container:"
           docker inspect symphony-api-container --format '{{ json .Mounts }}' | jq .
 
-          echo "🔧 wfm.sh on this branch has a dedicated bind mount for api/certificates -> /certificates"
-          echo "   (confirmed working - certProvider reads ./certificates/payload-*.pem fine) but no"
-          echo "   equivalent mount for api/mis -> /mis, so miaf.mis.caPath (./mis/https-ca.crt) and"
-          echo "   miaf.authzPath (./mis/authorized-clients.json) fail to resolve, which can make the"
-          echo "   second HttpBinding's Launch() exit the whole process even though the first (port"
-          echo "   ${SYMPHONY_NBI_PORT}) started fine - so the container may already be stopped here."
-          echo "   docker cp works on stopped containers too and creates the destination directory,"
-          echo "   so this doesn't depend on the container still being up."
-          docker cp "$HOME/symphony/api/mis" symphony-api-container:/
-          docker restart symphony-api-container
-          sleep 3
-          echo "Symphony container status after patching + restart:"
-          docker ps -a --filter "name=symphony-api-container" --format "table {{.Names}}\t{{.Status}}"
-
-          echo "📄 authorized-clients.json as it actually sits inside the container (not the host copy):"
-          docker exec symphony-api-container cat /mis/authorized-clients.json 2>&1 || \
-            echo "⚠️ Could not read it back from the container - restart may still be in progress"
-
-          echo "⏳ Waiting for Symphony's NBI (port ${SYMPHONY_NBI_PORT}) to be ready..."
-          echo "(This is the real port wfm-cli.sh/maestro uses for packages/devices/deployments -"
-          echo " plain TLS, no client cert. Device-agent SBI traffic uses the separate mTLS port"
-          echo " ${EXPOSED_SYMPHONY_PORT} instead, checked below.)"
+          echo "⏳ Checking the NBI port ${SYMPHONY_NBI_PORT} (plain TLS)..."
           for i in {1..40}; do
             if curl -k -s "https://symphony.machine:${SYMPHONY_NBI_PORT}/health" >/dev/null 2>&1; then
               echo "✅ Symphony NBI is up"
@@ -467,7 +445,6 @@ jobs:
           Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
           cp "$Harbor_CERT" "$HOME/certs/"
-          sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$HOME/certs/"
           sudo chown -R $USER:$USER "$HOME/certs"
           echo "✅ Harbor CA and MIS HTTPS CA copied to $HOME/certs/"
           ls -la "$HOME/certs"
@@ -517,12 +494,6 @@ jobs:
         run: |
           echo "📋 Listing app packages..."
           sudo -E bash ./wfm-cli.sh list-packages
-          echo ""
-          echo "========================================="
-          echo "📋 MIS CONTAINER LOGS"
-          echo "========================================="
-          docker logs margo-identity-service --tail=100 2>&1 || echo "Could not retrieve MIS logs"
-          echo ""
           echo "========================================="
           echo "📋 SYMPHONY API CONTAINER LOGS"
           echo "========================================="
@@ -562,6 +533,8 @@ jobs:
 
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
+
+          
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start

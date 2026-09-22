@@ -173,7 +173,8 @@ start_symphony_api_container() {
 
   if docker ps --format '{{.Names}}' | grep -q symphony-api-container; then
       echo "✅ Symphony API container started successfully"
-      echo "📡 Container is running on port 8082 (host network)"
+      echo "📡 Container is running on port 8082 (host network), for NBI (Easy-CLI)"
+      echo "📡 Container is running on port 8084 (host network), for Margo Management Interface"
       create_symphony_api_systemd_service
   else
       echo "❌ Failed to start Symphony API container"

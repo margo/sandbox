@@ -71,7 +71,7 @@ func (o *Operation) GetTrustBundle() (*spiffebundle.Bundle, error) {
 		"subject",
 		caCert.Subject.CommonName,
 	)
-	// TODO: hardcoding initial sequence number
+	// hardcoding initial sequence number
 	// Change here when rotation is implemented.
 	bundle.SetSequenceNumber(1)
 	bundle.SetRefreshHint(time.Duration(o.refreshHint))

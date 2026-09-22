@@ -176,9 +176,6 @@ func NewAgent(configPath string) (*Agent, error) {
 	log.Infow(
 		"Device details",
 		"deviceId", capabilities.Properties.Id,
-		// "hasValidDeviceCertificate", hasValidDeviceCertificate, // Uncomment when MIAF Related stuff is implemented
-		// TODO: MIAF SUP — hasRequestSigningKey rename to "hasMTLSClientCert" when RFC 9421 removed
-		// "canSignRequests", hasRequestSigningKey, // Uncomment when MIAF related stuff is implemented
 		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
 		"supportedRuntimes", deviceSettings.supportedRuntimes,
 	)
@@ -487,8 +484,6 @@ func PreflightLogger(
 }
 
 func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
-	// TODO: we should instead create our own http client and then set that into the openapi client
-	// the current way is a slightly longer route to acheive things
 	return func(client *sbi.Client) error {
 		// Validate client
 		if client == nil {

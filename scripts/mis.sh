@@ -360,9 +360,6 @@ generate_svid() {
 # ----------------------------
 
 uninstall_mis(){
-  # TODO: Add Github CI related changes here
-
-  # If it is not Github CI then: 
   echo "[INFO] Changing directory to: $deploy_dir"
   cd "$deploy_dir" || { echo "[ERROR] Failed to change directory to '$deploy_dir'. Aborting."; return 1; }
 

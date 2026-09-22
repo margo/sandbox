@@ -439,7 +439,7 @@ jobs:
           find "$DOCKER_CONFIG" -type f -exec chmod 600 {} \;
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-      - name: Copy Harbor certs 
+      - name: Copy Harbor certs
         run: |
           Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
@@ -529,7 +529,6 @@ jobs:
           fi
           echo "$EXISTING" | jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' > /tmp/dev-authz.json
           sudo cp /tmp/dev-authz.json "$AUTHZ"
-          
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
 

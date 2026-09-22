@@ -73,7 +73,7 @@ EXPOSED_HARBOR_PORT="${EXPOSED_HARBOR_PORT:-8443}"
 #--- branch details (can be overridden via env)
 SANDBOX_REPO_BRANCH="${SANDBOX_REPO_BRANCH:-dev-sprint-6}"
 WFM_HOST="${WFM_HOST:-localhost}"
-WFM_PORT="${WFM_PORT:-8082}"
+WFM_PORT="${WFM_PORT:-8084}" #8084 we are referring to SBI (Margo Management Interface) port here
 
 
 #--- Registry settings (can be overridden via env)

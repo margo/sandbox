@@ -4,12 +4,6 @@ logging:
 database:
   dataDir: "/var/lib/margo/device-agent/data" # directory where databse data is stored.
 
-
-# Device root identity — used for device identification.
-# TODO: MIAF SUP (PR2) — in PR2, device identity is an X.509-SVID issued by the
-# Margo Identity Service (MIS). The PKI/Random identity types below are PR1 concepts.
-# Replace with SPIFFE ID + X.509-SVID when MIAF is implemented.
-
 miaf:
   x509:
     certPath: "./config/identity/payload-cert.pem"  # SVID certificate

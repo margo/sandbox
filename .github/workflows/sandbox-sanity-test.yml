@@ -31,8 +31,8 @@ jobs:
       CI: "true"
 
       # Branches
-      SYMPHONY_BRANCH: ${{ github.event.inputs.symphony_branch_override || 'feature/miaf' }}
-      SANDBOX_REPO_BRANCH: ${{ github.event.inputs.sandbox_repo_branch_override || 'feature/miaf' }}
+      SYMPHONY_BRANCH: ${{ github.event.inputs.symphony_branch_override || 'development' }}
+      SANDBOX_REPO_BRANCH: ${{ github.event.inputs.sandbox_repo_branch_override || 'development' }}
 
       # Ports
       EXPOSED_HARBOR_PORT: 8443

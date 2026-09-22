@@ -716,7 +716,7 @@ jobs:
 
             K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
             K3S_INSTALLED=""
-            
+
             # 90 attempts x 2s = 180s (3 minutes)
             for ATTEMPT in {1..90}; do
               RAW_DEPLOYMENTS=$(sudo -E bash ./wfm-cli.sh list-deployments 2>/dev/null || echo "")
@@ -1013,6 +1013,6 @@ jobs:
         working-directory: scripts
         run: |
           echo "🗑️ Stopping Margo Identity Service"
-          sudo -E bash ./mis.sh mis-unistall || echo "⚠️ mis.sh mis-unistall failed or not required"
+          sudo -E bash ./mis.sh mis-unistall
           sudo rm -rf "${SVID_DIR}"/x509svid-* || true
           echo "✅ MIS cleanup completed"

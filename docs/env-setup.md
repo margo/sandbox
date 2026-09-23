@@ -5,7 +5,7 @@
 Before running any script, make sure to update the environment variable files according to your system setup.
 The environment files are located here **(wfm.env, device-agent.env and mis.env)**: cd $HOME/workspace/sandbox/scripts
 
-> Note: All hostnames must be specified in lowercase only.
+> Note: All hostnames must be specified in lowercase only. EXPOSED_MIS_HOST must be same across all three VMs.
 
 **For wfm.sh and wfm-cli.sh script**
 
@@ -19,7 +19,8 @@ export EXPOSED_HARBOR_PORT=8443
 export EXPOSED_SYMPHONY_PORT=8082
 export SYMPHONY_BRANCH=main #it can be a tag also
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
-export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable, should follow "mis.(TrustDomain)", where TrustDomain will be reused for minting x509 SVIDs  >
+# should follow "mis.(TrustDomain)" format, where TrustDomain will be reused for running MIS & minting x509 SVIDs via helper script.
+export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable>
 export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
 
@@ -32,7 +33,8 @@ Update the following variables:
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
 export WFM_HOST=<wfm-machine-hostname-or-ip>
 export EXPOSED_HARBOR_HOST=<harbor-machine-hostname-or-ip>
-export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable, should follow "mis.(TrustDomain)", where TrustDomain will be reused for minting x509 SVIDs  >
+# should follow "mis.(TrustDomain)" format, where TrustDomain will be reused for running MIS & minting x509 SVIDs via helper script.
+export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable>
 export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
 
@@ -44,7 +46,8 @@ Environment file path:- $HOME/workspace/sandbox/scripts/mis.env
 Update the following variables:
 ```bash
 export SANDBOX_REPO_BRANCH=main #it can be a tag also
-export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable, should follow "mis.(TrustDomain)", where TrustDomain will be reused for minting x509 SVIDs  >
+# should follow "mis.(TrustDomain)" format, where TrustDomain will be reused for running MIS & minting x509 SVIDs via helper script.
+export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable>
 export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
 

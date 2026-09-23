@@ -6,7 +6,7 @@
 **Three Virtual Machines:**
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
-| **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager |
+| **Main VM (WFM + MIS)** | 8 | 16GB | 100GB | Workload Fleet Manager as well as Margo Identity Service  |
 | **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
 | **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
@@ -17,7 +17,7 @@
 - All VMs must be able to talk to each other (same network with static IP addresses)
 - VM hostnames must be lowercase.
 
-> Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
+> Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the Main and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
 
 
@@ -92,7 +92,7 @@ On each VM, you need to configure environment variables (settings that tell the 
       192.11.11.11 mis.margo.org # <--- newly appended line with ip
       ```
 
-🔴 **Important:** Complete this step on all 3 VMs before proceeding.
+🔴 **Important:** Complete these steps on all 3 VMs before proceeding.
 
 ---
 
@@ -105,7 +105,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 > **Note:** Margo Identity Service(MIS) is installed on WFM VM. This can be installed on a separate VM.
 
-#### Build and MIS
+#### Build and Run MIS
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -164,44 +164,49 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 ### Generate X.509-SVIDs for WFM and WFM client
 
-1. **Navigate to the /scripts/lib/mis folder**
+1. **Navigate to the scripts folder**
    ```bash
-   cd $HOME/workspace/sandbox/scripts/lib/mis
+   cd $HOME/workspace/sandbox/scripts
    ```
 
 2. **Generate SVIDs interactively for both WFM and WFM client**
    ```bash
-      sudo -E bash svid-gen.sh
+    sudo -E bash mis.sh
    ```
+   - A menu will appear
+   - Type `6` and press Enter
+   - Choose: `Option 6: Generate SVID`
 
-   This step produces below files at the path `$HOME/workspace/sandbox/scripts/lib/mis`
+   This step produces below files at the path `$HOME/workspace/sandbox/scripts`
+
+   Default trust domain is picked up from mis.env (refer to [Environment Variables Setup Guide](../docs/env-setup.md)) 
 
    **For WFM**
    ```
    STEP: Principal Selection: Select the principal for which to generate, Enter option 1)
 
-   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm
+   $HOME/workspace/sandbox/scripts/x509svid-wfm
    -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
    -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
    ```
-   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively
+   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
 
    **For WFM Client**
    ```
     STEP: Principal Selection: Select the principal for which to generate, Enter option 2)
 
-   🔴 This needs to be ran twice one for `Compose-capable device` and another for `Helm-capable device`
+   🔴 This needs to be ran twice; for `Compose-capable device` and for `Helm-capable device`. Same steps can be used to generate as SVIDs for as many devices as required. 
 
-   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client
+   $HOME/workspace/sandbox/scripts/x509svid-wfm-docker-client
    -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
    -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
 
-   $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client
+   $HOME/workspace/sandbox/scripts/x509svid-wfm-helm-client
    -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
    -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
    ```
    >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
-   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively
+   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
 
 
 #### Build and Run WFM(Symphony)
@@ -223,14 +228,26 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    > Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
-3. **Copy WFM SVIDs and HTTPS server CA**
+3. **Copy WFM SVIDs and MIS HTTPS server CA**
    ```bash
    cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
-   cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
-   cp $HOME/workspace/sandbox/scripts/lib/mis/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
+   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
+   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
    ```
+   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. 
 
-4. **Start the Workload Fleet Manager**
+4. **Add WFM Client SPIFFE IDs as authorised clients interactively**
+   This step acts as local authorization policy to allow/disallow wfm clients to connect with WFM(symphony). Add SpiffeIDs of WFM Client (Both Docker & Helm capable Device) to enable communication when device clients are started.
+   ```bash
+    sudo -E bash wfm.sh
+   ```
+   - A menu will appear
+   - Type `7` and press Enter
+   - Choose: `Option 7: Manage SPIFFE ID allowlist`
+
+   Follow the steps interactively to add SPIFFE IDs of WFM Clients. These should be same as SPIFFE ID used to generate SVID for those WFM Clients. Use default path for file containing authorized clients, unless explicitly changed. 
+
+5. **Start the Workload Fleet Manager**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -240,7 +257,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    This starts the Workload Fleet Manager service.
 
 
-5. **Add Monitoring Tools**
+6. **Add Monitoring Tools (Optional)**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -249,7 +266,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This adds tools to monitor workloads observability.
 
-6. **Verify the Workload Fleet Manager Is Running Correctly**
+7. **Verify the Workload Fleet Manager Is Running Correctly**
    ```bash
    sudo docker logs -f symphony-api-container
    ```
@@ -263,23 +280,33 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 1. **Copy Security Files Between VMs (WFM Client SVIDs, HTTPS server CA and Harbor's CA to Device VM)**
 
-   You need to copy a security file from the WFM VM to each Device VM.
-   > Note: create the certs directory before copying the security files
-   > Use: `mkdir -p $HOME/certs`
-
    #### Step 1: Preparation on WFM VM
 
-   | Step | Action | Command | Expected Result |
-   |------|--------|---------|-----------------|
-   | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) |
-   | 2 | Locate Compose capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/lib/mis`<br>`ls -la x509svid-wfm-docker-client` | Files: `payload-key.pem` and `payload-cert.pem`|
-   | 3 |  Locate Helm capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/lib/mis`<br>`ls -la x509svid-wfm-helm-client` | Files: `payload-key.pem` and `payload-cert.pem`|
-   | 4 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
-   | 5 | Locate HTTPs server certificate | `cd $HOME/mis-deployment/certs`<br>`ls -la https-ca.crt` | File: `https-ca.crt` |
+   | Step | Action | Command | Expected Result | Notes |
+   |------|--------|---------|-----------------|-------|
+   | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) | Write down the IP address from Step 1 for use in the copy commands below. |
+   | 2 | Locate Compose capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/`<br>`ls -la x509svid-wfm-docker-client` | Files: `payload-key.pem` and `payload-cert.pem`| `wfm-docker-client` in `x509svid-wfm-docker-client` is what is used in this guide. Use appropriate wfm client id if you changed it in SVID generation step |
+   | 3 |  Locate Helm capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/`<br>`ls -la x509svid-wfm-helm-client` | Files: `payload-key.pem` and `payload-cert.pem`| `wfm-helm-client` in `x509svid-wfm-helm-client` is what is used in this guide. Use appropriate wfm client id if you changed it in SVID generation step |
+   | 4 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |  |
+   | 5 | Locate MIS HTTPS CA certificate | `cd $HOME/mis-deployment/certs`<br>`ls -la https-ca.crt` | File: `https-ca.crt` | Acts as intial trust for connecting to MIS Normative APIs |
 
    **Note:** Write down the IP address from Step 1 for use in the copy commands below.
 
-   #### Step 2: Copy Methods
+   #### Step 2: Prepare `$HOME/Certs` Directory on Device VM(s)
+   In order to copy required certificates from WFM machine to Device VMs, create following directory(s) on Device VMs:
+   ##### For Helm Capable Device VM
+      ```bash
+      mkdir -p $HOME/certs/helm-identity
+      ```
+   
+   ##### For Compose Capable Device VM
+      ```bash
+      mkdir -p $HOME/certs/compose-identity
+      ```
+   
+   Above commands will create a common `$HOME/certs` and based on requirement, it would create `helm-identity` or `compose-identity` sub directory for carrying identity certificates (SVID)
+
+   #### Step 3: Copy Required Files from WFM VM to Device VM & Pre-requisite setup
 
    **Option A - Using SCP**
    🔴 **(Recommended - Run from Device VMs)**
@@ -287,8 +314,8 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    | Target VM | Run From | SCP Command | Example |
    |-----------|----------|-------------|---------|
-   | **Docker Device** | Compose Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt` `$HOME/workspace/sandbox/poc/device/agent/config/mis` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-docker-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/workspace/sandbox/poc/device/agent/config/mis`|
-   | **K3s Device** | Helm Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt` `$HOME/workspace/sandbox/poc/device/agent/config/mis` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-key.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/lib/mis/x509svid-wfm-helm-client/payload-cert.pem $HOME/workspace/sandbox/poc/device/agent/config/identity` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/workspace/sandbox/poc/device/agent/config/mis` |
+   | **Docker Device** | Compose Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-key.pem $HOME/certs/compose-identity/` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-cert.pem $HOME/certs/compose-identity/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-key.pem $HOME/certs/compose-identity/` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-cert.pem $HOME/certs/compose-identity/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/certs/`|
+   | **K3s Device** | Helm Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-key.pem $HOME/certs/helm-identity/` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-cert.pem $HOME/certs/helm-identity/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-key.pem $HOME/certs/helm-identity/` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-cert.pem $HOME/certs/helm-identity/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/certs/` |
 
    **Note:** Run with **sudo** if fails.
 
@@ -298,7 +325,8 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 
    **Option B - Manual Copy by creating respective files and copying contents**
-
+   
+   Manually create above files in Device VM(s) and copy content of those files from WFM VM to Device VM(s).
 
 2. **Navigate to the scripts folder**
    ```bash
@@ -343,6 +371,19 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 1: Install-prerequisites`
 
    This may take 10-15 minutes.
+
+
+4. **Add WFM SPIFFE ID in local allow list policy for Device(s) interactively**
+
+   Based on the device type, select **k3s** or **docker** while sourcing the environment variables. For example:
+   ```bash
+   sudo -E bash device-agent.sh docker # for docker-compose device
+   sudo -E bash device-agent.sh k3s    # for k3s device
+   ```
+   - Type `11` and press Enter
+   - Choose: `Option 11: Manage SPIFFE ID allowlist`
+
+   Follow the steps interactively to add SPIFFE ID of WFM on devices.
 
 ---
 
@@ -520,24 +561,27 @@ Press Enter to continue...
 
 Select this option to display the devices that have onboarded to the sandbox WFM.
 
-> Note: Below is a example snippet showing the expected output of the selection. For now, you'll need to look at the device agent's logs to identify the client ID if you have multiple devices provisioned.
+> Note: Below is a example snippet showing the expected output of the selection. IDs displayed here are device client's SPIFFE ID from their respective SVID identity.
 ```
 Enter choice [1-9]: 2
 🖥️  Listing all devices from WFM...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:      v1alpha2/margo/nbi/v1    │
 └─────────────────────────────────────────┘
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| ID                                 | SIGNATURE                    | CAPABILITIES                 | STATE     | CREATEDAT        |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| client-56b77ecbfdc83e4a-1764667338 | LS0tLS1CRUdJTiBDRVJUSUZJQ... | {"apiVersion":"device.mar... | ONBOARDED | 2025-12-02 09:22 |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-|                                    |                              |                              | PAGE 1/1  | TOTAL: 1         |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+| spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 |
+|                                                               |                              |                 |           | 9:26         |
+| spiffe://margo.org/margo/wfm/symphony-1/client/k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 |
+|                                                               |                              |                 |           | 9:26         |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
 
 Press Enter to continue...
 
@@ -659,6 +703,7 @@ Configuration Notes:
 - Below is a example snippet showing the expected output of the selection.
 - The id of the application package needs to be copied from the output shown below 'Available packages'.
 - The id of the device needs to be copied from the output shown below 'Available devices'.
+- While selecting device, a new column `ELIGIBLE` is now visible, indicating whether a particular device is eligible to run the application or not, based on [Device Eligibility Checks against a particular application](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) 
 
 ```
 Enter choice [1-9]: 7
@@ -668,59 +713,77 @@ Enter choice [1-9]: 7
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
+| bfe50327-c1ab-4264-aff3-c3a481f22a07 | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:36 | 2026-09-23 09:36 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
-|                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
-|                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
-|                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/nextcloud-compose-app-package" |                  |                  |
+|                                      |                      |         |           |           |             | ,"tag":"latest"}                    |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 |                                      |                      |         |           |           |             |                                     | PAGE 1/1         | TOTAL: 1         |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 
-Enter the package name/ID to deploy: ae011433-28ed-4f4e-a8af-474810810746
+Enter the package name/ID to deploy: bfe50327-c1ab-4264-aff3-c3a481f22a07
 
 🖥️  Available devices:
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| ID                                 | SIGNATURE                    | CAPABILITIES                 | STATE     | CREATEDAT        |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| client-56b77ecbfdc83e4a-1764667338 | LS0tLS1CRUdJTiBDRVJUSUZJQ... | {"apiVersion":"device.mar... | ONBOARDED | 2025-12-02 09:22 |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-|                                    |                              |                              | PAGE 1/1  | TOTAL: 1         |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    | ELIGIBLE |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+| spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 | true     |
+|                                                               |                              |                 |           | 9:26         |          |
+| spiffe://margo.org/margo/wfm/symphony-1/client/k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 | false    |
+|                                                               |                              |                 |           | 9:26         |          |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |          |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
 
-Enter the device ID for deployment: client-56b77ecbfdc83e4a-1764667338
-📋 Getting package details...
-🔍 Searching for package: ae011433-28ed-4f4e-a8af-474810810746
-📦 Package name: custom-otel-helm-app
-📄 Using deployment file: /root/symphony/cli/templates/margo/custom-otel-helm/instance.yaml.copy
-🚀 Deploying 'ae011433-28ed-4f4e-a8af-474810810746' to device 'client-56b77ecbfdc83e4a-1764667338'...
+Enter the device ID for deployment: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1
+
+🚀 Deploying 'bfe50327-c1ab-4264-aff3-c3a481f22a07' to device 'spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-deploymentId e675eaa8-0acd-4df4-8187-ccddc2d72f91 deploymentName otel-demo-instance
+deploymentId 231282a3-b7c1-49d7-9c68-f0e0fb28c113 deploymentName nextcloud-stack-instance
 
 Application configuration applied successfully
 
 ✅ Instance deployment request sent successfully!
+
+📋 Updated deployments:
+┌─────────────────────────────────────────┐
+│              Server Config              │
+├─────────────────────────────────────────┤
+│ Host:      symphony.machine             │
+│ Port:      8082                         │
+│ Basepath:      v1alpha2/margo/nbi/v1        │
+└─────────────────────────────────────────┘
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| 231282a3-b7c1-49d7-9c68-f0e0fb28c113 | nextclo... | bfe5032... | .../dockerdevice-1 | DEPLOY | PENDING      | 2026-09-23 09:37 |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+|                                      |            |            |                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+
+Press Enter to continue...
 
 ```
 
@@ -866,11 +929,17 @@ If you want to remove everything and start over:
    cd $HOME/workspace/sandbox/scripts
    ```
 
-2. **Stop and clean up services**
+2. **Stop and clean up wfm services**
    ```bash
    sudo -E bash ./wfm.sh  # Type 4 and press Enter - Option 4: Symphony Stop
    sudo -E bash ./wfm.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    sudo -E bash ./wfm.sh  # Type 6 and press Enter - Option 6: ObservabilityStack Stop
+   ```
+
+3. **Stop and clean up mis services**
+   ```bash
+   sudo -E bash ./mis.sh  # Type 4 and press Enter - Option 5: Margo Identity Service: Uninstall
+   sudo -E bash ./mis.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    ```
 
 

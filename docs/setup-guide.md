@@ -237,6 +237,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. 
 
 4. **Add WFM Client SPIFFE IDs as authorised clients interactively**
+
    This step acts as local authorization policy to allow/disallow wfm clients to connect with WFM(symphony). Add SpiffeIDs of WFM Client (Both Docker & Helm capable Device) to enable communication when device clients are started.
    ```bash
     sudo -E bash wfm.sh

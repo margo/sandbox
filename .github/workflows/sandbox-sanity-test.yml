@@ -396,7 +396,9 @@ jobs:
           for i in {1..30}; do
             # A bare TLS handshake is expected to fail without a client SVID;
             # a refused connection means the binding never came up.
-            if timeout 2 bash -c "cat < /dev/null > /dev/tcp/symphony.machine/${EXPOSED_SYMPHONY_PORT}" 2>/dev/null; then
+            if timeout 2 bash -c \
+              "cat < /dev/null > /dev/tcp/symphony.machine/${EXPOSED_SYMPHONY_PORT}" \
+              2>/dev/null; then
               echo "✅ Port ${EXPOSED_SYMPHONY_PORT} is listening (mTLS)"
               break
             fi
@@ -407,7 +409,9 @@ jobs:
               echo "--- Full container log ---"
               docker logs symphony-api-container 2>&1 || true
               echo "--- Lines mentioning port ${EXPOSED_SYMPHONY_PORT} / miaf / mtls / mis ---"
-              docker logs symphony-api-container 2>&1 | grep -iE "${EXPOSED_SYMPHONY_PORT}|miaf|mtls|mis[^s]|trust.?bundle|authoriz" || echo "(no matching lines)"
+              docker logs symphony-api-container 2>&1 | \
+                grep -iE "${EXPOSED_SYMPHONY_PORT}|miaf|mtls|mis[^s]|trust.?bundle|authoriz" || \
+                echo "(no matching lines)"
               exit 1
             fi
           done
@@ -459,7 +463,9 @@ jobs:
             echo "📦 Uploading ${APP_PACKAGE_NAME_K3S}..."
             sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_K3S}"
             for i in {1..10}; do
-              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_K3S}" | grep -o "ONBOARDED" || echo "")
+              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null \
+                | grep "${APP_PACKAGE_NAME_K3S}" \
+                | grep -o "ONBOARDED" || echo "")
               if [ "$STATUS" = "ONBOARDED" ]; then
                 echo "✅ ${APP_PACKAGE_NAME_K3S} onboarded"
                 break
@@ -473,7 +479,9 @@ jobs:
             echo "📦 Uploading ${APP_PACKAGE_NAME_DOCKER}..."
             sudo -E bash ./wfm-cli.sh upload-app-non-interactive "${APP_PACKAGE_NAME_DOCKER}"
             for i in {1..10}; do
-              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null | grep "${APP_PACKAGE_NAME_DOCKER}" | grep -o "ONBOARDED" || echo "")
+              STATUS=$(sudo -E bash ./wfm-cli.sh list-packages 2>/dev/null \
+                | grep "${APP_PACKAGE_NAME_DOCKER}" \
+                | grep -o "ONBOARDED" || echo "")
               if [ "$STATUS" = "ONBOARDED" ]; then
                 echo "✅ ${APP_PACKAGE_NAME_DOCKER} onboarded"
                 break
@@ -516,9 +524,18 @@ jobs:
           CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
 
           echo "🔍 Verifying validate_and_copy_certs populated config/helm-identity and config/mis"
-          sudo test -f "$CONFIG_DIR/helm-identity/payload-cert.pem" || { echo "❌ Missing $CONFIG_DIR/helm-identity/payload-cert.pem"; exit 1; }
-          sudo test -f "$CONFIG_DIR/helm-identity/payload-key.pem"  || { echo "❌ Missing $CONFIG_DIR/helm-identity/payload-key.pem"; exit 1; }
-          sudo test -f "$CONFIG_DIR/mis/https-ca.crt"               || { echo "❌ Missing $CONFIG_DIR/mis/https-ca.crt"; exit 1; }
+          sudo test -f "$CONFIG_DIR/helm-identity/payload-cert.pem" || {
+            echo "❌ Missing $CONFIG_DIR/helm-identity/payload-cert.pem"
+            exit 1
+          }
+          sudo test -f "$CONFIG_DIR/helm-identity/payload-key.pem" || {
+            echo "❌ Missing $CONFIG_DIR/helm-identity/payload-key.pem"
+            exit 1
+          }
+          sudo test -f "$CONFIG_DIR/mis/https-ca.crt" || {
+            echo "❌ Missing $CONFIG_DIR/mis/https-ca.crt"
+            exit 1
+          }
 
           echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
           AUTHZ="$CONFIG_DIR/authorized.json"
@@ -548,7 +565,9 @@ jobs:
 
           echo "⏳ Waiting for WFM-Client pod to be ready..."
           for i in {1..30}; do
-            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
+            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods \
+              | grep workload-fleet-management-client \
+              | grep -q "Running"; then
               echo "✅ WFM-Client pod is running"
               sleep 3
               break
@@ -577,7 +596,8 @@ jobs:
           for i in {1..30}; do
             if docker ps --format "{{.Names}}" | grep -q "^workload-fleet-management-client$"; then
               echo "✅ Docker WFM-Client container is running"
-              docker ps --filter "name=workload-fleet-management-client" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+              docker ps --filter "name=workload-fleet-management-client" \
+                --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
               sleep 5
               break
             fi
@@ -830,7 +850,9 @@ jobs:
             -o name 2>/dev/null | grep workload-fleet-management-client | head -1 | cut -d'/' -f2 || echo "")
           if [ -n "$POD_NAME" ]; then
             echo "Pod: $POD_NAME"
-            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs "pod/$POD_NAME" --tail=100 2>&1 || echo "Could not retrieve K3s client logs"
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs \
+              "pod/$POD_NAME" --tail=100 2>&1 || \
+              echo "Could not retrieve K3s client logs"
           else
             echo "⚠️ K3s WFM client pod not found"
             sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A 2>&1 || echo "Could not list pods"
@@ -877,19 +899,23 @@ jobs:
           echo "========================================="
 
           echo "Getting K3s package ID..."
-          K3S_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_K3S}" 2>/dev/null | tail -n1 || echo "")
+          K3S_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name \
+            "${APP_PACKAGE_NAME_K3S}" 2>/dev/null | tail -n1 || echo "")
           if [ -n "$K3S_PACKAGE_ID" ] && [ "$K3S_PACKAGE_ID" != "null" ]; then
             echo "Deleting K3s package: $K3S_PACKAGE_ID"
-            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$K3S_PACKAGE_ID" || echo "⚠️ Failed to delete K3s package"
+            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$K3S_PACKAGE_ID" || \
+              echo "⚠️ Failed to delete K3s package"
           else
             echo "ℹ️ K3s package not found or already deleted"
           fi
 
           echo "Getting Docker package ID..."
-          DOCKER_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name "${APP_PACKAGE_NAME_DOCKER}" 2>/dev/null | tail -n1 || echo "")
+          DOCKER_PACKAGE_ID=$(sudo -E bash ./wfm-cli.sh get-package-id-by-name \
+            "${APP_PACKAGE_NAME_DOCKER}" 2>/dev/null | tail -n1 || echo "")
           if [ -n "$DOCKER_PACKAGE_ID" ] && [ "$DOCKER_PACKAGE_ID" != "null" ]; then
             echo "Deleting Docker package: $DOCKER_PACKAGE_ID"
-            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$DOCKER_PACKAGE_ID" || echo "⚠️ Failed to delete Docker package"
+            sudo -E bash ./wfm-cli.sh delete-package-non-interactive "$DOCKER_PACKAGE_ID" || \
+              echo "⚠️ Failed to delete Docker package"
           else
             echo "ℹ️ Docker package not found or already deleted"
           fi
@@ -918,7 +944,9 @@ jobs:
             INSTALLED_DEPLOYMENTS=$(echo "$DEPLOYMENTS" | grep "INSTALLED" || echo "")
 
             if [ -n "$INSTALLED_DEPLOYMENTS" ]; then
-              DEPLOYMENT_IDS=$(echo "$INSTALLED_DEPLOYMENTS" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || echo "")
+              DEPLOYMENT_IDS=$(echo "$INSTALLED_DEPLOYMENTS" | \
+                grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || \
+                echo "")
 
               if [ -n "$DEPLOYMENT_IDS" ]; then
                 echo "Found INSTALLED deployments to delete:"
@@ -927,7 +955,8 @@ jobs:
                 while IFS= read -r deployment_id; do
                   if [ -n "$deployment_id" ]; then
                     echo "Deleting INSTALLED deployment: $deployment_id"
-                    sudo -E bash ./wfm-cli.sh delete-instance-non-interactive "$deployment_id" || echo "⚠️ Failed to delete deployment $deployment_id"
+                    sudo -E bash ./wfm-cli.sh delete-instance-non-interactive "$deployment_id" || \
+                      echo "⚠️ Failed to delete deployment $deployment_id"
                   fi
                 done <<< "$DEPLOYMENT_IDS"
 

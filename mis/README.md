@@ -2,11 +2,16 @@
 
 `mis-cli` is a command-line tool for managing SPIFFE Verifiable Identity Documents (SVIDs) and running the MIS REST API server.
 
+MIS is an implementation of the Margo Identity and Authorization Framework (MIAF) MIS role. It issues X.509-SVIDs for a configured Trust Domain and publishes the Trust Domain discovery document and SPIFFE Trust Bundle over HTTPS. The normative HTTPS contract is the [Margo Trust Bundle API](https://docs.margo.org/specification/identity/trust-bundle-api-1.0.0-rc.3).
+
 ---
 
 ## Table of Contents
 
 - [Building MIS](#building-mis)
+- [Implementation Structure](#implementation-structure)
+- [MIAF Implementation](#miaf-implementation)
+- [Normative MIS API](#normative-mis-api)
 - [Configuration](#configuration)
   - [Configuration Fields](#configuration-fields)
   - [Generating Configuration with confbuilder.sh](#generating-configuration-with-confbuildersh)
@@ -17,6 +22,78 @@
   - [mint x509](#mint-x509)
 - [Examples](#examples)
 - [Output Files](#output-files)
+
+## Implementation Structure
+
+The `mis` directory is organized around the CLI, the two server surfaces, and the shared identity types:
+
+```text
+mis/
+|-- main.go                         CLI entry point
+|-- cli/                             Cobra commands: start and mint x509
+|-- https/                           HTTPS server for the normative MIS API
+|   |-- server.go                    Routes, TLS, caching, and HTTP responses
+|   `-- operations/                  Discovery and Trust Bundle generation
+|-- unix/                            Local HTTP server for SVID minting
+|   |-- server.go                    Unix socket endpoint registration
+|   |-- client/                      CLI client for the minting endpoint
+|   `-- operations/                  X.509-SVID key and certificate creation
+|-- pkg/
+|   |-- conf/                        Configuration loading and validation
+|   |-- types/                       Shared request, response, and service types
+|   |-- helpers/                     Certificate and HTTP response helpers
+|   `-- standard/generatedCode/      OpenAPI-generated normative API models/client
+`-- certs/                           Certificate documentation and local PKI assets
+```
+
+When `mis start` runs, it starts both servers in parallel:
+
+1. `https.MisRestAPI` listens on the configured HTTPS address and exposes the discovery and Trust Bundle endpoints.
+2. `unix.MintRestAPI` listens on `/tmp/mint.sock` with mode `0600` and exposes the local minting endpoint.
+
+The Unix socket is an implementation detail for local provisioning. It is not part of the normative Trust Bundle API and is not exposed as a network API.
+
+## MIAF Implementation
+
+[MIAF](https://docs.margo.org/specification/identity/identity-framework) defines the MIS as an identity-authority role within one Trust Domain. The role is responsible for issuing X.509-SVIDs, publishing trust material, and enforcing the MIAF identity and SVID profile rules. MIS implements that role as follows:
+
+| MIAF responsibility | MIS implementation |
+| --- | --- |
+| Identify one Trust Domain | `trustDomain` is loaded from configuration and used for SPIFFE ID and bundle operations. |
+| Issue X.509-SVIDs | `mis mint x509` sends a request to the local Unix socket; `unix/operations` generates an ECDSA P-256 key and signs an X.509 certificate with the configured CA. |
+| Publish the Trust Bundle | `https/operations` loads the configured CA certificate and creates a SPIFFE bundle for the configured Trust Domain. |
+| Publish discovery metadata | `GET /.well-known/margo` returns the Trust Domain and an absolute HTTPS `trustBundleUri`. |
+| Support Trust Bundle retrieval | The configured `trustBundleURI` route returns the SPIFFE bundle as JSON. |
+
+MIS reuses SPIFFE primitives through `go-spiffe`: SPIFFE IDs identify issued identities, X.509-SVIDs carry the SPIFFE ID in a URI SAN, and the published bundle contains the X.509 trust anchor for the Trust Domain. MIAF identity profiles require Margo identities to use a path beginning with `/margo/`; callers should therefore supply SPIFFE IDs such as `spiffe://margo.org/margo/...` when issuing MIAF identities.
+
+Issuance is intentionally separated from the normative retrieval API. MIAF defines the MIS responsibilities and the Trust Bundle wire contract, but does not require a particular enrollment or issuance API. This implementation uses a local Unix socket to keep the minting operation off the network.
+
+## Normative MIS API
+
+MIS implements the read-only HTTPS endpoints defined by the [Margo Trust Bundle API 1.0.0-rc.3](https://docs.margo.org/specification/identity/trust-bundle-api-1.0.0-rc.3):
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/.well-known/margo` | Optional discovery document for one Trust Domain. |
+| `GET` | `/<trustBundleURI>` | SPIFFE Trust Bundle for the configured Trust Domain. The default is `/.well-known/spiffe/bundle.json`. |
+
+The discovery response has this shape:
+
+```json
+{
+  "trustDomain": "margo.org",
+  "trustBundleUri": "https://mis.margo.org/.well-known/spiffe/bundle.json"
+}
+```
+
+The `trustBundleUri` is generated as an absolute HTTPS URL from the configured Trust Domain, listener port, and `trustBundleURI`. The Trust Bundle response is serialized in the SPIFFE bundle format and contains the configured CA as the X.509 authority, a sequence number, and the configured `refreshHint`.
+
+Both successful JSON responses include an `ETag`. Clients can send `If-None-Match` and receive `304 Not Modified` when the document or bundle has not changed. Unsupported `Accept` values and unavailable resources are returned as `application/problem+json` using the generated Margo Problem Details model.
+
+The endpoints use HTTPS. Initial trust for retrieving the bundle must be established externally, as described by the MIAF specification; the current server configures TLS certificates and a minimum TLS version of 1.3. The HTTPS CA is used to assemble the server certificate chain. Client-certificate authentication is not currently enabled by the HTTPS server.
+
+The generated API models and client are in `pkg/standard/generatedCode`; they are generated from the checked-in standard API definition and should not be edited by hand.
 
 ---
 
@@ -190,8 +267,8 @@ All files are written to `./certs/`:
 | `certs/https-ca.crt` | HTTPS CA self-signed certificate (10 years) |
 | `certs/ca.key` | Minter CA private key |
 | `certs/ca.crt` | Minter CA self-signed certificate (10 years) |
-| `certs/server.key` | HTTPS server private key |
-| `certs/server.crt` | HTTPS server certificate signed by HTTPS CA (1 year) |
+| `certs/https-server.key` | HTTPS server private key |
+| `certs/https-server.crt` | HTTPS server certificate signed by HTTPS CA (1 year) |
 
 The script also verifies the generated chain and prints a summary on completion.
 

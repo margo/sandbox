@@ -541,18 +541,113 @@ jobs:
 
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
-      - name: WFM-Client (Helm-capable device) - Start
+      # - name: WFM-Client (Helm-capable device) - Start
+      #   working-directory: scripts
+      #   run: |
+      #     sudo -E bash ./device-agent.sh k3s start-k3s
+
+      #     echo "⏳ Waiting for WFM-Client pod to be ready..."
+      #     for i in {1..30}; do
+      #       if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
+      #         echo "✅ WFM-Client pod is running"
+      #         sleep 3
+      #         break
+      #       fi
+      #       echo "Waiting for pod... ($i/30)"
+      #       sleep 2
+      #     done
+      
+      - name: Start WFM Client (HELM-capable device) and check for errors
         working-directory: scripts
         run: |
+          set +e
+
           sudo -E bash ./device-agent.sh k3s start-k3s
+          START_EXIT_CODE=$?
+
+          if [ $START_EXIT_CODE -ne 0 ]; then
+            echo "❌ WFM-Client startup failed with exit code: $START_EXIT_CODE"
+            echo ""
+
+            echo "========================================="
+            echo "📁 Check authorized.json host file"
+            echo "========================================="
+            ls -la "$HOME/sandbox/helmchart/" || true
+            ls -l "$HOME/sandbox/helmchart/authorized.json" || true
+            realpath "$HOME/sandbox/helmchart/authorized.json" || true
+
+            echo ""
+            echo "========================================="
+            echo "📦 Kubernetes Pods"
+            echo "========================================="
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl get pods -n default -o wide || true
+
+            echo ""
+            echo "========================================="
+            echo "💾 PVC Status"
+            echo "========================================="
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl get pvc -n default -o wide || true
+
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl describe pvc workload-fleet-management-client-data \
+              -n default || true
+
+            echo ""
+            echo "========================================="
+            echo "🔍 WFM Pod Description"
+            echo "========================================="
+            POD_NAME=$(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl get pods -n default \
+              -o name | grep workload-fleet-management-client | head -1)
+
+            if [ -n "$POD_NAME" ]; then
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+                kubectl describe "$POD_NAME" -n default || true
+
+              echo ""
+              echo "========================================="
+              echo "📜 Container Logs"
+              echo "========================================="
+              sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+                kubectl logs "$POD_NAME" -n default --all-containers=true || true
+            else
+              echo "❌ WFM-Client pod was not created"
+            fi
+
+            echo ""
+            echo "========================================="
+            echo "⚠️ Kubernetes Events"
+            echo "========================================="
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl get events -n default \
+              --sort-by='.lastTimestamp' || true
+
+            echo ""
+            echo "========================================="
+            echo "📋 Rendered hostPath"
+            echo "========================================="
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              helm get manifest workload-fleet-management-client \
+              -n default | grep -A6 -B3 "host-authorized-json" || true
+
+            exit $START_EXIT_CODE
+          fi
 
           echo "⏳ Waiting for WFM-Client pod to be ready..."
+
           for i in {1..30}; do
-            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods | grep workload-fleet-management-client | grep -q "Running"; then
+            if sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+              kubectl get pods -n default |
+              grep workload-fleet-management-client |
+              grep -q "Running"; then
+
               echo "✅ WFM-Client pod is running"
               sleep 3
               break
             fi
+
             echo "Waiting for pod... ($i/30)"
             sleep 2
           done

@@ -15,11 +15,9 @@ services:
     volumes:
       # - /root/.kube/config:/root/.kube/config:ro # to manage kubernetes runtimes
       - /var/run/docker.sock:/var/run/docker.sock # to manage docker runtimes
-      - ./config/config.yaml:/config/config.yaml
-      - ./config/identity:/config/identity
-      - ./config/mis:/config/mis
-      - ./config/authorized.json:/config/authorized.json
-      - ./config/capabilities.json:/config/capabilities.json
+      # instead of mounting every single file, we are mounting complete folder to reduce redundancy. 
+      # If required, user should change this manually for changing a particular mount
+      - ./config:/config 
       - ./data:/var/lib/margo/device-agent/data #should be changed to whatever is set as dataDir in config.yaml for device agent
     restart: unless-stopped
     entrypoint: ["./device-agent"]

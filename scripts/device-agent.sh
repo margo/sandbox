@@ -93,8 +93,11 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 # Stable version as of December 2024
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 
-SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/poc/device/agent/config/authorized.json"}"
-
+if [[ "$DEVICE_TYPE" == "docker" ]]; then
+  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/docker-compose/config/authorized.json"}"
+else
+  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/poc/device/agent/config/authorized.json"}"
+fi
 # ----------------------------
 # GHCR Image References
 # ----------------------------

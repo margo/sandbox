@@ -31,9 +31,9 @@ SVID + Trust Bundle
 				|
 				v
 	mTLS authentication ----> verified SPIFFE ID
-																			|
-																			v
-												 local authorization policy
+										|
+										v
+							local authorization policy
 ```
 
 The peer's verified SPIFFE ID is the input to authorization. There is no

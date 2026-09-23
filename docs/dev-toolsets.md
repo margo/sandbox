@@ -8,7 +8,7 @@ Development toolsets used and their purposes:
 ### ⚙️ Core Development Tools
 
 #### Go (Golang)
-- **Version**: 1.24.4
+- **Version**: 1.25.10
 - **Uses**:
   - Building Symphony API server
   - Building Maestro CLI tool

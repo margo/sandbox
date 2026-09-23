@@ -67,24 +67,46 @@ _manage_spiffe_ids_menu() {
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "What would you like to do?"
-    echo "  1) ➕ Add SPIFFE IDs"
-    echo "  2) 🗑️  Remove SPIFFE IDs"
-    echo "  3) 🔙 Back"
-    echo ""
-    read -rp "Enter choice [1-3]: " action
 
-    case "$action" in
-      1) _spiffe_add_entries "$json_file" "$role" ;;
-      2) _spiffe_remove_entries "$json_file" "$role" ;;
-      3)
-        echo "[INFO] 🔙 Returning to previous menu."
-        return 0
-        ;;
-      *)
-        echo "[WARN] ⚠️  Invalid choice. Please enter 1, 2, or 3."
-        ;;
-    esac
+    if [[ "$role" == "wfm" ]]; then
+      echo "What would you like to do?"
+      echo "  1) ➕ Add SPIFFE ID"
+      echo "  2) ✏️  Edit SPIFFE ID"
+      echo "  3) 🔙 Back"
+      echo ""
+      read -rp "Enter choice [1-3]: " action
+
+      case "$action" in
+        1) _spiffe_add_entries "$json_file" "$role" ;;
+        2) _spiffe_edit_entry "$json_file" ;;
+        3)
+          echo "[INFO] 🔙 Returning to previous menu."
+          return 0
+          ;;
+        *)
+          echo "[WARN] ⚠️  Invalid choice. Please enter 1, 2, or 3."
+          ;;
+      esac
+    else
+      echo "What would you like to do?"
+      echo "  1) ➕ Add SPIFFE IDs"
+      echo "  2) 🗑️  Remove SPIFFE IDs"
+      echo "  3) 🔙 Back"
+      echo ""
+      read -rp "Enter choice [1-3]: " action
+
+      case "$action" in
+        1) _spiffe_add_entries "$json_file" "$role" ;;
+        2) _spiffe_remove_entries "$json_file" "$role" ;;
+        3)
+          echo "[INFO] 🔙 Returning to previous menu."
+          return 0
+          ;;
+        *)
+          echo "[WARN] ⚠️  Invalid choice. Please enter 1, 2, or 3."
+          ;;
+      esac
+    fi
   done
 }
 
@@ -120,6 +142,15 @@ _spiffe_add_entries() {
   # Role-specific warning after input is collected
   if [[ "$role" == "wfm" && "${#new_ids[@]}" -gt 1 ]]; then
     echo "[WARN] ⚠️  Multiple WFM SPIFFE IDs provided. Only a single WFM entry is recommended."
+  fi
+
+  # Role-specific warning if a wfm entry already exists
+  if [[ "$role" == "wfm" ]]; then
+    local existing_count
+    existing_count=$(jq 'length' "$json_file")
+    if [[ "$existing_count" -gt 0 ]]; then
+      echo "[WARN] ⚠️  A WFM SPIFFE ID already exists. Consider using 'Edit' instead of adding another."
+    fi
   fi
 
   local added_count=0
@@ -159,6 +190,48 @@ _spiffe_add_entries() {
   echo "[INFO] 📊 Summary — Added: $added_count | Skipped (duplicates): $skipped_count"
 }
 
+# --- Edit entry (wfm role only) ---
+_spiffe_edit_entry() {
+  local json_file="$1"
+
+  local count
+  count=$(jq 'length' "$json_file")
+
+  if [[ "$count" -eq 0 ]]; then
+    echo "[WARN] ⚠️  No SPIFFE ID exists to edit. Please add one first."
+    return 0
+  fi
+
+  local current_id
+  current_id=$(jq -r '.[0]' "$json_file")
+
+  echo ""
+  echo "✏️  Current WFM SPIFFE ID: $current_id"
+  echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+  echo "   💡 Tip: Only one WFM SPIFFE ID is expected. The existing entry will be replaced."
+  read -rp "   Enter new SPIFFE ID: " new_id
+
+  new_id="$(echo "$new_id" | xargs)"  # trim whitespace
+
+  if [[ -z "$new_id" ]]; then
+    echo "[WARN] ⚠️  No SPIFFE ID provided. Nothing changed."
+    return 0
+  fi
+
+  if [[ "$new_id" == "$current_id" ]]; then
+    echo "[INFO] ⏭️  New SPIFFE ID is the same as the current one. Nothing changed."
+    return 0
+  fi
+
+  # Replace the first (and expected only) entry
+  local tmp
+  tmp=$(jq --arg id "$new_id" '[.[1:] | .[] ] | [$id] + .' "$json_file")
+  echo "$tmp" > "$json_file"
+  echo "[INFO] ✅ Updated SPIFFE ID:"
+  echo "         Old: $current_id"
+  echo "         New: $new_id"
+}
+
 # --- Remove entries ---
 _spiffe_remove_entries() {
   local json_file="$1"
@@ -168,10 +241,6 @@ _spiffe_remove_entries() {
   echo "🗑️  Enter SPIFFE IDs to remove (space-separated):"
 
   case "$role" in
-    wfm)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
-      echo "   💡 Tip: Only one WFM SPIFFE ID is expected. Removing it will leave the allowlist empty."
-      ;;
     wfmclient)
       echo "   Example: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1  spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-2"
       echo "   💡 Tip: You can remove multiple WFM client SPIFFE IDs at once."

@@ -36,14 +36,14 @@
             "vendor": "Conformance Test Suite",
             "modelNumber": "CTS-MULTIAPP-1",
             "serialNumber": "SN-MULTIAPP-001",
-            "roles": ["Standalone Device"],
-            "resources": {
-              "cpu": { "cores": 4, "architecture": "amd64" },
-              "memory": "8Gi",
-              "storage": "64Gi",
-              "interfaces": [{ "type": "ethernet" }],
-              "peripherals": []
-            }
+            "cpus": [{ "cores": 4, "architecture": "amd64" }],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "peripherals": [],
+            "interfaces": [{ "type": "ethernet" }],
+            "otelCollector": false,
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["helm", "compose"]
           }
         },
         "headers": {},

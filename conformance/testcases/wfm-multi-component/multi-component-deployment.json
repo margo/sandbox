@@ -1,0 +1,127 @@
+[
+  {
+    "id": "wfm-multi-component-deployment",
+    "name": "Multi-Component ApplicationDeployment — wait=true/false, digest & caching contract",
+    "crIds": [
+      "MARGO-WFM-APPLICATIONDESCRIPTION-001",
+      "MARGO-WFM-APPLICATIONDESCRIPTION-002",
+      "MARGO-WFM-MANAGEMENTINTERFACE-014",
+      "MARGO-WFM-MANAGEMENTINTERFACE-015",
+      "MARGO-WFM-MANAGEMENTINTERFACE-025",
+      "MARGO-WFM-MANAGEMENTINTERFACE-031",
+      "MARGO-WFM-MANAGEMENTINTERFACE-034",
+      "MARGO-WFM-MANAGEMENTINTERFACE-035"
+    ],
+    "description": "Verifies a real WFM serves a multi-component compose ApplicationDeployment faithfully, WITHOUT deploying any container. Covers MARGO-WFM-APPLICATIONDESCRIPTION-001 (the client MAY be told wait=false for compose — the WFM's only obligation is to relay the operator-set `wait` value unchanged) plus the content-addressing / caching contract that the same fetched deployment lets us check: MI-014/MI-034 (ETag digest grammar), MI-015 (ETag == sha256 of the served body), MI-025 (served body sha256 == the digest advertised in the desired-state manifest), MI-031 (bundle media type) and MI-009 (bundle present & non-null once a deployment exists). PRECONDITION: an operator must assign the reference deployment in fixtures/multi-component-app-deployment.yaml (one component `wait: true`, one `wait: false`) to the onboarded test client via the WFM console while step 3 polls.",
+    "steps": [
+      {
+        "id": "90cc84f7-0dcb-4d02-80c7-0e3494a9903c",
+        "name": "Onboard Device",
+        "method": "POST",
+        "endpoint": "/api/v1/onboarding",
+        "request_body": {
+          "apiVersion": "onboarding.margo.org/v1alpha1",
+          "kind": "OnboardingRequest",
+          "certificate": "./certs/device-cert.pem"
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [
+          { "field": "clientId", "operation": "is_string" }
+        ],
+        "extract_context": { "clientId": "clientId", "deviceId": "clientId" }
+      },
+      {
+        "id": "f55c84c8-3c29-4cd0-b11a-49bde4aeafe4",
+        "name": "Report Capabilities (compose + helm supported)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/capabilities/{deviceId}",
+        "request_body": {
+          "apiVersion": "device.margo.org/v1alpha1",
+          "kind": "DeviceCapabilitiesManifest",
+          "properties": {
+            "id": "{deviceId}",
+            "vendor": "Conformance Test Suite",
+            "modelNumber": "CTS-MULTICOMPONENT-1",
+            "serialNumber": "SN-MULTICOMPONENT-001",
+            "cpus": [{ "cores": 4, "architecture": "amd64" }],
+            "memory": "8Gi",
+            "storage": "64Gi",
+            "peripherals": [],
+            "interfaces": [{ "type": "ethernet" }],
+            "otelCollector": false,
+            "supportedRuntimes": ["oci"],
+            "supportedDeploymentTypes": ["helm", "compose"]
+          }
+        },
+        "headers": {},
+        "expected_status": 201,
+        "validations": [],
+        "extract_context": {}
+      },
+      {
+        "id": "efd8ad9d-1a6f-4b12-bf9d-040f11eddec6",
+        "name": "Wait For The Multi-Component Deployment To Be Assigned (poll — assign it via the WFM console now)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments",
+        "headers": { "Accept": "application/vnd.margo.manifest.v1+json" },
+        "expected_status": 200,
+        "poll": {
+          "interval_seconds": 10,
+          "timeout_seconds": 300,
+          "until": [
+            { "field": "deployments", "operation": "array_length_gte", "value": 1 }
+          ]
+        },
+        "validations": [
+          { "field": "deployments", "operation": "array_length_gte", "value": 1 },
+          { "field": "manifestVersion", "operation": "is_number" },
+          { "operation": "bundle_media_type" },
+          { "field": "_headers.etag", "operation": "matches_regex", "value": "^\"sha256:[0-9a-f]{64}\"$" },
+          { "field": "_headers.cache-control", "operation": "not_contains", "value": "immutable" }
+        ],
+        "extract_context": {
+          "deploymentId": "deployments.0.deploymentId",
+          "deploymentDigest": "deployments.0.digest"
+        }
+      },
+      {
+        "id": "e2e5bf11-3015-40cd-8e58-96aceb20bc5e",
+        "name": "Fetch The Multi-Component ApplicationDeployment YAML (content-addressed)",
+        "method": "GET",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/{deploymentDigest}",
+        "headers": {},
+        "expected_status": 200,
+        "validations": [
+          { "field": "_headers.content-type", "operation": "contains", "value": "yaml" },
+          { "field": "_body", "operation": "contains", "value": "wait: true" },
+          { "field": "_body", "operation": "contains", "value": "wait: false" },
+          { "field": "_headers.etag", "operation": "matches_regex", "value": "^\"sha256:[0-9a-f]{64}\"$" },
+          { "operation": "etag_is_body_digest" },
+          { "operation": "body_sha256_equals", "field": "deploymentDigest", "value": "{deploymentDigest}" }
+        ],
+        "extract_context": {}
+      },
+      {
+        "id": "e9089cb2-d210-4434-b736-5cc1f61d2d07",
+        "name": "Report Deployment Status: installed (no container actually run)",
+        "method": "POST",
+        "endpoint": "/api/v1/clients/{clientId}/deployments/{deploymentId}/status",
+        "request_body": {
+          "apiVersion": "deployment.margo.org/v1alpha1",
+          "kind": "DeploymentStatusManifest",
+          "deploymentId": "{deploymentId}",
+          "status": { "state": "installed" },
+          "components": [
+            { "name": "wait-true-component", "state": "installed" },
+            { "name": "wait-false-component", "state": "installed" }
+          ]
+        },
+        "headers": {},
+        "expected_status": 200,
+        "validations": [],
+        "extract_context": {}
+      }
+    ]
+  }
+]

@@ -1,0 +1,111 @@
+[
+  {
+    "id": "wfm-application-registry-oci-conformance",
+    "name": "Application Registry — OCI Manifest, Media Types & Registry API Surface",
+    "description": "Verifies a real Application Registry serves the Application Package as a spec-conformant OCI artifact and speaks the standard OCI Registry API (tags, manifests, blobs). Runs `oras manifest fetch` / `oras blob fetch` / `oras repo tags` / a raw v2 tags-list GET against REGISTRY_REF (env var, or set `oras.ref` per step) — no mocking, no signing, no mTLS (the Application Registry is a plain OCI registry, unrelated to the WFM management-interface auth model). One test case per CR-ID; verdict logic reuses the same validate() operators as every other wfm-supplier check.",
+    "steps": [
+      {
+        "id": "ar-012-artifact-type",
+        "name": "Manifest artifactType marks this as a Margo Application Package",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-012"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "artifactType", "operation": "equals", "value": "application/vnd.margo.app.v1+json" }
+        ]
+      },
+      {
+        "id": "ar-009-empty-config",
+        "name": "config object is the OCI empty-config descriptor",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-009"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "config.mediaType", "operation": "equals", "value": "application/vnd.oci.empty.v1+json" },
+          { "field": "config.size", "operation": "equals", "value": 2 }
+        ]
+      },
+      {
+        "id": "ar-007-manifest-conforms-to-oci",
+        "name": "The manifest as a whole is a valid OCI Image Manifest (schemaVersion 2, correct manifest mediaType)",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-007"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "schemaVersion", "operation": "equals", "value": 2 },
+          { "field": "mediaType", "operation": "equals", "value": "application/vnd.oci.image.manifest.v1+json" }
+        ]
+      },
+      {
+        "id": "ar-002-application-description-present",
+        "name": "The Application Description is present as a manifest layer",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-002"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": [
+          { "operation": "has_application_description_layer" }
+        ]
+      },
+      {
+        "id": "ar-004-011-resource-media-types",
+        "name": "Every layer the package ships carries a Margo-specific media type, never a generic one (e.g. application/octet-stream)",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-004", "MARGO-WFM-APPLICATIONREGISTRY-011"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": [
+          { "operation": "layer_media_types_are_margo_specific" }
+        ]
+      },
+      {
+        "id": "ar-006-manifest-pullable",
+        "name": "Retrieving the Application Package Manifest works via the standard OCI 'pull manifest' pattern",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-006"],
+        "oras": { "cmd": "manifest" },
+        "expected_status": 200,
+        "validations": []
+      },
+      {
+        "id": "ar-005-blobs-pullable",
+        "name": "Retrieving each Application Package part works via the standard OCI 'pull blob' pattern, not a custom download mechanism",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-005"],
+        "oras": { "cmd": "blobs" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "failedDigests", "operation": "is_array" },
+          { "field": "failedDigests", "operation": "array_length_equals", "value": 0 }
+        ]
+      },
+      {
+        "id": "ar-003-tags-listing",
+        "name": "The registry lists at least one published tag/version for this Application Package",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-003"],
+        "oras": { "cmd": "tags" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "tags", "operation": "array_length_gte", "value": 1 }
+        ]
+      },
+      {
+        "id": "ar-010-tags-list-json-shape",
+        "name": "The raw tags-list response is the exact {name, tags[]} JSON shape the OCI Distribution Spec defines",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-010"],
+        "oras": { "cmd": "tags_raw" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "name", "operation": "is_string" },
+          { "field": "tags", "operation": "is_array" }
+        ]
+      },
+      {
+        "id": "ar-008-registry-api-surface",
+        "name": "The full OCI Registry API surface (tags, manifest, blobs) is usable end to end, not a partial/bespoke subset",
+        "crIds": ["MARGO-WFM-APPLICATIONREGISTRY-008"],
+        "oras": { "cmd": "blobs" },
+        "expected_status": 200,
+        "validations": [
+          { "field": "failedDigests", "operation": "array_length_equals", "value": 0 }
+        ]
+      }
+    ]
+  }
+]

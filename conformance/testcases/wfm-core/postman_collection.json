@@ -100,7 +100,10 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-023"
+      ]
     },
     {
       "id": "0dd06053-e16c-419a-a533-f8cddb42471a",
@@ -363,7 +366,13 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-011",
+        "MARGO-WFM-MANAGEMENTINTERFACE-020",
+        "MARGO-WFM-MANAGEMENTINTERFACE-021",
+        "MARGO-WFM-MANAGEMENTINTERFACE-023"
+      ]
     },
     {
       "id": "165f8444-a0e2-4ef1-8bbb-58295b3e02a2",
@@ -712,7 +721,12 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-021",
+        "MARGO-WFM-MANAGEMENTINTERFACE-022",
+        "MARGO-WFM-MANAGEMENTINTERFACE-041"
+      ]
     },
     {
       "id": "a99303f4-742b-494a-a822-31265b7f8443",
@@ -1061,7 +1075,12 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-021",
+        "MARGO-WFM-MANAGEMENTINTERFACE-022",
+        "MARGO-WFM-MANAGEMENTINTERFACE-041"
+      ]
     },
     {
       "id": "7bcc0bad-9d1c-4514-8243-be92aafcf609",
@@ -1386,7 +1405,12 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-030",
+        "MARGO-WFM-MANAGEMENTINTERFACE-031",
+        "MARGO-WFM-MANAGEMENTINTERFACE-038"
+      ]
     },
     {
       "id": "215cf5ba-da42-4358-bc8f-daae289826cd",
@@ -1686,7 +1710,19 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-004",
+        "MARGO-WFM-MANAGEMENTINTERFACE-006",
+        "MARGO-WFM-MANAGEMENTINTERFACE-007",
+        "MARGO-WFM-MANAGEMENTINTERFACE-008",
+        "MARGO-WFM-MANAGEMENTINTERFACE-009",
+        "MARGO-WFM-MANAGEMENTINTERFACE-015",
+        "MARGO-WFM-MANAGEMENTINTERFACE-027",
+        "MARGO-WFM-MANAGEMENTINTERFACE-030",
+        "MARGO-WFM-MANAGEMENTINTERFACE-034",
+        "MARGO-WFM-MANAGEMENTINTERFACE-035"
+      ]
     },
     {
       "id": "d772612f-ef4c-48ab-bb98-5cc30eb30465",
@@ -1972,7 +2008,11 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-014",
+        "MARGO-WFM-MANAGEMENTINTERFACE-025"
+      ]
     },
     {
       "id": "4fd5d28a-d4c1-434c-b00d-2b136be54402",
@@ -2343,7 +2383,12 @@
       ],
       "protocolProfileBehavior": {
         "disableBodyPruning": true
-      }
+      },
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-021",
+        "MARGO-WFM-MANAGEMENTINTERFACE-022",
+        "MARGO-WFM-MANAGEMENTINTERFACE-041"
+      ]
     },
     {
       "id": "4fa5f851-45f8-459c-ad46-ca246fbb0c50",
@@ -2430,6 +2475,9 @@
             }
           }
         }
+      ],
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-023"
       ]
     },
     {
@@ -2517,6 +2565,9 @@
             }
           }
         }
+      ],
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-023"
       ]
     },
     {
@@ -2576,6 +2627,9 @@
             "body": {}
           }
         }
+      ],
+      "crIds": [
+        "MARGO-WFM-MANAGEMENTINTERFACE-007"
       ]
     }
   ],

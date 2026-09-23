@@ -1,0 +1,11 @@
+{
+  "name": "application-registry",
+  "version": "1.0.0-rc.2",
+  "persona": "wfm-supplier",
+  "description": "Application Registry (OCI) conformance — media types, manifest structure, and registry API surface (MARGO-WFM-APPLICATIONREGISTRY-002 through -012). Uses the `oras` CLI against REGISTRY_REF (env var) instead of hitting the WFM's HTTP API — no mTLS/signing involved, kept in its own group for that reason. Defaults to our own spec-conformant fixture package (harbor.machine:8443/library/margo-ctt-hello-world:1.0.0, built per docs.margo.org/specification/applications/application-registry) if REGISTRY_REF is unset. Point it at any other vendor's registry with REGISTRY_REF=myregistry.example.com/org/hello-world:1.0.0 ./run-tests.sh",
+  "FolderPath": [
+    "testcases/wfm-application-registry"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

@@ -1,0 +1,11 @@
+{
+  "name": "multi-component",
+  "version": "1.0.0-rc.2",
+  "persona": "wfm-supplier",
+  "description": "Multi-component compose ApplicationDeployment served faithfully by the WFM: MARGO-WFM-APPLICATIONDESCRIPTION-001 (relay wait=true/false unchanged) plus the content-addressing / caching contract on the same fetched deployment (MI-014/MI-034 ETag grammar, MI-015 ETag==body digest, MI-025 body digest matches the manifest, MI-031 bundle media type, MI-009 bundle present once a deployment exists). Verified without deploying any container. PRECONDITION: an operator assigns wfm-supplier/fixtures/multi-component-app-deployment.yaml to the onboarded test client while the poll step runs. Kept in its own group because it needs manual operator assignment and should not block core/silver.",
+  "FolderPath": [
+    "testcases/wfm-multi-component"
+  ],
+  "flexibleOrder": false,
+  "testCases": []
+}

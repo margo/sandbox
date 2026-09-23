@@ -1,0 +1,25 @@
+{
+  "$manifest": {
+    "org.opencontainers.image.title": "Hello World",
+    "org.opencontainers.image.version": "1.0.0"
+  },
+  "margo.yaml": {
+    "org.opencontainers.image.title": "margo.yaml"
+  },
+  "resources/opentelemtry-logo.png": {
+    "org.opencontainers.image.title": "resources/opentelemtry-logo.png",
+    "org.margo.app.resource": "icon"
+  },
+  "resources/description.md": {
+    "org.opencontainers.image.title": "resources/description.md",
+    "org.margo.app.resource": "descriptionFile"
+  },
+  "resources/license.txt": {
+    "org.opencontainers.image.title": "resources/license.txt",
+    "org.margo.app.resource": "licenseFile"
+  },
+  "resources/release-notes.md": {
+    "org.opencontainers.image.title": "resources/release-notes.md",
+    "org.margo.app.resource": "releaseNotes"
+  }
+}

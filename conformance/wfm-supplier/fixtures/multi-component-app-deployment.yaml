@@ -1,0 +1,37 @@
+# Reference multi-component compose ApplicationDeployment for the
+# `multi-component` wfm-supplier group (testcases/wfm-multi-component).
+#
+# HOW TO USE
+#   1. Start the group run:  ./run-tests.sh  (pick persona wfm-supplier, group multi-component)
+#   2. When step 3 ("Wait For The Multi-Component Deployment To Be Assigned") starts
+#      polling, assign this ApplicationDeployment to the freshly-onboarded test
+#      client through the Symphony / WFM console (out of band — the suite only
+#      observes, it never assigns).
+#   3. The suite fetches the served YAML and checks the WFM relayed it faithfully:
+#      both `wait: true` and `wait: false` survive byte-for-byte, the ETag is the
+#      sha256 of the body, and that digest matches the one in the desired-state
+#      manifest. No container is deployed — `wait` sequencing is the device-agent's
+#      job (device-supplier persona), not the WFM's.
+#
+# Keep BOTH components: one with wait: true, one with wait: false. That single
+# combination is what exercises MARGO-WFM-APPLICATIONDESCRIPTION-001.
+apiVersion: margo.org/v1alpha1
+kind: ApplicationDeployment
+metadata:
+  name: cts-multi-component-app
+  annotations:
+    id: cts-multi-component-app
+spec:
+  appPackageRef:
+    id: cts-multi-component-app
+  deploymentProfile:
+    type: compose
+    components:
+      - name: wait-true-component
+        properties:
+          packageLocation: oci://registry.example.com/cts/wait-true-component:1.0.0
+          wait: true
+      - name: wait-false-component
+        properties:
+          packageLocation: oci://registry.example.com/cts/wait-false-component:1.0.0
+          wait: false

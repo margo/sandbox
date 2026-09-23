@@ -439,11 +439,12 @@ jobs:
           find "$DOCKER_CONFIG" -type f -exec chmod 600 {} \;
           echo "✅ ORAS authenticated to Harbor (HTTPS)"
 
-      - name: Copy Harbor certs
+      - name: Copy certs (Harbor+ MIS) to $HOME/certs
         run: |
           Harbor_CERT="${SANDBOX_DIR}/scripts/harbor/certs/harbor.crt"
           mkdir -p "$HOME/certs"
           cp "$Harbor_CERT" "$HOME/certs/"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$HOME/certs/"
           sudo chown -R $USER:$USER "$HOME/certs"
           echo "✅ Harbor CA and MIS HTTPS CA copied to $HOME/certs/"
           ls -la "$HOME/certs"
@@ -503,15 +504,21 @@ jobs:
         working-directory: scripts
         run: |
           set -euo pipefail
+
+          # copies by hand for the k3s path.
+          echo "📥 Staging helm-client SVID at \$HOME/certs/helm-identity (required by validate_and_copy_certs)"
+          sudo mkdir -p "$HOME/certs/helm-identity"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-cert.pem" "$HOME/certs/helm-identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-key.pem"  "$HOME/certs/helm-identity/"
+
           sudo -E bash ./device-agent.sh k3s install
 
           CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
-          sudo mkdir -p "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
 
-          echo "📥 Helm-capable client SVID -> $CONFIG_DIR/identity"
-          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-cert.pem" "$CONFIG_DIR/identity/"
-          sudo cp "${SVID_DIR}/x509svid-wfm-helm-client/payload-key.pem"  "$CONFIG_DIR/identity/"
-          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                              "$CONFIG_DIR/mis/"
+          echo "🔍 Verifying validate_and_copy_certs populated config/helm-identity and config/mis"
+          sudo test -f "$CONFIG_DIR/helm-identity/payload-cert.pem" || { echo "❌ Missing $CONFIG_DIR/helm-identity/payload-cert.pem"; exit 1; }
+          sudo test -f "$CONFIG_DIR/helm-identity/payload-key.pem"  || { echo "❌ Missing $CONFIG_DIR/helm-identity/payload-key.pem"; exit 1; }
+          sudo test -f "$CONFIG_DIR/mis/https-ca.crt"               || { echo "❌ Missing $CONFIG_DIR/mis/https-ca.crt"; exit 1; }
 
           echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
           AUTHZ="$CONFIG_DIR/authorized.json"
@@ -532,7 +539,7 @@ jobs:
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
 
-          sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/identity" "$CONFIG_DIR/mis"
+          sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start
         working-directory: scripts
@@ -556,10 +563,11 @@ jobs:
           set -euo pipefail
           CONFIG_DIR="${SANDBOX_DIR}/poc/device/agent/config"
 
-          echo "📥 Compose-capable client SVID -> $CONFIG_DIR/identity"
-          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-cert.pem" "$CONFIG_DIR/identity/"
-          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-key.pem"  "$CONFIG_DIR/identity/"
-          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                                "$CONFIG_DIR/mis/"
+          echo "📥 Compose-capable client SVID -> $CONFIG_DIR/compose-identity"
+          sudo mkdir -p "$CONFIG_DIR/compose-identity" "$CONFIG_DIR/mis"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-cert.pem" "$CONFIG_DIR/compose-identity/"
+          sudo cp "${SVID_DIR}/x509svid-wfm-docker-client/payload-key.pem"  "$CONFIG_DIR/compose-identity/"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                          "$CONFIG_DIR/mis/"
           # authorized.json (WFM SPIFFE ID) was written in the K3s setup step and is shared.
           sudo cat "$CONFIG_DIR/authorized.json"
 

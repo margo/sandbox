@@ -152,7 +152,7 @@ validate_and_copy_certs() {
   echo "Validating required certificates..."
 
   local certs_dir="$HOME/certs"
-  local agent_config_dir="$HOME/workspace/sandbox/poc/device/agent/config"
+  local agent_config_dir="$HOME/sandbox/poc/device/agent/config"
 
   # ── Step 1: Common checks ────────────────────────────────────────────────
   if [[ ! -d "$certs_dir" ]]; then

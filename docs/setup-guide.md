@@ -537,14 +537,14 @@ Enter choice [1-9]: 1
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 10:00 | 2025-12-02 10:00 |
+| af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 10:00 | 2026-09-23 10:00 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
 |                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
@@ -660,14 +660,14 @@ Enter choice [1-9]: 6
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
+| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:52 | 2026-09-23 09:52 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
 |                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
@@ -683,7 +683,7 @@ Are you sure you want to delete app-pkg 'ae011433-28ed-4f4e-a8af-474810810746'? 
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘

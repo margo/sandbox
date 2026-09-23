@@ -301,7 +301,6 @@ build_start_device_agent_k3s_service() {
     kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
     # Recreate the device-agent configuration secret
     kubectl create secret generic workload-fleet-management-client-certs \
-        --from-file=authorized.json="$CLIENT_CONFIG/authorized.json" \
         --from-file=payload-cert.pem="$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
         --from-file=payload-key.pem="$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
@@ -334,6 +333,7 @@ build_start_device_agent_k3s_service() {
         --set secrets.existingSecret=workload-fleet-management-client-certs \
         --set persistence.enabled=true \
         --set persistence.size=1Gi \
+        --set hostConfig.authorizedJsonPath="$CLIENT_CONFIG/authorized.json" \
         --debug \
         --wait
 

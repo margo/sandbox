@@ -46,6 +46,11 @@ spec:
               mountPath: /config
               readOnly: true
 
+            # Mount the host file directly over the expected container path
+            - name: host-authorized-json
+              mountPath: /config/authorized.json
+              subPath: authorized.json
+
             # Persistent application data.
             - name: data-volume
               mountPath: /data
@@ -85,8 +90,12 @@ spec:
                     - key: https-ca.crt
                       path: mis/https-ca.crt
 
-                    - key: authorized.json
-                      path: authorized.json
+
+        # hostPath volume sourcing directly from your Helm values
+        - name: host-authorized-json
+          hostPath:
+            path: {{ .Values.hostConfig.authorizedJsonPath }}
+            type: File
 
         # Persistent storage.
         - name: data-volume

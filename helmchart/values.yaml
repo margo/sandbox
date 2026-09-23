@@ -35,3 +35,8 @@ persistence:
   # Storage class name (leave empty to use cluster default)
   # Examples: "standard", "gp2", "local-path"
   storageClassName: ""
+
+# Host machine configuration mounts
+hostConfig:
+  # This will be dynamically overridden during script execution.
+  authorizedJsonPath: "/path/to/default/authorized.json"

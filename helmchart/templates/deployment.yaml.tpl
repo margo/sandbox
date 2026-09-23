@@ -1,5 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: {{ include "agentchart.deploymentname" . }}
   namespace: {{ include "agentchart.namespace" . }}
@@ -21,45 +22,70 @@ spec:
     spec:
       serviceAccountName: {{ include "agentchart.serviceaccountname" . }}
 
-      # Assembles the final /config tree the main container reads, into a plain
-      # writable emptyDir - NOT by nesting a hostPath bind-mount inside the
-      # projected ConfigMap+Secret volume (that pattern produces the
-      # "not a directory" runc/ENOTDIR error you hit: projected volumes are
-      # implemented via an atomic symlink-swap, not a static directory, and
-      # bind-mounting a separate volume on top of/inside that is unreliable).
-      #
-      # config.yaml / capabilities.json / identity / mis are copied once at pod
-      # start (they don't need to change without a redeploy). authorized.json is
-      # SYMLINKED, not copied, from the hostPath mount - reads always resolve
-      # through to the live host file, so host edits still propagate without a
-      # restart, without ever nesting a mount inside another mount.
+      # authorized.json is NOT copied. It remains hostPath-backed and
+      # /config/authorized.json is a symlink to the host-backed file.
       initContainers:
         - name: assemble-config
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
+
+          command:
+            - /bin/sh
+            - -c
+
           args:
             - |
               set -e
-              mkdir -p /final-config/identity /final-config/mis
-              cp /raw-config/config.yaml        /final-config/
-              cp /raw-config/capabilities.json  /final-config/
-              cp /raw-secret/payload-cert.pem   /final-config/identity/
-              cp /raw-secret/payload-key.pem    /final-config/identity/
-              cp /raw-secret/https-ca.crt       /final-config/mis/
-              ln -sf /raw-authorized-json/authorized.json /final-config/authorized.json
-              echo "Assembled /final-config:"
+
+              echo "Assembling device-agent configuration..."
+
+              mkdir -p /final-config/identity
+              mkdir -p /final-config/mis
+
+              # ConfigMap files
+              cp /raw-config/config.yaml \
+                 /final-config/config.yaml
+
+              cp /raw-config/capabilities.json \
+                 /final-config/capabilities.json
+
+              # Identity certificates
+              cp /raw-secret/payload-cert.pem \
+                 /final-config/identity/payload-cert.pem
+
+              cp /raw-secret/payload-key.pem \
+                 /final-config/identity/payload-key.pem
+
+              # MIS CA certificate
+              cp /raw-secret/https-ca.crt \
+                 /final-config/mis/https-ca.crt
+
+              # authorized.json remains host-backed.
+              # Create a symlink instead of copying the file.
+              ln -sf /host-config/authorized.json \
+                     /final-config/authorized.json
+
+              echo "Final configuration:"
               ls -laR /final-config
+
+              echo "authorized.json:"
+              ls -l /final-config/authorized.json
+
           volumeMounts:
             - name: raw-config-volume
               mountPath: /raw-config
               readOnly: true
+
             - name: raw-secret-volume
               mountPath: /raw-secret
               readOnly: true
+
+            # Host-backed authorized.json.
+            # Mounted outside /config to avoid nested-volume mount issues.
             - name: host-authorized-json
-              mountPath: /raw-authorized-json
+              mountPath: /host-config/authorized.json
               readOnly: true
+
             - name: final-config-volume
               mountPath: /final-config
 
@@ -68,7 +94,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-          command: ["/bin/sh", "-c"]
+          command:
+            - /bin/sh
+            - -c
 
           args:
             - |
@@ -83,29 +111,38 @@ spec:
               value: "443"
 
           volumeMounts:
-            # Fully assembled by the initContainer - config.yaml, capabilities.json,
-            # identity/, mis/, and a live symlink for authorized.json. No nested
-            # mounts here, just one plain directory.
+
+            # Final assembled configuration.
+            #
+            # /config/
+            # ├── config.yaml
+            # ├── capabilities.json
+            # ├── authorized.json -> /host-config/authorized.json
+            # ├── identity/
+            # │   ├── payload-cert.pem
+            # │   └── payload-key.pem
+            # └── mis/
+            #     └── https-ca.crt
             - name: final-config-volume
               mountPath: /config
               readOnly: true
 
-            # authorized.json's symlink target must still be present in THIS
-            # container's mount namespace for the symlink to resolve - same
-            # hostPath, mounted directly (not nested under /config).
+            # Same hostPath must be available in the main container so
+            # /config/authorized.json symlink can resolve.
             - name: host-authorized-json
-              mountPath: /raw-authorized-json
+              mountPath: /host-config/authorized.json
               readOnly: true
 
             # Persistent application data.
             - name: data-volume
               mountPath: /data
 
-            # Harbor CA certificate.
+            # Certificate Secret.
             - name: certs
               mountPath: /certs
               readOnly: true
 
+            # Harbor CA certificate.
             - name: certs
               mountPath: /usr/local/share/ca-certificates/harbor.crt
               subPath: harbor.crt
@@ -113,40 +150,41 @@ spec:
 
       volumes:
 
-        # Raw ConfigMap source (config.yaml, capabilities.json), read by the
-        # initContainer only - no longer mounted directly into the main container.
+        # ConfigMap containing:
+        #   config.yaml
+        #   capabilities.json
         - name: raw-config-volume
           configMap:
             name: {{ include "agentchart.configmapname" . }}
 
-        # Raw Secret source (identity + MIS material), read by the initContainer only.
+        # Secret containing device-agent identity and MIS certificate.
         - name: raw-secret-volume
           secret:
             secretName: {{ .Values.secrets.existingSecret }}
             items:
               - key: payload-cert.pem
                 path: payload-cert.pem
+
               - key: payload-key.pem
                 path: payload-key.pem
+
               - key: https-ca.crt
                 path: https-ca.crt
 
-        # hostPath volume sourcing directly from your Helm values. Mounted
-        # independently (not nested under /config) in both the initContainer
-        # (to create the symlink target reference) and the main container (so the
-        # symlink itself resolves inside the running container's mount namespace).
+        # Canonical host authorized.json.
+        # The actual host path comes from: .Values.hostConfig.authorizedJsonPath
+        # Example:
+        # /home/runner/sandbox/poc/device/agent/config/authorized.json
         - name: host-authorized-json
           hostPath:
             path: {{ .Values.hostConfig.authorizedJsonPath | quote }}
             type: File
 
-        # Plain writable emptyDir the initContainer assembles and the main
-        # container reads read-only. This is what replaces the old projected
-        # volume + nested hostPath bind-mount.
+        # Final /config directory assembled by the initContainer.
         - name: final-config-volume
           emptyDir: {}
 
-        # Persistent storage.
+        # Persistent application data.
         - name: data-volume
 {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:

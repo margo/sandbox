@@ -39,4 +39,4 @@ persistence:
 # Host machine configuration mounts
 hostConfig:
   # This will be dynamically overridden during script execution.
-  authorizedJsonPath: "/home/margo/sandbox/helmchart/authorized.json"
+  authorizedJsonPath: "/home/margo/sandbox/poc/device/agent/config/authorized.json"

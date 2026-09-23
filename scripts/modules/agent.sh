@@ -272,7 +272,18 @@ build_start_device_agent_k3s_service() {
     mkdir -p config
     cp ../poc/device/agent/config/config.yaml ./config/config.yaml
     cp ../poc/device/agent/config/capabilities.json ./config/capabilities.json
-    cp ../poc/device/agent/config/authorized.json ./authorized.json
+
+    AUTHORIZED_JSON="$HOME/sandbox/poc/device/agent/config/authorized.json"
+
+    if [[ ! -f "$AUTHORIZED_JSON" ]]; then
+        echo "❌ authorized.json not found:"
+        echo "   $AUTHORIZED_JSON"
+        return 1
+    fi
+
+    echo "Using host authorized.json:"
+    echo "   $AUTHORIZED_JSON"
+    
     set_capabilities_deployment_type helm
 
     if [ $? -eq 0 ]; then
@@ -335,7 +346,7 @@ build_start_device_agent_k3s_service() {
         --set secrets.existingSecret=workload-fleet-management-client-certs \
         --set persistence.enabled=true \
         --set persistence.size=1Gi \
-        --set hostConfig.authorizedJsonPath="$HOME/sandbox/helmchart/authorized.json" \
+        --set hostConfig.authorizedJsonPath="$AUTHORIZED_JSON" \
         --debug \
         --wait
 

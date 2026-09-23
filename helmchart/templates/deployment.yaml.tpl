@@ -49,7 +49,7 @@ spec:
             # Mount the host file directly over the expected container path
             - name: host-authorized-json
               mountPath: /config/authorized.json
-              subPath: authorized.json
+              readOnly: true
 
             # Persistent application data.
             - name: data-volume

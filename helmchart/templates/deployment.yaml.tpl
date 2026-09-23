@@ -77,7 +77,7 @@ spec:
               - configMap:
                   name: {{ include "agentchart.configmapname" . }}
 
-              # Identity, MIS and authorization files
+              # Identity, MIS  files
               - secret:
                   name: {{ .Values.secrets.existingSecret }}
                   items:
@@ -94,7 +94,7 @@ spec:
         # hostPath volume sourcing directly from your Helm values
         - name: host-authorized-json
           hostPath:
-            path: {{ .Values.hostConfig.authorizedJsonPath }}
+            path: {{ .Values.hostConfig.authorizedJsonPath | quote }}
             type: File
 
         # Persistent storage.

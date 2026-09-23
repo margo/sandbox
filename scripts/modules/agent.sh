@@ -270,7 +270,9 @@ build_start_device_agent_k3s_service() {
 
     echo "Copying configuration files..."
     mkdir -p config
-    cp -r ../poc/device/agent/config/* ./config
+    cp ../poc/device/agent/config/config.yaml ./config/config.yaml
+    cp ../poc/device/agent/config/capabilities.json ./config/capabilities.json
+    cp ../poc/device/agent/config/authorized.json ./authorized.json
     set_capabilities_deployment_type helm
 
     if [ $? -eq 0 ]; then
@@ -333,7 +335,7 @@ build_start_device_agent_k3s_service() {
         --set secrets.existingSecret=workload-fleet-management-client-certs \
         --set persistence.enabled=true \
         --set persistence.size=1Gi \
-        --set hostConfig.authorizedJsonPath="$CLIENT_CONFIG/authorized.json" \
+        --set hostConfig.authorizedJsonPath="$HOME/sandbox/helmchart/authorized.json" \
         --debug \
         --wait
 

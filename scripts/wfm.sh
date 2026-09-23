@@ -101,7 +101,7 @@ install_prerequisites() {
   echo "       (copy files as-is, no renaming needed)"
   echo ""
   echo "  2  Place the MIS HTTPS CA certificate in:"
-  echo "       📄 ${HOME}/symphony/api/https-ca.crt"
+  echo "       📄 ${HOME}/symphony/api/mis/https-ca.crt"
   echo ""
   echo "  3  Register SPIFFE IDs of all WFM Clients that will interact"
   echo "       with this WFM instance."
@@ -347,7 +347,7 @@ cleanup_docker_resources() {
 
 
 start_symphony() {
-  echo "Starting Symphony API server on..."
+  echo "Starting Symphony API server. NBI Serving on port $EXPOSED_SYMPHONY_PORT, Margo Management Interface serving on port 8084 ..."
   export PATH="$PATH:/usr/local/go/bin"; # TODO: remove this line as this is being set while installing go
 
   export GOINSECURE='github.com/margo/*'

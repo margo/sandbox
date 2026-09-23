@@ -146,6 +146,86 @@ validate_start_required_vars() {
 }
 
 # ----------------------------
+# Certificate Validation & Copy Function
+# ----------------------------
+validate_and_copy_certs() {
+  echo "Validating required certificates..."
+
+  local certs_dir="$HOME/certs"
+  local agent_config_dir="$HOME/workspace/sandbox/poc/device/agent/config"
+
+  # ── Step 1: Common checks ────────────────────────────────────────────────
+  if [[ ! -d "$certs_dir" ]]; then
+    echo "[ERROR] Required directory not found: $certs_dir"
+    return 1
+  fi
+
+  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/https-ca.crt"; do
+    if [[ ! -f "$cert_file" ]]; then
+      echo "[ERROR] Required certificate file not found: $cert_file"
+      return 1
+    fi
+  done
+
+  # ── Step 2: Device-type-specific checks ──────────────────────────────────
+  local identity_src_dir
+  local identity_dst_dir
+
+  if [[ "$DEVICE_TYPE" == "k3s" ]]; then
+    identity_src_dir="$certs_dir/helm-identity"
+    identity_dst_dir="$agent_config_dir/helm-identity"
+  elif [[ "$DEVICE_TYPE" == "docker" ]]; then
+    identity_src_dir="$certs_dir/compose-identity"
+    identity_dst_dir="$agent_config_dir/compose-identity"
+  else
+    echo "[ERROR] Unknown DEVICE_TYPE: '$DEVICE_TYPE'. Expected 'k3s' or 'docker'."
+    return 1
+  fi
+
+  for identity_file in "$identity_src_dir/payload-key.pem" "$identity_src_dir/payload-cert.pem"; do
+    if [[ ! -f "$identity_file" ]]; then
+      echo "[ERROR] Required identity file not found: $identity_file"
+      return 1
+    fi
+  done
+
+  echo "[INFO] All required certificate files found. ✓"
+
+  # ── Step 3: Validate base config directory exists ─────────────────────────
+  if [[ ! -d "$agent_config_dir" ]]; then
+    echo "[ERROR] Base agent config directory must already exist: $agent_config_dir"
+    return 1
+  fi
+
+  # ── Step 4: Copy identity certs ───────────────────────────────────────────
+  echo "[INFO] Creating identity directory: $identity_dst_dir"
+  mkdir -p "$identity_dst_dir" || {
+    echo "[ERROR] Failed to create directory: $identity_dst_dir"
+    return 1
+  }
+
+  echo "[INFO] Copying identity certificates to $identity_dst_dir"
+  cp "$identity_src_dir/payload-key.pem"  "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-key.pem";  return 1; }
+  cp "$identity_src_dir/payload-cert.pem" "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-cert.pem"; return 1; }
+
+  # ── Step 5: Copy https-ca.crt to mis directory ────────────────────────────
+  local mis_dst_dir="$agent_config_dir/mis"
+  echo "[INFO] Creating MIS directory: $mis_dst_dir"
+  mkdir -p "$mis_dst_dir" || {
+    echo "[ERROR] Failed to create directory: $mis_dst_dir"
+    return 1
+  }
+
+  echo "[INFO] Copying https-ca.crt to $mis_dst_dir"
+  cp "$certs_dir/https-ca.crt" "$mis_dst_dir/" || {
+    echo "[ERROR] Failed to copy https-ca.crt"
+    return 1
+  }
+
+  echo "[INFO] Certificate validation and copy completed successfully. ✓"
+}
+
+# ----------------------------
 # Go Installation Functions
 # ----------------------------
 install_basic_utilities() {
@@ -177,7 +257,7 @@ install_prerequisites() {
   install_basic_utilities
   install_docker_and_compose
   clone_dev_repo
-  ensure_identity_and_mis_dirs
+  validate_and_copy_certs
   # Only install k3s for k3s device type
   if [ "$DEVICE_TYPE" = "k3s" ]; then
     setup_k3s
@@ -267,21 +347,6 @@ pause() {
 
 manage_spiffe_ids() {
   _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
-}
-
-ensure_identity_and_mis_dirs() {
-    local base_dir="${HOME}/sandbox/poc/device/agent/config"
-    local identity_dir="${base_dir}/identity"
-    local mis_dir="${base_dir}/mis"
-
-    echo "Ensuring directories exist:"
-    echo "  ${identity_dir}"
-    echo "  ${mis_dir}"
-
-    mkdir -p "${identity_dir}" "${mis_dir}" || {
-        echo "Failed to create required directories" >&2
-        return 1
-    }
 }
 
 

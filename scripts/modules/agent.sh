@@ -155,14 +155,14 @@ start_device_agent_docker_service() {
   mkdir -p config
   cp -r ../poc/device/agent/config/* ./config/
 
-  if compgen -G "$HOME/sandbox/poc/device/agent/config/identity/*" > /dev/null && \
+  if compgen -G "$HOME/sandbox/poc/device/agent/config/compose-identity/*" > /dev/null && \
     compgen -G "$HOME/sandbox/poc/device/agent/config/mis/*" > /dev/null && \
     [ -f "$HOME/sandbox/poc/device/agent/config/authorized.json" ]; then
 
       # Ensure target directories exist before copying
       mkdir -p ./config/identity ./config/mis
 
-      cp "$HOME/sandbox/poc/device/agent/config/identity/"* ./config/identity/
+      cp "$HOME/sandbox/poc/device/agent/config/compose-identity/"* ./config/identity/
       cp "$HOME/sandbox/poc/device/agent/config/mis/"* ./config/mis/
       cp "$HOME/sandbox/poc/device/agent/config/authorized.json" ./config/
 
@@ -288,8 +288,8 @@ build_start_device_agent_k3s_service() {
     # Validate required configuration files
     for file in \
         "$CLIENT_CONFIG/authorized.json" \
-        "$CLIENT_CONFIG/identity/payload-cert.pem" \
-        "$CLIENT_CONFIG/identity/payload-key.pem" \
+        "$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
+        "$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         "$CLIENT_CONFIG/mis/https-ca.crt" ; do
 
         if [ ! -f "$file" ]; then
@@ -302,8 +302,8 @@ build_start_device_agent_k3s_service() {
     # Recreate the device-agent configuration secret
     kubectl create secret generic workload-fleet-management-client-certs \
         --from-file=authorized.json="$CLIENT_CONFIG/authorized.json" \
-        --from-file=payload-cert.pem="$CLIENT_CONFIG/identity/payload-cert.pem" \
-        --from-file=payload-key.pem="$CLIENT_CONFIG/identity/payload-key.pem" \
+        --from-file=payload-cert.pem="$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
+        --from-file=payload-key.pem="$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
         --from-file=harbor.crt="$HOME/certs/harbor.crt" \
         --namespace=default

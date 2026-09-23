@@ -9,7 +9,15 @@ set -euo pipefail
 # --- Constants & Defaults ---
 CONTAINER_NAME="margo-identity-service"
 MIS_CLI="./mis-cli"
-DEFAULT_TRUST_DOMAIN="margo.org"
+_FALLBACK_TRUST_DOMAIN="margo.org"
+
+# Derive default trust domain from EXPOSED_MIS_HOST (format: mis.<TrustDomain>)
+if [[ -n "${EXPOSED_MIS_HOST:-}" && "${EXPOSED_MIS_HOST}" =~ ^mis\.(.+)$ ]]; then
+  DEFAULT_TRUST_DOMAIN="${BASH_REMATCH[1]}"
+else
+  DEFAULT_TRUST_DOMAIN="${_FALLBACK_TRUST_DOMAIN}"
+fi
+
 DEFAULT_TTL=7776000  # 90 days in seconds
 OUTPUT_DIR_IN_CONTAINER="svidCert"
 

@@ -110,10 +110,7 @@ Development toolsets used and their purposes:
 
 #### OpenSSL
 - **Uses**:
-  - TLS certificate generation (RSA and ECDSA)
-  - CA certificate creation
-  - Server certificate signing
-  - Device certificate generation
+  - Root CA certificate generation (MIS Minting and Normative Server)
 
 ---
 

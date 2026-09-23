@@ -25,7 +25,7 @@ Ensure the following before proceeding:
 - The required backend service (e.g., WFM) is running
 - Observability stack is available as part of the Margo ecosystem (e.g., OTEL Collector, Grafana, Jaeger, Prometheus, etc.)
 
-For MIS startup instructions, see [Build and MIS](./setup-guide.md#build-and-run-mis) for the sandbox deployment or [Run locally](../mis/README.md#run-locally) for the MIS binary.
+For MIS startup instructions, see [Build and Run MIS](./setup-guide.md#build-and-run-mis) for the sandbox deployment or [Run locally](../mis/README.md#run-locally) for the MIS binary.
 
 👉 Note: Device-agent is not strictly dependent on the observability stack, but skipping it may result in non-compliance with Margo device requirements.
 
@@ -227,7 +227,19 @@ runtimes:
 
 ---
 
-### ✅ Step 3: Run the Binary
+### ✅ Step 3: Build the Binary
+
+```bash
+cd poc/device/agent
+go build -o device-agent .
+```
+
+---
+
+
+---
+
+### ✅ Step 4: Run the Binary
 
 ```bash
 ./device-agent --config config/config.yaml
@@ -235,7 +247,7 @@ runtimes:
 
 ---
 
-### ✅ Step 4: Verify
+### ✅ Step 5: Verify
 
 #### 🔹 Check Running Process
 
@@ -257,8 +269,9 @@ root     7978 ... ./device-agent --config config/config.yaml
 1. Obtain X.509 SVID from MIS (operator's MIS, sandbox Docker via `svid-gen.sh`, or sandbox binary via `mis mint x509`)
 2. Place SVID and MIS HTTPS CA certificate in `config/`
 3. Configure `config.yaml` (MIAF + runtime + WFM settings)
-4. Run the binary
-5. Verify using process or logs
+4. Build the binary
+5. Run the binary
+6. Verify using process or logs
 
 ---
 

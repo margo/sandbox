@@ -6,7 +6,7 @@
 **Three Virtual Machines:**
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
-| **Main VM (WFM + MIS)** | 8 | 16GB | 100GB | Workload Fleet Manager as well as Margo Identity Service  |
+| **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager as well as Margo Identity Service  |
 | **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
 | **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
@@ -257,7 +257,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    This starts the Workload Fleet Manager service.
 
 
-6. **Add Monitoring Tools (Optional)**
+6. **Add Monitoring Tools**
    ```bash
     sudo -E bash wfm.sh
    ```

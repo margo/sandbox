@@ -10,9 +10,26 @@ function usage() {
   console.error(
     'Usage: node run_wfm_scenarios.js <base-url> <scenarios.json> <report.html> <cert-dir> [group-name] [group-version]\n' +
     '   or: node run_wfm_scenarios.js --curl <METHOD> <endpoint> --base-url <url> --cert-dir <dir> ' +
-    '[--body <json>] [--header "Name: value"]... [--unsigned]'
+    '[--body <json>] [--header "Name: value"]... [--unsigned]\n' +
+    '   or: node run_wfm_scenarios.js --fetch-trust-bundle <mis-base-url> <output-ca.pem>'
   );
   process.exit(2);
+}
+
+// --fetch-trust-bundle: the MIAF "one-time, at suite startup" step — fetch the
+// WFM supplier's published trust bundle from their MIS and write it out as a CA
+// PEM file, once, before any scenario runs. Not a per-test-case operation and not
+// wired into the scenario loop at all: run this once (e.g. in CI setup, or by
+// hand), then point a cert dir's svid-ca.pem at the output for every later run.
+// No identity of our own is needed for this — MIS's discovery/bundle endpoints
+// are unauthenticated by design (MIAF spec) — so this branches out before any
+// cert loading happens below, unlike --curl mode.
+const isTrustBundleMode = process.argv[2] === '--fetch-trust-bundle';
+if (isTrustBundleMode) {
+  fetchTrustBundleMode(process.argv.slice(3))
+    .then((ok) => process.exit(ok ? 0 : 1))
+    .catch((err) => { console.error(err.stack || err); process.exit(1); });
+  return;
 }
 
 // --curl debug mode: sign and fire ONE ad-hoc request, print the equivalent curl
@@ -804,6 +821,111 @@ async function runCurlMode(args) {
   }
   console.log('');
   return false;
+}
+
+// Plain unauthenticated GET — no client cert, no signing. Used only by
+// fetchTrustBundleMode below, which by design runs before any identity is
+// loaded (MIS's discovery/bundle endpoints don't need one).
+function simpleGet(url) {
+  return new Promise((resolve) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        method: 'GET',
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        headers: { Accept: 'application/json' },
+        rejectUnauthorized: false,
+        timeout: 15000,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('request timed out after 15s')));
+    req.on('error', (err) => resolve({ status: 0, body: '', transportError: err.message }));
+    req.end();
+  });
+}
+
+// Base64 DER (as carried in a JWK's "x5c") -> PEM.
+function derToPem(b64der) {
+  const lines = b64der.match(/.{1,64}/g).join('\n');
+  return `-----BEGIN CERTIFICATE-----\n${lines}\n-----END CERTIFICATE-----`;
+}
+
+// The MIAF "fetch the trust bundle once, at suite startup" step (Part 5.3
+// Phase 2 / Part 7.1-B of CONFORMANCE_FLOWS_AND_MIAF_MIGRATION.md): discovery
+// doc -> trust bundle -> write out the X.509 anchors as a CA PEM file that a
+// later `svid-ca.pem` in a cert dir can just be a copy of. Deliberately a
+// standalone one-shot command, not a scenario step — this is setup, run once,
+// not repeated per test case.
+async function fetchTrustBundleMode(argv) {
+  const [misBaseUrl, outCaPath] = argv;
+  if (!misBaseUrl || !outCaPath) {
+    console.error('Usage: node run_wfm_scenarios.js --fetch-trust-bundle <mis-base-url> <output-ca.pem>');
+    return false;
+  }
+
+  const discoveryUrl = `${misBaseUrl.replace(/\/+$/, '')}/.well-known/margo`;
+  console.log(`Fetching discovery document: ${discoveryUrl}`);
+  const discoveryResp = await simpleGet(discoveryUrl);
+  if (discoveryResp.status !== 200) {
+    console.error(`✗ discovery fetch failed: HTTP ${discoveryResp.status} ${discoveryResp.transportError || ''}`.trim());
+    return false;
+  }
+  let discovery;
+  try {
+    discovery = JSON.parse(discoveryResp.body);
+  } catch (err) {
+    console.error(`✗ discovery document is not valid JSON: ${err.message}`);
+    return false;
+  }
+  const { trustDomain, trustBundleUri } = discovery;
+  if (!trustDomain || !trustBundleUri) {
+    console.error(`✗ discovery document missing trustDomain/trustBundleUri: ${discoveryResp.body}`);
+    return false;
+  }
+  if (!/^https:\/\//i.test(trustBundleUri)) {
+    console.error(`✗ trustBundleUri MUST be https per MIAF spec, got: ${trustBundleUri}`);
+    return false;
+  }
+  console.log(`  trustDomain:    ${trustDomain}`);
+  console.log(`  trustBundleUri: ${trustBundleUri}`);
+
+  console.log(`Fetching trust bundle: ${trustBundleUri}`);
+  const bundleResp = await simpleGet(trustBundleUri);
+  if (bundleResp.status !== 200) {
+    console.error(`✗ trust bundle fetch failed: HTTP ${bundleResp.status} ${bundleResp.transportError || ''}`.trim());
+    return false;
+  }
+  let bundle;
+  try {
+    bundle = JSON.parse(bundleResp.body);
+  } catch (err) {
+    console.error(`✗ trust bundle is not valid JSON: ${err.message}`);
+    return false;
+  }
+
+  // Fail closed on zero anchors — required by the MIAF spec (Part 5.3, step 6).
+  const anchors = (bundle.keys || []).filter(
+    (k) => k.use === 'x509-svid' && Array.isArray(k.x5c) && k.x5c.length > 0
+  );
+  if (anchors.length === 0) {
+    console.error('✗ trust bundle has zero x509-svid anchors — refusing to write a CA file (fail closed per MIAF spec)');
+    return false;
+  }
+
+  const pem = anchors.map((k) => k.x5c.map(derToPem).join('\n')).join('\n');
+  fs.writeFileSync(outCaPath, pem);
+  console.log(`✓ wrote ${anchors.length} trust anchor(s) to ${outCaPath}`);
+  console.log(`✓ trust domain: ${trustDomain}`);
+  if (bundle.spiffe_sequence !== undefined) console.log(`  spiffe_sequence: ${bundle.spiffe_sequence}`);
+  if (bundle.spiffe_refresh_hint !== undefined) console.log(`  spiffe_refresh_hint: ${bundle.spiffe_refresh_hint}`);
+  return true;
 }
 
 function validate(responseSource, validation) {

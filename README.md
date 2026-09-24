@@ -156,5 +156,6 @@ This method is useful for:
 - Lightweight setups without Docker/K3s
 - Direct execution on supported systems
 
-### [Release Notes](https://github.com/margo/sandbox/releases)
-Details of version updates, bug fixes, and new features.
+### Release Notes
+https://github.com/margo/sandbox/releases
+(Details of version updates, bug fixes, and new features).

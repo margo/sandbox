@@ -17,13 +17,13 @@ install_go() {
     echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
     sudo rm -rf /usr/local/go /usr/bin/go
-    CPU_ARCH=$(uname -m)
-    if [[ "$CPU_ARCH" == "aarch64" ]]; then
+    GO_ARCH=$(uname -m)
+    if [[ "$GO_ARCH" == "aarch64" ]]; then
       wget "https://go.dev/dl/go1.25.10.linux-arm64.tar.gz" -O go.tar.gz
-    elif [[ "$CPU_ARCH" == "amd64" ]]; then
+    elif [[ "$GO_ARCH" == "amd64" ]]; then
       wget "https://go.dev/dl/go1.25.10.linux-amd64.tar.gz" -O go.tar.gz
     else
-      echo "Architecture $CPU_ARCH currently unsupported. Please install Go manually."
+      echo "❌ Architecture $GO_ARCH currently unsupported. Please install Go manually."
       exit 1
     fi
     sudo tar -C /usr/local -xzf go.tar.gz

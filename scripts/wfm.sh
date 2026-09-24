@@ -434,7 +434,7 @@ show_menu() {
   echo "6) ObservabilityStack: Stop"
   echo "7) Manage SPIFFE ID allowlist"
   echo "8) Exit"
-  read -p "Enter choice [1-7]: " choice
+  read -p "Enter choice [1-8]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;

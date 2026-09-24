@@ -17,7 +17,7 @@ install_go() {
     echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
     sudo rm -rf /usr/local/go /usr/bin/go
-    GO_ARCH=$(uname -m)
+    GO_ARCH="${GO_ARCH:-$(uname -m)}"
     if [[ "$GO_ARCH" == "aarch64" ]]; then
       wget "https://go.dev/dl/go1.25.10.linux-arm64.tar.gz" -O go.tar.gz
     elif [[ "$GO_ARCH" == "amd64" ]]; then

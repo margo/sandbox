@@ -585,6 +585,83 @@ jobs:
             sleep 2
           done
 
+      - name: Debug - WFM-Client K3s PVC and Pod Scheduling
+        if: failure()
+        run: |
+          K="sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl"
+          echo "========================================="
+          echo "📋 PVC STATE (why isn't it bound?)"
+          echo "========================================="
+          $K get pvc -n default -o wide
+          echo ""
+          $K describe pvc workload-fleet-management-client-data -n default || \
+            echo "PVC not found"
+
+          echo ""
+          echo "========================================="
+          echo "📋 STORAGE CLASS"
+          echo "========================================="
+          $K get storageclass
+
+          echo ""
+          echo "========================================="
+          echo "📋 LOCAL-PATH-PROVISIONER HEALTH"
+          echo "========================================="
+          $K get pods -n kube-system | grep -i local-path || echo "No local-path-provisioner pod found"
+          PROVISIONER_POD=$($K get pods -n kube-system --no-headers 2>/dev/null \
+            | grep -i local-path | awk '{print $1}' | head -1)
+          if [ -n "$PROVISIONER_POD" ]; then
+            echo "--- Provisioner logs ---"
+            $K logs -n kube-system "$PROVISIONER_POD" --tail=100 || true
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 NODE CONDITIONS (disk/memory pressure?)"
+          echo "========================================="
+          $K describe nodes | grep -A 15 "Conditions:"
+          echo "--- Allocatable / Capacity ---"
+          $K describe nodes | grep -A 10 "Allocatable:"
+
+          echo ""
+          echo "========================================="
+          echo "📋 HOST DISK AND MEMORY (raw, not just k8s view)"
+          echo "========================================="
+          echo "--- df -h ---"
+          df -h
+          echo ""
+          echo "--- free -h ---"
+          free -h
+          echo ""
+          echo "--- docker system df ---"
+          docker system df || true
+
+          echo ""
+          echo "========================================="
+          echo "📋 POD DESCRIBE (full, not just logs - scheduling/image-pull events)"
+          echo "========================================="
+          POD_NAME=$($K get pods -n default --no-headers -o custom-columns=":metadata.name" \
+            2>/dev/null | grep "^workload-fleet-management-client" | head -1 || echo "")
+          if [ -n "$POD_NAME" ]; then
+            $K describe pod "$POD_NAME" -n default
+          else
+            echo "⚠️ No workload-fleet-management-client pod found at all - never scheduled"
+            $K get pods -n default -o wide
+          fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 NAMESPACE EVENT STREAM (chronological - usually the fastest signal)"
+          echo "========================================="
+          $K get events -n default --sort-by='.lastTimestamp' | tail -40
+
+          echo ""
+          echo "========================================="
+          echo "📋 HELM RELEASE STATUS"
+          echo "========================================="
+          helm status workload-fleet-management-client -n default 2>&1 || \
+            echo "Release not found (install may have fully rolled back)"
+
       - name: WFM-Client (Compose-capable device) - Start
         working-directory: scripts
         run: |

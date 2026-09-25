@@ -564,15 +564,56 @@ jobs:
           sudo cp /tmp/dev-authz.json "$AUTHZ"
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
-          
-          sudo mkdir -p "$HOME/sandbox/helmchart/authorized"
-          sudo touch "$HOME/sandbox/helmchart/authorized/authorized.json"
+          echo "🔍 Verifying authorized.json contents"
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start
         working-directory: scripts
         run: |
-         
+          echo "========================================="
+          echo "📋 PRE-START AUTHORIZATION CHECK"
+          echo "========================================="
+
+          AUTHORIZED_DIR="$HOME/sandbox/helmchart/authorized"
+          AUTHORIZED_FILE="$AUTHORIZED_DIR/authorized.json"
+
+          echo "Directory:"
+          sudo ls -ld "$AUTHORIZED_DIR"
+
+          echo ""
+          echo "File:"
+          sudo ls -l "$AUTHORIZED_FILE"
+
+          echo ""
+          echo "Resolved path:"
+          realpath "$AUTHORIZED_FILE"
+
+          echo ""
+          echo "JSON validation:"
+          sudo jq empty "$AUTHORIZED_FILE" \
+            && echo "✅ Valid JSON" \
+            || {
+              echo "❌ Invalid JSON"
+              exit 1
+            }
+
+          echo ""
+          echo "Authorized SPIFFE IDs:"
+          sudo jq -r '.[]' "$AUTHORIZED_FILE"
+
+          echo ""
+          echo "Expected WFM SPIFFE ID:"
+          echo "$WFM_SPIFFE_ID"
+
+          sudo jq -e \
+            --arg id "$WFM_SPIFFE_ID" \
+            'index($id) != null' \
+            "$AUTHORIZED_FILE" >/dev/null \
+            && echo "✅ WFM SPIFFE ID found" \
+            || {
+              echo "❌ WFM SPIFFE ID missing"
+              exit 1
+            }
           sudo -E bash ./device-agent.sh k3s start-k3s
 
           echo "⏳ Waiting for WFM-Client pod to be ready..."

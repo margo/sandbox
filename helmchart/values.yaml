@@ -19,9 +19,9 @@ rbac:
 secrets:
   create: true
 
-authorizedFile:
-  hostPath: "./authorized.json"
-  type: File
+authorizedFileDirectory:
+  hostPath: "./authorized"
+  type: Directory
 
 # Persistence configuration
 # If enabled, workload-fleet-management-client data (/data directory) will survive pod restarts

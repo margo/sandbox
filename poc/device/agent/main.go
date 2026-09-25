@@ -268,11 +268,17 @@ func (a *Agent) Start() error {
 		}
 	}
 
-	// 2. Report capabilities
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := a.auth.ReportCapabilities(ctx, *a.capabilities); err != nil {
-		a.log.Errorw("failed to report the capabilities, ", "err", err.Error())
+	// 2. Report capabilities until done successfully. Only then start rest of the flows
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err := a.auth.ReportCapabilities(ctx, *a.capabilities)
+		if err == nil {
+			// capabilities reported successfully. Break from this loop.
+			break
+		}
+		a.log.Errorw("failed to report the capabilities, will try again in 5 seconds", "err", err.Error())
+		time.Sleep(5 * time.Second)
 	}
 
 	// 3. Start all components

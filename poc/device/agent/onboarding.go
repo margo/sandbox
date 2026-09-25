@@ -33,6 +33,11 @@ func WithEnableComposeDeployment() Option {
 			auth.supportedDeploymentTypes,
 			sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose,
 		)
+
+		auth.supportedRuntimes = append(
+			auth.supportedRuntimes,
+			sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci,
+		)
 	}
 }
 
@@ -120,7 +125,8 @@ func (da *DeviceClientSettings) ReportCapabilities(
 	err := da.apiClient.ReportCapabilities(ctx, capabilities.Properties.Id, capabilities)
 	if err != nil {
 		if pd, ok := sbi.AsProblemDetail(err); ok {
-			da.log.Errorw("WFM returned problem detail on capabilities report",
+			da.log.Errorw(
+				"WFM returned problem detail on capabilities report",
 				"deviceId", capabilities.Properties.Id,
 				"type", pd.Type,
 				"status", pd.Status,

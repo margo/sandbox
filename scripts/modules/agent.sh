@@ -32,6 +32,18 @@ set_capabilities_roles() {
   fi
 }
 
+set_authz_path_for_pod() {
+  local file="./config/config.yaml"
+
+  if [[ -f "$file" ]]; then
+    yq -iy '.miaf.authzPath = "/authorized/authorized.json"' "$file"
+    echo "config.yaml authzPath set to:"
+    yq '.miaf.authzPath' "$file"
+  else
+    echo "config.yaml not found at $file, skipping authzPath update"
+  fi
+}
+
 set_capabilities_deployment_type() {
   local file="./config/capabilities.json"
 
@@ -272,6 +284,7 @@ build_start_device_agent_k3s_service() {
     mkdir -p config
     cp -r ../poc/device/agent/config/* ./config
     set_capabilities_deployment_type helm
+    set_authz_path_for_pod
 
     if [ $? -eq 0 ]; then
       echo "✅ Configuration files copied successfully"
@@ -301,7 +314,6 @@ build_start_device_agent_k3s_service() {
     kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
     # Recreate the device-agent configuration secret
     kubectl create secret generic workload-fleet-management-client-certs \
-        --from-file=authorized.json="$CLIENT_CONFIG/authorized.json" \
         --from-file=payload-cert.pem="$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
         --from-file=payload-key.pem="$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
@@ -334,6 +346,7 @@ build_start_device_agent_k3s_service() {
         --set secrets.existingSecret=workload-fleet-management-client-certs \
         --set persistence.enabled=true \
         --set persistence.size=1Gi \
+        --set authorizedFileDirectory.hostPath="$HOME/sandbox/helmchart/authorized" \
         --debug \
         --wait
 

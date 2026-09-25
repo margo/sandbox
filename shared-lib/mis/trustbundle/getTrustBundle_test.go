@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
@@ -84,13 +85,35 @@ func newMISServer(
 	return server
 }
 
-func validSPIFFEBundle() []byte {
+func validSPIFFEBundle(t *testing.T) []byte {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "spiffe-test-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
 	bundle := map[string]interface{}{
 		"keys": []map[string]interface{}{
-			{"kty": "EC", "use": "x509-svid"},
+			{
+				"kty": "EC",
+				"use": "x509-svid",
+				"x5c": []string{base64.StdEncoding.EncodeToString(der)},
+			},
 		},
 	}
-	b, _ := json.Marshal(bundle)
+	b, err := json.Marshal(bundle)
+	require.NoError(t, err)
 	return b
 }
 
@@ -103,11 +126,139 @@ func discoveryDoc(trustBundleURI, trustDomain string) []byte {
 	return b
 }
 
+// ── validateSPIFFEBundle unit tests ──────────────────────────────────────────
+
+func TestValidateSPIFFEBundle_EmptyInput_ReturnsError(t *testing.T) {
+	err := validateSPIFFEBundle(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestValidateSPIFFEBundle_InvalidJSON_ReturnsError(t *testing.T) {
+	err := validateSPIFFEBundle([]byte(`not-json`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not valid JSON")
+}
+
+func TestValidateSPIFFEBundle_MissingKeysField_ReturnsError(t *testing.T) {
+	// Valid JSON but "keys" field absent entirely — json.Unmarshal leaves Keys nil.
+	err := validateSPIFFEBundle([]byte(`{"foo":"bar"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "\"keys\" array")
+}
+
+func TestValidateSPIFFEBundle_EmptyKeysArray_ReturnsError(t *testing.T) {
+	// "keys" present but empty — zero X.509 trust anchors.
+	err := validateSPIFFEBundle([]byte(`{"keys":[]}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no X.509 trust anchors")
+}
+
+func TestValidateSPIFFEBundle_KeysWithoutX5c_ReturnsError(t *testing.T) {
+	// JWK entries exist but none carry an x5c field.
+	bundle := []byte(`{"keys":[{"kty":"EC","use":"x509-svid"}]}`)
+	err := validateSPIFFEBundle(bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no X.509 trust anchors")
+}
+
+func TestValidateSPIFFEBundle_InvalidBase64InX5c_ReturnsError(t *testing.T) {
+	bundle := []byte(`{"keys":[{"kty":"EC","x5c":["!!!not-base64!!!"]}]}`)
+	err := validateSPIFFEBundle(bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "base64 decode failed")
+}
+
+func TestValidateSPIFFEBundle_ValidBase64ButNotCert_ReturnsError(t *testing.T) {
+	// Valid base64 but decoded bytes are not a DER-encoded certificate.
+	garbage := base64.StdEncoding.EncodeToString([]byte("this is not a certificate"))
+	bundle, err := json.Marshal(map[string]interface{}{
+		"keys": []map[string]interface{}{
+			{"kty": "EC", "x5c": []string{garbage}},
+		},
+	})
+	require.NoError(t, err)
+
+	err = validateSPIFFEBundle(bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a valid X.509 certificate")
+}
+
+func TestValidateSPIFFEBundle_ValidBundle_ReturnsNil(t *testing.T) {
+	require.NoError(t, validateSPIFFEBundle(validSPIFFEBundle(t)))
+}
+
+func TestValidateSPIFFEBundle_MultipleKeys_OnlyOneWithX5c_Passes(t *testing.T) {
+	// Mix: one JWT key (no x5c), one X.509 anchor (x5c present) — should pass.
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: "anchor"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	bundle, err := json.Marshal(map[string]interface{}{
+		"keys": []map[string]interface{}{
+			{"kty": "EC", "use": "jwt-svid"}, // no x5c
+			{
+				"kty": "EC",
+				"use": "x509-svid",
+				"x5c": []string{base64.StdEncoding.EncodeToString(der)},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, validateSPIFFEBundle(bundle))
+}
+
+func TestValidateSPIFFEBundle_SecondCertInX5cInvalid_ReturnsIndexedError(t *testing.T) {
+	// First x5c entry valid, second is garbage — error must name keys[0].x5c[1].
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(3),
+		Subject:               pkix.Name{CommonName: "anchor"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	bundle, err := json.Marshal(map[string]interface{}{
+		"keys": []map[string]interface{}{
+			{
+				"kty": "EC",
+				"x5c": []string{
+					base64.StdEncoding.EncodeToString(der),
+					base64.StdEncoding.EncodeToString([]byte("garbage")),
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	err = validateSPIFFEBundle(bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "keys[0].x5c[1]")
+	assert.Contains(t, err.Error(), "not a valid X.509 certificate")
+}
+
 // ── Discovery succeeds, ETag present ─────────────────────────────────────────
 
 func TestGetTrustBundle_DiscoverySuccess_ReturnsBundleAndDomain(t *testing.T) {
 	ca := newTestCA(t)
-	bundle := validSPIFFEBundle()
+	bundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 	const expectedETag = `"abc123"`
 
@@ -148,7 +299,7 @@ func TestGetTrustBundle_DiscoverySuccess_ReturnsBundleAndDomain(t *testing.T) {
 
 func TestGetTrustBundle_DiscoverySuccess_NoETag_ReturnsEmptyETag(t *testing.T) {
 	ca := newTestCA(t)
-	bundle := validSPIFFEBundle()
+	bundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 
 	var server *httptest.Server
@@ -186,7 +337,7 @@ func TestGetTrustBundle_DiscoverySuccess_NoETag_ReturnsEmptyETag(t *testing.T) {
 
 func TestGetTrustBundle_BundleFetchNon200_StaticFallback(t *testing.T) {
 	ca := newTestCA(t)
-	staticBundle := validSPIFFEBundle()
+	staticBundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 
 	var server *httptest.Server
@@ -221,7 +372,7 @@ func TestGetTrustBundle_BundleFetchNon200_StaticFallback(t *testing.T) {
 
 func TestGetTrustBundle_BundleFetch200ButEmptyBody_StaticFallback(t *testing.T) {
 	ca := newTestCA(t)
-	staticBundle := validSPIFFEBundle()
+	staticBundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 
 	var server *httptest.Server
@@ -257,7 +408,7 @@ func TestGetTrustBundle_BundleFetch200ButEmptyBody_StaticFallback(t *testing.T) 
 
 func TestGetTrustBundle_DiscoveryNon200_URIFallbackSucceeds(t *testing.T) {
 	ca := newTestCA(t)
-	bundle := validSPIFFEBundle()
+	bundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 	const expectedETag = `"fallback-etag"`
 
@@ -289,7 +440,7 @@ func TestGetTrustBundle_DiscoveryNon200_URIFallbackSucceeds(t *testing.T) {
 
 func TestGetTrustBundle_DiscoveryEmptyBundleURI_URIFallbackSucceeds(t *testing.T) {
 	ca := newTestCA(t)
-	bundle := validSPIFFEBundle()
+	bundle := validSPIFFEBundle(t)
 	const trustDomain = "margo.org"
 	const expectedETag = `"uri-fallback-etag"`
 
@@ -392,7 +543,7 @@ func TestGetTrustBundle_DiscoveryBundle304_ReturnsErrNotModified(t *testing.T) {
 		server.URL,
 		ca.certPEM,
 		"/.well-known/spiffe/bundle.json",
-		validSPIFFEBundle(), // static bundle present — must NOT be used on 304
+		validSPIFFEBundle(t), // static bundle present — must NOT be used on 304
 		trustDomain,
 	)
 	require.NoError(t, err)
@@ -425,7 +576,7 @@ func TestGetTrustBundle_URIFallbackBundle304_ReturnsErrNotModified(t *testing.T)
 		server.URL,
 		ca.certPEM,
 		"/.well-known/spiffe/bundle.json",
-		validSPIFFEBundle(), // static bundle present — must NOT be used on 304
+		validSPIFFEBundle(t), // static bundle present — must NOT be used on 304
 		trustDomain,
 	)
 	require.NoError(t, err)

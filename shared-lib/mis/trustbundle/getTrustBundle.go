@@ -6,6 +6,7 @@ package trustbundle
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -147,6 +148,17 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 		)
 	}
 
+	// Validate the fetched bundle before returning it to the caller.
+	if err := validateSPIFFEBundle(bundleBytes); err != nil {
+		return t.staticFallback(
+			fmt.Errorf(
+				"fetched bundle from discovered URL %q failed validation: %w",
+				discoveredBundleURL,
+				err,
+			),
+		)
+	}
+
 	return discoveredTrustDomain, bundleBytes, etag, nil
 }
 
@@ -177,6 +189,14 @@ func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); URI fallback to %q also failed: %v",
 				discoveryErr, fullBundleURL, fetchErr,
+			))
+		}
+
+		// Validate the fetched bundle before returning it to the caller.
+		if err := validateSPIFFEBundle(bundleBytes); err != nil {
+			return t.staticFallback(fmt.Errorf(
+				"discovery failed (%w); URI fallback bundle from %q failed validation: %v",
+				discoveryErr, fullBundleURL, err,
 			))
 		}
 
@@ -317,15 +337,23 @@ func validateTrustBundleURI(uri string) error {
 	return nil
 }
 
-// validateSPIFFEBundle performs a lightweight structural check to confirm the
-// bytes represent a JSON object containing a "keys" array, as required by the
-// SPIFFE JWKS bundle format.
+// validateSPIFFEBundle performs structural and cryptographic validation of a
+// SPIFFE trust bundle in JWKS format:
+//  1. Must be valid JSON containing a "keys" array.
+//  2. Must contain at least one X.509 trust anchor (kty="RSA" or "EC", x5c present).
+//  3. Every x5c chain present must contain a parseable, valid DER-encoded X.509 certificate.
 func validateSPIFFEBundle(bundle []byte) error {
 	if len(bundle) == 0 {
 		return errors.New("must not be empty")
 	}
+
+	// ── Check 1: valid JWKS JSON structure ───────────────────────────────────
 	var doc struct {
-		Keys []json.RawMessage `json:"keys"`
+		Keys []struct {
+			Kty string   `json:"kty"`
+			Use string   `json:"use"`
+			X5c []string `json:"x5c"`
+		} `json:"keys"`
 	}
 	if err := json.Unmarshal(bundle, &doc); err != nil {
 		return fmt.Errorf("not valid JSON: %w", err)
@@ -333,5 +361,38 @@ func validateSPIFFEBundle(bundle []byte) error {
 	if doc.Keys == nil {
 		return errors.New("SPIFFE bundle must contain a \"keys\" array")
 	}
+
+	// ── Check 2: at least one X.509 trust anchor ─────────────────────────────
+	// A SPIFFE X.509 trust anchor is a JWK entry with a non-empty x5c field.
+	x509AnchorCount := 0
+	for _, key := range doc.Keys {
+		if len(key.X5c) > 0 {
+			x509AnchorCount++
+		}
+	}
+	if x509AnchorCount == 0 {
+		return errors.New(
+			"SPIFFE bundle contains no X.509 trust anchors (no JWK entry with \"x5c\")",
+		)
+	}
+
+	// ── Check 3: every x5c leaf must be a parseable X.509 certificate ────────
+	for i, key := range doc.Keys {
+		for j, certB64 := range key.X5c {
+			// x5c values are standard base64 (not URL-safe), no PEM headers.
+			derBytes, err := base64.StdEncoding.DecodeString(certB64)
+			if err != nil {
+				return fmt.Errorf(
+					"keys[%d].x5c[%d]: base64 decode failed: %w", i, j, err,
+				)
+			}
+			if _, err := x509.ParseCertificate(derBytes); err != nil {
+				return fmt.Errorf(
+					"keys[%d].x5c[%d]: not a valid X.509 certificate: %w", i, j, err,
+				)
+			}
+		}
+	}
+
 	return nil
 }

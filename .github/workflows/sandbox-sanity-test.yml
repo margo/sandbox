@@ -564,12 +564,15 @@ jobs:
           sudo cp /tmp/dev-authz.json "$AUTHZ"
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
-
+          
+          sudo mkdir -p "$HOME/sandbox/helmchart/authorized"
+          sudo touch "$HOME/sandbox/helmchart/authorized/authorized.json"
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start
         working-directory: scripts
         run: |
+         
           sudo -E bash ./device-agent.sh k3s start-k3s
 
           echo "⏳ Waiting for WFM-Client pod to be ready..."

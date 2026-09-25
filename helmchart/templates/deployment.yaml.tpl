@@ -48,6 +48,7 @@ spec:
 
             - name: authorized-file
               mountPath: /config/authorized.json
+              subPath: authorized.json
               readOnly: false
 
             # Persistent application data.

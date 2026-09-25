@@ -654,7 +654,6 @@ jobs:
             echo "Waiting for pod... ($i/30)"
             sleep 2
           done
-          
 
       - name: WFM-Client (Compose-capable device) - Start
         working-directory: scripts
@@ -1097,3 +1096,4 @@ jobs:
           echo "Final verification - listing all deployments and packages:"
           DEPLOYMENT_OUTPUT=$(sudo -E bash ./wfm-cli.sh list-all-non-interactive 2>&1) || true
           echo "$DEPLOYMENT_OUTPUT"
+          

@@ -564,6 +564,32 @@ jobs:
           sudo cp /tmp/dev-authz.json "$AUTHZ"
           echo "📄 $AUTHZ:"
           sudo cat "$AUTHZ"
+
+          AUTHORIZED_DIR="$HOME/sandbox/helmchart/authorized"
+
+          AUTHORIZED_FILE="$AUTHORIZED_DIR/authorized.json"
+          echo "📥 Preparing authorized.json hostPath directory"
+
+          sudo mkdir -p "$AUTHORIZED_DIR"
+
+          sudo cp "$CONFIG_DIR/authorized.json" \
+            "$AUTHORIZED_FILE"
+
+          sudo chmod 644 "$AUTHORIZED_FILE"
+
+          echo "✅ authorized.json prepared:"
+          sudo ls -la "$AUTHORIZED_DIR"
+
+          echo "JSON validation:"
+          sudo jq empty "$AUTHORIZED_FILE" \
+            && echo "✅ authorized.json is valid JSON" \
+            || {
+              echo "❌ authorized.json is invalid JSON"
+              exit 1
+            }
+
+          echo "Authorization entries:"
+          sudo jq -r '.[]' "$AUTHORIZED_FILE"
           echo "🔍 Verifying authorized.json contents"
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
@@ -692,6 +718,12 @@ jobs:
             echo "⚠️ No workload-fleet-management-client pod found at all - never scheduled"
             $K get pods -n default -o wide
           fi
+
+          echo ""
+          echo "========================================="
+          echo "📋 POD logs for the last 200 lines"
+          echo "========================================="
+          $K logs "$POD_NAME" -n default --tail=200 || echo "No logs available"
 
           echo ""
           echo "========================================="

@@ -157,4 +157,4 @@ This method is useful for:
 - Direct execution on supported systems
 
 ### Release Notes
-Details of version updates, bug fixes, and new features.
+https://github.com/margo/sandbox/releases

@@ -362,10 +362,12 @@ type DeploymentManifestRef struct {
 
 // DeploymentStatusManifest defines model for DeploymentStatusManifest.
 type DeploymentStatusManifest struct {
-	Components   []ComponentStatus `json:"components"`
-	DeploymentId string            `json:"deploymentId"`
-	DeviceId     *DeviceId         `json:"deviceId,omitempty"`
-	Status       struct {
+	// AdoptedManifestVersion Monotonically increasing unsigned 64-bit integer in the inclusive range [1, 2^64-1]. Prevents rollback attacks. The first manifest MUST use 1.
+	AdoptedManifestVersion ManifestVersion   `json:"adoptedManifestVersion"`
+	Components             []ComponentStatus `json:"components"`
+	DeploymentId           string            `json:"deploymentId"`
+	DeviceId               *DeviceId         `json:"deviceId,omitempty"`
+	Status                 struct {
 		Error *struct {
 			Code    *string `json:"code,omitempty"`
 			Message *string `json:"message,omitempty"`

@@ -32,6 +32,18 @@ set_capabilities_roles() {
   fi
 }
 
+set_authz_path_for_pod() {
+  local file="./config/config.yaml"
+
+  if [[ -f "$file" ]]; then
+    yq -iy '.miaf.authzPath = "/authorized/authorized.json"' "$file"
+    echo "config.yaml authzPath set to:"
+    yq '.miaf.authzPath' "$file"
+  else
+    echo "config.yaml not found at $file, skipping authzPath update"
+  fi
+}
+
 set_capabilities_deployment_type() {
   local file="./config/capabilities.json"
 
@@ -57,12 +69,6 @@ enable_kubernetes_runtime() {
   -e 's/^[[:space:]]*docker:/  # docker:/' \
   -e 's/^[[:space:]]*url:/  # url:/' \
   "$CONFIG_FILE"
-
-  sed -i \
-    -e 's|pubCertPath:.*|pubCertPath: /certs/device-public.crt|' \
-    -e 's|path: "./config/device-private.key"|path: "/certs/device-private.key"|' \
-    -e 's|path: "./config/ca-cert.pem"|path: "/certs/ca-cert.pem"|' \
-    "$CONFIG_FILE"
 
   sed -i 's|kubeconfigPath:.*|kubeconfigPath: ""|' "$CONFIG_FILE"
 
@@ -159,23 +165,31 @@ start_device_agent_docker_service() {
   echo 'Starting workload-fleet-management-client...'
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
+  cp -r ../poc/device/agent/config/* ./config/
 
+  if compgen -G "$HOME/sandbox/poc/device/agent/config/compose-identity/*" > /dev/null && \
+    compgen -G "$HOME/sandbox/poc/device/agent/config/mis/*" > /dev/null && \
+    [ -f "$HOME/sandbox/poc/device/agent/config/authorized.json" ]; then
 
-  if [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
-    echo "Creating TLS secrets..."
-    cp "$HOME/certs/device-private.key"  ./config
-    cp "$HOME/certs/device-public.crt"   ./config
-    cp "$HOME/certs/device-ecdsa.key"    ./config
-    cp "$HOME/certs/device-ecdsa.crt"    ./config
-    cp "$HOME/certs/ca-cert.pem"         ./config
-    echo "Copied certs from \$HOME/certs to ./config"
+      # Ensure target directories exist before copying
+      mkdir -p ./config/identity ./config/mis
+
+      cp "$HOME/sandbox/poc/device/agent/config/compose-identity/"* ./config/identity/
+      cp "$HOME/sandbox/poc/device/agent/config/mis/"* ./config/mis/
+      cp "$HOME/sandbox/poc/device/agent/config/authorized.json" ./config/
+
+      echo "Copied config files successfully"
   else
-    echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
-    return 1
+  
+      echo "❌ device-start-failed: Required configuration files are missing."
+      return 1
   fi
+
 
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
+
+
   set_capabilities_deployment_type compose
 
   mkdir -p data
@@ -270,6 +284,7 @@ build_start_device_agent_k3s_service() {
     mkdir -p config
     cp -r ../poc/device/agent/config/* ./config
     set_capabilities_deployment_type helm
+    set_authz_path_for_pod
 
     if [ $? -eq 0 ]; then
       echo "✅ Configuration files copied successfully"
@@ -279,28 +294,39 @@ build_start_device_agent_k3s_service() {
     fi
     enable_kubernetes_runtime
 
-    if [ -d "$HOME/certs" ] && [ -f "$HOME/certs/device-private.key" ] && [ -f "$HOME/certs/device-public.crt" ] && [ -f "$HOME/certs/device-ecdsa.crt" ] && [ -f "$HOME/certs/device-ecdsa.key" ] && [ -f "$HOME/certs/ca-cert.pem" ]; then
-        echo "Creating TLS secrets..."
-        kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
-        kubectl create secret generic workload-fleet-management-client-certs \
-            --from-file=device-private.key="$HOME/certs/device-private.key" \
-            --from-file=device-public.crt="$HOME/certs/device-public.crt" \
-            --from-file=device-ecdsa.key="$HOME/certs/device-ecdsa.key" \
-            --from-file=device-ecdsa.crt="$HOME/certs/device-ecdsa.crt" \
-            --from-file=ca-cert.pem="$HOME/certs/ca-cert.pem" \
-            --from-file=harbor.crt="$HOME/certs/harbor.crt" \
-            --namespace=default
+    echo "Creating device-agent configuration secret..."
 
-        if [ $? -eq 0 ]; then
-            echo "✅ TLS secrets created successfully"
-        else
-            echo "❌ Failed to create TLS secrets"
+    local CLIENT_CONFIG="$HOME/sandbox/poc/device/agent/config"
+
+    # Validate required configuration files
+    for file in \
+        "$CLIENT_CONFIG/authorized.json" \
+        "$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
+        "$CLIENT_CONFIG/helm-identity/payload-key.pem" \
+        "$CLIENT_CONFIG/mis/https-ca.crt" ; do
+
+        if [ ! -f "$file" ]; then
+            echo "❌ Required configuration file not found: $file"
             return 1
         fi
+    done
+    
+    kubectl delete secret workload-fleet-management-client-certs --namespace=default 2>/dev/null || true
+    # Recreate the device-agent configuration secret
+    kubectl create secret generic workload-fleet-management-client-certs \
+        --from-file=payload-cert.pem="$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
+        --from-file=payload-key.pem="$CLIENT_CONFIG/helm-identity/payload-key.pem" \
+        --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
+        --from-file=harbor.crt="$HOME/certs/harbor.crt" \
+        --namespace=default
+
+    if [ $? -eq 0 ]; then
+        echo "✅ Device-agent configuration secret created successfully"
     else
-        echo "❌ device-start-failed: Required certificates missing in $HOME/certs (ca-cert.pem)"
+        echo "❌ Failed to create device-agent configuration secret"
         return 1
     fi
+
 
     echo "Cleaning up any existing resources..."
     kubectl delete clusterrole workload-fleet-management-client-role 2>/dev/null || true
@@ -320,6 +346,7 @@ build_start_device_agent_k3s_service() {
         --set secrets.existingSecret=workload-fleet-management-client-certs \
         --set persistence.enabled=true \
         --set persistence.size=1Gi \
+        --set authorizedFileDirectory.hostPath="$HOME/sandbox/helmchart/authorized" \
         --debug \
         --wait
 

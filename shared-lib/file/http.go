@@ -106,7 +106,7 @@ func DownloadFileUsingHttp(
 	if options.CreateDirs {
 		dir := filepath.Dir(outputPath)
 		if dir != "." && dir != "/" {
-			if err := os.MkdirAll(dir, 0750); err != nil {
+			if err := os.MkdirAll(dir, 0o750); err != nil {
 				return nil, fmt.Errorf("failed to create directories: %w", err)
 			}
 		}
@@ -256,9 +256,10 @@ func downloadFile(
 
 	if options.ResumeDownload && resp.StatusCode == http.StatusPartialContent {
 		// Open file for appending
-		file, err = os.OpenFile(filepath.Clean(outputPath), os.O_WRONLY|os.O_APPEND, 0600)
+		file, err = os.OpenFile(filepath.Clean(outputPath), os.O_WRONLY|os.O_APPEND, 0o600)
 	} else {
 		// Create new file or truncate existing
+		//nolint:gosec // filePath is a trusted system configuration variable; this is a unit test file
 		file, err = os.Create(filepath.Clean(outputPath))
 	}
 

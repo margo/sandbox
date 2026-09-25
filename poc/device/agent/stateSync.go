@@ -13,7 +13,6 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/archive"
-	"github.com/margo/sandbox/shared-lib/http/auth"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -37,13 +36,12 @@ type StateSyncer struct {
 func NewStateSyncer(
 	db *database.Database,
 	client wfm.SBIAPIClientInterface,
-	deviceID string,
 	stateSeekingIntervalInSec uint16,
-	log *zap.SugaredLogger) *StateSyncer {
+	log *zap.SugaredLogger,
+) *StateSyncer {
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
-		deviceID:                  deviceID,
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
@@ -79,19 +77,6 @@ func (ss *StateSyncer) performSync() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Get device settings
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		ss.log.Errorw(
-			"Sync failed",
-			"err",
-			err.Error(),
-			"msg",
-			"failed to fetch device settings",
-		)
-		return
-	}
-
 	// Calculate current ETag for If-None-Match header
 	currentETag := ss.getLastSyncedETag()
 
@@ -99,44 +84,30 @@ func (ss *StateSyncer) performSync() {
 	var desiredStateManifest *sbi.UnsignedAppStateManifest
 	var response *http.Response
 
-	if device.AuthEnabled {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		desiredStateManifest, response, err = ss.apiClient.SyncStateWithResponse(
-			ctx,
-			device.DeviceClientId,
-			currentETag,
-		)
-	}
-
+	desiredStateManifest, response, err := ss.apiClient.SyncStateWithResponse(
+		ctx,
+		currentETag,
+	)
 	if err != nil {
-		ss.log.Errorw(
-			"Sync failed",
-			"err",
-			err.Error(),
-			"deviceId",
-			device.DeviceClientId,
-		)
-		return
-	}
-
-	// Handle 304 Not Modified
-	if response != nil && response.StatusCode == http.StatusNotModified {
-		ss.log.Infow(
-			"Sync completed",
-			"msg",
-			"No change in desired and current states (304 Not Modified)",
-		)
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			if pd.Status == http.StatusNotModified {
+				// 304 — expected cache hit, not an error
+				ss.log.Infow("No change in desired and current states (304 Not Modified)",
+					"status", pd.Status)
+			} else {
+				// 4xx/5xx — genuine WFM error
+				ss.log.Errorw("WFM returned error response",
+					"type", pd.Type,
+					"status", pd.Status,
+					"title", pd.Title,
+					"detail", pd.Detail,
+					"retryable", pd.IsRetryable(),
+					"backoff", pd.BackoffStrategy,
+				)
+			}
+		} else {
+			ss.log.Errorw("Sync failed", "err", err.Error())
+		}
 		return
 	}
 
@@ -169,7 +140,8 @@ func (ss *StateSyncer) performSync() {
 	// Process deployments from the manifest
 	ss.log.Debugf("Setting desired states....")
 
-	ss.detectRemovedDeployments(desiredStateManifest.Deployments)
+	manifestVersion := uint64(desiredStateManifest.ManifestVersion)
+	ss.detectRemovedDeployments(desiredStateManifest.Deployments, manifestVersion)
 
 	if len(desiredStateManifest.Deployments) > 0 {
 		// Decide: bundle download vs individual fetch
@@ -189,6 +161,7 @@ func (ss *StateSyncer) performSync() {
 				ss.processDeploymentsIndividually(
 					ctx,
 					desiredStateManifest.Deployments,
+					manifestVersion,
 				)
 			} else {
 				// Process deployments from bundle
@@ -196,6 +169,7 @@ func (ss *StateSyncer) performSync() {
 					ctx,
 					desiredStateManifest.Deployments,
 					bundleYAMLs,
+					manifestVersion,
 				)
 			}
 		} else {
@@ -203,6 +177,7 @@ func (ss *StateSyncer) performSync() {
 			ss.processDeploymentsIndividually(
 				ctx,
 				desiredStateManifest.Deployments,
+				manifestVersion,
 			)
 		}
 	}
@@ -221,6 +196,7 @@ func (ss *StateSyncer) performSync() {
 
 func (ss *StateSyncer) detectRemovedDeployments(
 	desiredDeployments []sbi.DeploymentManifestRef,
+	manifestVersion uint64,
 ) {
 	currentDeployments := ss.database.ListDeployments()
 
@@ -250,6 +226,17 @@ func (ss *StateSyncer) detectRemovedDeployments(
 					"deploymentId", current.DeploymentID,
 					"error", err)
 			}
+
+			if err := ss.database.SetAdoptedManifestVersion(
+				current.DeploymentID,
+				manifestVersion,
+			); err != nil {
+				ss.log.Warnw("Failed to update adopted manifest version on removal",
+					"deploymentId", current.DeploymentID,
+					"manifestVersion", manifestVersion,
+					"error", err)
+			}
+
 		}
 	}
 }
@@ -372,36 +359,24 @@ func (ss *StateSyncer) fetchDeploymentYAML(
 		"deploymentId", deploymentRef.DeploymentId,
 		"digest", deploymentRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	var yamlContent []byte
 
-	if device.AuthEnabled {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		yamlContent, err = ss.apiClient.FetchDeploymentYAML(
-			ctx,
-			device.DeviceClientId,
-			deploymentRef.DeploymentId,
-			deploymentRef.Digest,
-		)
-	}
-
+	yamlContent, err := ss.apiClient.FetchDeploymentYAML(
+		ctx,
+		deploymentRef.DeploymentId,
+		deploymentRef.Digest,
+	)
 	if err != nil {
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			ss.log.Errorw("WFM returned problem detail fetching deployment YAML",
+				"deploymentId", deploymentRef.DeploymentId,
+				"type", pd.Type,
+				"status", pd.Status,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			return nil, fmt.Errorf("WFM error [%d] %s: %w", pd.Status, pd.Title, err)
+		}
 		return nil, fmt.Errorf("failed to fetch deployment: %w", err)
 	}
 
@@ -441,34 +416,24 @@ func (ss *StateSyncer) downloadAndExtractBundle(
 
 	ss.log.Infow("Downloading bundle", "digest", *bundleRef.Digest)
 
-	device, err := ss.database.GetDeviceSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get device settings: %w", err)
-	}
-
 	// Download bundle
 	var bundleData []byte
-	if device.AuthEnabled {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-			auth.WithOAuth(
-				ctx,
-				device.OAuthClientId,
-				device.OAuthClientSecret,
-				device.OAuthTokenEndpointUrl,
-			),
-		)
-	} else {
-		bundleData, err = ss.apiClient.DownloadBundle(
-			ctx,
-			device.DeviceClientId,
-			*bundleRef.Digest,
-		)
-	}
 
+	bundleData, err := ss.apiClient.DownloadBundle(
+		ctx,
+		*bundleRef.Digest,
+	)
 	if err != nil {
+		if pd, ok := sbi.AsProblemDetail(err); ok {
+			ss.log.Errorw("WFM returned problem detail downloading bundle",
+				"digest", *bundleRef.Digest,
+				"type", pd.Type,
+				"status", pd.Status,
+				"detail", pd.Detail,
+				"retryable", pd.IsRetryable(),
+			)
+			return nil, fmt.Errorf("WFM error [%d] %s: %w", pd.Status, pd.Title, err)
+		}
 		return nil, fmt.Errorf("failed to download bundle: %w", err)
 	}
 
@@ -530,6 +495,7 @@ func (ss *StateSyncer) shouldDownloadBundle(
 func (ss *StateSyncer) processDeploymentsIndividually(
 	ctx context.Context,
 	deploymentRefs []sbi.DeploymentManifestRef,
+	manifestVersion uint64,
 ) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
@@ -551,7 +517,12 @@ func (ss *StateSyncer) processDeploymentsIndividually(
 		}
 
 		// Store deployment
-		ss.storeDeployment(deploymentId, deploymentRef, deploymentYAML)
+		ss.storeDeployment(
+			deploymentRef.DeploymentId,
+			deploymentRef,
+			deploymentYAML,
+			manifestVersion,
+		)
 	}
 }
 
@@ -561,6 +532,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 	_ context.Context,
 	deploymentRefs []sbi.DeploymentManifestRef,
 	bundleYAMLs map[string][]byte,
+	manifestVersion uint64,
 ) {
 	for _, deploymentRef := range deploymentRefs {
 		if deploymentRef.DeploymentId == "" {
@@ -633,7 +605,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 		}
 
 		// Store deployment
-		ss.storeDeployment(deploymentId, deploymentRef, &deployment)
+		ss.storeDeployment(deploymentId, deploymentRef, &deployment, manifestVersion)
 	}
 }
 
@@ -642,6 +614,7 @@ func (ss *StateSyncer) storeDeployment(
 	deploymentId string,
 	deploymentRef sbi.DeploymentManifestRef,
 	deploymentYAML *sbi.AppDeploymentManifest,
+	manifestVersion uint64,
 ) {
 	desiredState := database.AppDeploymentState{
 		AppDeploymentManifest: *deploymentYAML,
@@ -675,9 +648,17 @@ func (ss *StateSyncer) storeDeployment(
 		return
 	}
 
+	if err := ss.database.SetAdoptedManifestVersion(deploymentId, manifestVersion); err != nil {
+		ss.log.Warnw("Failed to set adopted manifest version",
+			"deploymentId", deploymentId,
+			"manifestVersion", manifestVersion,
+			"error", err)
+	}
+
 	ss.log.Infow("Set desired state for deployment",
 		"deploymentId", deploymentId,
-		"digest", deploymentRef.Digest)
+		"digest", deploymentRef.Digest,
+		"adoptedManifestVersion", manifestVersion)
 }
 
 // convertYAMLToJSON converts YAML-style maps (interface{} keys) to JSON-compatible maps (string

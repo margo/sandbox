@@ -28,6 +28,7 @@ get_ip_from_hosts() {
         return 1
     fi
 
+
     if [[ ! "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
         echo "[ERROR] Invalid IPv4 address '${ip}' for '${hostname}'." >&2
         return 1
@@ -82,11 +83,14 @@ configure_coredns_hosts() {
     local namespace="kube-system"
     local configmap="coredns"
 
-    local harbor_host="${EXPOSED_HARBOR_HOST}"
-    local symphony_host="${WFM_HOST}"
+    # Use defaults if env variables are not exported
+    local harbor_host="${EXPOSED_HARBOR_HOST:-harbor.machine}"
+    local symphony_host="${WFM_HOST:-symphony.machine}"
+    local mis_host="${EXPOSED_MIS_HOST:-mis.margo.org}"
 
     local harbor_ip
     local symphony_ip
+    local mis_host_ip
 
     local nodehosts
     local updated
@@ -100,10 +104,11 @@ configure_coredns_hosts() {
         fi
     done
 
-    echo "[INFO] Reading IP addresses from /etc/hosts..."
+    echo "[INFO] Reading IP addresses from /etc/hosts for ($harbor_host, $symphony_host, $mis_host)..."
 
     harbor_ip=$(get_ip_from_hosts "$harbor_host")
     symphony_ip=$(get_ip_from_hosts "$symphony_host")
+    mis_host_ip=$(get_ip_from_hosts "$mis_host")
 
     echo "[INFO] Verifying CoreDNS ConfigMap..."
 
@@ -121,6 +126,7 @@ configure_coredns_hosts() {
 
     add_or_update_host "$harbor_ip" "$harbor_host"
     add_or_update_host "$symphony_ip" "$symphony_host"
+    add_or_update_host "$mis_host_ip" "$mis_host"
 
     updated=$(sed '/^[[:space:]]*$/d' <<<"$updated")
 
@@ -143,11 +149,9 @@ EOF
 )"
 
     echo "[INFO] Restarting CoreDNS..."
-
     kubectl -n "$namespace" rollout restart deployment/coredns
 
     echo "[INFO] Waiting for CoreDNS rollout to complete..."
-
     kubectl -n "$namespace" rollout status deployment/coredns --timeout=180s
 
     echo "[INFO] CoreDNS NodeHosts updated successfully."

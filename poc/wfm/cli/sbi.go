@@ -22,12 +22,18 @@ type (
 type SbiHttpClient struct {
 	url             string
 	client          sbi.ClientInterface
+	deviceId        string // This is not SPIFFE ID, this is capabilities.properties.id OR gatewayId
 	options         []HTTPApiClientOptions
 	bundleCache     *cache.BundleCache
 	deploymentCache *cache.DeploymentCache
 }
 
-func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClient, error) {
+// Note: deviceId is capabilities.properties.id or gatewayId, not SpiffeId
+func NewSbiHTTPClient(
+	url string,
+	deviceId string,
+	options ...HTTPApiClientOptions,
+) (*SbiHttpClient, error) {
 	client, err := sbi.NewClient(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -61,7 +67,6 @@ func NewSbiHTTPClient(url string, options ...HTTPApiClientOptions) (*SbiHttpClie
 
 func (sbiClient *SbiHttpClient) SyncState(
 	ctx context.Context,
-	deviceClientId string,
 	etag string,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) (desiredStates *sbi.UnsignedAppStateManifest, err error) {
@@ -117,7 +122,6 @@ func (sbiClient *SbiHttpClient) SyncState(
 // header access
 func (sbiClient *SbiHttpClient) SyncStateWithResponse(
 	ctx context.Context,
-	deviceClientId string,
 	etag string,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) (desiredStates *sbi.UnsignedAppStateManifest, response *http.Response, err error) {
@@ -179,7 +183,8 @@ func (sbiClient *SbiHttpClient) SyncStateWithResponse(
 
 func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	ctx context.Context,
-	deviceID, appID string,
+	appID string,
+	adoptedManifestVersion uint64,
 	overallAppStatus sbi.DeploymentStatusManifestStatusState,
 	components []sbi.ComponentStatus,
 	deploymentErr error,
@@ -208,8 +213,9 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	}
 
 	deploymentStatus := sbi.DeploymentStatusManifest{
-		Components:   components,
-		DeploymentId: appUUID.String(),
+		Components:             components,
+		DeploymentId:           appUUID.String(),
+		AdoptedManifestVersion: sbi.ManifestVersion(adoptedManifestVersion),
 		Status: struct {
 			Error *struct {
 				Code    *string "json:\"code,omitempty\""
@@ -239,7 +245,7 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 // FetchDeploymentYAML with caching support and enhanced logging
 func (sbiClient *SbiHttpClient) FetchDeploymentYAML(
 	ctx context.Context,
-	deviceClientId, deploymentId, digest string,
+	deploymentId, digest string,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) (yamlContent []byte, err error) {
 	// Check if we have this deployment cached
@@ -319,11 +325,11 @@ func (sbiClient *SbiHttpClient) FetchDeploymentYAML(
 // DownloadBundle with caching support and enhanced logging
 func (sbiClient *SbiHttpClient) DownloadBundle(
 	ctx context.Context,
-	deviceClientId, digest string,
+	digest string,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) (bundleData []byte, err error) {
 	// Check if we have this bundle cached
-	cachedDigest, cacheErr := sbiClient.bundleCache.GetLastBundleDigest(deviceClientId)
+	cachedDigest, cacheErr := sbiClient.bundleCache.GetLastBundleDigest(sbiClient.deviceId)
 
 	params := &sbi.GetApiV1BundlesDigestParams{}
 
@@ -332,7 +338,7 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 		etag := fmt.Sprintf("\"%s\"", digest)
 		params.IfNoneMatch = &etag
 		fmt.Printf("INFO: [Cache] Sending If-None-Match for bundle (device: %s, digest: %s...)\n",
-			deviceClientId[:8], digest[:16])
+			sbiClient.deviceId, digest[:16])
 	}
 
 	resp, err := sbiClient.client.GetApiV1BundlesDigest(
@@ -350,10 +356,10 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	if resp.StatusCode == http.StatusNotModified {
 		fmt.Printf(
 			"INFO: [Cache HIT] Bundle not modified (304) - using cached version (device: %s)\n",
-			deviceClientId[:8],
+			sbiClient.deviceId,
 		)
 
-		cachedData, err := sbiClient.bundleCache.GetBundle(deviceClientId, digest)
+		cachedData, err := sbiClient.bundleCache.GetBundle(sbiClient.deviceId, digest)
 		if err != nil {
 			return nil, fmt.Errorf("304 received but cache read failed: %w", err)
 		}
@@ -373,7 +379,7 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	}
 
 	fmt.Printf("INFO: [Cache MISS] Downloaded bundle for device %s (%d bytes)\n",
-		deviceClientId[:8], len(bundleData))
+		sbiClient.deviceId, len(bundleData))
 
 	// Verify digest (Exact Bytes Rule)
 	hash := sha256.Sum256(bundleData)
@@ -385,12 +391,16 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	}
 
 	// Store in cache (digest verification happens inside cache.Store)
-	if err := sbiClient.bundleCache.StoreBundle(deviceClientId, digest, bundleData); err != nil {
+	if err := sbiClient.bundleCache.StoreBundle(
+		sbiClient.deviceId,
+		digest,
+		bundleData,
+	); err != nil {
 		fmt.Printf("WARNING: [Cache] Failed to cache bundle for device %s: %v\n",
-			deviceClientId[:8], err)
+			sbiClient.deviceId, err)
 	} else {
 		fmt.Printf("INFO: [Cache] Stored bundle for device %s (digest: %s...)\n",
-			deviceClientId[:8], digest[:16])
+			sbiClient.deviceId, digest[:16])
 	}
 
 	return bundleData, nil

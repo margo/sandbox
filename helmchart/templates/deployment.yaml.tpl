@@ -47,8 +47,7 @@ spec:
               readOnly: true
 
             - name: authorized-file
-              mountPath: /config/authorized.json
-              subPath: authorized.json
+              mountPath: /authorized.json
               readOnly: false
 
             # Persistent application data.
@@ -67,7 +66,6 @@ spec:
 
       volumes:
 {{- if .Values.authorizedFile.hostPath }}
-
         # Authorization file maintained on the Kubernetes node.
         - name: authorized-file
           hostPath:

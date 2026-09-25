@@ -96,7 +96,7 @@ K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 if [[ "$DEVICE_TYPE" == "docker" ]]; then
   SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/docker-compose/config/authorized.json"}"
 else
-  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/poc/device/agent/config/authorized.json"}"
+  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/helmchart/authorized/authorized.json"}"
 fi
 # ----------------------------
 # GHCR Image References
@@ -225,6 +225,8 @@ validate_and_copy_certs() {
     return 1
   }
 
+  mkdir "$HOME/sandbox/helmchart/authorized"
+
   echo "[INFO] Certificate validation and copy completed successfully. ✓"
 }
 
@@ -233,7 +235,7 @@ validate_and_copy_certs() {
 # ----------------------------
 install_basic_utilities() {
   sudo apt update -y
-  sudo apt install -y curl git dos2unix build-essential gcc libc6-dev
+  sudo apt install -y curl git dos2unix build-essential gcc libc6-dev yq
   echo "Installation complete: curl, git, and build tools installed."
 
   # Only install Helm for k3s device type

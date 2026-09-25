@@ -23,6 +23,8 @@ helmchart/
 |-- payload-cert.pem
 |-- payload-key.pem
 |-- authorized.json
+`-- authorization/
+	|-- authorized.json
 `-- config/
 	|-- config.yaml
 	`-- capabilities.json
@@ -34,7 +36,7 @@ The MIAF-related entries in `config/config.yaml` require:
 - `payload-cert.pem`: the SVID certificate, mounted in the pod as `/config/identity/payload-cert.pem`.
 - `payload-key.pem`: the private key for the SVID certificate, mounted as `/config/identity/payload-key.pem`.
 - `https-ca.crt`: the CA certificate used to verify the MIS endpoint, mounted as `/config/mis/https-ca.crt`.
-- `authorized.json`: the authorized clients file, mounted as `/config/authorized.json`.
+- `authorization/authorized.json`: the authorized clients file, mounted as `/config/authorized.json`.
 - `config/capabilities.json`: the device capabilities file referenced by `capabilities.readFromFile` and mounted as `/config/capabilities.json`.
 
 The chart also requires `harbor.crt` for the Harbor CA mount at `/usr/local/share/ca-certificates/harbor.crt`. The configured MIS endpoint must be reachable from the pod. If MIS trust-bundle discovery is unavailable and the corresponding settings are enabled in `config/config.yaml`, `trust-bundle.json` must also be made available at `/config/mis/trust-bundle.json`; the current chart templates do not package or mount this optional file, so the ConfigMap/Secret templates must be extended before using that fallback.
@@ -50,7 +52,8 @@ cp /path/to/harbor.crt harbor.crt
 cp /path/to/https-ca.crt https-ca.crt
 cp /path/to/payload-cert.pem payload-cert.pem
 cp /path/to/payload-key.pem payload-key.pem
-cp /path/to/authorized.json authorized.json
+mkdir authorized
+cp /path/to/authorized.json authorized/authorized.json # Or Edit what is already present
 ```
 
 2. Update `config/config.yaml` and `config/capabilities.json` for the target environment, including the MIS endpoint, WFM SBI URL, runtime, and state-seeking interval. If persistence is enabled, align `database.dataDir` with the deployment mount at `/data` (or update the deployment mount to `/var/lib/margo/device-agent/data`) so data is written to the PVC.

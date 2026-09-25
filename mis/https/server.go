@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
 	ro "github.com/margo/sandbox/mis/https/operations"
@@ -128,9 +129,10 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 		r.Method,
 	)
 
+	av := r.Header.Values("Accept") // Header can have multiple values
 	// if accept header is present, it should be application/json
-	if ac := r.Header.Get("Accept"); ac != "" && ac != "application/json" {
-		logger.Error("accept header contains unacceptable value, aborting", "accept_header", ac)
+	if len(av) != 0 && slices.Contains(av, "application/json") {
+		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
 			"Server Cannot Generate Response",
@@ -251,9 +253,10 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	av := r.Header.Values("Accept") // Header can have multiple values
 	// if accept header is present, it should be application/json
-	if ac := r.Header.Get("Accept"); ac != "" && ac != "application/json" {
-		logger.Error("accept header contains unacceptable value, aborting", "accept_header", ac)
+	if len(av) != 0 && slices.Contains(av, "application/json") {
+		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
 			"Server Cannot Generate Response",

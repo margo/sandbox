@@ -74,7 +74,7 @@ func (o *Operation) GetTrustBundle() (*spiffebundle.Bundle, error) {
 	// hardcoding initial sequence number
 	// Change here when rotation is implemented.
 	bundle.SetSequenceNumber(1)
-	bundle.SetRefreshHint(time.Duration(o.refreshHint))
+	bundle.SetRefreshHint(time.Duration(o.refreshHint) * time.Second)
 
 	return bundle, nil
 }

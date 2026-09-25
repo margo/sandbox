@@ -52,6 +52,7 @@ cp /path/to/harbor.crt harbor.crt
 cp /path/to/https-ca.crt https-ca.crt
 cp /path/to/payload-cert.pem payload-cert.pem
 cp /path/to/payload-key.pem payload-key.pem
+mkdir authorized
 cp /path/to/authorized.json authorized/authorized.json # Or Edit what is already present
 ```
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const spiffeScheme = "spiffe://"
+
 // ParseSpiffeIdFromX509Svid accepts an X.509 SVID in DER or PEM format ([]byte)
 // and extracts the SPIFFE ID from its URI SAN.
 // Returns the SPIFFE ID string or an error.
@@ -61,4 +63,22 @@ func extractSpiffeID(cert *x509.Certificate) (string, error) {
 		// Per SPIFFE spec, a valid SVID must have exactly one SPIFFE ID
 		return "", fmt.Errorf("certificate contains multiple SPIFFE IDs: %v", spiffeIDs)
 	}
+}
+
+// ParseWFMID extracts the <wfm-id> segment from a SPIFFE ID.
+// Supports both WFM and WFM-Client patterns:
+//   - spiffe://<trust-domain>/margo/wfm/<wfm-id>
+//   - spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
+func ParseWFMID(spiffeID string) (string, error) {
+	remainder := strings.TrimPrefix(spiffeID, spiffeScheme)
+	// remainder: <trust-domain>/margo/wfm/<wfm-id>[/client/<wfm-client-id>]
+	parts := strings.SplitN(remainder, "/", 5)
+	// parts: [trust-domain, "margo", "wfm", <wfm-id>, ...]
+	if len(parts) < 4 || parts[1] != "margo" || parts[2] != "wfm" || parts[3] == "" {
+		return "", fmt.Errorf(
+			"cannot extract wfm-id from SPIFFE ID %q: unexpected format",
+			spiffeID,
+		)
+	}
+	return parts[3], nil
 }

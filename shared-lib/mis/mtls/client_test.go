@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"testing"
 
+	"github.com/margo/sandbox/shared-lib/mis/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -466,6 +467,9 @@ func TestVerifyPeerCertificate_UntrustedChain_ReturnsRule2Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "rule 2")
 }
 
+// TestVerifyPeerCertificate_ValidSVID_NoError verifies that a peer presenting
+// a valid SPIFFE SVID passes all rules including Rule 5 (wfm-id match),
+// since the peer cert is the same as the own cert used in buildVerifier.
 func TestVerifyPeerCertificate_ValidSVID_NoError(t *testing.T) {
 	clientCert := mustLoadClientCert(t)
 	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
@@ -479,6 +483,7 @@ func TestVerifyPeerCertificate_ValidSVID_NoError(t *testing.T) {
 	peerCerts := parseDERCerts(t, clientCert.Certificate)
 	err := verify(buildConnectionState(peerCerts...))
 
+	// Passes Rules 1–4, allow-list, and Rule 5 (peer wfm-id == own wfm-id).
 	assert.NoError(t, err)
 }
 
@@ -665,4 +670,104 @@ func TestVerifyConnection_EmptyBundle_TakesPrecedenceOverNilAllowList(t *testing
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "trustbundle is unavailable")
 	assert.NotContains(t, err.Error(), "connections are not allowed")
+}
+
+// TestVerifyConnection_Rule5_OwnCertInvalidDER_ReturnsError verifies that
+// Rule 5 returns an error when the verifier's own certificate cannot be parsed.
+// All earlier rules pass because the peer cert is a valid SVID; Rule 5 is the
+// first step that touches ownCert.
+func TestVerifyConnection_Rule5_OwnCertInvalidDER_ReturnsError(t *testing.T) {
+	clientCert := mustLoadClientCert(t) // needed to build a valid peer state
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	// Construct an ownCert with an unparseable DER blob so Rule 5 fails.
+	badOwnCert := tls.Certificate{
+		Certificate: [][]byte{{0x30, 0x00}}, // invalid ASN.1
+	}
+
+	tlsCfg, err := NewMTLSClientConfig(badOwnCert, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
+	})
+	require.NoError(t, err)
+
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err = tlsCfg.VerifyConnection(buildConnectionState(peerCerts...))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rule 5")
+	assert.Contains(t, err.Error(), "failed to parse own certificate")
+}
+
+// TestVerifyConnection_Rule5_WFMIDMismatch_ReturnsError verifies that Rule 5
+// rejects a peer whose wfm-id differs from the verifier's own wfm-id.
+//
+// Prerequisites: provide dummyPeerCertPEM / dummyPeerKeyPEM — a second SPIFFE
+// SVID with a *different* wfm-id (e.g. spiffe://margo.org/margo/wfm/symphony-2).
+// The test is skipped automatically when those constants are still placeholders.
+func TestVerifyConnection_Rule5_WFMIDMismatch_ReturnsError(t *testing.T) {
+	// dummyPeerCertPEM must be a valid SPIFFE SVID signed by dummyRootCAPEM
+	// but with a different wfm-id than dummyClientCertPEM (symphony-1).
+	const dummyPeerCertPEM = `REPLACE_WITH_peer_cert_pem` // #nosec G101
+	const dummyPeerKeyPEM = `REPLACE_WITH_peer_key_pem`   // #nosec G101
+
+	if isPlaceholder(dummyPeerCertPEM) || isPlaceholder(dummyPeerKeyPEM) {
+		t.Skip(
+			"provide dummyPeerCertPEM/dummyPeerKeyPEM with a different wfm-id to run Rule 5 mismatch test",
+		)
+	}
+
+	ownCert := mustLoadClientCert(t) // wfm-id: symphony-1
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	peerCert, err := tls.X509KeyPair([]byte(dummyPeerCertPEM), []byte(dummyPeerKeyPEM))
+	require.NoError(t, err)
+
+	// Allow the peer's SPIFFE ID so the allow-list check passes.
+	peerLeaf, err := x509.ParseCertificate(peerCert.Certificate[0])
+	require.NoError(t, err)
+	peerSpiffeID, err := parser.ParseSpiffeIdFromX509Svid(peerLeaf.Raw)
+	require.NoError(t, err)
+
+	tlsCfg, err := NewMTLSClientConfig(ownCert, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  func() []string { return []string{peerSpiffeID} },
+	})
+	require.NoError(t, err)
+
+	peerCerts := parseDERCerts(t, peerCert.Certificate)
+	err = tlsCfg.VerifyConnection(buildConnectionState(peerCerts...))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rule 5")
+	assert.Contains(t, err.Error(), "wfm-id mismatch")
+}
+
+// TestVerifyConnection_Rule5_OwnCertNoSpiffeID_ReturnsError verifies that
+// Rule 5 returns an error when the verifier's own certificate has no SPIFFE
+// URI SAN (so ParseSpiffeIdFromX509Svid fails on the own cert).
+func TestVerifyConnection_Rule5_OwnCertNoSpiffeID_ReturnsError(t *testing.T) {
+	clientCert := mustLoadClientCert(t) // valid peer
+	trustBundle := rootCAPEMToJWKSet(t, dummyRootCAPEM)
+
+	// Use dummyRootCAPEM as the own cert — it has no URI SAN.
+	block, _ := pem.Decode([]byte(dummyRootCAPEM))
+	require.NotNil(t, block)
+	ownCertNoSAN := tls.Certificate{Certificate: [][]byte{block.Bytes}}
+
+	tlsCfg, err := NewMTLSClientConfig(ownCertNoSAN, VerifierConfig{
+		GetOwnTrustDomain:   getOwnTrustDomain,
+		GetTrustBundleBytes: func() []byte { return trustBundle },
+		GetClientAllowList:  getClientAllowList,
+	})
+	require.NoError(t, err)
+
+	peerCerts := parseDERCerts(t, clientCert.Certificate)
+	err = tlsCfg.VerifyConnection(buildConnectionState(peerCerts...))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rule 5")
+	assert.Contains(t, err.Error(), "failed to extract SPIFFE ID from own SVID")
 }

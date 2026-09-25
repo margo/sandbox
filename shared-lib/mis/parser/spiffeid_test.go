@@ -72,6 +72,100 @@ func toPEM(t *testing.T, derBytes []byte) []byte {
 	})
 }
 
+// --- Tests for ParseWFMID ---
+
+func TestParseWFMID(t *testing.T) {
+	tests := []struct {
+		name        string
+		spiffeID    string
+		expectedID  string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid wfm SPIFFE ID",
+			spiffeID:    "spiffe://example.org/margo/wfm/my-wfm-123",
+			expectedID:  "my-wfm-123",
+			expectError: false,
+		},
+		{
+			name:        "valid wfm-client SPIFFE ID",
+			spiffeID:    "spiffe://example.org/margo/wfm/my-wfm-123/client/my-client-456",
+			expectedID:  "my-wfm-123",
+			expectError: false,
+		},
+		{
+			name:        "valid wfm SPIFFE ID with complex trust domain",
+			spiffeID:    "spiffe://trust.domain.example/margo/wfm/wfm-abc",
+			expectedID:  "wfm-abc",
+			expectError: false,
+		},
+		{
+			name:        "valid wfm-client SPIFFE ID with complex trust domain",
+			spiffeID:    "spiffe://trust.domain.example/margo/wfm/wfm-abc/client/client-xyz",
+			expectedID:  "wfm-abc",
+			expectError: false,
+		},
+		{
+			name:        "missing spiffe scheme",
+			spiffeID:    "http://example.org/margo/wfm/my-wfm-123",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "empty string",
+			spiffeID:    "",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "missing wfm-id segment",
+			spiffeID:    "spiffe://example.org/margo/wfm/",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "wrong path prefix — not margo",
+			spiffeID:    "spiffe://example.org/other/wfm/my-wfm-123",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "wrong path prefix — not wfm",
+			spiffeID:    "spiffe://example.org/margo/other/my-wfm-123",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "only trust domain, no path",
+			spiffeID:    "spiffe://example.org",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+		{
+			name:        "trust domain with partial path",
+			spiffeID:    "spiffe://example.org/margo",
+			expectError: true,
+			errorMsg:    "cannot extract wfm-id from SPIFFE ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wfmID, err := ParseWFMID(tt.spiffeID)
+
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorMsg)
+				assert.Empty(t, wfmID)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedID, wfmID)
+			}
+		})
+	}
+}
+
 // --- Tests for ParseSpiffeIdFromX509Svid ---
 
 func TestParseSpiffeIdFromX509Svid(t *testing.T) {

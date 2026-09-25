@@ -29,6 +29,6 @@ func NewMTLSServerConfig(serverCert tls.Certificate, cfg VerifierConfig) (*tls.C
 
 		// VerifyConnection is called after the TLS handshake completes,
 		// with access to the full ConnectionState including parsed peer certificates.
-		VerifyConnection: buildVerifyConnection(cfg, validators.PrincipalWFMClient),
+		VerifyConnection: buildVerifyConnection(cfg, serverCert, validators.PrincipalWFMClient),
 	}, nil
 }

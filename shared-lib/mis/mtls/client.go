@@ -32,7 +32,7 @@ type VerifierConfig struct {
 //
 // It disables Go's default hostname/DNS verification (InsecureSkipVerify = true)
 // and replaces it with a fully SPIFFE-compliant VerifyPeerCertificates hook that
-// enforces all four verifier rules from the spec.
+// enforces all four verifier rules from the spec, plus wfm-id cross-validation (Rule 5).
 //
 // The caller is responsible for supplying the client's own certificate/key pair
 // via tls.Certificate so the server can authenticate the client in return.
@@ -49,16 +49,30 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 
 		// VerifyConnection is called after the TLS handshake completes,
 		// with access to the full ConnectionState including parsed peer certificates.
-		VerifyConnection: buildVerifyConnection(cfg, validators.PrincipalWFM),
+		VerifyConnection: buildVerifyConnection(cfg, clientCert, validators.PrincipalWFM),
 	}
 
 	return tlsCfg, nil
 }
 
 // buildVerifyConnection returns the VerifyConnection callback that enforces
-// the four SPIFFE verifier rules, followed by an allow-list check.
-// Principal is the peer of config user (wfm or wfm-client)
-func buildVerifyConnection(cfg VerifierConfig, principal string) func(tls.ConnectionState) error {
+// the four SPIFFE verifier rules, followed by an allow-list check, and a
+// wfm-id cross-validation rule (Rule 5):
+//
+//   - Rule 1: Peer trust domain must match the verifier's own trust domain.
+//   - Rule 2: Peer certificate must chain to the configured SPIFFE trust bundle.
+//   - Rule 3: Peer SVID must be within its validity period.
+//   - Rule 4: Peer SVID must satisfy X.509-SVID leaf constraints.
+//   - Allow-list: Peer SPIFFE ID must appear in the configured allow list.
+//   - Rule 5: The <wfm-id> in the peer's SPIFFE ID must match the <wfm-id>
+//     in the verifier's own SPIFFE ID, regardless of which side is wfm or wfm-client.
+//
+// principal is the expected principal of the peer (PrincipalWFM or PrincipalWFMClient).
+func buildVerifyConnection(
+	cfg VerifierConfig,
+	ownCert tls.Certificate,
+	peerPrincipal string,
+) func(tls.ConnectionState) error {
 	return func(cs tls.ConnectionState) error {
 		if cfg.GetOwnTrustDomain() == "" {
 			return fmt.Errorf("trustdomain is unavailable")
@@ -117,7 +131,7 @@ func buildVerifyConnection(cfg VerifierConfig, principal string) func(tls.Connec
 		// ----------------------------------------------------------------
 		// Rule 3 — Validity period.
 		// ----------------------------------------------------------------
-		if ok, err := validators.ValidateX509SVID(leaf.Raw, principal); !ok {
+		if ok, err := validators.ValidateX509SVID(leaf.Raw, peerPrincipal); !ok {
 			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
 		}
 
@@ -139,14 +153,47 @@ func buildVerifyConnection(cfg VerifierConfig, principal string) func(tls.Connec
 			)
 		}
 
-		if slices.Contains(allowList, spiffeID) {
-			return nil
+		if !slices.Contains(allowList, spiffeID) {
+			return fmt.Errorf(
+				"allow-list check: peer SPIFFE ID %q is not in the configured allow list",
+				spiffeID,
+			)
 		}
 
-		return fmt.Errorf(
-			"allow-list check: peer SPIFFE ID %q is not in the configured allow list",
-			spiffeID,
-		)
+		// ----------------------------------------------------------------
+		// Rule 5 — wfm-id cross-validation.
+		// The <wfm-id> segment must match between peer and self SPIFFE IDs,
+		// ensuring a wfm-client only connects to its own wfm, and vice versa.
+		// ----------------------------------------------------------------
+
+		ownX509, err := x509.ParseCertificate(ownCert.Certificate[0])
+		if err != nil {
+			return fmt.Errorf("rule 5: failed to parse own certificate: %w", err)
+		}
+
+		ownSpiffeID, err := parser.ParseSpiffeIdFromX509Svid(ownX509.Raw)
+		if err != nil {
+			return fmt.Errorf("rule 5: failed to extract SPIFFE ID from own SVID: %w", err)
+		}
+
+		peerWFMID, err := parser.ParseWFMID(spiffeID)
+		if err != nil {
+			return fmt.Errorf("rule 5: failed to extract wfm-id from peer SPIFFE ID: %w", err)
+		}
+
+		ownWFMID, err := parser.ParseWFMID(ownSpiffeID)
+		if err != nil {
+			return fmt.Errorf("rule 5: failed to extract wfm-id from own SPIFFE ID: %w", err)
+		}
+
+		if peerWFMID != ownWFMID {
+			return fmt.Errorf(
+				"rule 5: wfm-id mismatch — peer wfm-id %q does not match own wfm-id %q",
+				peerWFMID, ownWFMID,
+			)
+		}
+
+		return nil
 	}
 }
 

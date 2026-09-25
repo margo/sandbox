@@ -46,6 +46,10 @@ spec:
               mountPath: /config
               readOnly: true
 
+            - name: authorized-file
+              mountPath: /config/authorized.json
+              readOnly: false
+
             # Persistent application data.
             - name: data-volume
               mountPath: /data
@@ -61,6 +65,15 @@ spec:
               readOnly: true
 
       volumes:
+{{- if .Values.authorizedFile.hostPath }}
+
+        # Authorization file maintained on the Kubernetes node.
+        - name: authorized-file
+          hostPath:
+            path: {{ .Values.authorizedFile.hostPath | quote }}
+            type: {{ .Values.authorizedFile.type | default "File" }}
+{{- end }}
+ 
 
         # Combine the non-sensitive ConfigMap files with the
         # sensitive device-agent configuration Secret.
@@ -84,9 +97,6 @@ spec:
 
                     - key: https-ca.crt
                       path: mis/https-ca.crt
-
-                    - key: authorized.json
-                      path: authorized.json
 
         # Persistent storage.
         - name: data-volume

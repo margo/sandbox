@@ -277,7 +277,11 @@ func (a *Agent) Start() error {
 			// capabilities reported successfully. Break from this loop.
 			break
 		}
-		a.log.Errorw("failed to report the capabilities, will try again in 5 seconds", "err", err.Error())
+		a.log.Errorw(
+			"failed to report the capabilities, will try again in 5 seconds",
+			"err",
+			err.Error(),
+		)
 		time.Sleep(5 * time.Second)
 	}
 

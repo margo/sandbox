@@ -63,10 +63,12 @@ func NewAgent(configPath string) (*Agent, error) {
 	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
 	if err != nil {
 		log.Errorw(
-			"failed to load the capabilities file, please resolve the issue as the capabilities will not be reported until next restart",
+			"failed to load the capabilities file, cannot proceed",
 			"err",
 			err.Error(),
 		)
+		return nil, err
+
 		// TODO: This should return? is there a case where capabilities are not required?
 	}
 

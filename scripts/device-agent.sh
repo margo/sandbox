@@ -280,6 +280,9 @@ install_prerequisites() {
 start_device_agent_docker() {
   echo "Building and starting workload-fleet-management-client ..."
   validate_start_required_vars
+  # ── SPIFFE allowlist validation ──────────────────────────────────────────
+  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
+  # ────────────────────────────────────────────────────────────────────────
   update_agent_sbi_url
   build_device_agent_docker
   start_device_agent_docker_service
@@ -289,6 +292,9 @@ start_device_agent_docker() {
 start_device_agent_kubernetes() {
   echo "Building and starting workload-fleet-management-client with ServiceAccount authentication..."
   validate_start_required_vars
+  # ── SPIFFE allowlist validation ──────────────────────────────────────────
+  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
+  # ────────────────────────────────────────────────────────────────────────
   build_start_device_agent_k3s_service
   echo '✅ workload-fleet-management-client-pod started with ServiceAccount authentication'
 }

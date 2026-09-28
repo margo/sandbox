@@ -348,6 +348,11 @@ cleanup_docker_resources() {
 
 start_symphony() {
   echo "Starting Symphony API server. NBI Serving on port $EXPOSED_SYMPHONY_PORT, Margo Management Interface serving on port 8084 ..."
+ 
+  # ── SPIFFE allowlist validation ──────────────────────────────────────────
+  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
+  # ────────────────────────────────────────────────────────────────────────
+
   export PATH="$PATH:/usr/local/go/bin"; # TODO: remove this line as this is being set while installing go
 
   export GOINSECURE='github.com/margo/*'

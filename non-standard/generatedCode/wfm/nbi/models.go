@@ -15,6 +15,7 @@ import (
 // Defines values for AppDeploymentProfileType.
 const (
 	AppDeploymentProfileTypeCompose AppDeploymentProfileType = "compose"
+	AppDeploymentProfileTypeCustom  AppDeploymentProfileType = "custom"
 	AppDeploymentProfileTypeHelm    AppDeploymentProfileType = "helm"
 )
 
@@ -23,7 +24,24 @@ func (e AppDeploymentProfileType) Valid() bool {
 	switch e {
 	case AppDeploymentProfileTypeCompose:
 		return true
+	case AppDeploymentProfileTypeCustom:
+		return true
 	case AppDeploymentProfileTypeHelm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppDescriptionApiVersion.
+const (
+	V1 AppDescriptionApiVersion = "v1"
+)
+
+// Valid indicates whether the value is a known member of the AppDescriptionApiVersion enum.
+func (e AppDescriptionApiVersion) Valid() bool {
+	switch e {
+	case V1:
 		return true
 	default:
 		return false
@@ -167,15 +185,12 @@ func (e ApplicationPackageOperationStatus) Valid() bool {
 
 // Defines values for ApplicationPackageSpecSourceType.
 const (
-	GITREPO ApplicationPackageSpecSourceType = "GIT_REPO"
 	OCIREPO ApplicationPackageSpecSourceType = "OCI_REPO"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationPackageSpecSourceType enum.
 func (e ApplicationPackageSpecSourceType) Valid() bool {
 	switch e {
-	case GITREPO:
-		return true
 	case OCIREPO:
 		return true
 	default:
@@ -237,9 +252,37 @@ func (e ConfigurationSchemaDataType) Valid() bool {
 	}
 }
 
+// Defines values for DeploymentCpuRequirementArchitectures.
+const (
+	Amd64   DeploymentCpuRequirementArchitectures = "amd64"
+	Arm     DeploymentCpuRequirementArchitectures = "arm"
+	Arm64   DeploymentCpuRequirementArchitectures = "arm64"
+	Other   DeploymentCpuRequirementArchitectures = "other"
+	Riscv64 DeploymentCpuRequirementArchitectures = "riscv64"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCpuRequirementArchitectures enum.
+func (e DeploymentCpuRequirementArchitectures) Valid() bool {
+	switch e {
+	case Amd64:
+		return true
+	case Arm:
+		return true
+	case Arm64:
+		return true
+	case Other:
+		return true
+	case Riscv64:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeploymentExecutionProfileType.
 const (
 	DeploymentExecutionProfileTypeCompose DeploymentExecutionProfileType = "compose"
+	DeploymentExecutionProfileTypeCustom  DeploymentExecutionProfileType = "custom"
 	DeploymentExecutionProfileTypeHelm    DeploymentExecutionProfileType = "helm"
 )
 
@@ -248,7 +291,30 @@ func (e DeploymentExecutionProfileType) Valid() bool {
 	switch e {
 	case DeploymentExecutionProfileTypeCompose:
 		return true
+	case DeploymentExecutionProfileTypeCustom:
+		return true
 	case DeploymentExecutionProfileTypeHelm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceManifestRespEligible.
+const (
+	False   DeviceManifestRespEligible = "false"
+	True    DeviceManifestRespEligible = "true"
+	Unknown DeviceManifestRespEligible = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the DeviceManifestRespEligible enum.
+func (e DeviceManifestRespEligible) Valid() bool {
+	switch e {
+	case False:
+		return true
+	case True:
+		return true
+	case Unknown:
 		return true
 	default:
 		return false
@@ -270,6 +336,42 @@ func (e DeviceOnboardStatus) Valid() bool {
 	case DeviceOnboardStatusINPROGRESS:
 		return true
 	case DeviceOnboardStatusONBOARDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MatchExpressionOperator.
+const (
+	ContainsAll  MatchExpressionOperator = "ContainsAll"
+	ContainsAny  MatchExpressionOperator = "ContainsAny"
+	DoesNotExist MatchExpressionOperator = "DoesNotExist"
+	Exists       MatchExpressionOperator = "Exists"
+	Gt           MatchExpressionOperator = "Gt"
+	In           MatchExpressionOperator = "In"
+	Lt           MatchExpressionOperator = "Lt"
+	NotIn        MatchExpressionOperator = "NotIn"
+)
+
+// Valid indicates whether the value is a known member of the MatchExpressionOperator enum.
+func (e MatchExpressionOperator) Valid() bool {
+	switch e {
+	case ContainsAll:
+		return true
+	case ContainsAny:
+		return true
+	case DoesNotExist:
+		return true
+	case Exists:
+		return true
+	case Gt:
+		return true
+	case In:
+		return true
+	case Lt:
+		return true
+	case NotIn:
 		return true
 	default:
 		return false
@@ -323,8 +425,8 @@ type AppDeploymentProfile struct {
 	// Description Description of the deployment profile
 	Description *string `json:"description" yaml:"description"`
 
-	// RequiredResources Required resources for this deployment profile
-	RequiredResources *RequiredResources `json:"requiredResources" yaml:"requiredResources"`
+	// DeviceConstraints Description of the device capabilties required for this particular application
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints" yaml:"deviceConstraints"`
 
 	// Type Type of deployment profile
 	Type AppDeploymentProfileType `json:"type" yaml:"type"`
@@ -340,8 +442,8 @@ type AppDeploymentProfileType string
 
 // AppDescription Application Description manifest
 type AppDescription struct {
-	// ApiVersion API version
-	ApiVersion string `json:"apiVersion" yaml:"apiVersion"`
+	// ApiVersion Version of the ApplicationDescription contract. Independent of OpenAPI spec version and API route version.
+	ApiVersion AppDescriptionApiVersion `json:"apiVersion" yaml:"apiVersion"`
 
 	// Configuration Configuration schema and UI definitions
 	Configuration *AppConfigurationSchema `json:"configuration" yaml:"configuration"`
@@ -352,15 +454,15 @@ type AppDescription struct {
 	// Id Unique identifier for the application
 	Id *string `json:"id" yaml:"id"`
 
-	// Kind Resource kind
-	Kind string `json:"kind" yaml:"kind"`
-
 	// Metadata Application metadata including catalog information
 	Metadata AppDescriptionMetadata `json:"metadata" yaml:"metadata"`
 
 	// Parameters Configurable parameters for the application
 	Parameters *AppDescriptionParametersMap `json:"parameters" yaml:"parameters"`
 }
+
+// AppDescriptionApiVersion Version of the ApplicationDescription contract. Independent of OpenAPI spec version and API route version.
+type AppDescriptionApiVersion string
 
 // AppDescriptionCatalogInfo defines model for AppDescriptionCatalogInfo.
 type AppDescriptionCatalogInfo struct {
@@ -437,25 +539,14 @@ type AppParameterTarget struct {
 
 // ApplicationDeploymentListResp List of Application Deployments
 type ApplicationDeploymentListResp struct {
-	// ApiVersion API version
-	ApiVersion string                              `json:"apiVersion"`
-	Items      []ApplicationDeploymentManifestResp `json:"items"`
-
-	// Kind Resource kind
-	Kind     string             `json:"kind"`
-	Metadata PaginationMetadata `json:"metadata"`
+	Items    []ApplicationDeploymentManifestResp `json:"items"`
+	Metadata PaginationMetadata                  `json:"metadata"`
 }
 
 // ApplicationDeploymentManifestRequest Application Deployment request
 type ApplicationDeploymentManifestRequest struct {
-	// ApiVersion API version
-	ApiVersion string `json:"apiVersion"`
-
 	// Id This field is generated by the server.
-	Id *string `json:"id,omitempty"`
-
-	// Kind Resource kind
-	Kind     string `json:"kind"`
+	Id       *string `json:"id,omitempty"`
 	Metadata struct {
 		// Annotations Annotations for the deployment
 		Annotations *map[string]string `json:"annotations,omitempty"`
@@ -479,14 +570,8 @@ type ApplicationDeploymentManifestRequest struct {
 
 // ApplicationDeploymentManifestResp Application Deployment manifest
 type ApplicationDeploymentManifestResp struct {
-	// ApiVersion API version
-	ApiVersion string `json:"apiVersion"`
-
 	// Id This field is generated by the server.
-	Id *string `json:"id,omitempty"`
-
-	// Kind Resource kind
-	Kind     string   `json:"kind"`
+	Id       *string  `json:"id,omitempty"`
 	Metadata Metadata `json:"metadata"`
 
 	// RecentOperation Recent operation details
@@ -504,6 +589,25 @@ type ApplicationDeploymentOperation string
 
 // ApplicationDeploymentOperationStatus Current state of the application deployment operation
 type ApplicationDeploymentOperationStatus string
+
+// ApplicationDeploymentProfileComponent Application Deployment Profile Component
+type ApplicationDeploymentProfileComponent struct {
+	// Name Name of the component
+	Name       string `json:"name" yaml:"name"`
+	Properties struct {
+		// Repository Repository of the component
+		Repository string `json:"repository" yaml:"repository"`
+
+		// Revision Revision of the component
+		Revision string `json:"revision" yaml:"revision"`
+
+		// Timeout Timeout for the component
+		Timeout *string `json:"timeout" yaml:"timeout"`
+
+		// Wait Wait for the component to be ready
+		Wait *bool `json:"wait" yaml:"wait"`
+	} `json:"properties" yaml:"properties"`
+}
 
 // ApplicationDeploymentRecentOperation defines model for ApplicationDeploymentRecentOperation.
 type ApplicationDeploymentRecentOperation struct {
@@ -565,7 +669,6 @@ type ApplicationPackageListResp struct {
 	// ApiVersion API version
 	ApiVersion string                           `json:"apiVersion"`
 	Items      []ApplicationPackageManifestResp `json:"items"`
-	Kind       string                           `json:"kind"`
 	Metadata   *PaginationMetadata              `json:"metadata,omitempty"`
 }
 
@@ -573,10 +676,7 @@ type ApplicationPackageListResp struct {
 type ApplicationPackageManifestRequest struct {
 	// ApiVersion API version
 	ApiVersion string `json:"apiVersion"`
-
-	// Kind Resource kind
-	Kind     string `json:"kind"`
-	Metadata struct {
+	Metadata   struct {
 		// Annotations Annotations for the resource
 		Annotations *map[string]string `json:"annotations,omitempty"`
 
@@ -601,9 +701,6 @@ type ApplicationPackageManifestResp struct {
 
 	// Id This field is generated by the server.
 	Id *string `json:"id,omitempty"`
-
-	// Kind Resource kind
-	Kind string `json:"kind"`
 
 	// Metadata Metadata of the package
 	Metadata Metadata `json:"metadata"`
@@ -665,42 +762,16 @@ type ApplicationPackageStatus struct {
 // ApplicationPackageStatusState State of the application package
 type ApplicationPackageStatusState string
 
-// ComposeApplicationDeploymentProfileComponent Compose Application Deployment Profile Component
-type ComposeApplicationDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name" yaml:"name"`
-	Properties struct {
-		// Repository Repository of the component
-		Repository string `json:"repository" yaml:"repository"`
+// CapacityRequirements Minimum device capacity required by the deployment profile.
+type CapacityRequirements struct {
+	// Cpu CPU element specifying the CPU requirements for the deployment.
+	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
 
-		// Revision Revision of the component
-		Revision string `json:"revision" yaml:"revision"`
+	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
+	Memory *string `json:"memory,omitempty"`
 
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout" yaml:"timeout"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait" yaml:"wait"`
-	} `json:"properties" yaml:"properties"`
-}
-
-// ComposeDeploymentProfileComponent Compose Application Deployment Profile Component
-type ComposeDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name"`
-	Properties struct {
-		// Repository Repository of the component
-		Repository string `json:"repository"`
-
-		// Revision Revision of the component
-		Revision string `json:"revision"`
-
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout,omitempty"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait,omitempty"`
-	} `json:"properties"`
+	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
+	Storage *string `json:"storage,omitempty"`
 }
 
 // ConfigurationSchema defines model for ConfigurationSchema.
@@ -772,10 +843,25 @@ type ContextualInfo struct {
 	Message *string `json:"message,omitempty"`
 }
 
+// DeploymentCpuRequirement CPU element specifying the CPU requirements for the deployment.
+type DeploymentCpuRequirement struct {
+	// Architectures The CPU architectures supported by the deployment.
+	Architectures *[]DeploymentCpuRequirementArchitectures `json:"architectures,omitempty"`
+
+	// Cores The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
+	Cores float32 `json:"cores"`
+}
+
+// DeploymentCpuRequirementArchitectures defines model for DeploymentCpuRequirement.Architectures.
+type DeploymentCpuRequirementArchitectures string
+
 // DeploymentExecutionProfile Application Deployment Profile
 type DeploymentExecutionProfile struct {
 	// Components Components of the deployment profile
 	Components []DeploymentExecutionProfile_Components_Item `json:"components"`
+
+	// DeviceConstraints Description of the device capabilties required for this particular application
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
 
 	// Type Type of deployment profile
 	Type DeploymentExecutionProfileType `json:"type"`
@@ -810,25 +896,47 @@ type DeploymentParameterValue struct {
 // DeploymentParameters Application Parameters
 type DeploymentParameters map[string]DeploymentParameterValue
 
+// DeploymentProfileComponent Application Deployment Profile Component
+type DeploymentProfileComponent struct {
+	// Name Name of the component
+	Name       string `json:"name"`
+	Properties struct {
+		// Repository Repository of the component
+		Repository string `json:"repository"`
+
+		// Revision Revision of the component
+		Revision string `json:"revision"`
+
+		// Timeout Timeout for the component
+		Timeout *string `json:"timeout,omitempty"`
+
+		// Wait Wait for the component to be ready
+		Wait *bool `json:"wait,omitempty"`
+	} `json:"properties"`
+}
+
+// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+type DeviceConstraints struct {
+	// CapacityRequirements Minimum CPU, memory, and storage requirements for the deployment profile.
+	CapacityRequirements *CapacityRequirements `json:"capacityRequirements,omitempty"`
+
+	// EligibilityRules Optional rules used to match the deployment with device properties and supplier-defined labels reported in the device capabilities.
+	EligibilityRules *[]EligibilityRule `json:"eligibilityRules,omitempty"`
+}
+
 // DeviceListResp List of Devices
 type DeviceListResp struct {
-	// ApiVersion API version
-	ApiVersion string               `json:"apiVersion"`
-	Items      []DeviceManifestResp `json:"items"`
-	Kind       string               `json:"kind"`
-	Metadata   *PaginationMetadata  `json:"metadata,omitempty"`
+	Items    []DeviceManifestResp `json:"items"`
+	Metadata *PaginationMetadata  `json:"metadata,omitempty"`
 }
 
 // DeviceManifestResp Device manifest
 type DeviceManifestResp struct {
-	// ApiVersion API version
-	ApiVersion string `json:"apiVersion"`
+	// Eligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
+	Eligible *DeviceManifestRespEligible `json:"eligible,omitempty"`
 
 	// Id Unique device identifier
 	Id *string `json:"id" yaml:"id"`
-
-	// Kind Resource kind
-	Kind string `json:"kind"`
 
 	// Metadata Metadata of the device
 	Metadata Metadata `json:"metadata"`
@@ -840,20 +948,29 @@ type DeviceManifestResp struct {
 	State DeviceState `json:"state"`
 }
 
+// DeviceManifestRespEligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
+type DeviceManifestRespEligible string
+
 // DeviceOnboardStatus defines model for DeviceOnboardStatus.
 type DeviceOnboardStatus string
 
 // DeviceSpec defines model for DeviceSpec.
 type DeviceSpec struct {
 	Capabilities interface{} `json:"capabilities"`
-
-	// Signature Unique signature of the device
-	Signature string `json:"signature"`
 }
 
 // DeviceState defines model for DeviceState.
 type DeviceState struct {
 	Onboard DeviceOnboardStatus `json:"onboard"`
+}
+
+// EligibilityRule A rule matching properties and supplier-defined labels reported through the device capabilities.
+type EligibilityRule struct {
+	// LabelSelector Selector evaluated against the labels reported in the device capabilities.
+	LabelSelector *Selector `json:"labelSelector,omitempty"`
+
+	// PropertySelector Selector evaluated against the properties reported in the device capabilities.
+	PropertySelector *Selector `json:"propertySelector,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -871,71 +988,23 @@ type ErrorResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// GitRepo Git repository source configuration
-type GitRepo struct {
-	// AccessToken Git access token for authentication
-	AccessToken *string `json:"accessToken,omitempty"`
+// MatchExpression An expression used to match a device's reported capabilities properties or labels.
+type MatchExpression struct {
+	// ItemSelector A set of match expressions evaluated with AND semantics.
+	ItemSelector *Selector `json:"itemSelector,omitempty"`
 
-	// Branch Git branch to use
-	Branch *string `json:"branch,omitempty"`
+	// Key The key used to match the device's reported capabilities. For property selectors, this MUST be a JSON Pointer, as defined by RFC 6901, mapping to a specific property. For label selectors, this MUST be the exact label key.
+	Key string `json:"key"`
 
-	// SubPath Subdirectory within the repository containing the application description yaml (ex margo.yaml)
-	SubPath *string `json:"subPath,omitempty"`
+	// Operator Operator used to evaluate the referenced value.
+	Operator MatchExpressionOperator `json:"operator"`
 
-	// Tag Git tag to use (alternative to branch)
-	Tag *string `json:"tag,omitempty"`
-
-	// Url Git repository URL (only HTTPS is supported)
-	Url string `json:"url"`
-
-	// Username Git username for authentication
-	Username *string `json:"username,omitempty"`
-	union    json.RawMessage
+	// Values Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`, `Gt`, or `Lt` operator.
+	Values *[]interface{} `json:"values,omitempty"`
 }
 
-// GitRepo0 defines model for GitRepo.0.
-type GitRepo0 = interface{}
-
-// GitRepo1 defines model for GitRepo.1.
-type GitRepo1 = interface{}
-
-// HelmApplicationDeploymentProfileComponent Helm Application Deployment Profile Component
-type HelmApplicationDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name" yaml:"name"`
-	Properties struct {
-		// Repository Repository of the component
-		Repository string `json:"repository" yaml:"repository"`
-
-		// Revision Revision of the component
-		Revision string `json:"revision" yaml:"revision"`
-
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout" yaml:"timeout"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait" yaml:"wait"`
-	} `json:"properties" yaml:"properties"`
-}
-
-// HelmDeploymentProfileComponent Helm Application Deployment Profile Component
-type HelmDeploymentProfileComponent struct {
-	// Name Name of the component
-	Name       string `json:"name"`
-	Properties struct {
-		// Repository Repository of the component
-		Repository string `json:"repository"`
-
-		// Revision Revision of the component
-		Revision string `json:"revision"`
-
-		// Timeout Timeout for the component
-		Timeout *string `json:"timeout,omitempty"`
-
-		// Wait Wait for the component to be ready
-		Wait *bool `json:"wait,omitempty"`
-	} `json:"properties"`
-}
+// MatchExpressionOperator Operator used to evaluate the referenced value.
+type MatchExpressionOperator string
 
 // Metadata defines model for Metadata.
 type Metadata struct {
@@ -999,32 +1068,10 @@ type PaginationMetadata struct {
 	RemainingItemCount *int `json:"remainingItemCount,omitempty"`
 }
 
-// RequiredResources defines model for RequiredResources.
-type RequiredResources struct {
-	Cpu *struct {
-		// Architectures Supported CPU architectures
-		Architectures *[]string `json:"architectures" yaml:"architectures"`
-
-		// Cores Required CPU cores
-		Cores *float32 `json:"cores" yaml:"cores"`
-	} `json:"cpu" yaml:"cpu"`
-	Interfaces *[]struct {
-		// Type Interface type (e.g., ethernet, bluetooth)
-		Type *string `json:"type" yaml:"type"`
-	} `json:"interfaces" yaml:"interfaces"`
-
-	// Memory Required memory (e.g., "1024Mi")
-	Memory      *string `json:"memory" yaml:"memory"`
-	Peripherals *[]struct {
-		// Manufacturer Manufacturer requirement
-		Manufacturer *string `json:"manufacturer" yaml:"manufacturer"`
-
-		// Type Type of peripheral
-		Type *string `json:"type" yaml:"type"`
-	} `json:"peripherals" yaml:"peripherals"`
-
-	// Storage Required storage (e.g., "10Gi")
-	Storage *string `json:"storage" yaml:"storage"`
+// Selector A set of match expressions evaluated with AND semantics.
+type Selector struct {
+	// MatchExpressions Match expressions evaluated against the device's reported capabilities.
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
 }
 
 // ValidationError defines model for ValidationError.
@@ -1067,6 +1114,9 @@ type ListDevicesParams struct {
 
 	// Continue Token for pagination
 	Continue *string `form:"continue,omitempty" json:"continue,omitempty"`
+
+	// AppPackageId optional parameter for application package Id, when provided, marks eligible devices separately
+	AppPackageId *string `form:"appPackageId,omitempty" json:"appPackageId,omitempty"`
 }
 
 // CreateApplicationDeploymentJSONRequestBody defines body for CreateApplicationDeployment for application/json ContentType.
@@ -1075,48 +1125,22 @@ type CreateApplicationDeploymentJSONRequestBody = ApplicationDeploymentManifestR
 // OnboardAppPackageJSONRequestBody defines body for OnboardAppPackage for application/json ContentType.
 type OnboardAppPackageJSONRequestBody = ApplicationPackageManifestRequest
 
-// AsHelmApplicationDeploymentProfileComponent returns the union data inside the AppDeploymentProfile_Components_Item as a HelmApplicationDeploymentProfileComponent
-func (t AppDeploymentProfile_Components_Item) AsHelmApplicationDeploymentProfileComponent() (HelmApplicationDeploymentProfileComponent, error) {
-	var body HelmApplicationDeploymentProfileComponent
+// AsApplicationDeploymentProfileComponent returns the union data inside the AppDeploymentProfile_Components_Item as a ApplicationDeploymentProfileComponent
+func (t AppDeploymentProfile_Components_Item) AsApplicationDeploymentProfileComponent() (ApplicationDeploymentProfileComponent, error) {
+	var body ApplicationDeploymentProfileComponent
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromHelmApplicationDeploymentProfileComponent overwrites any union data inside the AppDeploymentProfile_Components_Item as the provided HelmApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) FromHelmApplicationDeploymentProfileComponent(v HelmApplicationDeploymentProfileComponent) error {
+// FromApplicationDeploymentProfileComponent overwrites any union data inside the AppDeploymentProfile_Components_Item as the provided ApplicationDeploymentProfileComponent
+func (t *AppDeploymentProfile_Components_Item) FromApplicationDeploymentProfileComponent(v ApplicationDeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeHelmApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided HelmApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) MergeHelmApplicationDeploymentProfileComponent(v HelmApplicationDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsComposeApplicationDeploymentProfileComponent returns the union data inside the AppDeploymentProfile_Components_Item as a ComposeApplicationDeploymentProfileComponent
-func (t AppDeploymentProfile_Components_Item) AsComposeApplicationDeploymentProfileComponent() (ComposeApplicationDeploymentProfileComponent, error) {
-	var body ComposeApplicationDeploymentProfileComponent
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromComposeApplicationDeploymentProfileComponent overwrites any union data inside the AppDeploymentProfile_Components_Item as the provided ComposeApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) FromComposeApplicationDeploymentProfileComponent(v ComposeApplicationDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeComposeApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided ComposeApplicationDeploymentProfileComponent
-func (t *AppDeploymentProfile_Components_Item) MergeComposeApplicationDeploymentProfileComponent(v ComposeApplicationDeploymentProfileComponent) error {
+// MergeApplicationDeploymentProfileComponent performs a merge with any union data inside the AppDeploymentProfile_Components_Item, using the provided ApplicationDeploymentProfileComponent
+func (t *AppDeploymentProfile_Components_Item) MergeApplicationDeploymentProfileComponent(v ApplicationDeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -1247,32 +1271,6 @@ func (t *ApplicationDeploymentSpec_DeviceRef) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// AsGitRepo returns the union data inside the ApplicationPackageSpec_Source as a GitRepo
-func (t ApplicationPackageSpec_Source) AsGitRepo() (GitRepo, error) {
-	var body GitRepo
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromGitRepo overwrites any union data inside the ApplicationPackageSpec_Source as the provided GitRepo
-func (t *ApplicationPackageSpec_Source) FromGitRepo(v GitRepo) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeGitRepo performs a merge with any union data inside the ApplicationPackageSpec_Source, using the provided GitRepo
-func (t *ApplicationPackageSpec_Source) MergeGitRepo(v GitRepo) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
 // AsOciRepo returns the union data inside the ApplicationPackageSpec_Source as a OciRepo
 func (t ApplicationPackageSpec_Source) AsOciRepo() (OciRepo, error) {
 	var body OciRepo
@@ -1309,48 +1307,22 @@ func (t *ApplicationPackageSpec_Source) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// AsHelmDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a HelmDeploymentProfileComponent
-func (t DeploymentExecutionProfile_Components_Item) AsHelmDeploymentProfileComponent() (HelmDeploymentProfileComponent, error) {
-	var body HelmDeploymentProfileComponent
+// AsDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a DeploymentProfileComponent
+func (t DeploymentExecutionProfile_Components_Item) AsDeploymentProfileComponent() (DeploymentProfileComponent, error) {
+	var body DeploymentProfileComponent
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromHelmDeploymentProfileComponent overwrites any union data inside the DeploymentExecutionProfile_Components_Item as the provided HelmDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) FromHelmDeploymentProfileComponent(v HelmDeploymentProfileComponent) error {
+// FromDeploymentProfileComponent overwrites any union data inside the DeploymentExecutionProfile_Components_Item as the provided DeploymentProfileComponent
+func (t *DeploymentExecutionProfile_Components_Item) FromDeploymentProfileComponent(v DeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeHelmDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided HelmDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) MergeHelmDeploymentProfileComponent(v HelmDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsComposeDeploymentProfileComponent returns the union data inside the DeploymentExecutionProfile_Components_Item as a ComposeDeploymentProfileComponent
-func (t DeploymentExecutionProfile_Components_Item) AsComposeDeploymentProfileComponent() (ComposeDeploymentProfileComponent, error) {
-	var body ComposeDeploymentProfileComponent
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromComposeDeploymentProfileComponent overwrites any union data inside the DeploymentExecutionProfile_Components_Item as the provided ComposeDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) FromComposeDeploymentProfileComponent(v ComposeDeploymentProfileComponent) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeComposeDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided ComposeDeploymentProfileComponent
-func (t *DeploymentExecutionProfile_Components_Item) MergeComposeDeploymentProfileComponent(v ComposeDeploymentProfileComponent) error {
+// MergeDeploymentProfileComponent performs a merge with any union data inside the DeploymentExecutionProfile_Components_Item, using the provided DeploymentProfileComponent
+func (t *DeploymentExecutionProfile_Components_Item) MergeDeploymentProfileComponent(v DeploymentProfileComponent) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -1368,169 +1340,5 @@ func (t DeploymentExecutionProfile_Components_Item) MarshalJSON() ([]byte, error
 
 func (t *DeploymentExecutionProfile_Components_Item) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsGitRepo0 returns the union data inside the GitRepo as a GitRepo0
-func (t GitRepo) AsGitRepo0() (GitRepo0, error) {
-	var body GitRepo0
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromGitRepo0 overwrites any union data inside the GitRepo as the provided GitRepo0
-func (t *GitRepo) FromGitRepo0(v GitRepo0) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeGitRepo0 performs a merge with any union data inside the GitRepo, using the provided GitRepo0
-func (t *GitRepo) MergeGitRepo0(v GitRepo0) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsGitRepo1 returns the union data inside the GitRepo as a GitRepo1
-func (t GitRepo) AsGitRepo1() (GitRepo1, error) {
-	var body GitRepo1
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromGitRepo1 overwrites any union data inside the GitRepo as the provided GitRepo1
-func (t *GitRepo) FromGitRepo1(v GitRepo1) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeGitRepo1 performs a merge with any union data inside the GitRepo, using the provided GitRepo1
-func (t *GitRepo) MergeGitRepo1(v GitRepo1) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t GitRepo) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	object := make(map[string]json.RawMessage)
-	if t.union != nil {
-		err = json.Unmarshal(b, &object)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if t.AccessToken != nil {
-		object["accessToken"], err = json.Marshal(t.AccessToken)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'accessToken': %w", err)
-		}
-	}
-
-	if t.Branch != nil {
-		object["branch"], err = json.Marshal(t.Branch)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'branch': %w", err)
-		}
-	}
-
-	if t.SubPath != nil {
-		object["subPath"], err = json.Marshal(t.SubPath)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'subPath': %w", err)
-		}
-	}
-
-	if t.Tag != nil {
-		object["tag"], err = json.Marshal(t.Tag)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'tag': %w", err)
-		}
-	}
-
-	object["url"], err = json.Marshal(t.Url)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'url': %w", err)
-	}
-
-	if t.Username != nil {
-		object["username"], err = json.Marshal(t.Username)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'username': %w", err)
-		}
-	}
-	b, err = json.Marshal(object)
-	return b, err
-}
-
-func (t *GitRepo) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	if err != nil {
-		return err
-	}
-	object := make(map[string]json.RawMessage)
-	err = json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["accessToken"]; found {
-		err = json.Unmarshal(raw, &t.AccessToken)
-		if err != nil {
-			return fmt.Errorf("error reading 'accessToken': %w", err)
-		}
-	}
-
-	if raw, found := object["branch"]; found {
-		err = json.Unmarshal(raw, &t.Branch)
-		if err != nil {
-			return fmt.Errorf("error reading 'branch': %w", err)
-		}
-	}
-
-	if raw, found := object["subPath"]; found {
-		err = json.Unmarshal(raw, &t.SubPath)
-		if err != nil {
-			return fmt.Errorf("error reading 'subPath': %w", err)
-		}
-	}
-
-	if raw, found := object["tag"]; found {
-		err = json.Unmarshal(raw, &t.Tag)
-		if err != nil {
-			return fmt.Errorf("error reading 'tag': %w", err)
-		}
-	}
-
-	if raw, found := object["url"]; found {
-		err = json.Unmarshal(raw, &t.Url)
-		if err != nil {
-			return fmt.Errorf("error reading 'url': %w", err)
-		}
-	}
-
-	if raw, found := object["username"]; found {
-		err = json.Unmarshal(raw, &t.Username)
-		if err != nil {
-			return fmt.Errorf("error reading 'username': %w", err)
-		}
-	}
-
 	return err
 }

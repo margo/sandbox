@@ -1,5 +1,4 @@
-apiVersion: margo.org/v1-alpha1
-kind: ApplicationDescription
+apiVersion: v1
 id: nextcloud-stack
 metadata:
   name: Nextcloud Stack
@@ -30,6 +29,24 @@ deploymentProfiles:
           revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
           timeout: 5m
+    deviceConstraints:
+      capacityRequirements:
+        cpu:
+          cores: 1
+          architectures: ["amd64"]
+        memory: 4Gi
+        storage: 10Gi
+      eligibilityRules:
+        - propertySelector:
+            matchExpressions:
+              - key: /supportedDeploymentTypes
+                operator: In
+                values:
+                  - "compose"
+              - key: /supportedRuntimes
+                operator: In
+                values:
+                  - "oci"
 parameters:
   mysqlDatabase:
     value: nextcloud

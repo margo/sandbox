@@ -165,11 +165,9 @@ start_device_agent_docker_service() {
   echo 'Starting workload-fleet-management-client...'
   cd "$HOME/sandbox/docker-compose"
   mkdir -p config
-  cp -r ../poc/device/agent/config/* ./config/
 
   if compgen -G "$HOME/sandbox/poc/device/agent/config/compose-identity/*" > /dev/null && \
-    compgen -G "$HOME/sandbox/poc/device/agent/config/mis/*" > /dev/null && \
-    [ -f "$HOME/sandbox/poc/device/agent/config/authorized.json" ]; then
+    compgen -G "$HOME/sandbox/poc/device/agent/config/mis/*" > /dev/null; then
 
       # Ensure target directories exist before copying
       mkdir -p ./config/identity ./config/mis

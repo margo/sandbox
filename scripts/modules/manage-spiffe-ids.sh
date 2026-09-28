@@ -70,21 +70,19 @@ _manage_spiffe_ids_menu() {
 
     if [[ "$role" == "wfm" ]]; then
       echo "What would you like to do?"
-      echo "  1) ➕ Add SPIFFE ID"
-      echo "  2) ✏️  Edit SPIFFE ID"
-      echo "  3) 🔙 Back"
+      echo "  1) ✏️  Set SPIFFE ID"
+      echo "  2) 🔙 Back"
       echo ""
-      read -rp "Enter choice [1-3]: " action
+      read -rp "Enter choice [1-2]: " action
 
       case "$action" in
-        1) _spiffe_add_entries "$json_file" "$role" ;;
-        2) _spiffe_edit_entry "$json_file" ;;
-        3)
+        1) _spiffe_set_wfm_entry "$json_file" ;;
+        2)
           echo "[INFO] 🔙 Returning to previous menu."
           return 0
           ;;
         *)
-          echo "[WARN] ⚠️  Invalid choice. Please enter 1, 2, or 3."
+          echo "[WARN] ⚠️  Invalid choice. Please enter 1 or 2."
           ;;
       esac
     else
@@ -108,6 +106,57 @@ _manage_spiffe_ids_menu() {
       esac
     fi
   done
+}
+
+
+
+# --- Set WFM entry (add if empty, replace if exists) ---
+_spiffe_set_wfm_entry() {
+  local json_file="$1"
+
+  local count
+  count=$(jq 'length' "$json_file")
+
+  echo ""
+  if [[ "$count" -gt 0 ]]; then
+    local current_id
+    current_id=$(jq -r '.[0]' "$json_file")
+    echo "✏️  Current WFM SPIFFE ID: $current_id"
+    echo "   💡 Tip: Entering a new value will replace the existing entry."
+  else
+    echo "➕ No WFM SPIFFE ID configured yet."
+    echo "   💡 Tip: The entered value will be set as the WFM SPIFFE ID."
+  fi
+
+  echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+  read -rp "   Enter SPIFFE ID: " new_id
+
+  new_id="$(echo "$new_id" | xargs)"  # trim whitespace
+
+  if [[ -z "$new_id" ]]; then
+    echo "[WARN] ⚠️  No SPIFFE ID provided. Nothing changed."
+    return 0
+  fi
+
+  if [[ "$count" -gt 0 ]]; then
+    local current_id
+    current_id=$(jq -r '.[0]' "$json_file")
+
+    if [[ "$new_id" == "$current_id" ]]; then
+      echo "[INFO] ⏭️  Entered SPIFFE ID is the same as the current one. Nothing changed."
+      return 0
+    fi
+
+    # Replace entire array with only the new entry
+    echo "[\"$new_id\"]" | jq '.' > "$json_file"
+    echo "[INFO] ✅ Updated WFM SPIFFE ID:"
+    echo "         Old: $current_id"
+    echo "         New: $new_id"
+  else
+    # File was empty — set the entry
+    echo "[\"$new_id\"]" | jq '.' > "$json_file"
+    echo "[INFO] ✅ Set WFM SPIFFE ID: $new_id"
+  fi
 }
 
 # --- Add entries ---

@@ -89,7 +89,7 @@ See Part 7 for the migration plan.
 | **media type / MIME type** | A string that says "what kind of bytes these are" so the receiver parses them correctly. Sent in `Content-Type` / `Accept`. Margo defines its own. | `application/vnd.margo.manifest.v1+json`, `application/vnd.margo.bundle.v1+tar+gzip`, `application/yaml`, `application/problem+json` |
 | **ETag** | A short server‑issued token identifying *this exact version* of a resource. In Margo it is the resource's digest, quoted. The client sends it back in `If-None-Match` to ask "changed since this?". | Response: `ETag: "sha256:9f86…a08"`. Next request: `If-None-Match: "sha256:9f86…a08"` → `304 Not Modified` if unchanged. |
 | **conditional GET / 304** | A GET that says "only send the body if it changed" (via `If-None-Match`). If unchanged the server returns `304 Not Modified` with **no body** — saves bandwidth on polling. | Device polls `/deployments` every 15 s; 99% of the time gets a bodiless `304`. |
-| **`Cache-Control: immutable`** | HTTP header meaning "this will never change, cache it forever." Correct for content‑addressed blobs (a digest URL's bytes can't change). **Wrong** for the manifest (its `manifestVersion` increments over time). | Bundle response: `Cache-Control: public, max-age=31536000, immutable` ✅. Manifest response with `immutable` ❌ (MI‑035 forbids it). |
+| **`Cache-Control: immutable`** | HTTP header meaning "this will never change, cache it forever." Correct for content‑addressed blobs (a digest URL's bytes can't change). **Wrong** for the manifest (its `manifestVersion` increments over time). | Bundle response: `Cache-Control: private, max-age=31536000, immutable` ✅. Manifest response with `immutable` ❌ (MI‑035 forbids it). |
 | **`manifestVersion`** | A monotonic 64‑bit counter on the desired‑state manifest. Every new manifest for a client has a strictly greater value. Stops a device from rolling back to a stale/replayed manifest. | Manifest goes `1 → 2 → 3`; a device that has `3` must reject a manifest claiming `2`. |
 | **`adoptedManifestVersion`** | *(new in rc.2 status API)* The manifest version the device has actually **taken up and started applying** — reported back in every status update so the WFM knows how far the device has caught up. Independent of success/failure. | WFM publishes v5; device is still applying v4 → device reports `adoptedManifestVersion: 4`. |
 | **`application/problem+json` (RFC 9457)** | The standard error body shape: `{ type, title, status, detail, instance }` plus Margo extensions `retryable`, `backoffStrategy`, `errors[]`. Replaces ad‑hoc `{"Error": "..."}`. | `{ "type": "https://docs.margo.org/specification/problem-types#semantic-error", "title": "Semantic Error", "status": 422, "errors": [ … ] }` |
@@ -387,8 +387,13 @@ plus `retryable`, `backoffStrategy` (`none|fixed|exponential`),
 and use the `retryable` field, not the status code, to decide whether to retry.
 
 **Caching / compression:** `ETag` + `If-None-Match` → `304`; `Cache-Control:
-public, max-age=31536000, immutable` on digest‑addressed responses only (never the
-manifest); `Accept-Encoding` / `Vary: Accept-Encoding` now in scope (gzip/br MAY).
+private, max-age=31536000, immutable` on digest‑addressed responses only (never the
+manifest, which gets plain `Cache-Control: private`); `Accept-Encoding` /
+`Vary: Accept-Encoding` now in scope (gzip/br MAY). **Corrected 2026‑09‑28:**
+confirmed against `standard/snapshot.spec.yaml` on `feature/miaf` — the directive
+is `private`, not `public` (an earlier draft of this doc had this backwards; our
+own `device-supplier` mock had the same bug, fixed the same day — see
+`SYMPHONY_WFM_CONFORMANCE_GAPS.md` for whether Symphony itself gets this right).
 
 **What is *gone*:** `POST /onboarding`, `GET /onboarding/certificate`,
 `/clients/{clientId}/…` prefix, `Signature`, `Signature-Input`, `Content-Digest`

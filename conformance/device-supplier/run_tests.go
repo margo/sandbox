@@ -97,6 +97,12 @@ type TestStep struct {
 	// Together they cover MI-018.
 	VerifyTLS            bool `json:"verify_tls,omitempty"`
 	ExpectTransportError bool `json:"expect_transport_error,omitempty"`
+	// MTLS: MIAF transport — present this suite's client SVID
+	// (certDir/svid-{cert,key}.pem) and verify the WFM's SVID against
+	// certDir/svid-ca.pem, instead of RFC 9421 signing. See mtlsClient() in
+	// signing.go. Mutually exclusive with SkipSigning/SigningKey/VerifyTLS,
+	// which are all RFC-9421-flow concepts that don't apply under MIAF.
+	MTLS bool `json:"mtls,omitempty"`
 }
 
 type StepValidation struct {
@@ -397,9 +403,10 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 	req.Header.Set("Content-Type", "application/json")
 
 	// RFC 9421: sign all requests (adds Signature-Input, Signature, Content-Digest)
-	// unless skip_signing is true. Signing key/algorithm come from the step, then
-	// the scenario, then the default device key.
-	if !step.SkipSigning {
+	// unless skip_signing is true, or this step uses MIAF transport instead
+	// (mtls: true) — MIAF has no per-request signing at all, auth is the mTLS
+	// handshake itself (see mtlsClient() below).
+	if !step.SkipSigning && !step.MTLS {
 		keyPath := firstNonEmpty(step.SigningKey, ctxString(ctx, "_signingKey"), getDeviceKeyPath())
 		alg := firstNonEmpty(step.SigningAlgorithm, ctxString(ctx, "_signingAlgorithm"))
 		if err := signRequest(req, bodyBytes, keyPath, alg); err != nil {
@@ -416,9 +423,18 @@ func executeStep(step TestStep, ctx *TestContext) TestResult {
 
 	// Execute request. Default client skips TLS verification (self-signed mock
 	// cert); verify_tls swaps in a client that checks the server cert against
-	// the fetched root CA (MI-018).
+	// the fetched root CA (MI-018); mtls swaps in a client that presents our
+	// SVID and verifies the WFM's SVID against the trust bundle CA (MIAF).
 	client := tlsSkipClient()
-	if step.VerifyTLS {
+	if step.MTLS {
+		mc, mcErr := mtlsClient()
+		if mcErr != nil {
+			result.Status = "fail"
+			result.Reason = fmt.Sprintf("could not build mTLS client: %v", mcErr)
+			return result
+		}
+		client = mc
+	} else if step.VerifyTLS {
 		vc, vcErr := caVerifyingClient()
 		if vcErr != nil {
 			result.Status = "fail"
@@ -614,6 +630,15 @@ func waitForServer(timeout time.Duration) bool {
 	if parsed, err := url.Parse(WFMServer); err == nil && parsed.Host != "" {
 		healthURL = parsed.Scheme + "://" + parsed.Host + "/health"
 	}
+	// A MIAF listener requires a client certificate for every connection, at
+	// the TLS handshake itself — the plain client above can never reach it,
+	// authenticated or not. If an SVID is present, fall back to presenting it
+	// so readiness-probing a MIAF target doesn't spuriously time out.
+	var mtls *http.Client
+	if mc, mcErr := mtlsClient(); mcErr == nil {
+		mtls = mc
+	}
+
 	deadline := time.Now().Add(timeout)
 	for {
 		resp, err := client.Get(healthURL)
@@ -623,6 +648,14 @@ func waitForServer(timeout time.Duration) bool {
 		}
 		if resp != nil {
 			resp.Body.Close()
+		}
+		if mtls != nil {
+			if resp, err := mtls.Get(healthURL); err == nil {
+				resp.Body.Close()
+				if resp.StatusCode == 200 {
+					return true
+				}
+			}
 		}
 		if time.Now().After(deadline) {
 			return false

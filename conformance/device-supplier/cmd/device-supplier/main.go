@@ -1162,7 +1162,7 @@ func handleGetBundle(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/vnd.margo.bundle.v1+tar+gzip")
 	w.Header().Set("ETag", quoteETag(digest))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.WriteHeader(200)
 	w.Write(bundleBytes)
 }
@@ -1222,7 +1222,7 @@ func handleGetDeploymentManifest(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("ETag", quoteETag(digest))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.Header().Set("Vary", "Accept-Encoding")
 	w.WriteHeader(200)
 	w.Write(yamlBytes)
@@ -1781,6 +1781,10 @@ func main() {
 	// the WFM server certificate against the fetched root CA MUST refuse to
 	// connect here. Best-effort — skipped if the untrusted cert isn't present.
 	go serveUntrustedTLS(router)
+
+	// MIAF (mTLS/SPIFFE) listener — the new-spec transport, see miaf_server.go.
+	// Opt-in via MIAF_SERVER_CERT/KEY/TRUST_CA; a no-op otherwise.
+	startMIAFServer(router)
 
 	log.Printf("🚀 Mock WFM Server starting on https://localhost%s", WFMPort)
 	if err := http.ListenAndServeTLS(WFMPort, certFile, keyFile, router); err != nil {

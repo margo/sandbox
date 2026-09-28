@@ -1,5 +1,29 @@
 # Symphony WFM — Conformance Gaps
 
+## MIAF / SBI flow (rc.2, mTLS) — 2026-09-25
+
+**Suite:** wfm-supplier `wfm-core` group (`testcases/wfm-core/wfm-core.json`, the MIAF-era all-declarative
+replacement for the Postman collection below — see CONFORMANCE_FLOWS_AND_MIAF_MIGRATION.md §7.2)
+**Target WFM:** `https://symphony.machine:8084/v1alpha2/margo` (the new SBI/mTLS port, not the legacy `:8082` NBI port)
+**Run date:** 2026-09-25 &nbsp;·&nbsp; **Result:** 3 / 8 pass, 5 fail
+**Auth:** a real MIS-minted X.509-SVID (`spiffe://margo.org/margo/wfm/symphony-1/client/margo-ctt`), registered in Symphony's
+own accepted-client allowlist — a genuinely conformant caller, not a malformed-request artifact.
+
+| # | Area | Test case | Expected (per spec) | Symphony returned | Detail |
+|---|------|-----------|:--------:|:-----------------:|--------|
+| 1 | **Capabilities — create vs update status code** | `PUT /capabilities/{deviceId}` a second time for the same deviceId | `200` (Part 5.4: "200 updated / 201 created") | **`201`** | Symphony always returns `201`, never distinguishes update from create. |
+| 2 | **Capabilities — enum validation** | `PUT` capabilities with an invalid `supportedDeploymentTypes` value (`docker-swarm`) | `422` | **`201`** | Accepted without validation — same root cause as the pre-MIAF flow's gap #2 below; carried over into the new transport unchanged. |
+| 3 | **Capabilities — enum validation** | `PUT` capabilities with an invalid `supportedRuntimes` value (`containerd-direct`) | `422` | **`201`** | Same as above (`supportedRuntimes`). |
+| 4 | **Desired state — default content negotiation** | `GET /deployments` with **no `Accept` header** | `200` + manifest media type (MI-007) | **`400`** | Same *family* of gap as the pre-MIAF flow's #9, but the status code differs (`400` now vs `500` then) — worth confirming with the team whether this was intentionally partially fixed or is coincidental. |
+| 5 | **Status reporting — unknown deployment error handling** | `POST /deployments/{id}/status` for a deploymentId the WFM doesn't know about | A well-typed `4xx` (e.g. `404`) | **`500`**, `type: "about:blank"` | Raw response: `{"detail":"failed to update deployment status: deployment not found: failed to get deployment 'wfm-core-test-deployment': Not Found: state wfm-core-test-deployment not found","status":500,"title":"Internal Server Error","type":"about:blank"}` — the error is correctly *identified* internally (it's a 404-shaped condition) but surfaced as a generic `500` with a non-descriptive RFC 9457 `type`. |
+| 6 | **Caching — `Cache-Control` directive on the manifest response** | `GET /deployments` — `Cache-Control` header | `private` (no `immutable`; MI-035) | **`public, max-age=31536000, immutable`** | Confirmed 2026-09-28, re-verified directly against `standard/snapshot.spec.yaml` on `feature/miaf`: every digest-addressed response (`/bundles/{digest}`, `/deployments/{id}/{digest}`) MUST say `private, max-age=31536000, immutable`, and the manifest endpoint itself MUST say plain `private` with no `immutable` at all. Symphony gets both wrong on the manifest endpoint — wrong directive (`public`) AND the already-known `immutable`-on-a-mutable-resource violation, in the same header. Our own `device-supplier` mock had the identical `public`-vs-`private` bug; fixed the same day (`cmd/device-supplier/main.go` + `miaf_server.go`). |
+
+**Takeaway:** the capabilities-enum-validation gap (#2/#3) and the Accept-header-negotiation gap (#4) both existed in the pre-MIAF flow too (see gaps #2/#3 and #9 below) — they carried over into the new SBI/mTLS transport unchanged, meaning this is a request-body/content-negotiation validation gap independent of the auth-model migration, not something MIAF fixed or introduced. #1 and #5 are new observations specific to the new status-code/error-shape contract MIAF's spec update introduced (create-vs-update, and the general move to RFC 9457 problem+json).
+
+---
+
+## RFC 9421 / pre-MIAF flow — 2026-09-09
+
 **Suite:** wfm-supplier `core` group (`testcases/wfm-core/postman_collection.json`)
 **Target WFM:** `https://symphony.machine:8082/v1alpha2/margo`
 **Run date:** 2026-09-09 &nbsp;·&nbsp; **Result:** 10 / 31 pass, 21 fail

@@ -18,9 +18,22 @@ import (
 // Add a rule here + a matching negative fixture on the mock
 // (cmd/device-supplier/negative_fixtures.go) to cover another requirement.
 
-// signedGET issues an RFC 9421-signed GET and returns status + body, fetching a
-// manifest artifact exactly the way a device client would.
+// signedGET fetches a manifest artifact exactly the way a device client would:
+// over mTLS (no per-request signing) if this suite's SVID is configured — the
+// case whenever the calling step used mtls:true, since the manifest it's
+// evaluating could only have been fetched under MIAF in the first place — or
+// else with an RFC 9421-signed GET for the legacy flow.
 func signedGET(endpoint string) (int, []byte, error) {
+	if mc, err := mtlsClient(); err == nil {
+		resp, err := mc.Get(WFMServer + endpoint)
+		if err != nil {
+			return 0, nil, err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, body, nil
+	}
+
 	req, err := http.NewRequest("GET", WFMServer+endpoint, nil)
 	if err != nil {
 		return 0, nil, err

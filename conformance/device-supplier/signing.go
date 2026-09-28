@@ -78,6 +78,56 @@ func caVerifyingClient() (*http.Client, error) {
 	}, nil
 }
 
+// mtlsClient returns an HTTP client that presents this suite's own X.509-SVID
+// (certDir/svid-cert.pem + svid-key.pem) and verifies the WFM's SVID against
+// certDir/svid-ca.pem — the MIAF transport (mutual TLS), replacing RFC 9421
+// signing entirely for steps that opt in via "mtls": true. See
+// CONFORMANCE_FLOWS_AND_MIAF_MIGRATION.md Part 5.3/7.1. Loaded fresh per call
+// like caVerifyingClient, for the same reason: cheap, and never on a hot path.
+func mtlsClient() (*http.Client, error) {
+	certPath := filepath.Join(certDir, "svid-cert.pem")
+	keyPath := filepath.Join(certDir, "svid-key.pem")
+	caPath := filepath.Join(certDir, "svid-ca.pem")
+
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("load SVID from %s/%s: %w", certPath, keyPath, err)
+	}
+	caPEM, err := os.ReadFile(caPath)
+	if err != nil {
+		return nil, fmt.Errorf("read trust bundle CA %s: %w", caPath, err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("%s is not a valid certificate", caPath)
+	}
+	// InsecureSkipVerify + a custom VerifyPeerCertificate: an X.509-SVID's
+	// identity lives entirely in the URI SAN (spiffe://...), never a DNS/IP
+	// SAN, so Go's default hostname verification always fails against one —
+	// the same reason run_wfm_scenarios.js's request() sets
+	// rejectUnauthorized: false. We still cryptographically verify the peer's
+	// chain against the trust bundle CA, just without the hostname check.
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true, //nolint:gosec // chain is verified manually below; only hostname checking is skipped
+			MinVersion:         tls.VersionTLS12,
+			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+				if len(rawCerts) == 0 {
+					return fmt.Errorf("no server certificate presented")
+				}
+				leaf, err := x509.ParseCertificate(rawCerts[0])
+				if err != nil {
+					return fmt.Errorf("parse server certificate: %w", err)
+				}
+				_, err = leaf.Verify(x509.VerifyOptions{Roots: pool})
+				return err
+			},
+		}},
+	}, nil
+}
+
 // loadPrivateKey loads and parses a PEM private key from path.
 func loadPrivateKey(keyPath string) (interface{}, error) {
 	data, err := os.ReadFile(keyPath)

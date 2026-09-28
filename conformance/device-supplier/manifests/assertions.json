@@ -67,22 +67,6 @@
       "validation_error_key": "unprocessable",
       "validations": [
         {
-          "rule_id": "capabilities-001",
-          "field": "apiVersion",
-          "type": "string",
-          "required": true,
-          "value": "device.margo.org/v1alpha1",
-          "description": "apiVersion must be exactly 'device.margo.org/v1alpha1'"
-        },
-        {
-          "rule_id": "capabilities-002",
-          "field": "kind",
-          "type": "string",
-          "required": true,
-          "value": "DeviceCapabilitiesManifest",
-          "description": "kind must be exactly 'DeviceCapabilitiesManifest'"
-        },
-        {
           "rule_id": "capabilities-003",
           "field": "properties",
           "type": "object",
@@ -125,7 +109,7 @@
           "rule_id": "capabilities-008",
           "field": "properties.cpus",
           "type": "array",
-          "required": true,
+          "required": false,
           "itemsType": "object",
           "description": "properties.cpus is required and must be an array of CPU objects"
         },
@@ -154,7 +138,7 @@
           "rule_id": "capabilities-011",
           "field": "properties.memory",
           "type": "string",
-          "required": true,
+          "required": false,
           "minLength": 1,
           "description": "properties.memory is required"
         },
@@ -162,7 +146,7 @@
           "rule_id": "capabilities-012",
           "field": "properties.storage",
           "type": "string",
-          "required": true,
+          "required": false,
           "minLength": 1,
           "description": "properties.storage is required"
         },
@@ -170,7 +154,7 @@
           "rule_id": "capabilities-013",
           "field": "properties.interfaces",
           "type": "array",
-          "required": true,
+          "required": false,
           "itemsType": "object",
           "description": "properties.interfaces is required and must be an array of interface objects"
         },
@@ -178,7 +162,7 @@
           "rule_id": "capabilities-014",
           "field": "properties.interfaces.*.type",
           "type": "string",
-          "required": true,
+          "required": false,
           "requiredIf": "properties.interfaces",
           "enum": [
             "ethernet",
@@ -195,7 +179,7 @@
           "rule_id": "capabilities-015",
           "field": "properties.peripherals",
           "type": "array",
-          "required": true,
+          "required": false,
           "itemsType": "object",
           "description": "properties.peripherals is required and must be an array of peripheral objects"
         },
@@ -203,7 +187,7 @@
           "rule_id": "capabilities-016",
           "field": "properties.peripherals.*.type",
           "type": "string",
-          "required": true,
+          "required": false,
           "requiredIf": "properties.peripherals",
           "enum": [
             "gpu",
@@ -218,14 +202,14 @@
           "rule_id": "capabilities-017",
           "field": "properties.otelCollector",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "description": "properties.otelCollector is required"
         },
         {
           "rule_id": "capabilities-018",
           "field": "properties.supportedRuntimes",
           "type": "array",
-          "required": true,
+          "required": false,
           "minItems": 1,
           "itemsType": "string",
           "itemsEnum": [
@@ -237,7 +221,7 @@
           "rule_id": "capabilities-019",
           "field": "properties.supportedDeploymentTypes",
           "type": "array",
-          "required": true,
+          "required": false,
           "minItems": 1,
           "itemsType": "string",
           "itemsEnum": [
@@ -263,22 +247,6 @@
       "status_code": 200,
       "validation_error_key": "unprocessable",
       "validations": [
-        {
-          "rule_id": "status-001",
-          "field": "apiVersion",
-          "type": "string",
-          "required": true,
-          "value": "deployment.margo.org/v1alpha1",
-          "description": "apiVersion must be exactly 'deployment.margo.org/v1alpha1'"
-        },
-        {
-          "rule_id": "status-002",
-          "field": "kind",
-          "type": "string",
-          "required": true,
-          "value": "DeploymentStatusManifest",
-          "description": "kind must be exactly 'DeploymentStatusManifest'"
-        },
         {
           "rule_id": "status-003",
           "field": "deploymentId",

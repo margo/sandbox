@@ -2676,7 +2676,7 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
       "type": "text/plain",
-      "content": "Postman/Portman-format WFM Supplier conformance collection. Superset of the baseline 'Margo Workload Management API' collection (testcases/user1): all endpoint items and their documented response codes, PLUS core edge/negative cases not exercised by the other groups \u2014 invalid supportedDeploymentTypes / supportedRuntimes enum values (must be 422) and default content negotiation when the client omits the Accept header (must be 200 with the manifest media type). Replaces the earlier declarative testcases/wfm-core/core.json."
+      "content": "[PRE-MIAF / RFC-9421 flow \u2014 see wfm-core.json for the MIAF (mTLS) all-declarative replacement, CONFORMANCE_FLOWS_AND_MIAF_MIGRATION.md \u00a77.2] Postman/Portman-format WFM Supplier conformance collection. Superset of the baseline 'Margo Workload Management API' collection (testcases/user1): all endpoint items and their documented response codes, PLUS core edge/negative cases not exercised by the other groups \u2014 invalid supportedDeploymentTypes / supportedRuntimes enum values (must be 422) and default content negotiation when the client omits the Accept header (must be 200 with the manifest media type). Replaces the earlier declarative testcases/wfm-core/core.json."
     }
   }
 }

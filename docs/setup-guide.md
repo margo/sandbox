@@ -6,7 +6,7 @@
 **Three Virtual Machines:**
 | VM Type | Processors(vCPU) | Memory | Storage | Purpose |
 |---------|-----------|--------|---------|---------|
-| **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager |
+| **Main VM (WFM)** | 8 | 16GB | 100GB | Workload Fleet Manager as well as Margo Identity Service  |
 | **Device VM 1 (Helm-capable device)** | 4 | 4-8GB | 50GB | Kubernetes-based device |
 | **Device VM 2 (Compose-capable device)** | 4 | 4-8GB | 50GB | Docker-based device |
 
@@ -17,13 +17,13 @@
 - All VMs must be able to talk to each other (same network with static IP addresses)
 - VM hostnames must be lowercase.
 
-> Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the WFM and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
+> Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the Main and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
 
 
 ## Step 1: Get the Setup Files
 
-You need to download the setup files to all three VMs. Follow these steps on **each VM**:
+You need to download the setup files to all 3 VMs. Follow these steps on **each VM**:
 
 1. **Open Terminal**
    - On your WFM VM, open the terminal/command line application
@@ -76,6 +76,7 @@ On each VM, you need to configure environment variables (settings that tell the 
       ```bash
       <ip-address-of-the-wfm-machine> symphony.machine
       <ip-address-of-the-harbor-machine> harbor.machine
+      <ip-address-of-the-mis-machine> mis.margo.org #just an example, should be same as EXPOSED_MIS_HOST in mis.env
       ```
       your file would look something like this:
       ```bash
@@ -88,9 +89,10 @@ On each VM, you need to configure environment variables (settings that tell the 
 
       192.11.11.11 symphony.machine # <---- newly appended line here with ip
       192.11.11.11 harbor.machine # <--- newly appended line with ip
+      192.11.11.11 mis.margo.org # <--- newly appended line with ip
       ```
 
-🔴 **Important:** Complete this step on all three VMs before proceeding.
+🔴 **Important:** Complete these steps on all 3 VMs before proceeding.
 
 ---
 
@@ -100,6 +102,114 @@ On each VM, you need to configure environment variables (settings that tell the 
    toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit```. This is because docker allows certain number of anonymous image pulls in a day, and yours have exhausted. Please login using your dockerhub account. The command to do so is: `docker login -u <your-dockerhub-account-name>` , then it'll ask for the password once you execute this command.
 
 ### On the WFM VM:
+
+> **Note:** Margo Identity Service(MIS) is installed on WFM VM. This can be installed on a separate VM.
+
+#### Build and Run MIS
+
+1. **Navigate to the scripts folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts
+   ```
+
+2. **Install Basic Tools**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - A menu will appear
+   - Type `1` and press Enter
+   - Choose: `Option 1: PreRequisites: Setup`
+
+   This installs everything needed like Docker and other tools. This may take 1-5 minutes.
+
+3. **Generate Root CAs for HTTPS server and for minting SVIDs for principals**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - A menu will appear
+   - Type `3` and press Enter
+   - Choose: `Option 3: Factory Bootstrap: Generate Root CAs`
+
+   It will place Root CAs in `$HOME/mis-deployment/certs`
+   These are the files and their use cases:
+
+   | File Path | Description |
+   |-----------|-------------|
+   | `$HOME/mis-deployment/certs/https-ca.key` | Private key of the self-signed HTTPS Root CA. Used to sign the HTTPS Normative Server certificate (`https-server.crt`). |
+   | `$HOME/mis-deployment/certs/https-ca.crt` | Self-signed HTTPS Root CA certificate (valid for 10 years). Acts as the trust anchor for TLS clients and is used to validate the HTTPS Normative Server certificate (`https-server.crt`). |
+   | `$HOME/mis-deployment/certs/https-server.key` | Private key corresponding to the HTTPS Normative Server certificate (`https-server.crt`). Used by the HTTPS Normative Server during TLS handshakes. |
+   | `$HOME/mis-deployment/certs/https-server.crt` | Server certificate for the HTTPS Normative Server (valid for 1 year), signed by the HTTPS Root CA (`https-ca.crt` / `https-ca.key`). Presented to clients during TLS connections. |
+   | `$HOME/mis-deployment/certs/ca.key` | Private key of the self-signed SVID Root CA. Used by the SVID generator to sign X.509 SVID certificates. |
+   | `$HOME/mis-deployment/certs/ca.crt` | Self-signed SVID Root CA certificate (valid for 10 years). Serves as the trust anchor for X.509 SVIDs minted by the SVID generator using SPIFFE IDs. |
+
+   The script also verifies the generated chain and prints a summary on completion.
+
+   >Note: Docker image for Margo Identity Service has been already built and pushed to Margo GHCR registry from where the below script pull the image and starts MIS.
+
+3. **Start the Margo Identity Service**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - Type `4` and press Enter
+   - Choose: `Option 4:  Margo Identity Service: Install`
+
+   This starts the Margo Identity Service.
+
+4. **Verify the Margo Identity Service Is Running Correctly**
+   ```bash
+   sudo docker logs -f margo-identity-service
+   ```
+   You should see log messages indicating the service is running. Press `Ctrl+C` to exit.
+
+
+### Generate X.509-SVIDs for WFM and WFM client
+
+1. **Navigate to the scripts folder**
+   ```bash
+   cd $HOME/workspace/sandbox/scripts
+   ```
+
+2. **Generate SVIDs interactively for both WFM and WFM client**
+   ```bash
+    sudo -E bash mis.sh
+   ```
+   - A menu will appear
+   - Type `6` and press Enter
+   - Choose: `Option 6: Generate SVID`
+
+   This step produces below files at the path `$HOME/workspace/sandbox/scripts`
+
+   Default trust domain is picked up from mis.env (refer to [Environment Variables Setup Guide](../docs/env-setup.md)) 
+
+   **For WFM**
+   ```
+   STEP: Principal Selection: Select the principal for which to generate, Enter option 1)
+
+   $HOME/workspace/sandbox/scripts/x509svid-wfm
+   -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
+   -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
+   ```
+   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
+
+   **For WFM Client**
+   ```
+    STEP: Principal Selection: Select the principal for which to generate, Enter option 2)
+
+   🔴 This needs to be ran twice; for `Compose-capable device` and for `Helm-capable device`. Same steps can be used to generate as SVIDs for as many devices as required. 
+
+   $HOME/workspace/sandbox/scripts/x509svid-wfm-docker-client
+   -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
+   -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
+
+   $HOME/workspace/sandbox/scripts/x509svid-wfm-helm-client
+   -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
+   -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
+   ```
+   >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
+   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
+
+
+#### Build and Run WFM(Symphony)
 
 1. **Navigate to the scripts folder**
    ```bash
@@ -116,8 +226,29 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This installs everything needed like Redis, Docker, Helm, and other tools. This may take 10-15 minutes.
 
+   > Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
-3. **Start the Workload Fleet Manager**
+3. **Copy WFM SVIDs and MIS HTTPS server CA**
+   ```bash
+   cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
+   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
+   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
+   ```
+   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. 
+
+4. **Add WFM Client SPIFFE IDs as authorised clients interactively**
+
+   This step acts as local authorization policy to allow/disallow wfm clients to connect with WFM(symphony). Add SpiffeIDs of WFM Client (Both Docker & Helm capable Device) to enable communication when device clients are started.
+   ```bash
+    sudo -E bash wfm.sh
+   ```
+   - A menu will appear
+   - Type `7` and press Enter
+   - Choose: `Option 7: Manage SPIFFE ID allowlist`
+
+   Follow the steps interactively to add SPIFFE IDs of WFM Clients. These should be same as SPIFFE ID used to generate SVID for those WFM Clients. Use default path for file containing authorized clients, unless explicitly changed. 
+
+5. **Start the Workload Fleet Manager**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -125,9 +256,9 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 3: Symphony Start`
 
    This starts the Workload Fleet Manager service.
-> Note: Docker image for Workload Fleet Manager has been already built and pushed using CI pipeline to Margo GHCR registry from where the below script pull the image and starts WFM.
 
-4. **Add Monitoring Tools**
+
+6. **Add Monitoring Tools**
    ```bash
     sudo -E bash wfm.sh
    ```
@@ -136,7 +267,7 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This adds tools to monitor workloads observability.
 
-5. **Verify the Workload Fleet Manager Is Running Correctly**
+7. **Verify the Workload Fleet Manager Is Running Correctly**
    ```bash
    sudo docker logs -f symphony-api-container
    ```
@@ -148,35 +279,44 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 ### On Each Device VM:
 
-1. **Copy Security Files Between VMs ( Both WFM's and Harbor's to Device VM)**
-
-   You need to copy a security file from the WFM VM to each Device VM.
-   > Note: create the certs directory before copying the security files 
-   > Use: `mkdir -p $HOME/certs`
+1. **Copy Security Files Between VMs (WFM Client SVIDs, HTTPS server CA and Harbor's CA to Device VM)**
 
    #### Step 1: Preparation on WFM VM
 
-   | Step | Action | Command | Expected Result |
-   |------|--------|---------|-----------------|
-   | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) |
-   | 2 | Locate WFM certificate | `cd $HOME/symphony/api/certificates`<br>`ls -la ca-cert.pem` | File: `ca-cert.pem` |
-   | 3 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |
-
+   | Step | Action | Command | Expected Result | Notes |
+   |------|--------|---------|-----------------|-------|
+   | 1 | Find WFM IP address | `hostname -I` | First IP address (e.g., 192.168.1.100) | Write down the IP address from Step 1 for use in the copy commands below. |
+   | 2 | Locate Compose capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/`<br>`ls -la x509svid-wfm-docker-client` | Files: `payload-key.pem` and `payload-cert.pem`| `wfm-docker-client` in `x509svid-wfm-docker-client` is what is used in this guide. Use appropriate wfm client id if you changed it in SVID generation step |
+   | 3 |  Locate Helm capable WFM client X.509 SVID | `$HOME/workspace/sandbox/scripts/`<br>`ls -la x509svid-wfm-helm-client` | Files: `payload-key.pem` and `payload-cert.pem`| `wfm-helm-client` in `x509svid-wfm-helm-client` is what is used in this guide. Use appropriate wfm client id if you changed it in SVID generation step |
+   | 4 | Locate Harbor certificate | `cd $HOME/sandbox/scripts/harbor/certs`<br>`ls -la harbor.crt` | File: `harbor.crt` |  |
+   | 5 | Locate MIS HTTPS CA certificate | `cd $HOME/mis-deployment/certs`<br>`ls -la https-ca.crt` | File: `https-ca.crt` | Acts as intial trust for connecting to MIS Normative APIs |
 
    **Note:** Write down the IP address from Step 1 for use in the copy commands below.
 
+   #### Step 2: Prepare `$HOME/Certs` Directory on Device VM(s)
+   In order to copy required certificates from WFM machine to Device VMs, create following directory(s) on Device VMs:
+   ##### For Helm Capable Device VM
+      ```bash
+      mkdir -p $HOME/certs/helm-identity
+      ```
+   
+   ##### For Compose Capable Device VM
+      ```bash
+      mkdir -p $HOME/certs/compose-identity
+      ```
+   
+   Above commands will create a common `$HOME/certs` and based on requirement, it would create `helm-identity` or `compose-identity` sub directory for carrying identity certificates (SVID)
 
-   #### Step 2: Copy Methods
+   #### Step 3: Copy Required Files from WFM VM to Device VM & Pre-requisite setup
 
    **Option A - Using SCP**
    🔴 **(Recommended - Run from Device VMs)**
 
 
-
    | Target VM | Run From | SCP Command | Example |
    |-----------|----------|-------------|---------|
-   | **Docker Device** | Docker Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
-   | **K3s Device** | K3s Device VM | `scp username@WFM-VM-IP:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/symphony/api/certificates/ca-cert.pem $HOME/certs/` |
+   | **Docker Device** | Compose Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-key.pem $HOME/certs/compose-identity/` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-cert.pem $HOME/certs/compose-identity/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-key.pem $HOME/certs/compose-identity/` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-docker-client/payload-cert.pem $HOME/certs/compose-identity/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/certs/`|
+   | **K3s Device** | Helm Capable Device VM | `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-key.pem $HOME/certs/helm-identity/` <br><br> `scp username@WFM-VM-IP:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-cert.pem $HOME/certs/helm-identity/` <br><br> `scp username@WFM-VM-IP:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp username@WFM-VM-IP:~/mis-deployment/certs/https-ca.crt $HOME/certs/` | `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-key.pem $HOME/certs/helm-identity/` <br><br> `scp azureuser@10.10.10.4:~/workspace/sandbox/scripts/x509svid-wfm-helm-client/payload-cert.pem $HOME/certs/helm-identity/` <br><br> `scp azureuser@10.10.10.4:~/sandbox/scripts/harbor/certs/harbor.crt $HOME/certs/` <br><br> `scp azureuser@10.10.10.4:~/mis-deployment/certs/https-ca.crt $HOME/certs/` |
 
    **Note:** Run with **sudo** if fails.
 
@@ -184,13 +324,10 @@ On each VM, you need to configure environment variables (settings that tell the 
    - `username` with your WFM VM username
    - `WFM-VM-IP` with the IP address from Step 1
 
-   **Option B - Manual Copy**
 
-   | Step | Docker Device VM | K3s Device VM |
-   |------|------------------|---------------|
-   | 1 | Open `ca-cert.pem` on WFM VM and copy contents | Open `ca-cert.pem` on WFM VM and copy contents |
-   | 2 | Create file `ca-cert.pem` in `$HOME/certs/` | Create file `ca-cert.pem` in `$HOME/certs/` |
-   | 3 | Paste contents and save | Paste contents and save |
+   **Option B - Manual Copy by creating respective files and copying contents**
+   
+   Manually create above files in Device VM(s) and copy content of those files from WFM VM to Device VM(s).
 
 2. **Navigate to the scripts folder**
    ```bash
@@ -236,15 +373,18 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    This may take 10-15 minutes.
 
-4. **Create Security Certificates**
-   ```bash
-    sudo -E bash device-agent.sh docker # for docker-compose device
-    sudo -E bash device-agent.sh k3s    # for k3s device
-   ```
-   - First, type `11` and press Enter to choose: `Option 11: create_device_rsa_certs`
-   - Then run the command again and type `12` and press Enter to choose: `Option 12: create_device_ecdsa_certs`
 
-   These certificates allow secure communication between VMs and are automatically saved in `$HOME/certs` directory.
+4. **Add WFM SPIFFE ID in local allow list policy for Device(s) interactively**
+
+   Based on the device type, select **k3s** or **docker** while sourcing the environment variables. For example:
+   ```bash
+   sudo -E bash device-agent.sh docker # for docker-compose device
+   sudo -E bash device-agent.sh k3s    # for k3s device
+   ```
+   - Type `11` and press Enter
+   - Choose: `Option 11: Manage SPIFFE ID allowlist`
+
+   Follow the steps interactively to add SPIFFE ID of WFM on devices.
 
 ---
 
@@ -398,14 +538,14 @@ Enter choice [1-9]: 1
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 10:00 | 2025-12-02 10:00 |
+| af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 10:00 | 2026-09-23 10:00 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
 |                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
@@ -422,24 +562,27 @@ Press Enter to continue...
 
 Select this option to display the devices that have onboarded to the sandbox WFM.
 
-> Note: Below is a example snippet showing the expected output of the selection. For now, you'll need to look at the device agent's logs to identify the client ID if you have multiple devices provisioned.
+> Note: Below is a example snippet showing the expected output of the selection. IDs displayed here are device client's SPIFFE ID from their respective SVID identity.
 ```
 Enter choice [1-9]: 2
 🖥️  Listing all devices from WFM...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:      v1alpha2/margo/nbi/v1    │
 └─────────────────────────────────────────┘
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| ID                                 | SIGNATURE                    | CAPABILITIES                 | STATE     | CREATEDAT        |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| client-56b77ecbfdc83e4a-1764667338 | LS0tLS1CRUdJTiBDRVJUSUZJQ... | {"apiVersion":"device.mar... | ONBOARDED | 2025-12-02 09:22 |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-|                                    |                              |                              | PAGE 1/1  | TOTAL: 1         |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+| spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 |
+|                                                               |                              |                 |           | 9:26         |
+| spiffe://margo.org/margo/wfm/symphony-1/client/k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 |
+|                                                               |                              |                 |           | 9:26         |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
+|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
 
 Press Enter to continue...
 
@@ -457,17 +600,17 @@ Enter choice [1-9]: 3
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE     | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| e675eaa8-0acd-4df4-8187-ccddc2d72f91 | otel-de... | ae01143... | client-... | DEPLOY | INSTALLED    | 2025-12-02 09:55 |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-|                                      |            |            |            |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../dockerdevice-1 | DEPLOY | INSTALLED      | 2026-09-23 10:20 |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+|                                      |            |            |                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
 
 Press Enter to continue...
 
@@ -518,14 +661,14 @@ Enter choice [1-9]: 6
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
+| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:52 | 2026-09-23 09:52 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
 |                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
@@ -541,7 +684,7 @@ Are you sure you want to delete app-pkg 'ae011433-28ed-4f4e-a8af-474810810746'? 
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine                    │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
@@ -561,6 +704,7 @@ Configuration Notes:
 - Below is a example snippet showing the expected output of the selection.
 - The id of the application package needs to be copied from the output shown below 'Available packages'.
 - The id of the device needs to be copied from the output shown below 'Available devices'.
+- While selecting device, a new column `ELIGIBLE` is now visible, indicating whether a particular device is eligible to run the application or not, based on [Device Eligibility Checks against a particular application](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) 
 
 ```
 Enter choice [1-9]: 7
@@ -570,59 +714,77 @@ Enter choice [1-9]: 7
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2025-12-02 09:52 | 2025-12-02 09:52 |
+| bfe50327-c1ab-4264-aff3-c3a481f22a07 | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:36 | 2026-09-23 09:36 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
-|                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
-|                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
-|                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/nextcloud-compose-app-package" |                  |                  |
+|                                      |                      |         |           |           |             | ,"tag":"latest"}                    |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 |                                      |                      |         |           |           |             |                                     | PAGE 1/1         | TOTAL: 1         |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 
-Enter the package name/ID to deploy: ae011433-28ed-4f4e-a8af-474810810746
+Enter the package name/ID to deploy: bfe50327-c1ab-4264-aff3-c3a481f22a07
 
 🖥️  Available devices:
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| ID                                 | SIGNATURE                    | CAPABILITIES                 | STATE     | CREATEDAT        |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-| client-56b77ecbfdc83e4a-1764667338 | LS0tLS1CRUdJTiBDRVJUSUZJQ... | {"apiVersion":"device.mar... | ONBOARDED | 2025-12-02 09:22 |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
-|                                    |                              |                              | PAGE 1/1  | TOTAL: 1         |
-+------------------------------------+------------------------------+------------------------------+-----------+------------------+
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    | ELIGIBLE |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+| spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 | true     |
+|                                                               |                              |                 |           | 9:26         |          |
+| spiffe://margo.org/margo/wfm/symphony-1/client/k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 | false    |
+|                                                               |                              |                 |           | 9:26         |          |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
+|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |          |
++---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
 
-Enter the device ID for deployment: client-56b77ecbfdc83e4a-1764667338
-📋 Getting package details...
-🔍 Searching for package: ae011433-28ed-4f4e-a8af-474810810746
-📦 Package name: custom-otel-helm-app
-📄 Using deployment file: /root/symphony/cli/templates/margo/custom-otel-helm/instance.yaml.copy
-🚀 Deploying 'ae011433-28ed-4f4e-a8af-474810810746' to device 'client-56b77ecbfdc83e4a-1764667338'...
+Enter the device ID for deployment: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1
+
+🚀 Deploying 'bfe50327-c1ab-4264-aff3-c3a481f22a07' to device 'spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-deploymentId e675eaa8-0acd-4df4-8187-ccddc2d72f91 deploymentName otel-demo-instance
+deploymentId 231282a3-b7c1-49d7-9c68-f0e0fb28c113 deploymentName nextcloud-stack-instance
 
 Application configuration applied successfully
 
 ✅ Instance deployment request sent successfully!
+
+📋 Updated deployments:
+┌─────────────────────────────────────────┐
+│              Server Config              │
+├─────────────────────────────────────────┤
+│ Host:      symphony.machine             │
+│ Port:      8082                         │
+│ Basepath:      v1alpha2/margo/nbi/v1        │
+└─────────────────────────────────────────┘
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| 231282a3-b7c1-49d7-9c68-f0e0fb28c113 | nextclo... | bfe5032... | .../dockerdevice-1 | DEPLOY | PENDING      | 2026-09-23 09:37 |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+|                                      |            |            |                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+
+Press Enter to continue...
 
 ```
 
@@ -643,50 +805,52 @@ Enter choice [1-9]: 8
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE     | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| e675eaa8-0acd-4df4-8187-ccddc2d72f91 | otel-de... | ae01143... | client-... | DEPLOY | INSTALLED    | 2025-12-02 09:55 |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-|                                      |            |            |            |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../dockerdevice-1 | DEPLOY | INSTALLED    | 2026-09-23 10:21 |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+|                                      |            |            |                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
 
-Enter the deployment/instance ID to delete: e675eaa8-0acd-4df4-8187-ccddc2d72f91
-Are you sure you want to delete instance 'e675eaa8-0acd-4df4-8187-ccddc2d72f91'? (y/N): y
-🗑️  Deleting instance 'e675eaa8-0acd-4df4-8187-ccddc2d72f91'...
+Enter the deployment/instance ID to delete: 03ce43e9-287a-43c4-8c9c-16f1323b4ecc
+Are you sure you want to delete instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc'? (y/N): y
+🗑️  Deleting instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-deploymentId to be deleted e675eaa8-0acd-4df4-8187-ccddc2d72f91
+deploymentId to be deleted 03ce43e9-287a-43c4-8c9c-16f1323b4ecc
 application deployment deletion request has been accepted!
 
-Application Deployment e675eaa8-0acd-4df4-8187-ccddc2d72f91 deleted successfully
+Application Deployment 03ce43e9-287a-43c4-8c9c-16f1323b4ecc deleted successfully
 
-✅ Instance 'e675eaa8-0acd-4df4-8187-ccddc2d72f91' deleted successfully!
+✅ Instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc' deleted successfully!
 
 📋 Updated deployments:
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      localhost                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
 │ Basepath:      v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE     | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-| e675eaa8-0acd-4df4-8187-ccddc2d72f91 | otel-de... | ae01143... | client-... | DEPLOY | REMOVING     | 2025-12-02 09:59 |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
-|                                      |            |            |            |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../dockerdevice-1 | DEPLOY | REMOVING     | 2026-09-23 10:23 |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+|                                      |            |            |                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
+
+Press Enter to continue...
 
 ```
 
@@ -768,11 +932,17 @@ If you want to remove everything and start over:
    cd $HOME/workspace/sandbox/scripts
    ```
 
-2. **Stop and clean up services**
+2. **Stop and clean up wfm services**
    ```bash
    sudo -E bash ./wfm.sh  # Type 4 and press Enter - Option 4: Symphony Stop
    sudo -E bash ./wfm.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    sudo -E bash ./wfm.sh  # Type 6 and press Enter - Option 6: ObservabilityStack Stop
+   ```
+
+3. **Stop and clean up mis services**
+   ```bash
+   sudo -E bash ./mis.sh  # Type 4 and press Enter - Option 5: Margo Identity Service: Uninstall
+   sudo -E bash ./mis.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    ```
 
 
@@ -791,25 +961,7 @@ If you want to remove everything and start over:
    sudo -E bash ./device-agent.sh  # Type 10 - cleanup-residual
    ```
 
-
-
 ---
-
-## Quick Summary
-
-**The setup process in simple terms:**
-
-1. **Build**: Install tools and start services on all VMs
-   - WFM VM: Installs management tools and starts the Workload Fleet Manager
-   - Device VMs: Installs device software and creates security certificates
-
-2. **Deploy**: Connect devices to the WFM VM using security certificates
-   - Copy the security file from WFM VM to each Device VM
-   - Start the device services
-
-3. **Run**: Use the EasyCLI to manage applications on your devices
-   - Use the menu-driven EasyCLI tool to deploy applications
-   - Monitor everything through web dashboards
 
 **Sample Applications Included:**
 - **Custom OTEL**: Monitoring application that demonstrates telemetry capabilities. It is pre-loaded helm application to run on k3s device.
@@ -819,11 +971,3 @@ If you want to remove everything and start over:
 These applications are pre-loaded and ready to deploy to your device VMs for testing.
 
 ---
-
-## Need Help?
-
-If something doesn't work:
-1. Check that all VMs can communicate with each other (ping test)
-2. Verify environment variables are set correctly
-3. Make sure the ca-cert.pem file was copied correctly
-4. Check the logs using the commands in "Check Everything is Working" section

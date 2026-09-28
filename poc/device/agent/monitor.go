@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/shared-lib/pointers"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 
@@ -22,6 +23,7 @@ type DeploymentMonitorIfc interface {
 
 type DeploymentMonitor struct {
 	database      database.DatabaseIfc
+	capabilities  *sbi.DeviceCapabilitiesManifest
 	helmClient    *workloads.HelmClient
 	composeClient *workloads.DockerComposeCliClient
 	log           *zap.SugaredLogger
@@ -30,6 +32,7 @@ type DeploymentMonitor struct {
 
 func NewDeploymentMonitor(
 	db database.DatabaseIfc,
+	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
 	composeClient *workloads.DockerComposeCliClient,
 	log *zap.SugaredLogger,
@@ -38,6 +41,7 @@ func NewDeploymentMonitor(
 		database:      db,
 		helmClient:    helmClient,
 		composeClient: composeClient,
+		capabilities:  capabilities,
 		log:           log,
 		stopChan:      make(chan struct{}),
 	}
@@ -81,15 +85,6 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 		return
 	}
 
-	ds, err := hm.database.GetDeviceSettings()
-	if err != nil {
-		hm.log.Warnw(
-			"Failed to get device settings, cannot proceed",
-			"err",
-			err.Error())
-		return
-	}
-
 	appDeployment := record.CurrentState.AppDeploymentManifest
 
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
@@ -120,7 +115,7 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 				}{
 					Code:    GetAddress("HELM_STATUS_ERROR"),
 					Message: &errMsg,
-					Source:  &ds.DeviceClientId,
+					Source:  pointers.Ptr(hm.capabilities.Properties.Id),
 				},
 			})
 			continue

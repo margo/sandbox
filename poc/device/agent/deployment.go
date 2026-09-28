@@ -228,17 +228,6 @@ func (dm *DeploymentManager) deployOrUpdate(
 	// Use the AppDeploymentManifest directly instead of converting
 	appDeployment := desiredState.AppDeploymentManifest
 
-	ds, err := dm.database.GetDeviceSettings()
-	if err != nil {
-		dm.log.Warnw(
-			"Failed to get device settings, cannot proceed",
-			"err",
-			err.Error(),
-		)
-
-		return
-	}
-
 	// Get component
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
 		// Set current state even on failure
@@ -346,7 +335,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 				}{
 					Code:    GetAddress("DEPLOYMENT_ERROR"),
 					Message: &errMsg,
-					Source:  &ds.DeviceClientId,
+					Source:  &dm.capabilities.Properties.Id,
 				},
 			})
 		}
@@ -547,17 +536,6 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		return
 	}
 
-	ds, err := dm.database.GetDeviceSettings()
-	if err != nil {
-		dm.log.Warnw(
-			"Failed to get device settings, cannot proceed",
-			"err",
-			err.Error(),
-		)
-
-		return
-	}
-
 	if record.CurrentState == nil {
 		dm.log.Infow(
 			"No current state found, proceeding with complete removal",
@@ -648,7 +626,7 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 				}{
 					Code:    GetAddress("REMOVAL_ERROR"),
 					Message: GetAddress(removeErr.Error()),
-					Source:  &ds.DeviceClientId,
+					Source:  &dm.capabilities.Properties.Id,
 				},
 			})
 		} else {

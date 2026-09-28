@@ -1372,7 +1372,7 @@ components:
         id:
           type: string
           description: Unique device identifier
-          example: device-1234
+          example: spiffe://margo.org/margo/wfm/symphony-1/wfmclient/dockerdevice-1
           # x-go-field-tags: 'json:"id" yaml:"id"'
           x-oapi-codegen-extra-tags:
             json: "id"
@@ -1393,11 +1393,8 @@ components:
 
     DeviceSpec:
       type: object
-      required: [signature, capabilities]
+      required: [capabilities]
       properties:
-        signature:
-          type: string
-          description: Unique signature of the device
         capabilities:
           # type: object
           x-go-type: interface{}

@@ -176,7 +176,6 @@ start_device_agent_docker_service() {
 
       cp "$HOME/sandbox/poc/device/agent/config/compose-identity/"* ./config/identity/
       cp "$HOME/sandbox/poc/device/agent/config/mis/"* ./config/mis/
-      cp "$HOME/sandbox/poc/device/agent/config/authorized.json" ./config/
 
       echo "Copied config files successfully"
   else
@@ -300,7 +299,6 @@ build_start_device_agent_k3s_service() {
 
     # Validate required configuration files
     for file in \
-        "$CLIENT_CONFIG/authorized.json" \
         "$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
         "$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         "$CLIENT_CONFIG/mis/https-ca.crt" ; do

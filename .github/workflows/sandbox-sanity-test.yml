@@ -339,19 +339,7 @@ jobs:
 
           echo "📝 Authorizing both device client SPIFFE IDs on the SBI binding"
           AUTHZ="$MIS_DIR/authorized-clients.json"
-          # Confirmed via Symphony's own error message: miaf.authzPath unmarshals into []string,
-          # i.e. a bare JSON array of SPIFFE ID strings - not an object with a wrapper key.
-          EXISTING="[]"
-          if sudo test -f "$AUTHZ"; then
-            sudo cp "$AUTHZ" /tmp/authz-existing.json
-            sudo chown $USER:$USER /tmp/authz-existing.json
-            if jq -e 'type == "array"' /tmp/authz-existing.json >/dev/null 2>&1; then
-              EXISTING=$(cat /tmp/authz-existing.json)
-            else
-              echo "⚠️ Existing authorized-clients.json isn't a JSON array; ignoring its contents"
-            fi
-          fi
-          echo "$EXISTING" | jq \
+          echo "[]" | jq \
             --arg h "${HELM_CLIENT_SPIFFE_ID}" \
             --arg d "${DOCKER_CLIENT_SPIFFE_ID}" \
             '. + [$h, $d] | unique' > /tmp/authz.json
@@ -547,41 +535,45 @@ jobs:
           }
 
           echo "📝 Authorizing the WFM SPIFFE ID in $CONFIG_DIR/authorized.json"
-          AUTHZ="$CONFIG_DIR/authorized.json"
+          echo "📥 Preparing authorized.json hostPath directory"
+          HELM_AUTHORIZED_DIR="$HOME/sandbox/helmchart/authorized"
+          DC_AUTHORIZED_DIR="$HOME/sandbox/docker-compose/config"
+          DC_AUTHORIZED_FILE="$DC_AUTHORIZED_DIR/authorized.json"
+          HELM_AUTHORIZED_FILE="$HELM_AUTHORIZED_DIR/authorized.json"
+ 
+          sudo mkdir -p "$HELM_AUTHORIZED_DIR"
+          sudo mkdir -p "$DC_AUTHORIZED_DIR"
+
           # Same []string schema as Symphony's authorized-clients.json (confirmed via its
           # unmarshal error) - a bare JSON array, not an object with a wrapper key.
-          EXISTING="[]"
-          if sudo test -f "$AUTHZ"; then
-            sudo cp "$AUTHZ" /tmp/dev-authz-existing.json
-            sudo chown $USER:$USER /tmp/dev-authz-existing.json
-            if jq -e 'type == "array"' /tmp/dev-authz-existing.json >/dev/null 2>&1; then
-              EXISTING=$(cat /tmp/dev-authz-existing.json)
-            else
-              echo "⚠️ Existing authorized.json isn't a JSON array; ignoring its contents"
-            fi
-          fi
-          echo "$EXISTING" | jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' > /tmp/dev-authz.json
-          sudo cp /tmp/dev-authz.json "$AUTHZ"
-          echo "📄 $AUTHZ:"
-          sudo cat "$AUTHZ"
+          
+          echo "[]" | jq --arg w "${WFM_SPIFFE_ID}" '. + [$w] | unique' > /tmp/dev-authz.json
+          sudo cp /tmp/dev-authz.json "$HELM_AUTHORIZED_FILE"
+          sudo cp /tmp/dev-authz.json "$DC_AUTHORIZED_FILE"
 
-          AUTHORIZED_DIR="$HOME/sandbox/helmchart/authorized"
+          echo "📄 $HELM_AUTHORIZED_FILE:"
+          sudo cat "$HELM_AUTHORIZED_FILE"
 
-          AUTHORIZED_FILE="$AUTHORIZED_DIR/authorized.json"
-          echo "📥 Preparing authorized.json hostPath directory"
+          echo "📄 $DC_AUTHORIZED_FILE:"
+          sudo cat "$DC_AUTHORIZED_FILE"
 
-          sudo mkdir -p "$AUTHORIZED_DIR"
-
-          sudo cp "$CONFIG_DIR/authorized.json" \
-            "$AUTHORIZED_FILE"
-
-          sudo chmod 644 "$AUTHORIZED_FILE"
+          sudo chmod 644 "$HELM_AUTHORIZED_FILE"
+          sudo chmod 644 "$DC_AUTHORIZED_FILE"
 
           echo "✅ authorized.json prepared:"
-          sudo ls -la "$AUTHORIZED_DIR"
+          sudo ls -la "$HELM_AUTHORIZED_DIR"
+          sudo ls -la "$DC_AUTHORIZED_DIR"
 
+          echo "🔍 Verifying authorized.json contents"
           echo "JSON validation:"
-          sudo jq empty "$AUTHORIZED_FILE" \
+          sudo jq empty "$HELM_AUTHORIZED_FILE" \
+            && echo "✅ authorized.json is valid JSON" \
+            || {
+              echo "❌ authorized.json is invalid JSON"
+              exit 1
+            }
+
+          sudo jq empty "$DC_AUTHORIZED_FILE" \
             && echo "✅ authorized.json is valid JSON" \
             || {
               echo "❌ authorized.json is invalid JSON"
@@ -589,8 +581,8 @@ jobs:
             }
 
           echo "Authorization entries:"
-          sudo jq -r '.[]' "$AUTHORIZED_FILE"
-          echo "🔍 Verifying authorized.json contents"
+          sudo jq -r '.[]' "$HELM_AUTHORIZED_FILE"
+          sudo jq -r '.[]' "$DC_AUTHORIZED_FILE"
           sudo ls -la "$CONFIG_DIR" "$CONFIG_DIR/helm-identity" "$CONFIG_DIR/mis"
 
       - name: WFM-Client (Helm-capable device) - Start
@@ -669,9 +661,8 @@ jobs:
           sudo cp \
             "${SVID_DIR}/x509svid-wfm-docker-client/payload-key.pem" \
             "$CONFIG_DIR/compose-identity/"
-          sudo cp "${MIS_CERTS_DIR}/https-ca.crt"                          "$CONFIG_DIR/mis/"
+          sudo cp "${MIS_CERTS_DIR}/https-ca.crt" "$CONFIG_DIR/mis/"
           # authorized.json (WFM SPIFFE ID) was written in the K3s setup step and is shared.
-          sudo cat "$CONFIG_DIR/authorized.json"
 
           sudo -E bash ./device-agent.sh docker start-docker
 

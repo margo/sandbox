@@ -562,12 +562,3 @@ If you want to remove everything and start over:
    ```
 
 ---
-
-**Sample Applications Included:**
-- **Custom OTEL**: Monitoring application that demonstrates telemetry capabilities. It is pre-loaded helm application to run on k3s device.
-- **Nextcloud**: File sharing and collaboration platform. It is pre-loaded docker-compose package to run on docker device.
-
-
-These applications are pre-loaded and ready to deploy to your device VMs for testing.
-
----

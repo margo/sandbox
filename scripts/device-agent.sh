@@ -225,7 +225,7 @@ validate_and_copy_certs() {
     return 1
   }
 
-  mkdir "$HOME/sandbox/helmchart/authorized"
+  mkdir -p "$HOME/sandbox/helmchart/authorized"
 
   echo "[INFO] Certificate validation and copy completed successfully. ✓"
 }

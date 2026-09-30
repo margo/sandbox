@@ -235,6 +235,39 @@ MIS requires two sets of certificates:
 | **Minter CA** (`ca.crt`, `ca.key`) | Signs X.509 SVIDs issued by `mis mint x509` |
 | **HTTPS CA + Server cert** (`https-ca.crt`, `https-server.crt`, `https-server.key`) | Secures the REST API HTTPS server |
 
+### Note on PKI Trust Model
+
+> **Self-Signed Root CA — Default Approach**
+>
+> The default PKI setup used by this sandbox relies entirely on **self-signed Root CAs**. Two self-signed Root CAs are generated:
+>
+> - **Minter CA** (`ca.crt` / `ca.key`): A self-signed Root CA used exclusively to sign X.509 SVIDs issued by `mis mint x509`. It acts as the SPIFFE trust anchor for the configured Trust Domain. All principals that need to verify SVID-based identities must trust this CA.
+>
+> - **HTTPS CA** (`https-ca.crt` / `https-ca.key`): A self-signed Root CA used to sign the HTTPS server certificate (`https-server.crt`) that secures the normative Trust Bundle API. Clients connecting to the MIS HTTPS endpoint must trust this CA to establish the initial TLS connection.
+>
+> The HTTPS server certificate (`https-server.crt`) is signed by the HTTPS CA and is presented to clients during TLS handshakes. It is valid for 1 year; the Root CAs are valid for 10 years.
+>
+> This self-signed approach is intentional for sandbox and proof-of-concept use. It removes the dependency on an external PKI infrastructure and allows the sandbox to be fully self-contained.
+
+---
+
+> **Bringing Your Own PKI Infrastructure**
+>
+> If your deployment requires integration with an existing PKI infrastructure (e.g., an enterprise CA, an HSM-backed CA, or a publicly trusted CA), you may supply your own certificates instead of using the generated ones. MIS does not enforce how the certificates were issued — it only requires that the correct files are present at the paths specified in `configuration.json`.
+>
+> If you choose to bring your own PKI, you are responsible for:
+>
+> - Ensuring the **Minter CA** certificate and key (`ca.crt`, `ca.key`) form a valid signing CA capable of issuing X.509 certificates with URI SANs (required for SPIFFE SVIDs).
+> - Ensuring the **HTTPS server certificate** (`https-server.crt`) and its key (`https-server.key`) are valid for the hostname or IP address at which MIS is reachable, and that the certificate chain is complete and trusted by clients.
+> - Ensuring the **HTTPS CA** certificate (`https-ca.crt`) correctly represents the trust anchor for the HTTPS server certificate chain.
+> - Distributing the appropriate trust material (Minter CA and HTTPS CA) to all principals and clients that need to interact with MIS.
+> - Managing certificate validity periods, renewals, and revocation within your own PKI infrastructure.
+>
+> The `pki_gen.sh` script and the `confbuilder.sh` helper are provided for convenience and are not required if you supply your own certificates. Simply place your certificate and key files at the paths referenced in your `configuration.json` and proceed with `mis start`.
+>
+> **The correctness, security, and trustworthiness of externally supplied PKI material is entirely the responsibility of the operator.**
+
+
 ### Generating Certificates with `pki_gen.sh`
 
 A PKI generator script is provided at `scripts/lib/mis/pki_gen.sh`. It generates all required certificates in a single run.

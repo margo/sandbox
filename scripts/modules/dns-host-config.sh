@@ -37,51 +37,11 @@ get_ip_from_hosts() {
     printf '%s\n' "$ip"
 }
 
-#------------------------------------------------------------------------------
-# Adds or updates NodeHosts entries in the CoreDNS ConfigMap.
-#------------------------------------------------------------------------------
-
-add_or_update_host() {
-        local ip="$1"
-        local host="$2"
-
-        if awk -v host="$host" '
-            /^[[:space:]]*#/ { next }
-            $2 == host { found=1 }
-            END { exit !found }
-        ' <<<"$updated"; then
-
-            updated=$(
-                awk -v ip="$ip" -v host="$host" '
-                    /^[[:space:]]*#/ {
-                        print
-                        next
-                    }
-
-                    $2 == host {
-                        print ip " " host
-                        next
-                    }
-
-                    {
-                        print
-                    }
-                ' <<<"$updated"
-            )
-
-        else
-            if [[ -n "$updated" ]]; then
-                updated+=$'\n'
-            fi
-            updated+="${ip} ${host}"
-        fi
-}
-
 configure_coredns_hosts() {
     set -euo pipefail
 
     local namespace="kube-system"
-    local configmap="coredns"
+    local yaml_file="custom-coredns-hosts.yaml"
 
     # Use defaults if env variables are not exported
     local harbor_host="${EXPOSED_HARBOR_HOST:-harbor.machine}"
@@ -92,12 +52,9 @@ configure_coredns_hosts() {
     local symphony_ip
     local mis_host_ip
 
-    local nodehosts
-    local updated
-
     echo "[INFO] Validating dependencies..."
 
-    for cmd in kubectl jq awk sed; do
+    for cmd in kubectl; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             echo "[ERROR] Required command '$cmd' is not installed." >&2
             return 1
@@ -106,53 +63,60 @@ configure_coredns_hosts() {
 
     echo "[INFO] Reading IP addresses from /etc/hosts for ($harbor_host, $symphony_host, $mis_host)..."
 
-    harbor_ip=$(get_ip_from_hosts "$harbor_host")
-    symphony_ip=$(get_ip_from_hosts "$symphony_host")
-    mis_host_ip=$(get_ip_from_hosts "$mis_host")
+    harbor_ip=$(get_ip_from_hosts "$harbor_host") || return 1
+    symphony_ip=$(get_ip_from_hosts "$symphony_host") || return 1
+    mis_host_ip=$(get_ip_from_hosts "$mis_host") || return 1
 
-    echo "[INFO] Verifying CoreDNS ConfigMap..."
+    echo "[INFO] Resolved IPs — $harbor_host: $harbor_ip | $symphony_host: $symphony_ip | $mis_host: $mis_host_ip"
 
-    if ! kubectl -n "$namespace" get configmap "$configmap" >/dev/null 2>&1; then
-        echo "[ERROR] ConfigMap '${configmap}' not found in namespace '${namespace}'." >&2
+    echo "[INFO] Generating $yaml_file..."
+
+    cat > "$yaml_file" <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: ${namespace}
+data:
+  custom.server: |
+    ${symphony_host}:53 ${harbor_host}:53 ${mis_host}:53 {
+        hosts {
+          ${harbor_ip} ${harbor_host}
+          ${symphony_ip} ${symphony_host}
+          ${mis_host_ip} ${mis_host}
+          fallthrough
+        }
+        cache 30
+        log
+        errors
+    }
+EOF
+
+    echo "[INFO] $yaml_file created successfully."
+
+    echo "[INFO] Applying $yaml_file to cluster..."
+
+    if ! kubectl apply -f "$yaml_file"; then
+        echo "[ERROR] Failed to apply $yaml_file." >&2
         return 1
     fi
 
-    nodehosts=$(
-        kubectl -n "$namespace" get configmap "$configmap" \
-            -o jsonpath='{.data.NodeHosts}' 2>/dev/null || true
-    )
+    echo "[INFO] ConfigMap 'coredns-custom' applied successfully."
 
-    updated="$nodehosts"
+    echo "[INFO] Restarting CoreDNS deployment..."
 
-    add_or_update_host "$harbor_ip" "$harbor_host"
-    add_or_update_host "$symphony_ip" "$symphony_host"
-    add_or_update_host "$mis_host_ip" "$mis_host"
-
-    updated=$(sed '/^[[:space:]]*$/d' <<<"$updated")
-
-    if [[ "$updated" == "$nodehosts" ]]; then
-        echo "[INFO] CoreDNS NodeHosts already up to date."
-        return 0
+    if ! kubectl -n "$namespace" rollout restart deployment/coredns; then
+        echo "[ERROR] Failed to restart CoreDNS deployment." >&2
+        return 1
     fi
 
-    echo "[INFO] Updating CoreDNS ConfigMap..."
+    echo "[INFO] Waiting for CoreDNS rollout to complete (timeout: 60s)..."
 
-    kubectl -n "$namespace" patch configmap "$configmap" \
-        --type merge \
-        --patch "$(cat <<EOF
-{
-  "data": {
-    "NodeHosts": $(printf '%s' "$updated" | jq -Rs .)
-  }
-}
-EOF
-)"
+    if ! kubectl -n "$namespace" rollout status deployment/coredns --timeout=60s; then
+        echo "[ERROR] CoreDNS rollout did not complete within 60 seconds." >&2
+        return 1
+    fi
 
-    echo "[INFO] Restarting CoreDNS..."
-    kubectl -n "$namespace" rollout restart deployment/coredns
-
-    echo "[INFO] Waiting for CoreDNS rollout to complete..."
-    kubectl -n "$namespace" rollout status deployment/coredns --timeout=180s
-
-    echo "[INFO] CoreDNS NodeHosts updated successfully."
+    echo "[INFO] CoreDNS restarted and running successfully."
+    echo "[INFO] Custom host entries are now active for: $harbor_host, $symphony_host, $mis_host"
 }

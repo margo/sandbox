@@ -5,7 +5,7 @@ set -e
 # Configuration
 TMP_SPEC="snapshot.spec.yaml"
 
-SPEC_URL="https://raw.githubusercontent.com/margo/specification/refs/heads/pre-draft/system-design/specification/identity/trust-bundle-api-1.0.0-rc.2.yaml"
+SPEC_URL="https://raw.githubusercontent.com/margo/specification/refs/heads/pre-draft/system-design/specification/identity/trust-bundle-api-1.0.0-rc.3.yaml"
 curl -sSL -o "$TMP_SPEC" \
   "$SPEC_URL"
 

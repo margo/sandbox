@@ -91,6 +91,8 @@ The repository is divided into three main parts. You can find more details here 
 | Supporting Infrastructure | K3s | v1.31.4+k3s1 |
 | Supporting Infrastructure | Node.js/NPM | System default |
 | System Utilities | curl | System default |
+| System Utilities | jq | System default |
+| System Utilities | yq | System default |
 | System Utilities | git | System default |
 | System Utilities | wget | System default |
 | System Utilities | build-essential | System default |

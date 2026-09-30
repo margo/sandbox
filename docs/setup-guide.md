@@ -146,6 +146,31 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    >Note: Docker image for Margo Identity Service has been already built and pushed to Margo GHCR registry from where the below script pull the image and starts MIS.
 
+   > **Note on PKI Material — Self-Signed Root CA:**
+   >
+   > This step generates **self-signed Root Certificate Authorities (CAs)** for use as PKI material within the sandbox. Specifically, two self-signed Root CAs are created:
+   >
+   > - **Minter CA** (`ca.crt` / `ca.key`): Acts as the SPIFFE trust anchor for the
+   >   configured Trust Domain. Used exclusively to sign X.509 SVIDs issued by MIS.
+   > - **HTTPS CA** (`https-ca.crt` / `https-ca.key`): Used to sign the HTTPS server
+   >   certificate (`https-server.crt`) that secures the normative Trust Bundle API.
+   >   Clients connecting to MIS must trust this CA to establish the initial TLS connection.
+   >
+   > The self-signed approach is intentional for sandbox and proof-of-concept use. It keeps
+   > the environment fully self-contained without requiring an external PKI infrastructure.
+   >
+   > **Supplying operator-provided PKI material is not currently supported in this
+   > automated script-based deployment.** The `mis.sh` script does not accept externally
+   > issued certificates as input to this step. If you require integration with your own
+   > PKI infrastructure (e.g., an enterprise CA or HSM-backed CA), you must supply the
+   > required certificate and key files manually after this step, replacing the generated
+   > files at `$HOME/mis-deployment/certs/` with your own material, and ensuring their
+   > correctness and trustworthiness independently.
+   >
+   > For a detailed explanation of the PKI trust model, the role of each certificate, and
+   > guidance on supplying your own PKI infrastructure, see the [MIS PKI Setup and Trust Model — Note on PKI Trust Model](../mis/README.md#note-on-pki-trust-model) documentation.
+
+
    To replace the Root CA and perform a trust bundle reset after initial setup, see [Trust Bundle Revocation and Root CA Replacement](./identity-lifecycle.md#trust-bundle-revocation-and-root-ca-replacement-sandbox) in the Identity Lifecycle guide.
 
 3. **Start the Margo Identity Service**

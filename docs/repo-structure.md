@@ -111,7 +111,7 @@ Scripts and utilities for development, testing, and deployment automation.
 **Tools:**
 - **Setup script** (`wfm.sh`, `device-agent.sh`, `mis.sh`) - Automated environment setup (Harbor, device's Workload Fleet Management Client, Symphony etc.)
 - **Label Generator Script** (`create-device-labels.sh`) - This script helps users generate labels for a device as per the guidelines defined here: [Device Runtime Affinity SUP](https://github.com/margo/specification-enhancements/blob/main/completed/sup_device_specific_runtime_affinity_matching.md)
-- **MIS Helper Scripts** (`lib/mis/pki_gen.sh`,`lib/mis/confbuilder.sh`,`lib/mis/svid_gen.sh`) - These three scripts together set up the complete PKI and identity infrastructure for the Margo Identity Service: pki_gen.sh generates the foundational CA certificates and server keys, confbuilder.sh uses those artifacts to produce the service's configuration.json, and svid-gen.sh mints X.509 SVID certificates for WFM principals via the running identity service container — all supporting both interactive and automated modes.
+- **MIS Helper Scripts** (`lib/mis/pki_gen.sh`,`lib/mis/confbuilder.sh`,`lib/mis/svid_gen.sh`) - These three scripts together set up the complete PKI and identity infrastructure for the Margo Identity Service: pki_gen.sh generates the foundational CA certificates and server keys, confbuilder.sh provides an interface to generate configuration for MIS using generated artifacts, and svid-gen.sh mints X.509 SVID certificates for WFM principals via the running identity service container — all supporting both interactive and automated modes.
 - **EasyCLI** (`wfm-cli.sh`) - EasyCLI is an interactive menu with options to upload/apply/delete app packages, deploy/delete instances.
 
 

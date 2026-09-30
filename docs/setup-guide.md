@@ -146,6 +146,8 @@ On each VM, you need to configure environment variables (settings that tell the 
 
    >Note: Docker image for Margo Identity Service has been already built and pushed to Margo GHCR registry from where the below script pull the image and starts MIS.
 
+   To replace the Root CA and perform a trust bundle reset after initial setup, see [Trust Bundle Revocation and Root CA Replacement](./identity-lifecycle.md#trust-bundle-revocation-and-root-ca-replacement-sandbox) in the Identity Lifecycle guide.
+
 3. **Start the Margo Identity Service**
    ```bash
     sudo -E bash mis.sh
@@ -208,6 +210,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
    `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
 
+   To renew or reissue these SVIDs after initial setup, see [Renewal and Reissuance](./identity-lifecycle.md#renewal-and-reissuance) in the Identity Lifecycle guide.
+
 
 #### Build and Run WFM(Symphony)
 
@@ -247,6 +251,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 7: Manage SPIFFE ID allowlist`
 
    Follow the steps interactively to add SPIFFE IDs of WFM Clients. These should be same as SPIFFE ID used to generate SVID for those WFM Clients. Use default path for file containing authorized clients, unless explicitly changed. 
+
+   To revoke a device agent's access after initial setup, see [Device-Agent Revocation](./identity-lifecycle.md#device-agent-revocation-sandbox) in the Identity Lifecycle guide.
 
 5. **Start the Workload Fleet Manager**
    ```bash
@@ -385,6 +391,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 11: Manage SPIFFE ID allowlist`
 
    Follow the steps interactively to add SPIFFE ID of WFM on devices.
+
+   To revoke or update WFM authorization on the device agent after initial setup, see [WFM Revocation on Device Agent](./identity-lifecycle.md#wfm-revocation-on-device-agent-sandbox) in the Identity Lifecycle guide.
 
 ---
 
@@ -922,6 +930,8 @@ To view the monitoring dashboards, you need your WFM VM's IP address.
 ---
 
 ## Cleaning Up (Starting Fresh)
+
+> If you are cleaning up due to a security event or identity compromise, review the [Identity Lifecycle and Operator Playbooks](./identity-lifecycle.md) guide before proceeding, as trust bundle revocation and identity reissuance may be required.
 
 If you want to remove everything and start over:
 

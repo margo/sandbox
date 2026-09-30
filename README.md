@@ -2,10 +2,11 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
+- [Sandbox Feedback / Issue Reporting](#sandbox-feedback--issue-reporting)
 - [Quick Start Guide](#quick-start-guide)
   - [Development Toolset](#development-toolset)
+  - [Specification Mapping](#specification-mapping)
   - [Binary Setup (Quick Run)](#binary-setup-quick-run)
-- [Specification Mapping](#specification-mapping)
 - [Structure of the Repository](#structure-of-the-repository)
 - [3rd Party Components](#3rd-party-components)
 - [Design and Mapping to Margo Architecture](#design-and-mapping-to-margo-architecture)
@@ -13,10 +14,11 @@
   - [Repositories and Registry](#repositories-and-registry)
   - [Telemetry and Monitoring](#telemetry-and-monitoring)
 - [Margo Identity and Authorization Framework (MIAF)](#margo-identity-and-authorization-framework-miaf)
+  - [Margo Identity Service (MIS)](#margo-identity-service-mis)
   - [MIAF Design Rationale](#miaf-design-rationale)
+  - [PKI and Certificate Infrastructure](#pki-and-certificate-infrastructure)
 - [Identity Lifecycle and Operator Playbooks](#identity-lifecycle-and-operator-playbooks)
 - [Release Notes](#release-notes)
-- [Comments and Feedback](#comments-and-feedback)
 
 ---
 
@@ -44,6 +46,9 @@ Please navigate to the [Issues](https://github.com/margo/sandbox/issues) tab of 
 This section allows you to set up the 'Sandbox' environment for experimenting with the Margo specifications and APIs. This includes instructions on the prerequisites for your setup, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the WFM and the Workload Fleet Management Client using a simple CLI.
 
 Here is [Setup Guide](./docs/setup-guide.md) to get you started quickly.
+
+Once your environment is set up, refer to the [Operations Guide](./docs/operations-guide.md) to manage workloads, deploy applications, and monitor your environment using the EasyCLI and observability dashboards.
+
 
 #### Development Toolset
 - [Development Toolset](./docs/dev-toolsets.md)
@@ -134,6 +139,15 @@ This includes the following elements -
 - The Margo Identity Service (MIS) issues SVIDs and publishes the Trust Domain discovery document and Trust Bundle over HTTPS. The Sandbox provisions these identities as part of its setup and onboarding workflows.
 - Authorization is performed locally by each verifier using the peer's validated SPIFFE ID and the applicable Margo policy; no central authorization server is used.
 - See the [Margo WFM Identity Profile](https://docs.margo.org/specification/identity/wfm-identity-profile) and [Transport Layer Security Requirements](https://docs.margo.org/specification/identity/tls-requirements) for the normative identity and transport requirements.
+
+#### Margo Identity Service (MIS)
+The Margo Identity Service issues X.509-SVIDs and publishes the Trust Domain discovery document and Trust Bundle over HTTPS. It is deployed on the WFM VM as part of the sandbox setup.
+
+- Issues SVIDs for WFM and WFM Clients using SPIFFE IDs
+- Publishes the Trust Bundle via a normative HTTPS API secured by a self-signed CA
+- Lifecycle operations (SVID renewal, revocation, Root CA replacement) are operator-driven
+
+See the [MIS README](./mis/README.md) for deployment details, PKI setup, and trust model documentation.
 
 #### MIAF Design Rationale
 The sandbox's choices for MIS SVID minting, HTTP connection reuse, and client-side authorization reflect the current specification and operator-driven lifecycle. See [MIAF Design Rationale and Current Trade-offs](./docs/miaf-design-rationale.md) for the reasoning, security and performance trade-offs, and areas that may evolve with MIAF.

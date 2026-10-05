@@ -11,56 +11,92 @@ ctr -n k8s.io image import workload-fleet-management-client.tar
 # use this command if on k3s cluster
 k3s ctr -n k8s.io image import workload-fleet-management-client.tar
 cd helmchart
-
 ```
 
-# Main steps:
-1. Copy the config.yaml and capabilities.json files in this directory.
-```bash
-cp -r ../poc/device/agent/config/* .
+# Files required by the chart
+The chart reads non-sensitive configuration from `config/config.yaml` and `config/capabilities.json`. It reads the following sensitive or certificate files from the chart root when `secrets.create` is enabled:
+
+```text
+helmchart/
+|-- harbor.crt
+|-- https-ca.crt
+|-- payload-cert.pem
+|-- payload-key.pem
+|-- authorized.json
+`-- authorization/
+	|-- authorized.json
+`-- config/
+	|-- config.yaml
+	`-- capabilities.json
 ```
 
-2. Change the params as per your need in these config.yaml and capabilities.json files.
+The files must exist before running `helm install` or `helm template`; Helm embeds them in the generated Kubernetes Secret and ConfigMap. Do not commit `payload-key.pem` or other private credentials to source control.
 
-3. Install the chart in default namespace:
+The MIAF-related entries in `config/config.yaml` require:
+- `payload-cert.pem`: the SVID certificate, mounted in the pod as `/config/identity/payload-cert.pem`.
+- `payload-key.pem`: the private key for the SVID certificate, mounted as `/config/identity/payload-key.pem`.
+- `https-ca.crt`: the CA certificate used to verify the MIS endpoint, mounted as `/config/mis/https-ca.crt`.
+- `authorization/authorized.json`: the authorized clients file, mounted as `/config/authorized.json`.
+- `config/capabilities.json`: the device capabilities file referenced by `capabilities.readFromFile` and mounted as `/config/capabilities.json`.
+
+The chart also requires `harbor.crt` for the Harbor CA mount at `/usr/local/share/ca-certificates/harbor.crt`. The configured MIS endpoint must be reachable from the pod. If MIS trust-bundle discovery is unavailable and the corresponding settings are enabled in `config/config.yaml`, `trust-bundle.json` must also be made available at `/config/mis/trust-bundle.json`; the current chart templates do not package or mount this optional file, so the ConfigMap/Secret templates must be extended before using that fallback.
+
+The supplied configuration selects the Kubernetes runtime and uses in-cluster ServiceAccount authentication. To manage Docker instead, select the `DOCKER` runtime in `config/config.yaml` and provide the required Docker socket/runtime configuration; this chart does not currently mount `/var/run/docker.sock`.
+
+# Installation
+1. Copy the configuration files into the chart's `config/` directory and the certificate/authorization files into the chart root:
 ```bash
-helm install workload-fleet-management-client
+cp ../poc/device/agent/config/config.yaml config/config.yaml
+cp ../poc/device/agent/config/capabilities.json config/capabilities.json
+cp /path/to/harbor.crt harbor.crt
+cp /path/to/https-ca.crt https-ca.crt
+cp /path/to/payload-cert.pem payload-cert.pem
+cp /path/to/payload-key.pem payload-key.pem
+mkdir authorized
+cp /path/to/authorized.json authorized/authorized.json # Or Edit what is already present
 ```
 
-4. Authentication Method:
-This Helm chart uses ServiceAccount-based authentication to connect with the Kubernetes API server. The chart automatically creates:
+2. Update `config/config.yaml` and `config/capabilities.json` for the target environment, including the MIS endpoint, WFM SBI URL, runtime, and state-seeking interval. If persistence is enabled, align `database.dataDir` with the deployment mount at `/data` (or update the deployment mount to `/var/lib/margo/device-agent/data`) so data is written to the PVC.
 
-ServiceAccount for the workload-fleet-management-client pod
-ClusterRole with necessary permissions
-ClusterRoleBinding to link ServiceAccount with permissions
-The workload-fleet-management-client will authenticate using the ServiceAccount token automatically mounted by Kubernetes at /var/run/secrets/kubernetes.io/serviceaccount/token.
-
+3. Review `values.yaml` and install the chart in the desired namespace. Persistence is enabled by default and creates a 1 GiB PVC unless `persistence.existingClaim` is set:
 ```bash
-Note: Refer build_start_device_agent_k3s_service() in /sandbox/scripts/device-agent.sh for details of the method used for creation of ServiceAccount , ClusterRole and ClusterRoleBinding. Also code ensures that the workload-fleet-management-client's ServiceAccount has the necessary permissions to interact with Kubernetes resources, particularly secrets and configmaps.
+helm install workload-fleet-management-client . --namespace default --create-namespace
 ```
 
-5. Verification:
+# Authentication and permissions
+With `rbac.create: true` (the default), the chart creates:
+
+- A ServiceAccount for the client pod
+- A ClusterRole with permissions for the configured workload management operations
+- A ClusterRoleBinding connecting the ServiceAccount to the ClusterRole
+
+The client authenticates with the Kubernetes API using the ServiceAccount token mounted automatically by Kubernetes at `/var/run/secrets/kubernetes.io/serviceaccount/token`. Set `rbac.create: false` only when equivalent permissions and a ServiceAccount are managed separately.
+
+# Verification
 
 ```bash
-# Check if pods are running
+# Check the release and pod
+helm status workload-fleet-management-client --namespace default
 kubectl get pods -n default
+
+# Check generated configuration resources
+kubectl get configmap,secret,pvc -n default | grep workload-fleet-management-client
 
 # Check ServiceAccount and RBAC resources
 kubectl get serviceaccount,clusterrole,clusterrolebinding -n default | grep workload-fleet-management-client
 
 # Check logs
 kubectl logs -n default deployment/workload-fleet-management-client-deploy
-
 ```
-6. Cleanup:
+
+# Render locally before installation
 ```bash
-# Uninstall Helm release
-helm uninstall workload-fleet-management-client --namespace default
-
-# Clean up RBAC resources (if needed)
-kubectl delete clusterrole workload-fleet-management-client-role
-kubectl delete clusterrolebinding workload-fleet-management-client-binding
-
-
-
+helm template workload-fleet-management-client . --namespace default
 ```
+
+# Cleanup
+```bash
+helm uninstall workload-fleet-management-client --namespace default
+```
+
+The generated PVC is retained by the chart's resource policy. Delete it separately only when its stored device-agent state is no longer needed.

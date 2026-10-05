@@ -24,10 +24,23 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: "mis-linux"
+    main: ./mis
+    binary: margo-identity-service
+    flags:
+      - -trimpath
+    ldflags:
+      - -X main.build={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
 
 dockers_v2:
   - images:
-      - "ghcr.io/margo/workload-fleet-management-client"
+      - "ghcr.io/margo/margo.org/workload-fleet-management-client"
+    id: "workload-fleet-management-client"
     dockerfile: ./poc/device/agent/Dockerfile
     platforms:
       - linux/amd64
@@ -52,13 +65,44 @@ dockers_v2:
       - poc/
       - standard/
       - non-standard/
+      - mis/pkg/standard/generatedCode
+      - shared-lib/
+  - images:
+      - "ghcr.io/margo/margo-identity-service"
+    id: "margo-identity-service"
+    dockerfile: ./mis/Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    flags:
+      - "--network=host"
+    build_args:
+      VERSION: "{{.Version}}"
+      DATE: "{{.CommitDate}}"
+      COMMIT: "{{.Commit}}"
+    labels:
+      org.opencontainers.image.title: "{{.ProjectName}}-mis"
+      org.opencontainers.image.description: "Margo sandbox MIS (Margo Identity Service)
+        A reference implementation."
+      org.opencontainers.image.source: "{{.GitURL}}/tree/main/mis"
+      org.opencontainers.image.version: "{{.Version}}"
+      org.opencontainers.image.revision: "{{.FullCommit}}"
+      org.opencontainers.image.created: "{{.CommitDate}}"
+    extra_files:
+      - go.mod
+      - go.sum
+      - mis/
+      - standard/
+      - non-standard/
       - shared-lib/
 
 report_sizes: true
 
 archives:
-  - formats:
-      - tar.gz
+  - id: device-agent-archive
+    ids:
+      - linux-amd64
+    format: tar.gz
     name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
     wrap_in_directory: device-agent
     files:
@@ -67,6 +111,22 @@ archives:
         dst: BINARY_GETTING_STARTED.md
       - src: poc/device/agent/config
         dst: config
+
+  - id: mis-archive
+    ids:
+      - mis-linux
+    format: tar.gz
+    name_template: "{{.ProjectName}}_mis_{{.Version}}_{{.Os}}-{{.Arch}}"
+    wrap_in_directory: margo-identity-service
+    files:
+      - LICENSE
+      - src: mis/README.md
+        dst: README.md
+      - src: mis/pkg/conf/configuration.json
+        dst: configuration.json
+      - src: scripts/lib/mis/pki_gen.sh
+        dst: pki_gen.sh
+      
 
 checksum:
   name_template: "{{.ProjectName}}_checksums.txt"

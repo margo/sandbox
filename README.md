@@ -2,19 +2,23 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
+- [Sandbox Feedback / Issue Reporting](#sandbox-feedback--issue-reporting)
 - [Quick Start Guide](#quick-start-guide)
   - [Development Toolset](#development-toolset)
+  - [Specification Mapping](#specification-mapping)
   - [Binary Setup (Quick Run)](#binary-setup-quick-run)
-- [Specification Mapping](#specification-mapping)
 - [Structure of the Repository](#structure-of-the-repository)
 - [3rd Party Components](#3rd-party-components)
 - [Design and Mapping to Margo Architecture](#design-and-mapping-to-margo-architecture)
   - [Symphony WFM](#symphony-wfm)
   - [Repositories and Registry](#repositories-and-registry)
   - [Telemetry and Monitoring](#telemetry-and-monitoring)
-- [HTTP/1.1 and API Security](#http11-and-api-security)
+- [Margo Identity and Authorization Framework (MIAF)](#margo-identity-and-authorization-framework-miaf)
+  - [Margo Identity Service (MIS)](#margo-identity-service-mis)
+  - [MIAF Design Rationale](#miaf-design-rationale)
+  - [PKI and Certificate Infrastructure](#pki-and-certificate-infrastructure)
+- [Identity Lifecycle and Operator Playbooks](#identity-lifecycle-and-operator-playbooks)
 - [Release Notes](#release-notes)
-- [Comments and Feedback](#comments-and-feedback)
 
 ---
 
@@ -42,6 +46,9 @@ Please navigate to the [Issues](https://github.com/margo/sandbox/issues) tab of 
 This section allows you to set up the 'Sandbox' environment for experimenting with the Margo specifications and APIs. This includes instructions on the prerequisites for your setup, how to set up a build environment, creating a deployment on a set of virtual machines and running scenarios between the WFM and the Workload Fleet Management Client using a simple CLI.
 
 Here is [Setup Guide](./docs/setup-guide.md) to get you started quickly.
+
+Once your environment is set up, refer to the [Operations Guide](./docs/operations-guide.md) to manage workloads, deploy applications, and monitor your environment using the EasyCLI and observability dashboards.
+
 
 #### Development Toolset
 - [Development Toolset](./docs/dev-toolsets.md)
@@ -78,12 +85,14 @@ The repository is divided into three main parts. You can find more details here 
 | Observability Stack | Promtail | 6.17.1 (helm chart for k3s device), grafana/promtail:2.9.10 (docker-image for docker device)  |
 | Security & Authentication | OpenSSL | System default |
 | Supporting Infrastructure | Helm | 3.15.1 |
-| Supporting Infrastructure | Go | 1.24.4 |
+| Supporting Infrastructure | Go | 1.25.10 |
 | Supporting Infrastructure | Docker | 29.1.2 |
 | Supporting Infrastructure | Docker Compose | v5.0.0 |
 | Supporting Infrastructure | K3s | v1.31.4+k3s1 |
 | Supporting Infrastructure | Node.js/NPM | System default |
 | System Utilities | curl | System default |
+| System Utilities | jq | System default |
+| System Utilities | yq | System default |
 | System Utilities | git | System default |
 | System Utilities | wget | System default |
 | System Utilities | build-essential | System default |
@@ -126,13 +135,34 @@ This includes the following elements -
 
 ---
 
-### HTTP/1.1 and API Security
-- Sandbox utilizes HTTP/1.1 to ensure maximum support for existing infrastructure.
-- Server-side TLS is utilized instead of mTLS due to potential issues with TLS-terminating HTTPS load-balancer or HTTPS proxies doing lawful inspection.
-- Use of X.509 certificates to represent both parties within the REST API construction. These certificates are utilized to prove each participant's identity, establish a secure TLS session, and securely transport information within secure envelopes. Supports client authentication using X.509 certificates conforming to RFC 5280.
-- The device establishes a secure HTTPS connection using server-side TLS. It validates the server's identity using the public root CA certificate. By utilizing the certificates to create payload envelopes (HTTP request body), the device's management client can ensure secure transport between the device's management client and the Workload Fleet Management web service.
-- For API security, server side TLS 1.3 (minimum) is used, where the keys are obtained from the Server's X.509 Certificate as defined in the standard HTTP over TLS.
-- For API integrity, the device's management client is issued a client-specific X.509 certificate. The issuer of the client X.509 certificate is trusted under the assumption that the root CA download to the Workload Fleet Management server occurs as a precondition to onboarding the devices. This CA can be provided to the device in any offline mode.
+### Margo Identity and Authorization Framework (MIAF)
+- The Sandbox implements [MIAF](https://docs.margo.org/specification/identity/identity-framework) for the Workload Fleet Management interface between the WFM and WFM Clients.
+- Components authenticate using mutual TLS (mTLS) with X.509-SVIDs containing SPIFFE IDs. Each peer validates the other peer's SVID against the Trust Bundle for the shared Trust Domain.
+- The Margo Identity Service (MIS) issues SVIDs and publishes the Trust Domain discovery document and Trust Bundle over HTTPS. The Sandbox provisions these identities as part of its setup and onboarding workflows.
+- Authorization is performed locally by each verifier using the peer's validated SPIFFE ID and the applicable Margo policy; no central authorization server is used.
+- See the [Margo WFM Identity Profile](https://docs.margo.org/specification/identity/wfm-identity-profile) and [Transport Layer Security Requirements](https://docs.margo.org/specification/identity/tls-requirements) for the normative identity and transport requirements.
+
+#### Margo Identity Service (MIS)
+The Margo Identity Service issues X.509-SVIDs and publishes the Trust Domain discovery document and Trust Bundle over HTTPS. It is deployed on the WFM VM as part of the sandbox setup.
+
+- Issues SVIDs for WFM and WFM Clients using SPIFFE IDs
+- Publishes the Trust Bundle via a normative HTTPS API secured by a self-signed CA
+- Lifecycle operations (SVID renewal, revocation, Root CA replacement) are operator-driven
+
+See the [MIS README](./mis/README.md) for deployment details, PKI setup, and trust model documentation.
+
+#### MIAF Design Rationale
+The sandbox's choices for MIS SVID minting, HTTP connection reuse, and client-side authorization reflect the current specification and operator-driven lifecycle. See [MIAF Design Rationale and Current Trade-offs](./docs/miaf-design-rationale.md) for the reasoning, security and performance trade-offs, and areas that may evolve with MIAF.
+#### PKI and Certificate Infrastructure
+
+All development and deployment of MIS within this sandbox is performed using **self-signed Root Certificate Authorities (CAs)**. This includes both the Minter CA used to issue X.509-SVIDs and the HTTPS CA used to secure the normative Trust Bundle API. This approach is intentional for sandbox and proof-of-concept use — it keeps the environment fully self-contained without requiring an external PKI infrastructure. Operators bringing their own PKI are responsible for supplying the correct certificate material and ensuring its correctness and trustworthiness.
+
+For a detailed explanation of the PKI trust model, the certificates involved, and guidance on supplying your own PKI infrastructure, see the [MIS PKI Setup and Trust Model](./mis/README.md#pki-setup) documentation.
+
+### Identity Lifecycle and Operator Playbooks
+The sandbox follows the operator-driven identity lifecycle described by Margo. Initial SVIDs are generated by MIS, renewal requires replacing the certificate and key followed by a device-agent restart, and device access is revoked by removing its SPIFFE ID from the authorization list. Trust-bundle reset and Root CA replacement require an MIS restart and new identities.
+
+See the [Identity Lifecycle and Operator Playbooks](./docs/identity-lifecycle.md) for the supported procedures and limitations.
 
 ---
 
@@ -141,8 +171,10 @@ This includes the following elements -
 
 If you want to quickly try the device-agent without setting up the full sandbox environment, you can run the prebuilt binary directly from the release package.
 
+Running the binary requires identity material from a Margo Identity Service (MIS), unless your operator provides equivalent overrides.
+
 👉 Follow the Binary Quick Start Guide here:  
-[Device Agent – Binary Setup Guide](./docs/binary-getting-started.md)
+[Device Agent - Binary Setup Guide](./docs/binary-getting-started.md)
 
 This method is useful for:
 - Quick validation and testing
@@ -150,4 +182,4 @@ This method is useful for:
 - Direct execution on supported systems
 
 ### Release Notes
-Details of version updates, bug fixes, and new features.
+https://github.com/margo/sandbox/releases

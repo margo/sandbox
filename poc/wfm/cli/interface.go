@@ -9,31 +9,24 @@ import (
 
 // SBIAPIClient interface
 type SBIAPIClientInterface interface {
-	OnboardDeviceClient(
-		ctx context.Context,
-		deviceSignature []byte,
-		overrideOptions ...HTTPApiClientRequestEditorOptions,
-	) (clientId string, endpoints []string, err error)
 	SyncState(
 		ctx context.Context,
-		deviceClientId string,
 		etag string,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) (desiredStates *sbi.UnsignedAppStateManifest, err error)
 	SyncStateWithResponse(
 		ctx context.Context,
-		deviceClientId string,
 		etag string,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) (desiredStates *sbi.UnsignedAppStateManifest, response *http.Response, err error)
 	FetchDeploymentYAML(
 		ctx context.Context,
-		deviceClientId, deploymentId, digest string,
+		deploymentId, digest string,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) (yamlContent []byte, err error)
 	DownloadBundle(
 		ctx context.Context,
-		deviceClientId, digest string,
+		digest string,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) (bundleData []byte, err error)
 	ReportCapabilities(
@@ -44,7 +37,8 @@ type SBIAPIClientInterface interface {
 	) error
 	ReportDeploymentStatus(
 		ctx context.Context,
-		deviceID, appID string,
+		appID string,
+		adoptedManifestVersion uint64,
 		overallAppStatus sbi.DeploymentStatusManifestStatusState,
 		components []sbi.ComponentStatus,
 		err error,

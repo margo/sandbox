@@ -16,7 +16,9 @@ install_go() {
     echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
   else
     sudo rm -rf /usr/local/go /usr/bin/go
-    wget "https://go.dev/dl/go1.25.10.linux-amd64.tar.gz" -O go.tar.gz
+    local ARCH
+    ARCH="$(detect_arch "${GO_ARCH:-}")" || exit 1
+    wget "https://go.dev/dl/go1.25.10.linux-${ARCH}.tar.gz" -O go.tar.gz
     sudo tar -C /usr/local -xzf go.tar.gz
     rm go.tar.gz
     which go

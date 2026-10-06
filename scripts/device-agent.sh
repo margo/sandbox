@@ -380,7 +380,7 @@ generate_private_key_and_csr() {
 
   echo ""
   echo "======================================================================="
-  echo "🔐 Generate Private Key & CSR for WFM"
+  echo "🔐 Generate Private Key & CSR for WFM Client"
   echo "======================================================================="
   echo ""
   echo "  The SPIFFE ID must follow this format:"
@@ -405,11 +405,11 @@ generate_private_key_and_csr() {
       continue
     fi
 
-    # Validate expected path structure: /margo/wfm/<wfm-client>
-    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+$ ]]; then
+    # Validate expected path structure: /margo/wfm/<wfm-id>/client/<wfm-client-id>
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$ ]]; then
       echo "  ⚠️  SPIFFE ID does not match expected format:"
-      echo "       spiffe://<trust-domain>/margo/wfm/<wfm-client>"
-      echo "       Example: spiffe://margo.org/margo/wfm/my-wfm"
+      echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+      echo "       Example: spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
       continue
     fi
 

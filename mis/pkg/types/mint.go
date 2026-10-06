@@ -5,7 +5,8 @@ import "time"
 // MintSVIDRequest represents the JSON request body for /mint/svid/x509
 type MintSVIDRequest struct {
 	DNS      []string       `json:"dns,omitempty"` // Optional: DNS SANs to include in SVID
-	SpiffeID string         `json:"spiffeID"`      // Required: must follow "spiffe://<trust-domain>/<path>"
+	SpiffeID string         `json:"spiffeID"`      // Required only if CSR is not present: must follow "spiffe://<trust-domain>/<path>"
+	CSR      string         `json:"csr"`           // Optional: should be a Valid CSR which can be used to generate SVID.
 	TTL      *time.Duration `json:"ttl,omitempty"` // Optional: seconds; defaults to 86400 (24h)
 }
 

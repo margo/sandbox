@@ -141,10 +141,15 @@ func mintx509SVID(flags *x509Flags) {
 
 	ttl := time.Duration(flags.TTL) * time.Second
 
-	cp := filepath.Clean(flags.CSRPath)
-	content, err := os.ReadFile(cp)
-	if err != nil {
-		log.Fatalf("failed to read CSR content, err : %s", err.Error())
+	content := ""
+
+	if flags.CSRPath != "" {
+		cp := filepath.Clean(flags.CSRPath)
+		rawContent, err := os.ReadFile(cp)
+		if err != nil {
+			log.Fatalf("failed to read CSR content, err : %s", err.Error())
+		}
+		content = string(rawContent)
 	}
 
 	params := &types.MintSVIDRequest{

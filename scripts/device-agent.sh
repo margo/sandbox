@@ -362,9 +362,9 @@ manage_spiffe_ids() {
 
 generate_private_key_and_csr() {
 
-  identity_dir="$certs_dir/compose-identity"
+  identity_dir="compose-identity"
   if [[ "$DEVICE_TYPE" == "k3s" ]]; then
-    identity_dir="$certs_dir/helm-identity"
+    identity_dir="helm-identity"
   fi
 
 

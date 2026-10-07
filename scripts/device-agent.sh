@@ -478,7 +478,7 @@ show_menu() {
   echo "11) Manage SPIFFE ID allowlist"
   echo "12) Generate Private Key & CSR"
   echo "13) Exit"
-  read -rp "Enter choice [1-12]: " choice
+  read -rp "Enter choice [1-13]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;

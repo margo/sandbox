@@ -453,7 +453,7 @@ generate_private_key_and_csr() {
   echo ""
   echo "  Next steps:"
   echo "    • Submit ${certs_dir}/payload-req.csr to your MIS to mint an SVID"
-  echo "    • Place the returned SVID in: ${HOME}/symphony/api/certificates/"
+  echo "    • Place the returned SVID in: ${certs_dir}"
   echo "======================================================================="
 }
 

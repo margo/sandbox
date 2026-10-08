@@ -8,7 +8,7 @@ The procedures below are operator-driven. Automated enrollment, renewal, reissua
 
 | Lifecycle operation | Sandbox implementation |
 |---|---|
-| Enrollment | MIS or an operator-provided channel generates an SVID certificate and private key. CSR-based issuance is not supported. |
+| Enrollment | MIS or an operator-provided channel generates an SVID certificate and private key. CSR-based issuance is supported: the operator generates the key and CSR locally; MIS signs and returns the certificate only. |
 | Renewal/reissuance | The operator generates a new certificate/key pair for the existing SPIFFE ID and replaces the device-agent identity files. The device-agent must be restarted. |
 | Device-agent revocation | Remove the device-agent SPIFFE ID from the WFM authorization list. The agent watches the authorization file and applies the updated list to subsequent requests. |
 | Trust bundle revocation | MIS supports a hard trust-bundle reset. Replace the Root CA and restart MIS. Clients refetch the updated bundle according to `spiffe_refresh_hint`. |
@@ -28,10 +28,12 @@ The sandbox currently uses centrally generated identity material:
 3. Configure the device-agent to use the certificate and key, together with the required MIS HTTPS CA or trust-bundle configuration.
 4. Start the device-agent and verify that it can establish the mTLS connection to the WFM.
 
-The sandbox does **not** currently accept a CSR for SVID issuance. The operator or MIS therefore generates both the certificate and key.
+Two SVID generation flows are supported:
 
-For the supported SVID generation workflows, see the [binary getting started guide](./binary-getting-started.md).
+- **SPIFFE ID flow** — MIS generates both the certificate and the private key. Use this for simplicity in sandbox and PoC deployments.
+- **CSR flow** — The operator generates the private key and CSR locally. Only the CSR is submitted to MIS, which returns the signed certificate. The private key never leaves the operator's host. Use this when your security policy requires local key custody.
 
+For step-by-step instructions for both flows, see [SVID Generation Methods](./svid-generation-methods.md).
 ## Renewal and Reissuance
 
 To renew an SVID before it expires, or to reissue an SVID for the same device identity:
@@ -107,14 +109,16 @@ sudo -E bash mis.sh
 - Type `6` and press Enter.
 - Choose: `Option 6: Generate SVID`
 
-Follow the interactive prompts to select the principal (WFM or WFM Client) and provide the SPIFFE ID. The generator produces:
+Follow the interactive prompts to select the generation method, principal, and SPIFFE ID (or CSR path). Depending on the chosen flow, the generator produces:
 
-```
-payload-cert.pem   # X.509 SVID certificate
-payload-key.pem    # Corresponding private key
-```
+| Flow | Files produced |
+|---|---|
+| SPIFFE ID flow | `payload-cert.pem` (certificate) + `payload-key.pem` (private key) |
+| CSR flow | `payload-cert.pem` (certificate only — private key is retained by the operator) |
 
-These files are placed in a subdirectory under `$HOME/workspace/sandbox/scripts/` named after the principal ID you provided (e.g., `x509svid-wfm`, `x509svid-wfm-docker-client`, `x509svid-wfm-helm-client`).
+For details on both flows, see [SVID Generation Methods](./svid-generation-methods.md).
+
+These files are placed in current working directory.
 
 #### Step 2 — Place the New Files in the Correct Identity Directory
 
@@ -315,7 +319,6 @@ After MIS restarts with the new Root CA, all existing SVIDs chain to the old (no
 
 ## Operational Limitations
 
-- CSR-based SVID issuance is not supported.
 - Certificate renewal and reissuance are manual and require a device-agent restart.
 - Device-agent revocation is authorization-list removal, not cryptographic certificate revocation.
 - Trust-bundle reset requires an MIS restart and replacement identities.

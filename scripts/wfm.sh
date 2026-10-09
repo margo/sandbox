@@ -63,8 +63,75 @@ source "${SCRIPT_DIR}/modules/packages.sh"
 source "${SCRIPT_DIR}/modules/manage-spiffe-ids.sh"
 
 
+confirm_prerequisites_setup() {
+  local warnings=()
+
+  # Check if Harbor is running (docker compose project)
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi "harbor"; then
+    warnings+=("Harbor registry appears to be running")
+  fi
+
+  # Check if Symphony API container is running
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "symphony-api-container"; then
+    warnings+=("Symphony API container is currently running")
+  fi
+
+  # Check if Redis is running
+  if systemctl is-active --quiet redis 2>/dev/null || redis-cli ping >/dev/null 2>&1; then
+    warnings+=("Redis is already running")
+  fi
+
+  # If any signs detected, warn the user
+  if [ ${#warnings[@]} -gt 0 ]; then
+    echo ""
+    echo "======================================================================="
+    echo "⚠️  WARNING: Prerequisites Setup Seems Out of Place!"
+    echo "======================================================================="
+    echo ""
+    echo "  The following signs indicate Option 1 may have already been run:"
+    echo ""
+    for w in "${warnings[@]}"; do
+      echo "    ⚡ $w"
+    done
+    echo ""
+    echo "  Running Option 1 again will perform ALL of the following:"
+    echo ""
+    echo "    1.  Install basic utilities (curl, jq, build-essential, gcc, etc.) (If not present)"
+    echo "    2.  Install Go runtime (If not present)"
+    echo "    3.  Install Docker and Docker Compose (If not present)"
+    echo "    4.  Set up k3s (Kubernetes) (If not present)"
+    echo "    5.  Install Redis (If not present)"
+    echo "    6.  Install ORAS CLI"
+    echo "    7.  Clone Symphony and sandbox repositories (may overwrite existing)"
+    echo "    8.  Create Symphony API directories (may overwrite existing)" 
+    echo "    9.  Set up Harbor OCI registry (Again)"
+    echo "    10. Trust Harbor TLS certificate (Again)"
+    echo "    11. Build custom OpenTelemetry container images"
+    echo "    12. Push Nextcloud, custom OTel, and Nextcloud Compose packages to OCI"
+    echo ""
+    echo "  ⚠️  This may cause conflicts, duplicate installations, or data loss."
+    echo "  👉  Consider running Option 2 (Cleanup) first."
+    echo ""
+    echo "======================================================================="
+    echo ""
+    read -p "  Do you still want to proceed? (yes/no): " confirm
+    echo ""
+    if [[ "$confirm" != "yes" ]]; then
+      echo "  ❌ Aborted. No changes were made."
+      echo ""
+      return 1
+    fi
+    echo "  ✅ Proceeding with prerequisites setup..."
+    echo ""
+  fi
+
+  return 0
+}
+
+
 # Main orchestration
 install_prerequisites() {
+  confirm_prerequisites_setup || return 1 
   echo "Running all pre-req setup tasks..."
   install_basic_utilities
   install_go
@@ -430,6 +497,7 @@ create_symphony_api_dirs() {
 show_menu() {
   clear
   load_wfm_env || true
+  validate_mis_host 
   echo "Choose an option:"
   echo "1) PreRequisites: Setup"
   echo "2) PreRequisites: Cleanup"
@@ -468,6 +536,7 @@ if [[ -z "$1" ]]; then
   main_loop
 else
   load_wfm_env || true
+  validate_mis_host 
   case "$1" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;

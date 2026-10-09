@@ -259,11 +259,11 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 3. **Copy WFM SVIDs and MIS HTTPS server CA**
    ```bash
-   cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
-   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
-   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
+   sudo cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
+   sudo cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
+   sudo cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
    ```
-   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. 
+   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. Also, if using a non root user, make sure to change ownership using `chown` if required. 
 
 4. **Add WFM Client SPIFFE IDs as authorised clients interactively**
 

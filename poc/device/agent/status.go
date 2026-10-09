@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
@@ -18,10 +19,11 @@ type StatusReporterIfc interface {
 }
 
 type StatusReporter struct {
-	database  database.DatabaseIfc
-	apiClient wfm.SBIAPIClientInterface
-	log       *zap.SugaredLogger
-	stopChan  chan struct{}
+	database       database.DatabaseIfc
+	apiClient      wfm.SBIAPIClientInterface
+	log            *zap.SugaredLogger
+	stopChan       chan struct{}
+	reportSequence atomic.Uint64
 }
 
 func NewStatusReporter(
@@ -51,6 +53,14 @@ func (sr *StatusReporter) onDeploymentChange(
 	record *database.DeploymentRecord,
 	changeType database.DeploymentRecordChangeType,
 ) {
+	if record == nil {
+		sr.log.Warnw("Deployment change detected with nil record",
+			"appId", appID,
+			"changeType", changeType,
+		)
+		return
+	}
+
 	// Concise logging with only important fields
 	logFields := []interface{}{
 		"appId", appID,
@@ -84,19 +94,42 @@ func (sr *StatusReporter) onDeploymentChange(
 	if changeType == database.DeploymentChangeTypeDesiredStateAdded ||
 		changeType == database.DeploymentChangeTypeComponentPhaseChanged ||
 		changeType == database.DeploymentChangeTypeCurrentStateAdded {
-		go sr.reportStatus(appID, record)
+		reportSequence := sr.reportSequence.Add(1)
+		queuedAt := time.Now()
+		sr.log.Infow("Deployment status report queued",
+			"reportSequence", reportSequence,
+			"appId", appID,
+			"changeType", changeType,
+			"phase", record.Phase,
+		)
+		go sr.reportStatus(reportSequence, queuedAt, appID, record)
 	}
 }
 
-func (sr *StatusReporter) reportStatus(appID string, record *database.DeploymentRecord) {
+func (sr *StatusReporter) reportStatus(
+	reportSequence uint64,
+	queuedAt time.Time,
+	appID string,
+	record *database.DeploymentRecord,
+) {
+	startedAt := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Add nil check for record
 	if record == nil {
-		sr.log.Warnw("Skipping status report - nil deployment record", "appId", appID)
+		sr.log.Warnw("Skipping status report - nil deployment record",
+			"reportSequence", reportSequence,
+			"appId", appID,
+		)
 		return
 	}
+	sr.log.Infow("Deployment status report started",
+		"reportSequence", reportSequence,
+		"appId", appID,
+		"phase", record.Phase,
+		"queueDelayMs", startedAt.Sub(queuedAt).Milliseconds(),
+	)
 
 	// Allow reporting failures even without current state
 	// If phase is FAILED but no current state, create one from desired state
@@ -174,17 +207,22 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 		)
 	}
 	// Add defensive logging
-	sr.log.Debugw("Reporting status",
+	sr.log.Infow("Sending deployment status report",
+		"reportSequence", reportSequence,
 		"appId", appID,
 		"phase", record.Phase,
 		"state", deploymentState,
 		"componentCount", len(components),
-		"adoptedManifestVersion", adoptedVersion)
+		"adoptedManifestVersion", adoptedVersion,
+		"currentState", record.CurrentState.State,
+		"desiredState", record.DesiredState.State,
+	)
 
 	// Report deployment status with error recovery
 	defer func() {
 		if r := recover(); r != nil {
 			sr.log.Errorw("Panic in ReportDeploymentStatus",
+				"reportSequence", reportSequence,
 				"appId", appID,
 				"panic", r,
 				"phase", record.Phase,
@@ -204,6 +242,8 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			sr.log.Errorw("WFM returned problem detail on status report",
+				"reportSequence", reportSequence,
+				"state", deploymentState,
 				"appId", appID,
 				"type", pd.Type,
 				"status", pd.Status,
@@ -214,19 +254,30 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 			// 403 — device relationship retired, stop retrying
 			if pd.Status == http.StatusForbidden {
 				sr.log.Errorw("Device not authorized — capabilities may need re-registration",
-					"appId", appID, "type", pd.Type)
+					"reportSequence", reportSequence,
+					"appId", appID,
+					"state", deploymentState,
+					"type", pd.Type)
 			}
 		} else {
-			sr.log.Errorw("Failed to report status", "appId", appID, "error", err)
+			sr.log.Errorw("Failed to report status",
+				"reportSequence", reportSequence,
+				"appId", appID,
+				"state", deploymentState,
+				"error", err,
+			)
 		}
 		return
 	}
 
-	sr.log.Infow("Status reported successfully",
+	sr.log.Infow("Deployment status report completed",
+		"reportSequence", reportSequence,
 		"appId", appID,
 		"phase", record.Phase,
 		"state", deploymentState,
-		"adoptedManifestVersion", adoptedVersion)
+		"adoptedManifestVersion", adoptedVersion,
+		"durationMs", time.Since(startedAt).Milliseconds(),
+	)
 }
 
 // deriveOverallState computes the overall deployment state from component states

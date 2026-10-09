@@ -3,10 +3,12 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/types"
@@ -132,6 +134,7 @@ type Database struct {
 	subscribers    []func(string, *DeploymentRecord, DeploymentRecordChangeType) // appID, record
 	mu             sync.RWMutex
 	subscriberMu   sync.RWMutex
+	changeSequence atomic.Uint64
 
 	// for persistence
 	dataDir     string
@@ -441,6 +444,23 @@ func (db *Database) notify(
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
+	sequence := db.changeSequence.Add(1)
+	phase := ""
+	var desiredState, currentState interface{}
+	componentStates := make(map[string]sbi.ComponentStatusState)
+	if record != nil {
+		phase = record.Phase
+		if record.DesiredState != nil {
+			desiredState = record.DesiredState.Status.Status.State
+		}
+		if record.CurrentState != nil {
+			currentState = record.CurrentState.Status.Status.State
+		}
+		for name, status := range record.ComponentViseStatus {
+			componentStates[name] = status.State
+		}
+	}
+
 	db.subscriberMu.RLock()
 	defer db.subscriberMu.RUnlock()
 	subscribers := make(
@@ -448,6 +468,17 @@ func (db *Database) notify(
 		len(db.subscribers),
 	)
 	copy(subscribers, db.subscribers)
+	log.Printf(
+		"deployment DB change sequence=%d appId=%q changeType=%q phase=%q desiredState=%v currentState=%v componentStates=%v callbacks=%d",
+		sequence,
+		appID,
+		changeType,
+		phase,
+		desiredState,
+		currentState,
+		componentStates,
+		len(subscribers),
+	)
 
 	for _, callback := range subscribers {
 		go callback(appID, record, changeType)
@@ -592,17 +623,20 @@ func (db *Database) NeedsReconciliation(deploymentId string) bool {
 		return false
 	}
 
-	if record.DesiredState.Status.Status.State == "REMOVED" {
+	if record.DesiredState.Status.Status.State == sbi.DeploymentStatusManifestStatusStateRemoved {
+		log.Printf("desired state is removed. No need for reconciliation")
 		return false
 	}
 
 	// Check if desired and current states differ
 	if record.CurrentState == nil {
+		log.Printf("current state is nil therefore needs reconcillation")
 		return true
 	}
 
 	// Compare the deployment status
 	if record.CurrentState.Status.Status.State != record.DesiredState.Status.Status.State {
+		log.Printf("mismatch in current state: %s and desired state: %s", record.CurrentState.Status.Status.State, record.DesiredState.Status.Status.State)
 		return true
 	}
 

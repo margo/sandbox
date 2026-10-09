@@ -535,6 +535,17 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 		dm.log.Warnw("Deployment not found for removal", "deploymentId", deploymentId)
 		return
 	}
+	var currentStateValue interface{}
+	if record.CurrentState != nil {
+		currentStateValue = record.CurrentState.Status.Status.State
+	}
+	dm.log.Infow("Deployment removal started",
+		"deploymentId", deploymentId,
+		"phase", record.Phase,
+		"desiredState", desiredDeploymentState(record),
+		"currentState", currentStateValue,
+		"componentCount", len(record.ComponentViseStatus),
+	)
 
 	if record.CurrentState == nil {
 		dm.log.Infow(
@@ -577,6 +588,12 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 	//  Set current state to REMOVING
 	currentState := *record.CurrentState
+	dm.log.Infow("Deployment entering removing state",
+		"deploymentId", deploymentId,
+		"fromState", currentState.Status.Status.State,
+		"toState", sbi.DeploymentStatusManifestStatusStateRemoving,
+		"componentCount", len(componentNames),
+	)
 	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoving
 	dm.database.SetCurrentState(deploymentId, currentState)
 	dm.database.SetPhase(deploymentId, "REMOVING", "Starting removal")
@@ -596,6 +613,11 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 	// Route removal based on deployment type
 	profileType := appDeployment.Spec.DeploymentProfile.Type
+	dm.log.Infow("Invoking deployment runtime removal",
+		"deploymentId", deploymentId,
+		"deploymentType", profileType,
+		"componentCount", len(componentNames),
+	)
 
 	var removeErr error
 	switch profileType {
@@ -612,6 +634,11 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 			deploymentId,
 		)
 	}
+	dm.log.Infow("Deployment runtime removal returned",
+		"deploymentId", deploymentId,
+		"deploymentType", profileType,
+		"error", removeErr,
+	)
 
 	// Update per-component status to "removed" (or "failed")
 	for _, name := range componentNames {
@@ -640,6 +667,12 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	// Update current state to REMOVED (even if removal failed)
 	removedState := currentState
 	removedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoved
+	dm.log.Infow("Deployment entering removed state",
+		"deploymentId", deploymentId,
+		"fromState", currentState.Status.Status.State,
+		"toState", removedState.Status.Status.State,
+		"removalError", removeErr,
+	)
 	dm.database.SetCurrentState(deploymentId, removedState)
 
 	if removeErr != nil {
@@ -659,6 +692,13 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	dm.database.RemoveDeployment(deploymentId)
 
 	dm.log.Infow("Removal completed", "appId", deploymentId)
+}
+
+func desiredDeploymentState(record *database.DeploymentRecord) interface{} {
+	if record == nil || record.DesiredState == nil {
+		return nil
+	}
+	return record.DesiredState.Status.Status.State
 }
 
 func (dm *DeploymentManager) removeHelm(

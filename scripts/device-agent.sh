@@ -360,6 +360,104 @@ manage_spiffe_ids() {
   _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
 }
 
+generate_private_key_and_csr() {
+
+  identity_dir="compose-identity"
+  if [[ "$DEVICE_TYPE" == "k3s" ]]; then
+    identity_dir="helm-identity"
+  fi
+
+
+  local certs_dir="${HOME}/certs/${identity_dir}"
+  local csr_gen_script="${SCRIPT_DIR}/lib/mis/csr_gen.sh"
+
+  # Verify csr_gen.sh exists and is executable
+  if [[ ! -f "${csr_gen_script}" ]]; then
+    echo "❌ csr_gen.sh not found at: ${csr_gen_script}"
+    return 1
+  fi
+  chmod +x "${csr_gen_script}"
+
+  echo ""
+  echo "======================================================================="
+  echo "🔐 Generate Private Key & CSR for WFM Client"
+  echo "======================================================================="
+  echo ""
+  echo "  The SPIFFE ID must follow this format:"
+  echo "    spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+  echo "  Example:"
+  echo "    spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
+  echo ""
+
+  # Prompt for SPIFFE ID
+  while true; do
+    read -p "  Enter SPIFFE ID: " spiffe_id
+
+    # Validate non-empty
+    if [[ -z "${spiffe_id// /}" ]]; then
+      echo "  ⚠️  SPIFFE ID cannot be empty. Please try again."
+      continue
+    fi
+
+    # Validate scheme
+    if [[ "${spiffe_id}" != spiffe://* ]]; then
+      echo "  ⚠️  SPIFFE ID must start with 'spiffe://'. Got: '${spiffe_id}'"
+      continue
+    fi
+
+    # Validate expected path structure: /margo/wfm/<wfm-id>/client/<wfm-client-id>
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$ ]]; then
+      echo "  ⚠️  SPIFFE ID does not match expected format:"
+      echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+      echo "       Example: spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
+      continue
+    fi
+
+    break
+  done
+
+  # Create output directory if it doesn't exist
+  if [[ ! -d "${certs_dir}" ]]; then
+    echo ""
+    echo "🔄 Creating certificates directory: ${certs_dir}"
+    mkdir -p "${certs_dir}" || {
+      echo "❌ Failed to create directory: ${certs_dir}"
+      return 1
+    }
+    echo "✅ Created directory: ${certs_dir}"
+  fi
+
+  echo ""
+  echo "🔄 Generating private key and CSR..."
+  echo "   SPIFFE ID  : ${spiffe_id}"
+  echo "   Output Dir : ${certs_dir}"
+  echo ""
+
+  "${csr_gen_script}" \
+    --spiffe-id "${spiffe_id}" \
+    --key-out   "${certs_dir}/payload-key.pem" \
+    --csr-out   "${certs_dir}/payload-req.csr"
+
+  local exit_code=$?
+  if [[ ${exit_code} -ne 0 ]]; then
+    echo ""
+    echo "❌ Failed to generate private key and CSR (exit code: ${exit_code})"
+    return 1
+  fi
+
+  echo ""
+  echo "======================================================================="
+  echo "✅ Generation complete!"
+  echo "   🔑 Private Key : ${certs_dir}/payload-key.pem"
+  echo "   📄 CSR         : ${certs_dir}/payload-req.csr"
+  echo ""
+  echo "  Next steps:"
+  echo "    • Submit ${certs_dir}/payload-req.csr to your MIS to mint an SVID"
+  echo "    • Place the returned SVID in: ${certs_dir}"
+  echo "======================================================================="
+}
+
+
 
 # ----------------------------
 # Menu Functions
@@ -378,8 +476,9 @@ show_menu() {
   echo "9) OTEL-collector-promtail-uninstallation"
   echo "10) cleanup-residual"
   echo "11) Manage SPIFFE ID allowlist"
-  echo "12) Exit"
-  read -rp "Enter choice [1-12]: " choice
+  echo "12) Generate Private Key & CSR"
+  echo "13) Exit"
+  read -rp "Enter choice [1-13]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
@@ -392,7 +491,8 @@ show_menu() {
     9) uninstall_otel_collector_promtail_wrapper ;;
     10) cleanup_residual ;;
     11) manage_spiffe_ids ;;
-    12) echo "👋 Goodbye!"; exit 0 ;;
+    12) generate_private_key_and_csr ;;
+    13) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
 
@@ -439,6 +539,7 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
     cleanup) cleanup_residual ;;
     manage-spiffe-ids) manage_spiffe_ids ;;
+    generate-csr) generate_private_key_and_csr ;;
     *)
       echo "[ERROR] Unknown command: $2"
       echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, manage-spiffe-ids"

@@ -191,12 +191,19 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 ### Generate X.509-SVIDs for WFM and WFM client
 
+> **Note on SVID Generation Methods:** The steps below use the **SPIFFE ID flow**
+> for simplicity — MIS generates both the certificate and the private key together.
+> If your security policy requires that the private key never leave the host
+> (for example, when using an HSM or a device-local key store), use the
+> **CSR flow** instead. See [SVID Generation Methods](./svid-generation.md) for
+> a full step-by-step guide to both methods.
+
 1. **Navigate to the scripts folder**
    ```bash
    cd $HOME/workspace/sandbox/scripts
    ```
 
-2. **Generate SVIDs interactively for both WFM and WFM client**
+2. **Generate SVIDs interactively for both WFM and WFM client using SPIFFE ID Flow**
    ```bash
     sudo -E bash mis.sh
    ```
@@ -205,6 +212,9 @@ On each VM, you need to configure environment variables (settings that tell the 
    - Choose: `Option 6: Generate SVID`
 
    This step produces below files at the path `$HOME/workspace/sandbox/scripts`
+
+   > This step uses the SPIFFE ID flow. For the CSR-based alternative, see
+   > [SVID Generation Methods — Method 2](./svid-generation.md#method-2--csr-flow-operator-generates-key-mis-signs-certificate-only).
 
    Default trust domain is picked up from mis.env (refer to [Environment Variables Setup Guide](../docs/env-setup.md)) 
 

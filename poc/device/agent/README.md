@@ -132,7 +132,7 @@ capabilities:
 `config/authorized.json` is a JSON array of SPIFFE IDs for WFMs that are allowed to communicate with this device client. For example:
 
 ```json
-["spiffe://margo.org/margo/wfm/symphony-1"]
+["spiffe://margo.org/margo/wfm/wfm"]
 ```
 
 An operator can minimally update this file by adding or removing an authorized WFM SPIFFE ID. The agent watches the file, validates every ID as a Margo WFM identity, and keeps the previous list if an update is invalid. Each ID must belong to the configured MIAF trust domain.

@@ -216,7 +216,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
    -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
    ```
-   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
+   >**Note:** Directory `x509svid-wfm` contains SVID + key, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
 
    **For WFM Client**
    ```
@@ -232,8 +232,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
    -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
    ```
-   >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
-   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
+   >**Note:** Directory `x509svid-wfm-docker-client` contains SVID + key, where `docker-client` is WFM client ID for compose-capable device and Directory `x509svid-wfm-helm-client` contains SVID + key, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
 
    To renew or reissue these SVIDs after initial setup, see [Renewal and Reissuance](./identity-lifecycle.md#renewal-and-reissuance) in the Identity Lifecycle guide.
 

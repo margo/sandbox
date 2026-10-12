@@ -1372,7 +1372,7 @@ components:
         id:
           type: string
           description: Unique device identifier
-          example: spiffe://margo.org/margo/wfm/symphony-1/wfmclient/dockerdevice-1
+          example: spiffe://margo.org/margo/wfm/wfm/wfmclient/docker-client
           # x-go-field-tags: 'json:"id" yaml:"id"'
           x-oapi-codegen-extra-tags:
             json: "id"

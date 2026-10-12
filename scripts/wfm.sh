@@ -76,10 +76,6 @@ confirm_prerequisites_setup() {
     warnings+=("Symphony API container is currently running")
   fi
 
-  # Check if Redis is running
-  if systemctl is-active --quiet redis 2>/dev/null || redis-cli ping >/dev/null 2>&1; then
-    warnings+=("Redis is already running")
-  fi
 
   # If any signs detected, warn the user
   if [ ${#warnings[@]} -gt 0 ]; then
@@ -104,8 +100,8 @@ confirm_prerequisites_setup() {
     echo "    6.  Install ORAS CLI"
     echo "    7.  Clone Symphony and sandbox repositories (may overwrite existing)"
     echo "    8.  Create Symphony API directories (may overwrite existing)" 
-    echo "    9.  Set up Harbor OCI registry (Again)"
-    echo "    10. Trust Harbor TLS certificate (Again)"
+    echo "    9.  Set up Harbor OCI registry (Generates new harbor CA, fails previously generated)"
+    echo "    10. Trust Harbor TLS certificate (Generates new harbor CA, fails previously generated)"
     echo "    11. Build custom OpenTelemetry container images"
     echo "    12. Push Nextcloud, custom OTel, and Nextcloud Compose packages to OCI"
     echo ""

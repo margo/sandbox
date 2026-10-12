@@ -156,7 +156,7 @@ func mintx509SVID(flags *x509Flags) {
 		DNS:      flags.DNSNames,
 		SpiffeID: flags.SpiffeID,
 		TTL:      &ttl,
-		CSR:      string(content),
+		CSR:      content,
 	}
 	response, err := cl.MintX509SVID(ctx, params)
 	if err != nil {

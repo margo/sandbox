@@ -1,6 +1,5 @@
 ##### [Back To Main](../README.md)
 # Setting Up the Code First Sandbox
-
 ## What You'll Need
 
 **Three Virtual Machines:**
@@ -20,7 +19,7 @@
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the Main and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
 
-
+🔴 **UPGRADE FROM PREVIOUS RELEASE IS NOT SUPPORTED:** When installing new release, upgrade from previous release is not possible. Hence user must cleanup previous release using [Cleanup Steps](#cleaning-up-starting-fresh) and then start from [Step 1](#step-1-get-the-setup-files).
 ## Step 1: Get the Setup Files
 
 You need to download the setup files to all 3 VMs. Follow these steps on **each VM**:
@@ -540,7 +539,7 @@ If you want to remove everything and start over:
 
 3. **Stop and clean up mis services**
    ```bash
-   sudo -E bash ./mis.sh  # Type 4 and press Enter - Option 5: Margo Identity Service: Uninstall
+   sudo -E bash ./mis.sh  # Type 5 and press Enter - Option 5: Margo Identity Service: Uninstall
    sudo -E bash ./mis.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    ```
 

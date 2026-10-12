@@ -266,8 +266,7 @@ jobs:
           echo "⏳ Waiting for MIS HTTPS server on port ${EXPOSED_MIS_PORT}..."
           for i in {1..40}; do
               if curl -k -s -H "Accept: application/json" \
-                "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
-                "bundle.json" >/dev/null 2>&1; then
+                "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" >/dev/null 2>&1; then
               echo "✅ MIS trust bundle endpoint is serving"
               break
             fi
@@ -277,8 +276,7 @@ jobs:
 
           echo "Trust bundle response:"
           curl -k -s -H "Accept: application/json" \
-            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/"\
-            "bundle.json" | head -c 500 || true
+            "https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}/.well-known/spiffe/bundle.json" | head -c 500 || true
           echo ""
           docker ps --filter "name=margo-identity-service" \
             --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"

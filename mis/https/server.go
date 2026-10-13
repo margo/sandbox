@@ -131,7 +131,7 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 
 	av := r.Header.Values("Accept") // Header can have multiple values
 	// if accept header is present, it should be application/json
-	if len(av) != 0 && slices.Contains(av, "application/json") {
+	if len(av) != 0 && !slices.Contains(av, "application/json") {
 		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
@@ -255,7 +255,7 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 
 	av := r.Header.Values("Accept") // Header can have multiple values
 	// if accept header is present, it should be application/json
-	if len(av) != 0 && slices.Contains(av, "application/json") {
+	if len(av) != 0 && !slices.Contains(av, "application/json") {
 		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",

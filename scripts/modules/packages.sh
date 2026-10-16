@@ -223,30 +223,30 @@ push_nextcloud_compose_to_oci() {
 
   echo "📦 Creating Compose Archive..."
 
-  # Stage files at archive root (no wrapping top-level directory)
-  local staging_dir
-  staging_dir=$(mktemp -d)
+    local staging_dir
+    staging_dir=$(mktemp -d)
 
-  # Ensure cleanup on function exit
-  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+    # Ensure cleanup on function exit
+    trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
 
-  # Copy compose.yaml
-  cp "compose.yaml" "$staging_dir/compose.yaml"
+    # The spec requires exactly one top level directory in the archive
+    # (matching the component name for human readability)
+    local component_name="nextcloud-stack"
+    local component_dir="$staging_dir/$component_name"
+    mkdir -p "$component_dir"
 
-  # Copy additional resources if present
-  if [ -d "resources" ]; then
-    cp -a resources "$staging_dir/"
-  fi
+    # Copy compose.yaml into the component directory
+    cp "compose.yaml" "$component_dir/compose.yaml"
 
-  # Create archive in /tmp
-  tar -czf "$archive_path" \
-    -C "$staging_dir" \
-    .
+    # Create archive with the top-level directory
+    tar -czf "$archive_path" \
+        -C "$staging_dir" \
+        "$component_name"
 
-  if [ ! -f "$archive_path" ]; then
-    echo "❌ Failed to create Compose Archive"
-    return 1
-  fi
+    if [ ! -f "$archive_path" ]; then
+        echo "❌ Failed to create Compose Archive"
+        return 1
+    fi
 
   echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."

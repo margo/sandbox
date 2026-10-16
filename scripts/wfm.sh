@@ -495,37 +495,35 @@ update_mis_binding() {
 
     local new_value="https://${mis_host}:${mis_port}"
 
-    # Check how many array elements have the field defined
+    # Check how many bindings array elements have .config.miaf.mis.endpoint defined
     local match_count
-    match_count=$(jq '[.[] | select(.bindings.config.miaf.mis != null)] | length' "$filepath" 2>/dev/null)
+    match_count=$(jq '[.bindings[] | select(.config.miaf.mis.endpoint != null)] | length' "$filepath" 2>/dev/null)
 
     if [[ -z "$match_count" || "$match_count" -eq 0 ]]; then
-        warn "No array elements found with '.bindings.config.miaf.mis' defined in '${filepath}' — skipping."
+        warn "No array elements found with '.bindings[].config.miaf.mis.endpoint' defined in '${filepath}' — skipping."
         return 0
     fi
 
-    info "Found ${match_count} array element(s) with '.bindings.config.miaf.mis' defined — updating..."
+    info "Found ${match_count} array element(s) with '.bindings[].config.miaf.mis.endpoint' defined — updating..."
 
-    # Iterate over all array elements:
-    #   - If .bindings.config.miaf.mis is defined (non-null), replace its value
-    #   - Otherwise, leave the element untouched
     local tmp
     tmp=$(mktemp)
 
+    # Update .bindings[] elements where .config.miaf.mis.endpoint is non-null
     jq --arg val "$new_value" \
-        'map(
-            if .bindings.config.miaf.mis != null
-            then .bindings.config.miaf.mis = $val
+        '.bindings |= map(
+            if .config.miaf.mis.endpoint != null
+            then .config.miaf.mis.endpoint = $val
             else .
             end
         )' \
         "$filepath" > "$tmp" \
-        || { rm -f "$tmp"; die "jq failed to update '.bindings.config.miaf.mis' in '${filepath}'."; }
+        || { rm -f "$tmp"; die "jq failed to update '.bindings[].config.miaf.mis.endpoint' in '${filepath}'."; }
 
     mv "$tmp" "$filepath" \
         || die "Failed to overwrite '${filepath}' with updated JSON."
 
-    success "Updated ${match_count} element(s): '.bindings.config.miaf.mis' → \"${new_value}\" in '${filepath}'."
+    success "Updated ${match_count} element(s): '.bindings[].config.miaf.mis.endpoint' → \"${new_value}\" in '${filepath}'."
 }
 
 create_symphony_api_dirs() {

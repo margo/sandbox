@@ -137,7 +137,9 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
-  create_symphony_api_dirs                  
+  create_symphony_api_dirs    
+  update_mis_binding "${HOME}/symphony/api/symphony-api-margo.json" "$EXPOSED_MIS_HOST" "$EXPOSED_MIS_PORT"
+              
 
   setup_harbor
   trust_harbor_certificate
@@ -472,6 +474,58 @@ stop_symphony() {
   else
     echo 'ℹ️ Redis data preserved'
   fi
+}
+# ── Update MIS binding in JSON config ────────────────────────────────────────
+update_mis_binding() {
+    local filepath="$1"
+    local mis_host="$2"
+    local mis_port="$3"
+
+    if [[ -z "$filepath" || -z "$mis_host" || -z "$mis_port" ]]; then
+        die "update_mis_binding requires <filepath> <mis_host> <mis_port>."
+    fi
+
+    if [[ ! -f "$filepath" ]]; then
+        die "JSON file not found: '${filepath}'"
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        die "jq is not installed. Please install jq to proceed."
+    fi
+
+    local new_value="https://${mis_host}:${mis_port}"
+
+    # Check how many array elements have the field defined
+    local match_count
+    match_count=$(jq '[.[] | select(.bindings.config.miaf.mis != null)] | length' "$filepath" 2>/dev/null)
+
+    if [[ -z "$match_count" || "$match_count" -eq 0 ]]; then
+        warn "No array elements found with '.bindings.config.miaf.mis' defined in '${filepath}' — skipping."
+        return 0
+    fi
+
+    info "Found ${match_count} array element(s) with '.bindings.config.miaf.mis' defined — updating..."
+
+    # Iterate over all array elements:
+    #   - If .bindings.config.miaf.mis is defined (non-null), replace its value
+    #   - Otherwise, leave the element untouched
+    local tmp
+    tmp=$(mktemp)
+
+    jq --arg val "$new_value" \
+        'map(
+            if .bindings.config.miaf.mis != null
+            then .bindings.config.miaf.mis = $val
+            else .
+            end
+        )' \
+        "$filepath" > "$tmp" \
+        || { rm -f "$tmp"; die "jq failed to update '.bindings.config.miaf.mis' in '${filepath}'."; }
+
+    mv "$tmp" "$filepath" \
+        || die "Failed to overwrite '${filepath}' with updated JSON."
+
+    success "Updated ${match_count} element(s): '.bindings.config.miaf.mis' → \"${new_value}\" in '${filepath}'."
 }
 
 create_symphony_api_dirs() {

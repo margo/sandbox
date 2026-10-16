@@ -231,17 +231,12 @@ push_nextcloud_compose_to_oci() {
 
     # The spec requires exactly one top level directory in the archive
     # (matching the component name for human readability)
-    local component_name="nextcloud-compose"
+    local component_name="nextcloud-stack"
     local component_dir="$staging_dir/$component_name"
     mkdir -p "$component_dir"
 
     # Copy compose.yaml into the component directory
     cp "compose.yaml" "$component_dir/compose.yaml"
-
-    # Copy additional resources if present
-    if [ -d "resources" ]; then
-        cp -a resources "$component_dir/"
-    fi
 
     # Create archive with the top-level directory
     tar -czf "$archive_path" \

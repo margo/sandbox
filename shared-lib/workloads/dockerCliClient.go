@@ -578,130 +578,130 @@ func (c *DockerComposeCliClient) generateAbsProjectFilepath(projectName string) 
 }
 
 // DownloadCompose pulls a compose archive from OCI registry using oras-go client,
- // extracts it, and returns the path to the compose file.
- // repository: oci://harbor.machine:8443/library/nextcloud-compose-archive
- // revision:   1.0.0
- func (c *DockerComposeCliClient) DownloadCompose(
- 	ctx context.Context,
- 	repository string,
- 	revision string,
- 	projectName string,
- ) (string, error) {
- 	if strings.TrimSpace(repository) == "" {
-     	return "", fmt.Errorf("repository cannot be empty")
- 	}
- 	if strings.TrimSpace(revision) == "" {
-     	return "", fmt.Errorf("revision cannot be empty")
- 	}
- 
+// extracts it, and returns the path to the compose file.
+// repository: oci://harbor.machine:8443/library/nextcloud-compose-archive
+// revision:   1.0.0
+func (c *DockerComposeCliClient) DownloadCompose(
+	ctx context.Context,
+	repository string,
+	revision string,
+	projectName string,
+) (string, error) {
+	if strings.TrimSpace(repository) == "" {
+		return "", fmt.Errorf("repository cannot be empty")
+	}
+	if strings.TrimSpace(revision) == "" {
+		return "", fmt.Errorf("revision cannot be empty")
+	}
+
 	projectDir := filepath.Join(c.workingDir, projectName)
- 	if err := os.MkdirAll(projectDir, 0o750); err != nil {
-     	return "", fmt.Errorf("failed to create project directory: %w", err)
- 	}
- 
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		return "", fmt.Errorf("failed to create project directory: %w", err)
+	}
+
 	// Strip oci:// prefix — oras-go expects host/repo format
- 	rawRef := strings.TrimPrefix(repository, "oci://")
- 
+	rawRef := strings.TrimPrefix(repository, "oci://")
+
 	// Create a file store to download artifacts into projectDir
- 	store, err := file.New(projectDir)
- 	if err != nil {
-     	return "", fmt.Errorf("failed to create oras file store: %w", err)
- 	}
- 	defer func() {
-     	if closeErr := store.Close(); closeErr != nil {
-         	_ = closeErr
-     	}
- 	}()
- 
+	store, err := file.New(projectDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to create oras file store: %w", err)
+	}
+	defer func() {
+		if closeErr := store.Close(); closeErr != nil {
+			_ = closeErr
+		}
+	}()
+
 	// Create remote repository reference
- 	repo, err := remote.NewRepository(rawRef)
- 	if err != nil {
-     	return "", fmt.Errorf("failed to create remote repository for %s: %w", rawRef, err)
- 	}
- 
+	repo, err := remote.NewRepository(rawRef)
+	if err != nil {
+		return "", fmt.Errorf("failed to create remote repository for %s: %w", rawRef, err)
+	}
+
 	// Configure auth client with insecure TLS for self-signed certs (PoC/dev environment)
- 	repo.Client = &auth.Client{
-     	Client: &http.Client{
-         	Transport: &http.Transport{
-             	TLSClientConfig: &tls.Config{
-                 	InsecureSkipVerify: true, //nolint:gosec // PoC environment with self-signed certs
-             	},
-         	},
-     	},
-     	Cache: auth.NewCache(),
- 	}
- 
+	repo.Client = &auth.Client{
+		Client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, //nolint:gosec // PoC environment with self-signed certs
+				},
+			},
+		},
+		Cache: auth.NewCache(),
+	}
+
 	// Harbor on 8443 uses HTTPS — do NOT set PlainHTTP
- 	repo.PlainHTTP = false
- 
+	repo.PlainHTTP = false
+
 	// Pull the artifact at the given tag/revision into the file store
- 	_, err = oras.Copy(ctx, repo, revision, store, revision, oras.DefaultCopyOptions)
- 	if err != nil {
-     	return "", fmt.Errorf("failed to pull compose archive from OCI %s:%s: %w",
-         	rawRef, revision, err)
- 	}
- 
+	_, err = oras.Copy(ctx, repo, revision, store, revision, oras.DefaultCopyOptions)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull compose archive from OCI %s:%s: %w",
+			rawRef, revision, err)
+	}
+
 	// Find the pulled tar.gz/.tgz and extract compose file from it
- 	entries, err := os.ReadDir(projectDir)
- 	if err != nil {
-     	return "", fmt.Errorf("failed to read project directory after OCI pull: %w", err)
- 	}
- 
+	entries, err := os.ReadDir(projectDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to read project directory after OCI pull: %w", err)
+	}
+
 	for _, entry := range entries {
-     	name := entry.Name()
-     	if strings.HasSuffix(name, ".tar.gz") || strings.HasSuffix(name, ".tgz") {
-         	archivePath := filepath.Join(projectDir, name)
-         	extractDir := filepath.Join(projectDir, ".extracted")
- 
-        	composeFile, err := c.extractAndFindCompose(archivePath, extractDir)
-         	if err != nil {
-             	return "", fmt.Errorf("failed to extract compose file from archive: %w", err)
-         	}
- 
-        	// Move all contents of the top-level directory to projectDir
-         	// so relative references (env_file, configs) resolve correctly
-         	// Works for both root-level and SUP-01 top-level-dir archives
-         	topLevelDir := filepath.Dir(composeFile)
-         	topLevelEntries, err := os.ReadDir(topLevelDir)
-         	if err != nil {
-             	return "", fmt.Errorf("failed to read extracted directory: %w", err)
-         	}
-         	for _, e := range topLevelEntries {
-             	src := filepath.Join(topLevelDir, e.Name())
-             	dst := filepath.Join(projectDir, e.Name())
-             	if err := os.Rename(src, dst); err != nil {
-                 	// fallback for cross-device moves (e.g. /tmp → /data)
-                 	if copyErr := c.copyFile(src, dst); copyErr != nil {
-                     	return "", fmt.Errorf("failed to move %s: %w", e.Name(), copyErr)
-                 	}
-             	}
-         	}
- 
-        	finalPath := filepath.Join(projectDir, filepath.Base(composeFile))
- 
-        	_ = os.Remove(archivePath)
-         	_ = os.RemoveAll(extractDir)
- 
-        	// Verify compose file exists at final path before returning
-         	if _, err := os.Stat(finalPath); err != nil {
-             	return "", fmt.Errorf("compose file missing after extraction at %s: %w", finalPath, err)
-         	}
- 
-        	return finalPath, nil
-     	}
- 	}
- 
+		name := entry.Name()
+		if strings.HasSuffix(name, ".tar.gz") || strings.HasSuffix(name, ".tgz") {
+			archivePath := filepath.Join(projectDir, name)
+			extractDir := filepath.Join(projectDir, ".extracted")
+
+			composeFile, err := c.extractAndFindCompose(archivePath, extractDir)
+			if err != nil {
+				return "", fmt.Errorf("failed to extract compose file from archive: %w", err)
+			}
+
+			// Move all contents of the top-level directory to projectDir
+			// so relative references (env_file, configs) resolve correctly
+			// Works for both root-level and SUP-01 top-level-dir archives
+			topLevelDir := filepath.Dir(composeFile)
+			topLevelEntries, err := os.ReadDir(topLevelDir)
+			if err != nil {
+				return "", fmt.Errorf("failed to read extracted directory: %w", err)
+			}
+			for _, e := range topLevelEntries {
+				src := filepath.Join(topLevelDir, e.Name())
+				dst := filepath.Join(projectDir, e.Name())
+				if err := os.Rename(src, dst); err != nil {
+					// fallback for cross-device moves (e.g. /tmp → /data)
+					if copyErr := c.copyFile(src, dst); copyErr != nil {
+						return "", fmt.Errorf("failed to move %s: %w", e.Name(), copyErr)
+					}
+				}
+			}
+
+			finalPath := filepath.Join(projectDir, filepath.Base(composeFile))
+
+			_ = os.Remove(archivePath)
+			_ = os.RemoveAll(extractDir)
+
+			// Verify compose file exists at final path before returning
+			if _, err := os.Stat(finalPath); err != nil {
+				return "", fmt.Errorf("compose file missing after extraction at %s: %w", finalPath, err)
+			}
+
+			return finalPath, nil
+		}
+	}
+
 	// If no tar.gz found, check if compose file was pulled directly
- 	for _, name := range composeFileNames {
-     	candidate := filepath.Join(projectDir, name)
-     	if _, err := os.Stat(candidate); err == nil {
-         	return candidate, nil
-     	}
- 	}
- 
+	for _, name := range composeFileNames {
+		candidate := filepath.Join(projectDir, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
 	return "", fmt.Errorf("no compose file or tar.gz archive found after OCI pull from %s:%s",
-     	rawRef, revision)
- }
+		rawRef, revision)
+}
 
 func (c *DockerComposeCliClient) extractAndFindCompose(
 	archivePath, destDir string,

@@ -308,6 +308,82 @@ The script also verifies the generated chain and prints a summary on completion.
 > ⚠️ Private keys are written with `600` permissions and the `certs/` directory with `700`. Keep these files secure.
 
 ---
+## Generating a CSR with `csr_gen.sh`
+
+A CSR generator script is provided at `scripts/lib/mis/csr_gen.sh`. Use it when you want to **retain your own private key** and only have MIS sign the identity certificate (the CSR flow of `mint x509 --csrPath`).
+
+The script generates an **ECDSA P-256 private key** and a **Certificate Signing Request (CSR)** with the desired SPIFFE ID embedded as a URI Subject Alternative Name (URI SAN).
+
+**Prerequisites:** `openssl` must be installed and available in `$PATH`.
+
+### Usage
+
+```bash
+bash scripts/lib/mis/csr_gen.sh --spiffe-id <SPIFFE_ID> [OPTIONS]
+```
+
+**Required flag:**
+
+| Flag | Description |
+|------|-------------|
+| `--spiffe-id <id>` | SPIFFE ID URI to embed in the CSR. Must start with `spiffe://`. |
+
+**Optional flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--cn <name>` | `mis.margo.org` | Common Name for the certificate subject. |
+| `--org <name>` | `Margo` | Organization name. |
+| `--ou <name>` | `Margo Sandbox` | Organizational Unit. |
+| `--country <code>` | `IN` | 2-letter country code. |
+| `--state <name>` | `Haryana` | State or province. |
+| `--locality <name>` | `Gurugram` | Locality / city. |
+| `--email <address>` | `operator@margo.org` | Email address. |
+| `--key-out <file>` | `payload-key.pem` | Output path for the generated private key. |
+| `--csr-out <file>` | `payload-req.csr` | Output path for the generated CSR. |
+
+### Examples
+
+```bash
+# Minimal — only SPIFFE ID required
+bash scripts/lib/mis/csr_gen.sh \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+# Custom output paths
+bash scripts/lib/mis/csr_gen.sh \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client \
+  --key-out /secure/store/wfm-client.key \
+  --csr-out /tmp/wfm-client.csr
+```
+
+### Generated files
+
+| File | Description |
+|------|-------------|
+| `payload-key.pem` | ECDSA P-256 private key — **keep this secure; do not share it with MIS** |
+| `payload-req.csr` | CSR containing the SPIFFE ID as a URI SAN, ready to submit to `mis mint x509 --csrPath` |
+
+### End-to-end CSR flow
+
+```bash
+# Step 1 — Generate key and CSR
+bash scripts/lib/mis/csr_gen.sh \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+  --key-out ./my-wfm.key \
+  --csr-out ./my-wfm.csr
+
+# Step 2 — Submit CSR to MIS for signing (MIS must be running)
+mis mint x509 \
+  --csrPath ./my-wfm.csr \
+  --ttl 86400 \
+  --outputDir ./my-wfm-svid
+
+# Result: ./my-wfm-svid/payload-cert.pem  (signed certificate)
+#         ./my-wfm.key                     (your private key, untouched)
+```
+
+> ⚠️ The private key (`payload-key.pem`) is written with `0600` permissions. It is **never sent to MIS** — only the CSR is submitted. Keep the key in a secure location.
+---
 
 ## Full Deployment Quickstart
 
@@ -363,28 +439,49 @@ mis start --config <path-to-config>
 
 ### `mint x509`
 
-Mints an X.509 SVID and writes the certificate and private key to disk.
+Mints an X.509 SVID and writes the certificate (and optionally the private key) to disk.
 
 ```bash
 mis mint x509 --spiffeID <spiffe-id> [flags]
+```
+
+or, using a pre-generated CSR:
+
+```bash
+mis mint x509 --csrPath <path-to-csr> [flags]
 ```
 
 **Flags:**
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
-| `--spiffeID` | ✅ | — | SPIFFE ID to embed in the SVID. Format: `spiffe://<trust-domain>/<path>` |
-| `--dns` | ❌ | `[]` | DNS SAN to include. Repeatable for multiple entries |
-| `--ttl` | ❌ | `86400` | Validity duration in seconds (24 hours) |
-| `--outputDir` | ❌ | Current working directory | Directory to write output files |
+| `--spiffeID` | ✅ (unless `--csrPath` is provided) | — | SPIFFE ID to embed in the SVID. Format: `spiffe://<trust-domain>/<path>`. Ignored when `--csrPath` is provided. |
+| `--csrPath` | ✅ (unless `--spiffeID` is provided) | — | Path on disk to a PEM or base64-encoded DER CSR. The CSR must contain exactly one URI SAN that is a valid SPIFFE ID. When provided, `--spiffeID` is ignored and **no private key is written to disk**. |
+| `--dns` | ❌ | `[]` | DNS SAN to include. Repeatable for multiple entries. |
+| `--ttl` | ❌ | `86400` | Validity duration in seconds (24 hours). |
+| `--outputDir` | ❌ | Current working directory | Directory to write output files. |
 
 **Validation rules:**
-- `--spiffeID` must use the `spiffe://` scheme, include a non-empty trust domain and path
-- `--ttl` must be a positive integer
-- `--outputDir` must exist and be writable
-- `--dns` values must be non-empty strings
+- `--spiffeID` must use the `spiffe://` scheme, include a non-empty trust domain and path. Required when `--csrPath` is not provided.
+- `--csrPath` must point to a readable PEM or base64-encoded DER CSR. The CSR must contain exactly one URI SAN that is a valid SPIFFE ID, and its signature must be valid.
+- `--ttl` must be a positive integer.
+- `--outputDir` must exist and be writable.
+- `--dns` values must be non-empty strings.
 
----
+**Output files:**
+
+| File | Permissions | Condition | Description |
+|------|-------------|-----------|-------------|
+| `payload-cert.pem` | `0644` | Always | Generated X.509 SVID certificate |
+| `payload-key.pem` | `0400` | Only when `--spiffeID` is used | Corresponding private key. **Not written when `--csrPath` is provided**, since the operator already holds the key. |
+
+> ⚠️ Existing files will be **overwritten** without warning.
+
+**CSR flow — when to use `--csrPath`:**
+
+Use this flow when the operator generates and retains their own private key and only wants MIS to sign the identity certificate. The CSR carries the desired SPIFFE ID in its URI SAN; MIS validates it and returns only the signed certificate.
+
+See `[Generating a CSR with csr_gen.sh](#generating-a-csr-with-csr_gensh)` for a helper script that produces a compatible CSR.
 
 ## Examples
 
@@ -392,7 +489,7 @@ mis mint x509 --spiffeID <spiffe-id> [flags]
 # Start the server
 mis start --config /etc/mis/config.json
 
-# Mint an X.509 SVID with defaults
+# Mint an X.509 SVID with defaults (key + cert generated)
 mis mint x509 \
   --spiffeID spiffe://example.org/myservice
 
@@ -403,10 +500,13 @@ mis mint x509 \
   --dns myservice-internal.example.com \
   --ttl 3600 \
   --outputDir /tmp/svids
+
+# Mint using a pre-generated CSR (operator retains their own key; only cert is written)
+mis mint x509 \
+  --csrPath /tmp/my-service.csr \
+  --ttl 3600 \
+  --outputDir /tmp/svids
 ```
-
----
-
 ## Output Files
 
 The `mint x509` command writes two files to `--outputDir`:
@@ -416,7 +516,7 @@ The `mint x509` command writes two files to `--outputDir`:
 | `payload-cert.pem` | `0644` | Generated X.509 SVID certificate |
 | `payload-key.pem` | `0400` | Corresponding private key |
 
-> ⚠️ Existing files will be **overwritten** without warning.
+> ⚠️ Existing files will be **overwritten** without warning. Moreover, in case of SVID generation using CSR, MIS will generate `payload-cert.pem` only. Key is retained with the operator in that case. 
 
 ---
 

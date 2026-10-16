@@ -44,7 +44,7 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}/mis:/mis \
     -v ${symphony_dir}:/configs \
-    -e CONFIG=symphony-api-margo.json \
+    -e CONFIG=/config/symphony-api-margo.json \
     ${SYMPHONY_IMAGE_REF}
 ExecStartPost=/bin/bash -c 'sleep 8; \
 /usr/bin/docker exec symphony-api-container sh -c "if [ -f /certificates/harbor-ca.crt ]; then mkdir -p /usr/local/share/ca-certificates && cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt && update-ca-certificates && echo Harbor CA trusted in Symphony container; fi"; \
@@ -142,15 +142,15 @@ start_symphony_api_container() {
       -e LOG_LEVEL=Debug \
       -v $HOME/symphony/api/certificates:/certificates \
       -v $HOME/symphony/api/mis:/mis \
-      -v $HOME/symphony/api:/configs \
-      -e CONFIG=symphony-api-margo.json"
+      -v $HOME/symphony/api/:/configs \
+      -e CONFIG=/configs/symphony-api-margo.json"
 
   # Add CI-specific environment and host mappings
   if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
     DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
-      --add-host harbor.machine:${RUNNER_IP} \
-      --add-host symphony.machine:${RUNNER_IP} \
-      --add-host mis.margo.org:${RUNNER_IP} \
+      --add-host ${EXPOSED_HARBOR_HOST}:${RUNNER_IP} \
+      --add-host ${EXPOSED_SYMPHONY_HOST}:${RUNNER_IP} \
+      --add-host ${EXPOSED_MIS_HOST}:${RUNNER_IP} \
       -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
   fi
 

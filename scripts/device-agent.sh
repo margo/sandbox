@@ -415,6 +415,7 @@ if [[ -z "$1" ]]; then
     echo "[ERROR] Failed to load device agent environment"
     exit 1
   fi
+  validate_mis_host 
   main_loop
 
 elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -z "$2" ]]; then
@@ -423,10 +424,16 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -z "$2" ]]; then
     echo "[ERROR] Failed to load device agent environment"
     exit 1
   fi
+  validate_mis_host 
   main_loop
 
 elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
   # Device type + command - execute command
+  if ! load_device_agent_env "$1"; then
+    echo "[ERROR] Failed to load device agent environment"
+    exit 1
+  fi
+  validate_mis_host 
   case "$2" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;

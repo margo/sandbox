@@ -104,3 +104,77 @@ validate_spiffe_json() {
     success "All checks passed. Entries in '$json_file':"
     jq '.' "$json_file"
 }
+
+# ----------------------------
+# Validate EXPOSED_MIS_HOST format
+# Must be: mis.<trustdomain>
+# where <trustdomain> is a valid DNS authority name
+# e.g., mis.margo.org, mis.example.com
+# ----------------------------
+validate_mis_host() {
+  local host="${EXPOSED_MIS_HOST:-}"
+
+  # Check if variable is set and non-empty
+  if [[ -z "$host" ]]; then
+    echo "[ERROR] EXPOSED_MIS_HOST is not set or empty in mis.env"
+    echo "[ERROR] Expected format: mis.<trustdomain>  (e.g., mis.margo.org)"
+    exit 1
+  fi
+
+  # Check prefix is exactly "mis."
+  if [[ "$host" != mis.* ]]; then
+    echo "[ERROR] EXPOSED_MIS_HOST must start with 'mis.' — got: '$host'"
+    echo "[ERROR] Expected format: mis.<trustdomain>  (e.g., mis.margo.org)"
+    exit 1
+  fi
+
+  # Extract trust domain (everything after "mis.")
+  local trust_domain="${host#mis.}"
+
+  # Trust domain must not be empty
+  if [[ -z "$trust_domain" ]]; then
+    echo "[ERROR] EXPOSED_MIS_HOST has no trust domain after 'mis.' — got: '$host'"
+    exit 1
+  fi
+
+  # Validate trust domain is DNS-compatible:
+  #   - Only alphanumeric, hyphens, dots
+  #   - Each label: starts/ends with alphanumeric, max 63 chars
+  #   - No consecutive dots, no leading/trailing dots
+  #   - Total length <= 253 chars
+  if [[ ${#trust_domain} -gt 253 ]]; then
+    echo "[ERROR] Trust domain exceeds 253 characters: '$trust_domain'"
+    exit 1
+  fi
+
+  # Check overall character set
+  if [[ ! "$trust_domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.\-]*[a-zA-Z0-9])?$ ]]; then
+    echo "[ERROR] Trust domain '$trust_domain' contains invalid characters."
+    echo "[ERROR] Only alphanumeric characters, hyphens, and dots are allowed."
+    exit 1
+  fi
+
+  # Check each DNS label individually
+  IFS='.' read -ra labels <<< "$trust_domain"
+  if [[ ${#labels[@]} -lt 1 ]]; then
+    echo "[ERROR] Trust domain must have at least one label: '$trust_domain'"
+    exit 1
+  fi
+
+  for label in "${labels[@]}"; do
+    if [[ -z "$label" ]]; then
+      echo "[ERROR] Trust domain '$trust_domain' contains consecutive or trailing dots."
+      exit 1
+    fi
+    if [[ ${#label} -gt 63 ]]; then
+      echo "[ERROR] DNS label '$label' exceeds 63 characters in '$trust_domain'."
+      exit 1
+    fi
+    if [[ ! "$label" =~ ^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?$ && ! "$label" =~ ^[a-zA-Z0-9]$ ]]; then
+      echo "[ERROR] DNS label '$label' is invalid — labels must start and end with alphanumeric characters."
+      exit 1
+    fi
+  done
+
+  echo "[INFO] EXPOSED_MIS_HOST validated: '$host' (trust domain: '$trust_domain')"
+}

@@ -47,15 +47,14 @@ set_authz_path_for_pod() {
 set_mis_domain_for_dev_agent() {
   local file="./config/config.yaml"
   local final_endpoint="https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}"
-
   if [[ -f "$file" ]]; then
-    yq -iy ".miaf.mis.endpoint = \"${final_endpoint}\"" "$file"
-    echo "config.yaml mis endpoint set to:"
-    yq '.miaf.mis.endpoint' "$file"
+    sed -i "s|endpoint:.*|endpoint: \"${final_endpoint}\"|" "$file"
+    echo "config.yaml mis endpoint set to: ${final_endpoint}"
   else
     echo "config.yaml not found at $file, skipping mis endpoint update"
   fi
 }
+ 
 
 set_capabilities_deployment_type() {
   local file="./config/capabilities.json"
@@ -198,13 +197,11 @@ start_device_agent_docker_service() {
 
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
-
-
   set_capabilities_deployment_type compose
-  set_mis_domain_for_dev_agent
-
   mkdir -p data
   enable_docker_runtime
+  set_mis_domain_for_dev_agent
+ 
 
   # Export the image reference for docker-compose
   export workload_Fleet_Management_Client_IMAGE_REF="${workload_Fleet_Management_Client_IMAGE_REF}"

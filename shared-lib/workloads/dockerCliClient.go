@@ -684,7 +684,11 @@ func (c *DockerComposeCliClient) DownloadCompose(
 
 			// Verify compose file exists at final path before returning
 			if _, err := os.Stat(finalPath); err != nil {
-				return "", fmt.Errorf("compose file missing after extraction at %s: %w", finalPath, err)
+				return "", fmt.Errorf(
+					"compose file missing after extraction at %s: %w",
+					finalPath,
+					err,
+				)
 			}
 
 			return finalPath, nil

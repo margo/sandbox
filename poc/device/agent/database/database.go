@@ -126,6 +126,12 @@ type DatabaseIfc interface {
 	GetAdoptedManifestVersion(deploymentId string) (uint64, error)
 }
 
+type dbNotification struct {
+	appID      string
+	record     *DeploymentRecord
+	changeType DeploymentRecordChangeType
+}
+
 type Database struct {
 	deviceSettings *DeviceSettingsRecord
 	deployments    map[string]*DeploymentRecord
@@ -137,6 +143,9 @@ type Database struct {
 	dataDir     string
 	persistChan chan struct{}
 	stopPersist chan struct{}
+
+	// for serialized FIFO event notifications
+	notifyChan chan dbNotification
 }
 
 // ETag management for efficient polling
@@ -342,6 +351,7 @@ func NewDatabase(dataDir string) *Database {
 		dataDir:        dataDir,
 		persistChan:    make(chan struct{}, 1),
 		stopPersist:    make(chan struct{}),
+		notifyChan:     make(chan dbNotification, 1000),
 	}
 
 	// Load from disk
@@ -349,6 +359,8 @@ func NewDatabase(dataDir string) *Database {
 
 	// Start persistence goroutine
 	go db.persistenceLoop()
+	// Start ordered notification dispatcher goroutine
+	go db.notificationLoop()
 
 	return db
 }
@@ -436,21 +448,61 @@ func (db *Database) Subscribe(
 	db.subscribers = append(db.subscribers, callback)
 }
 
+func cloneDeploymentRecord(r *DeploymentRecord) *DeploymentRecord {
+	if r == nil {
+		return nil
+	}
+	cp := *r
+	if r.DesiredState != nil {
+		ds := *r.DesiredState
+		cp.DesiredState = &ds
+	}
+	if r.CurrentState != nil {
+		cs := *r.CurrentState
+		cp.CurrentState = &cs
+	}
+	if r.ComponentViseStatus != nil {
+		cp.ComponentViseStatus = make(map[string]sbi.ComponentStatus, len(r.ComponentViseStatus))
+		for k, v := range r.ComponentViseStatus {
+			cp.ComponentViseStatus[k] = v
+		}
+	}
+	return &cp
+}
+
 func (db *Database) notify(
 	appID string,
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
-	db.subscriberMu.RLock()
-	defer db.subscriberMu.RUnlock()
-	subscribers := make(
-		[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
-		len(db.subscribers),
-	)
-	copy(subscribers, db.subscribers)
+	cloned := cloneDeploymentRecord(record)
+	select {
+	case db.notifyChan <- dbNotification{appID: appID, record: cloned, changeType: changeType}:
+	default:
+		go func() {
+			db.notifyChan <- dbNotification{appID: appID, record: cloned, changeType: changeType}
+		}()
+	}
+}
 
-	for _, callback := range subscribers {
-		go callback(appID, record, changeType)
+func (db *Database) notificationLoop() {
+	for {
+		select {
+		case n := <-db.notifyChan:
+			db.subscriberMu.RLock()
+			subscribers := make(
+				[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
+				len(db.subscribers),
+			)
+			copy(subscribers, db.subscribers)
+			db.subscriberMu.RUnlock()
+
+			for _, callback := range subscribers {
+				callback(n.appID, n.record, n.changeType)
+			}
+		case <-db.stopPersist:
+			return
+		}
 	}
 }
 
@@ -555,9 +607,8 @@ func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error
 		return nil, fmt.Errorf("deployment %s not found", deploymentId)
 	}
 
-	// Return a copy
-	copy := *record
-	return &copy, nil
+	// Return a cloned copy
+	return cloneDeploymentRecord(record), nil
 }
 
 func (db *Database) ListDeployments() []*DeploymentRecord {
@@ -566,8 +617,7 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 
 	records := make([]*DeploymentRecord, 0, len(db.deployments))
 	for _, record := range db.deployments {
-		copy := *record
-		records = append(records, &copy)
+		records = append(records, cloneDeploymentRecord(record))
 	}
 	return records
 }

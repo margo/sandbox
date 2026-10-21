@@ -935,7 +935,7 @@ type DeviceManifestResp struct {
 	// Eligible if device list is get against a app package id, then this flag determines whether that particular device is eligible or not. If app package id is not provided then unknown is sent back.
 	Eligible *DeviceManifestRespEligible `json:"eligible,omitempty"`
 
-	// Id Unique device identifier
+	// Id Unique device identifier, as supplied by operator
 	Id *string `json:"id" yaml:"id"`
 
 	// Metadata Metadata of the device
@@ -943,6 +943,9 @@ type DeviceManifestResp struct {
 
 	// Spec Specification of the device
 	Spec DeviceSpec `json:"spec"`
+
+	// SpiffeIdentity Spiffe Identifier attached to this particular target/device
+	SpiffeIdentity *string `json:"spiffeIdentity,omitempty"`
 
 	// State State of the device
 	State DeviceState `json:"state"`

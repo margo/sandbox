@@ -750,7 +750,7 @@ jobs:
         run: |
           echo "Deploying to both devices in parallel..."
           UUID_RE='^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-          DEVICE_ID_RE='^spiffe://[^[:space:]]+$'
+          DEVICE_ID_RE='^[A-Za-z0-9._~-]+$'
 
           # ---------------- Deploy to K3s ----------------
           (

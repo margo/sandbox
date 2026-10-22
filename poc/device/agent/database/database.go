@@ -12,6 +12,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"golang.design/x/reflect"
 )
 
 type AppDeploymentState struct {
@@ -448,34 +449,12 @@ func (db *Database) Subscribe(
 	db.subscribers = append(db.subscribers, callback)
 }
 
-func cloneDeploymentRecord(r *DeploymentRecord) *DeploymentRecord {
-	if r == nil {
-		return nil
-	}
-	cp := *r
-	if r.DesiredState != nil {
-		ds := *r.DesiredState
-		cp.DesiredState = &ds
-	}
-	if r.CurrentState != nil {
-		cs := *r.CurrentState
-		cp.CurrentState = &cs
-	}
-	if r.ComponentViseStatus != nil {
-		cp.ComponentViseStatus = make(map[string]sbi.ComponentStatus, len(r.ComponentViseStatus))
-		for k, v := range r.ComponentViseStatus {
-			cp.ComponentViseStatus[k] = v
-		}
-	}
-	return &cp
-}
-
 func (db *Database) notify(
 	appID string,
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
-	cloned := cloneDeploymentRecord(record)
+	cloned := reflect.DeepCopy(record)
 	select {
 	case db.notifyChan <- dbNotification{appID: appID, record: cloned, changeType: changeType}:
 	default:
@@ -608,7 +587,7 @@ func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error
 	}
 
 	// Return a cloned copy
-	return cloneDeploymentRecord(record), nil
+	return reflect.DeepCopy(record), nil
 }
 
 func (db *Database) ListDeployments() []*DeploymentRecord {
@@ -617,7 +596,7 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 
 	records := make([]*DeploymentRecord, 0, len(db.deployments))
 	for _, record := range db.deployments {
-		records = append(records, cloneDeploymentRecord(record))
+		records = append(records, reflect.DeepCopy(record))
 	}
 	return records
 }

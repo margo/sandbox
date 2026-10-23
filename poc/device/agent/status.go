@@ -28,7 +28,6 @@ type StatusReporter struct {
 	apiClient  wfm.SBIAPIClientInterface
 	log        *zap.SugaredLogger
 	reportChan chan statusReportJob
-	stopChan   chan struct{}
 	wg         sync.WaitGroup
 }
 
@@ -42,7 +41,7 @@ func NewStatusReporter(
 		apiClient:  client,
 		log:        log,
 		reportChan: make(chan statusReportJob, 1000),
-		stopChan:   make(chan struct{}),
+		wg:         sync.WaitGroup{},
 	}
 }
 
@@ -55,27 +54,15 @@ func (sr *StatusReporter) Start() {
 }
 
 func (sr *StatusReporter) Stop() {
-	close(sr.stopChan)
+	close(sr.reportChan)
 	sr.wg.Wait()
 }
 
 func (sr *StatusReporter) processReportQueue() {
 	defer sr.wg.Done()
-	for {
-		select {
-		case job := <-sr.reportChan:
-			sr.reportStatus(job.appID, job.record)
-		case <-sr.stopChan:
-			// Drain remaining queued status reports to guarantee final states (e.g. REMOVED) are reported
-			for {
-				select {
-				case job := <-sr.reportChan:
-					sr.reportStatus(job.appID, job.record)
-				default:
-					return
-				}
-			}
-		}
+
+	for job := range sr.reportChan {
+		sr.reportStatus(job.appID, job.record)
 	}
 }
 
@@ -117,19 +104,8 @@ func (sr *StatusReporter) onDeploymentChange(
 	if changeType == database.DeploymentChangeTypeDesiredStateAdded ||
 		changeType == database.DeploymentChangeTypeComponentPhaseChanged ||
 		changeType == database.DeploymentChangeTypeCurrentStateAdded {
-		select {
-		case sr.reportChan <- statusReportJob{appID: appID, record: record}:
-		case <-sr.stopChan:
-			sr.log.Warnw("StatusReporter stopped, skipping status report", "appId", appID)
-		default:
-			sr.log.Warnw("Status report queue buffer full, queueing asynchronously", "appId", appID)
-			go func() {
-				select {
-				case sr.reportChan <- statusReportJob{appID: appID, record: record}:
-				case <-sr.stopChan:
-				}
-			}()
-		}
+
+		sr.reportChan <- statusReportJob{appID: appID, record: record}
 	}
 }
 

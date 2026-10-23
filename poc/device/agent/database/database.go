@@ -11,6 +11,7 @@ import (
 
 	"github.com/margo/sandbox/poc/device/agent/types"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	"github.com/margo/sandbox/shared-lib/misc"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 )
@@ -451,30 +452,14 @@ func (db *Database) Subscribe(
 	db.subscribers = append(db.subscribers, callback)
 }
 
-func CloneObject[T any](src *T) (*T, error) {
-	if src == nil {
-		return nil, nil
-	}
-
-	data, err := json.Marshal(src)
-	if err != nil {
-		return nil, fmt.Errorf("clone marshal failed: %w", err)
-	}
-	var dst T
-	if err := json.Unmarshal(data, &dst); err != nil {
-		return nil, fmt.Errorf("clone unmarshal failed: %w", err)
-	}
-	return &dst, nil
-}
-
 func (db *Database) notify(
 	appID string,
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
-	clonedRecord, err := CloneObject(record)
+	clonedRecord, err := misc.CloneObject(record)
 	if err != nil {
-		db.log.Warnw("failed to clone deployment record", "appId", appID, "error", err)
+		db.log.Warnw("failed to clone deployment record therefore skipping notify", "appId", appID, "error", err)
 		return
 	}
 

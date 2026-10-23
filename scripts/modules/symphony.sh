@@ -44,12 +44,12 @@ ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
     -v ${symphony_dir}/certificates:/certificates \
     -v ${symphony_dir}/mis:/mis \
     -v ${symphony_dir}:/configs \
-    -e CONFIG=/config/symphony-api-margo.json \
+    -e CONFIG=/configs/symphony-api-margo.json \
     ${SYMPHONY_IMAGE_REF}
 ExecStartPost=/bin/bash -c 'sleep 8; \
 /usr/bin/docker exec symphony-api-container sh -c "if [ -f /certificates/harbor-ca.crt ]; then mkdir -p /usr/local/share/ca-certificates && cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt && update-ca-certificates && echo Harbor CA trusted in Symphony container; fi"; \
 sleep 2; \
-docker restart symphony-api-container'    
+docker restart symphony-api-container'
 ExecStop=/usr/bin/docker stop symphony-api-container
 TimeoutStartSec=0
 Restart=on-failure
@@ -112,7 +112,7 @@ start_symphony_api_container() {
       echo "✅ Harbor CA copied to Symphony certificates"
     fi
 
- 
+
   # $HOME/symphony/api/mis`). That directory must exist and be bind-mounted into the
   # container as /mis, or the mTLS/SBI HttpBinding's mis config fails to load
   # (./mis/... resolves against the container root, since neither the image nor this

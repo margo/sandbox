@@ -459,7 +459,13 @@ func (db *Database) notify(
 ) {
 	clonedRecord, err := misc.CloneObject(record)
 	if err != nil {
-		db.log.Warnw("failed to clone deployment record therefore skipping notify", "appId", appID, "error", err)
+		db.log.Warnw(
+			"failed to clone deployment record therefore skipping notify",
+			"appId",
+			appID,
+			"error",
+			err,
+		)
 		return
 	}
 

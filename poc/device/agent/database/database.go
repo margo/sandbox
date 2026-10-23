@@ -12,6 +12,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"go.uber.org/zap"
 )
 
 type AppDeploymentState struct {
@@ -146,6 +147,7 @@ type Database struct {
 
 	// for serialized FIFO event notifications
 	notifyChan chan dbNotification
+	log        *zap.SugaredLogger
 }
 
 // ETag management for efficient polling
@@ -337,7 +339,7 @@ func (db *Database) GetAdoptedManifestVersion(deploymentId string) (uint64, erro
 	return record.AdoptedManifestVersion, nil
 }
 
-func NewDatabase(dataDir string) *Database {
+func NewDatabase(dataDir string, log *zap.SugaredLogger) *Database {
 	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
@@ -352,6 +354,7 @@ func NewDatabase(dataDir string) *Database {
 		persistChan:    make(chan struct{}, 1),
 		stopPersist:    make(chan struct{}),
 		notifyChan:     make(chan dbNotification, 1000),
+		log:            log,
 	}
 
 	// Load from disk
@@ -448,26 +451,20 @@ func (db *Database) Subscribe(
 	db.subscribers = append(db.subscribers, callback)
 }
 
-func cloneDeploymentRecord(r *DeploymentRecord) *DeploymentRecord {
-	if r == nil {
-		return nil
+func CloneObject[T any](src *T) (*T, error) {
+	if src == nil {
+		return nil, nil
 	}
-	cp := *r
-	if r.DesiredState != nil {
-		ds := *r.DesiredState
-		cp.DesiredState = &ds
+
+	data, err := json.Marshal(src)
+	if err != nil {
+		return nil, fmt.Errorf("clone marshal failed: %w", err)
 	}
-	if r.CurrentState != nil {
-		cs := *r.CurrentState
-		cp.CurrentState = &cs
+	var dst T
+	if err := json.Unmarshal(data, &dst); err != nil {
+		return nil, fmt.Errorf("clone unmarshal failed: %w", err)
 	}
-	if r.ComponentViseStatus != nil {
-		cp.ComponentViseStatus = make(map[string]sbi.ComponentStatus, len(r.ComponentViseStatus))
-		for k, v := range r.ComponentViseStatus {
-			cp.ComponentViseStatus[k] = v
-		}
-	}
-	return &cp
+	return &dst, nil
 }
 
 func (db *Database) notify(
@@ -475,33 +472,27 @@ func (db *Database) notify(
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
-	cloned := cloneDeploymentRecord(record)
-	select {
-	case db.notifyChan <- dbNotification{appID: appID, record: cloned, changeType: changeType}:
-	default:
-		go func() {
-			db.notifyChan <- dbNotification{appID: appID, record: cloned, changeType: changeType}
-		}()
+	clonedRecord, err := CloneObject(record)
+	if err != nil {
+		db.log.Warnw("failed to clone deployment record", "appId", appID, "error", err)
+		return
 	}
+
+	db.notifyChan <- dbNotification{appID: appID, record: clonedRecord, changeType: changeType}
 }
 
 func (db *Database) notificationLoop() {
-	for {
-		select {
-		case n := <-db.notifyChan:
-			db.subscriberMu.RLock()
-			subscribers := make(
-				[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
-				len(db.subscribers),
-			)
-			copy(subscribers, db.subscribers)
-			db.subscriberMu.RUnlock()
+	for notify := range db.notifyChan {
+		db.subscriberMu.RLock()
+		subscribers := make(
+			[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
+			len(db.subscribers),
+		)
+		copy(subscribers, db.subscribers)
+		db.subscriberMu.RUnlock()
 
-			for _, callback := range subscribers {
-				callback(n.appID, n.record, n.changeType)
-			}
-		case <-db.stopPersist:
-			return
+		for _, callback := range subscribers {
+			callback(notify.appID, notify.record, notify.changeType)
 		}
 	}
 }
@@ -607,8 +598,7 @@ func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error
 		return nil, fmt.Errorf("deployment %s not found", deploymentId)
 	}
 
-	// Return a cloned copy
-	return cloneDeploymentRecord(record), nil
+	return record, nil
 }
 
 func (db *Database) ListDeployments() []*DeploymentRecord {
@@ -617,7 +607,7 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 
 	records := make([]*DeploymentRecord, 0, len(db.deployments))
 	for _, record := range db.deployments {
-		records = append(records, cloneDeploymentRecord(record))
+		records = append(records, record)
 	}
 	return records
 }

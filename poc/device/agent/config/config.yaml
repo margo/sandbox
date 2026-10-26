@@ -25,8 +25,8 @@ stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm
   # in seconds
   interval: 15
-  # Heuristics for choosing bundle download vs. individual manifest downloads. 
-  # Both are optional; defaults are used when omitted. 
+  # Heuristics for choosing bundle download vs. individual manifest downloads.
+  # Both are optional; defaults are used when omitted.
   bundle:
     # use the bundle when the manifest has more than this many deployments
     deploymentThreshold: 5

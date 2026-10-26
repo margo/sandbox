@@ -34,8 +34,8 @@ type StateSyncer struct {
 	log                       *zap.SugaredLogger
 	stopChan                  chan struct{}
 	stateSyncingIntervalInSec uint16
-	bundleThreshold int
-	bundleSizeThresholdBytes float64
+	bundleThreshold           int
+	bundleSizeThresholdBytes  float64
 }
 
 func NewStateSyncer(

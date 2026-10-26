@@ -62,13 +62,13 @@ type DatabaseConfig struct {
 }
 
 type StateSeekingConfig struct {
-	Interval uint16 `yaml:"interval" validate:"required"`
+	Interval uint16       `yaml:"interval" validate:"required"`
 	Bundle   BundleConfig `yaml:"bundle"`
 }
 
 const (
 	DefaultBundleDeploymentThreshold = 5
-	DefaultBundleSizeThresholdMB = 50
+	DefaultBundleSizeThresholdMB     = 50
 )
 
 type BundleConfig struct {
@@ -76,7 +76,7 @@ type BundleConfig struct {
 	SizeThresholdMB     int `yaml:"sizeThresholdMB"`
 }
 
-//withDefaults sets default values for missing or invalid values.
+// withDefaults sets default values for missing or invalid values.
 func (b BundleConfig) WithDefaults() BundleConfig {
 	if b.DeploymentThreshold <= 0 {
 		b.DeploymentThreshold = DefaultBundleDeploymentThreshold

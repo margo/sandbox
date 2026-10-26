@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
@@ -17,11 +18,17 @@ type StatusReporterIfc interface {
 	Stop()
 }
 
+type statusReportJob struct {
+	appID  string
+	record *database.DeploymentRecord
+}
+
 type StatusReporter struct {
-	database  database.DatabaseIfc
-	apiClient wfm.SBIAPIClientInterface
-	log       *zap.SugaredLogger
-	stopChan  chan struct{}
+	database   database.DatabaseIfc
+	apiClient  wfm.SBIAPIClientInterface
+	log        *zap.SugaredLogger
+	reportChan chan statusReportJob
+	wg         sync.WaitGroup
 }
 
 func NewStatusReporter(
@@ -30,20 +37,33 @@ func NewStatusReporter(
 	log *zap.SugaredLogger,
 ) *StatusReporter {
 	return &StatusReporter{
-		database:  db,
-		apiClient: client,
-		log:       log,
-		stopChan:  make(chan struct{}),
+		database:   db,
+		apiClient:  client,
+		log:        log,
+		reportChan: make(chan statusReportJob, 1000),
+		wg:         sync.WaitGroup{},
 	}
 }
 
 func (sr *StatusReporter) Start() {
+	sr.wg.Add(1)
+	go sr.processReportQueue()
+
 	// Subscribe to database changes for status updates
 	sr.database.Subscribe(sr.onDeploymentChange)
 }
 
 func (sr *StatusReporter) Stop() {
-	close(sr.stopChan)
+	close(sr.reportChan)
+	sr.wg.Wait()
+}
+
+func (sr *StatusReporter) processReportQueue() {
+	defer sr.wg.Done()
+
+	for job := range sr.reportChan {
+		sr.reportStatus(job.appID, job.record)
+	}
 }
 
 func (sr *StatusReporter) onDeploymentChange(
@@ -84,7 +104,8 @@ func (sr *StatusReporter) onDeploymentChange(
 	if changeType == database.DeploymentChangeTypeDesiredStateAdded ||
 		changeType == database.DeploymentChangeTypeComponentPhaseChanged ||
 		changeType == database.DeploymentChangeTypeCurrentStateAdded {
-		go sr.reportStatus(appID, record)
+
+		sr.reportChan <- statusReportJob{appID: appID, record: record}
 	}
 }
 

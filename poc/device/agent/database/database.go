@@ -11,7 +11,9 @@ import (
 
 	"github.com/margo/sandbox/poc/device/agent/types"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	"github.com/margo/sandbox/shared-lib/misc"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"go.uber.org/zap"
 )
 
 type AppDeploymentState struct {
@@ -126,6 +128,12 @@ type DatabaseIfc interface {
 	GetAdoptedManifestVersion(deploymentId string) (uint64, error)
 }
 
+type dbNotification struct {
+	appID      string
+	record     *DeploymentRecord
+	changeType DeploymentRecordChangeType
+}
+
 type Database struct {
 	deviceSettings *DeviceSettingsRecord
 	deployments    map[string]*DeploymentRecord
@@ -137,6 +145,10 @@ type Database struct {
 	dataDir     string
 	persistChan chan struct{}
 	stopPersist chan struct{}
+
+	// for serialized FIFO event notifications
+	notifyChan chan dbNotification
+	log        *zap.SugaredLogger
 }
 
 // ETag management for efficient polling
@@ -328,7 +340,7 @@ func (db *Database) GetAdoptedManifestVersion(deploymentId string) (uint64, erro
 	return record.AdoptedManifestVersion, nil
 }
 
-func NewDatabase(dataDir string) *Database {
+func NewDatabase(dataDir string, log *zap.SugaredLogger) *Database {
 	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
@@ -342,6 +354,8 @@ func NewDatabase(dataDir string) *Database {
 		dataDir:        dataDir,
 		persistChan:    make(chan struct{}, 1),
 		stopPersist:    make(chan struct{}),
+		notifyChan:     make(chan dbNotification, 1000),
+		log:            log,
 	}
 
 	// Load from disk
@@ -349,6 +363,8 @@ func NewDatabase(dataDir string) *Database {
 
 	// Start persistence goroutine
 	go db.persistenceLoop()
+	// Start ordered notification dispatcher goroutine
+	go db.notificationLoop()
 
 	return db
 }
@@ -441,16 +457,34 @@ func (db *Database) notify(
 	record *DeploymentRecord,
 	changeType DeploymentRecordChangeType,
 ) {
-	db.subscriberMu.RLock()
-	defer db.subscriberMu.RUnlock()
-	subscribers := make(
-		[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
-		len(db.subscribers),
-	)
-	copy(subscribers, db.subscribers)
+	clonedRecord, err := misc.CloneObject(record)
+	if err != nil {
+		db.log.Warnw(
+			"failed to clone deployment record therefore skipping notify",
+			"appId",
+			appID,
+			"error",
+			err,
+		)
+		return
+	}
 
-	for _, callback := range subscribers {
-		go callback(appID, record, changeType)
+	db.notifyChan <- dbNotification{appID: appID, record: clonedRecord, changeType: changeType}
+}
+
+func (db *Database) notificationLoop() {
+	for notify := range db.notifyChan {
+		db.subscriberMu.RLock()
+		subscribers := make(
+			[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
+			len(db.subscribers),
+		)
+		copy(subscribers, db.subscribers)
+		db.subscriberMu.RUnlock()
+
+		for _, callback := range subscribers {
+			callback(notify.appID, notify.record, notify.changeType)
+		}
 	}
 }
 
@@ -555,9 +589,7 @@ func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error
 		return nil, fmt.Errorf("deployment %s not found", deploymentId)
 	}
 
-	// Return a copy
-	copy := *record
-	return &copy, nil
+	return record, nil
 }
 
 func (db *Database) ListDeployments() []*DeploymentRecord {
@@ -566,8 +598,7 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 
 	records := make([]*DeploymentRecord, 0, len(db.deployments))
 	for _, record := range db.deployments {
-		copy := *record
-		records = append(records, &copy)
+		records = append(records, record)
 	}
 	return records
 }

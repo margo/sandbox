@@ -25,6 +25,14 @@ stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm
   # in seconds
   interval: 15
+  # Heuristics for choosing bundle download vs. individual manifest downloads. 
+  # Both are optional; defaults are used when omitted. 
+  bundle:
+    # use the bundle when the manifest has more than this many deployments
+    deploymentThreshold: 5
+    # Use the bundle when threshold for the size is greater than this (in MB)
+    sizeThresholdMB: 50
+
 
 # the workload-fleet-management-client architecture is kept in a way that it is capable of managing more than one runtimes
 # but one client with multiple devices is not defined by Margo yet. For example: what would be the identification

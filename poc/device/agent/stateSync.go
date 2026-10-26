@@ -11,12 +11,15 @@ import (
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/archive"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
+
+const bytesPerMB = 1024 * 1024
 
 type StateSyncerIfc interface {
 	Start()
@@ -31,20 +34,27 @@ type StateSyncer struct {
 	log                       *zap.SugaredLogger
 	stopChan                  chan struct{}
 	stateSyncingIntervalInSec uint16
+	bundleThreshold int
+	bundleSizeThresholdBytes float64
 }
 
 func NewStateSyncer(
 	db *database.Database,
 	client wfm.SBIAPIClientInterface,
 	stateSeekingIntervalInSec uint16,
+	bundleCfg types.BundleConfig,
 	log *zap.SugaredLogger,
 ) *StateSyncer {
+	bc := bundleCfg.WithDefaults()
+
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
+		bundleThreshold:           bc.DeploymentThreshold,
+		bundleSizeThresholdBytes:  float64(bc.SizeThresholdMB) * bytesPerMB,
 	}
 }
 
@@ -470,24 +480,27 @@ func (ss *StateSyncer) shouldDownloadBundle(
 		return false
 	}
 
-	// Heuristic: If more than 5 deployments, use bundle for efficiency
-	if len(manifest.Deployments) > 5 {
+	// Heuristic: many deployments -> use bundle for efficiency
+	if len(manifest.Deployments) > ss.bundleThreshold {
 		ss.log.Infow("Using bundle download (many deployments)",
-			"deploymentCount", len(manifest.Deployments))
+			"deploymentCount", len(manifest.Deployments),
+			"threshold", ss.bundleThreshold)
 		return true
 	}
 
-	// Heuristic: If bundle size is reasonable ( > 50MB), use bundle
+	// Heuristic: large total size -> use bundle
 	if manifest.Bundle.SizeBytes != nil &&
-		*manifest.Bundle.SizeBytes > 50*1024*1024 {
-		ss.log.Infow("Using bundle download (reasonable size)",
-			"sizeBytes", *manifest.Bundle.SizeBytes)
+		float64(*manifest.Bundle.SizeBytes) > ss.bundleSizeThresholdBytes {
+		ss.log.Infow("Using bundle download (large size)",
+			"sizeBytes", *manifest.Bundle.SizeBytes,
+			"thresholdBytes", ss.bundleSizeThresholdBytes)
 		return true
 	}
 
 	// Default: fetch individually for small number of deployments
 	ss.log.Infow("Using individual deployment fetch",
-		"deploymentCount", len(manifest.Deployments))
+		"deploymentCount", len(manifest.Deployments),
+		"threshold", ss.bundleThreshold)
 	return false
 }
 

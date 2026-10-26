@@ -189,6 +189,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		db,
 		wfmClient,
 		cfg.StateSeeking.Interval,
+		cfg.StateSeeking.Bundle,
 		log,
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, log)
@@ -297,6 +298,8 @@ func (a *Agent) Start() error {
 		"Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
+		"bundleDeploymentThreshold", a.config.StateSeeking.Bundle.DeploymentThreshold,
+		"bundleSizeThresholdMB", a.config.StateSeeking.Bundle.SizeThresholdMB,
 		"trustBundleRefreshInterval", "", // Enter here --
 		"sbiUrl", a.config.Wfm.SbiURL,
 	)

@@ -87,7 +87,8 @@ func TestShouldDownloadBundle(t *testing.T) {
 		{"negative sizeThresholdMB: 60MB bundle uses bundle",
 			"bundle:\n  sizeThresholdMB: -10\n", 2, withSize(60 * mb), true},
 		{"both negative -> both defaults",
-			"bundle:\n  deploymentThreshold: -1\n  sizeThresholdMB: -1\n", 5, withSize(1 * mb), false},
+			"bundle:\n  deploymentThreshold: -1\n  sizeThresholdMB: -1\n",
+			5, withSize(1 * mb), false},
 	}
 
 	for _, tc := range tests {

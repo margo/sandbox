@@ -478,7 +478,7 @@ func (ss *StateSyncer) shouldDownloadBundle(
 		return false
 	}
 
-	// Download the bundle when deployments exceed the threshold (default: 5) 
+	// Download the bundle when deployments exceed the threshold (default: 5)
 	// to reduce request overhead
 	if len(manifest.Deployments) > ss.bundleThreshold {
 		ss.log.Infow("Using bundle download (deployment count above threshold)",

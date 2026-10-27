@@ -66,7 +66,8 @@ func TestShouldDownloadBundle(t *testing.T) {
 		{"default: bundle above 50MB", "", 2, withSize(60 * mb), true},
 
 		// custom values
-		{"custom deploymentThreshold 1", "bundle:\n  deploymentThreshold: 1\n", 2, withDigest, true},
+		{"custom deploymentThreshold 1",
+			"bundle:\n  deploymentThreshold: 1\n", 2, withDigest, true},
 		{"custom sizeThresholdMB 1", "bundle:\n  sizeThresholdMB: 1\n", 1, withSize(2 * mb), true},
 
 		// zero values fall back to defaults

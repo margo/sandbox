@@ -68,11 +68,14 @@ func TestShouldDownloadBundle(t *testing.T) {
 		// custom values
 		{"custom deploymentThreshold 1",
 			"bundle:\n  deploymentThreshold: 1\n", 2, withDigest, true},
-		{"custom sizeThresholdMB 1", "bundle:\n  sizeThresholdMB: 1\n", 1, withSize(2 * mb), true},
+		{"custom sizeThresholdMB 1",
+			"bundle:\n  sizeThresholdMB: 1\n", 1, withSize(2 * mb), true},
 
 		// zero values fall back to defaults
-		{"zero deploymentThreshold -> default 5", "bundle:\n  deploymentThreshold: 0\n", 5, withDigest, false},
-		{"zero sizeThresholdMB -> default 50", "bundle:\n  sizeThresholdMB: 0\n", 2, withSize(1 * mb), false},
+		{"zero deploymentThreshold -> default 5",
+			"bundle:\n  deploymentThreshold: 0\n", 5, withDigest, false},
+		{"zero sizeThresholdMB -> default 50",
+			"bundle:\n  sizeThresholdMB: 0\n", 2, withSize(1 * mb), false},
 
 		// negative values fall back to defaults
 		{"negative deploymentThreshold: 5 deployments stays individual",

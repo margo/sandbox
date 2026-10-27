@@ -45,16 +45,14 @@ func NewStateSyncer(
 	bundleCfg types.BundleConfig,
 	log *zap.SugaredLogger,
 ) *StateSyncer {
-	bc := bundleCfg.WithDefaults()
-
 	return &StateSyncer{
 		database:                  db,
 		apiClient:                 client,
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
-		bundleThreshold:           bc.DeploymentThreshold,
-		bundleSizeThresholdBytes:  float64(bc.SizeThresholdMB) * bytesPerMB,
+		bundleThreshold:           bundleCfg.DeploymentThreshold,
+		bundleSizeThresholdBytes:  float64(bundleCfg.SizeThresholdMB) * bytesPerMB,
 	}
 }
 
@@ -480,24 +478,26 @@ func (ss *StateSyncer) shouldDownloadBundle(
 		return false
 	}
 
-	// Heuristic: many deployments -> use bundle for efficiency
+	// Download the bundle when deployments exceed the threshold (default: 5) 
+	// to reduce request overhead
 	if len(manifest.Deployments) > ss.bundleThreshold {
-		ss.log.Infow("Using bundle download (many deployments)",
+		ss.log.Infow("Using bundle download (deployment count above threshold)",
 			"deploymentCount", len(manifest.Deployments),
 			"threshold", ss.bundleThreshold)
 		return true
 	}
 
-	// Heuristic: large total size -> use bundle
+	// Download the bundle if it exceeds the size threshold (default: 50 MB).
 	if manifest.Bundle.SizeBytes != nil &&
 		float64(*manifest.Bundle.SizeBytes) > ss.bundleSizeThresholdBytes {
-		ss.log.Infow("Using bundle download (large size)",
+		ss.log.Infow("Using bundle download (bundle size above threshold)",
 			"sizeBytes", *manifest.Bundle.SizeBytes,
 			"thresholdBytes", ss.bundleSizeThresholdBytes)
 		return true
 	}
 
-	// Default: fetch individually for small number of deployments
+	// Default: both values are at or below their thresholds, so fetch
+	// each deployment individually.
 	ss.log.Infow("Using individual deployment fetch",
 		"deploymentCount", len(manifest.Deployments),
 		"threshold", ss.bundleThreshold)

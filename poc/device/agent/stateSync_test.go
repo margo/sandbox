@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/margo/sandbox/poc/device/agent/types"
@@ -8,39 +10,85 @@ import (
 	"go.uber.org/zap"
 )
 
+const baseConfigYAML = `
+logging: {level: DEBUG}
+database: {dataDir: /tmp/agent}
+miaf:
+  x509: {certPath: c.pem, keyPath: k.pem}
+  mis: {endpoint: "https://mis", caPath: ca.crt}
+  authzPath: authz.json
+wfm: {sbiUrl: "https://wfm"}
+stateSeeking: {interval: 15}
+runtimes:
+  - type: KUBERNETES
+    kubernetes: {kubeconfigPath: /tmp/kc}
+capabilities: {readFromFile: caps.json}
+`
+
+// newTestSyncer loads a config (base + bundleYAML) via types.LoadConfig so
+// that default handling is exercised exactly as in production.
+func newTestSyncer(t *testing.T, bundleYAML string) *StateSyncer {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(baseConfigYAML+bundleYAML), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := types.LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	return NewStateSyncer(nil, nil, cfg.StateSeeking.Interval, cfg.Bundle, zap.NewNop().Sugar())
+}
+
 func TestShouldDownloadBundle(t *testing.T) {
 	digest := "sha256:abc"
 	const mb = 1024 * 1024
 
 	// NOTE: replace float32 with the real type of Bundle.SizeBytes
-	// (check: grep -rn "SizeBytes" standard/generatedCode/wfm/sbi/)
 	size := func(n float32) *float32 { return &n }
+	withDigest := &sbi.DeploymentBundleRef{Digest: &digest}
+	withSize := func(n float32) *sbi.DeploymentBundleRef {
+		return &sbi.DeploymentBundleRef{Digest: &digest, SizeBytes: size(n)}
+	}
 
 	tests := []struct {
 		name        string
-		cfg         types.BundleConfig
+		bundleYAML  string
 		deployments int
 		bundle      *sbi.DeploymentBundleRef
 		want        bool
 	}{
-		{"no bundle advertised", types.BundleConfig{}, 10, nil, false},
-		{"count above default threshold", types.BundleConfig{}, 6,
-			&sbi.DeploymentBundleRef{Digest: &digest}, true},
-		{"count equal to threshold is NOT bundle", types.BundleConfig{}, 5,
-			&sbi.DeploymentBundleRef{Digest: &digest}, false},
-		{"small count, small size", types.BundleConfig{}, 2,
-			&sbi.DeploymentBundleRef{Digest: &digest, SizeBytes: size(1 * mb)}, false},
-		{"small count, size above 50MB", types.BundleConfig{}, 2,
-			&sbi.DeploymentBundleRef{Digest: &digest, SizeBytes: size(60 * mb)}, true},
-		{"custom threshold of 1", types.BundleConfig{DeploymentThreshold: 1}, 2,
-			&sbi.DeploymentBundleRef{Digest: &digest}, true},
-		{"custom size threshold of 1MB", types.BundleConfig{SizeThresholdMB: 1}, 1,
-			&sbi.DeploymentBundleRef{Digest: &digest, SizeBytes: size(2 * mb)}, true},
+		// defaults (section missing)
+		{"no bundle advertised", "", 10, nil, false},
+		{"default: 6 deployments uses bundle", "", 6, withDigest, true},
+		{"default: exactly 5 does not use bundle", "", 5, withDigest, false},
+		{"default: small bundle, few deployments", "", 2, withSize(1 * mb), false},
+		{"default: bundle above 50MB", "", 2, withSize(60 * mb), true},
+
+		// custom values
+		{"custom deploymentThreshold 1", "bundle:\n  deploymentThreshold: 1\n", 2, withDigest, true},
+		{"custom sizeThresholdMB 1", "bundle:\n  sizeThresholdMB: 1\n", 1, withSize(2 * mb), true},
+
+		// zero values fall back to defaults
+		{"zero deploymentThreshold -> default 5", "bundle:\n  deploymentThreshold: 0\n", 5, withDigest, false},
+		{"zero sizeThresholdMB -> default 50", "bundle:\n  sizeThresholdMB: 0\n", 2, withSize(1 * mb), false},
+
+		// negative values fall back to defaults
+		{"negative deploymentThreshold: 5 deployments stays individual",
+			"bundle:\n  deploymentThreshold: -3\n", 5, withDigest, false},
+		{"negative deploymentThreshold: 6 deployments uses bundle",
+			"bundle:\n  deploymentThreshold: -3\n", 6, withDigest, true},
+		{"negative sizeThresholdMB: 1MB bundle stays individual",
+			"bundle:\n  sizeThresholdMB: -10\n", 2, withSize(1 * mb), false},
+		{"negative sizeThresholdMB: 60MB bundle uses bundle",
+			"bundle:\n  sizeThresholdMB: -10\n", 2, withSize(60 * mb), true},
+		{"both negative -> both defaults",
+			"bundle:\n  deploymentThreshold: -1\n  sizeThresholdMB: -1\n", 5, withSize(1 * mb), false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ss := NewStateSyncer(nil, nil, 15, tc.cfg, zap.NewNop().Sugar())
+			ss := newTestSyncer(t, tc.bundleYAML)
 			m := &sbi.UnsignedAppStateManifest{
 				Deployments: make([]sbi.DeploymentManifestRef, tc.deployments),
 				Bundle:      tc.bundle,

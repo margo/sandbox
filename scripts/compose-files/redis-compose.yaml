@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7.0.15
-    container_name: redis
+    container_name: redis-wfm-db-container
     restart: unless-stopped
     ports:
       - "6379:6379"

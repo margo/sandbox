@@ -7,7 +7,7 @@ COMPOSE_FILE="$(dirname "${BASH_SOURCE[0]}")/../compose-files/redis-compose.yaml
 
 install_redis() {
   local REDIS_VERSION="7.0.15"
-  local REDIS_CONTAINER_NAME="redis"
+  local REDIS_CONTAINER_NAME="redis-wfm-db-container"
 
   echo "🔄 Installing Redis ${REDIS_VERSION}..."
 

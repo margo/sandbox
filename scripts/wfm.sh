@@ -440,7 +440,7 @@ start_symphony() {
 }
 
 stop_symphony() {
-  # TODO: this piece of code require corrections
+  local REDIS_CONTAINER_NAME="redis-wfm-db-container"
   echo "Stopping and removing Symphony API container..."
 
   # Stop the container if running
@@ -465,7 +465,7 @@ stop_symphony() {
 
   if [[ "$delete_redis" =~ ^[Yy]$ ]]; then
     echo "Flushing Redis data..."
-    if docker exec redis redis-cli flushall; then
+    if docker exec ${REDIS_CONTAINER_NAME} redis-cli flushall; then
       echo '✅ Redis data deleted successfully'
       echo 'ℹ️ Device re-onboarding will be required'
     else

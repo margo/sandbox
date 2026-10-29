@@ -465,7 +465,7 @@ stop_symphony() {
 
   if [[ "$delete_redis" =~ ^[Yy]$ ]]; then
     echo "Flushing Redis data..."
-    if redis-cli flushall; then
+    if docker exec redis redis-cli flushall; then
       echo '✅ Redis data deleted successfully'
       echo 'ℹ️ Device re-onboarding will be required'
     else

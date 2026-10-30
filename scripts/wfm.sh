@@ -427,6 +427,7 @@ start_symphony() {
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
 
   if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
     git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
@@ -443,8 +444,9 @@ start_symphony() {
 }
 
 stop_symphony() {
+  cd $HOME/symphony/api
   echo "Stopping and removing Symphony API container..."
-
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
 # Stop the container if running
 if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
   $WFM_COMPOSE_CMD down

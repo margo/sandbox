@@ -12,98 +12,19 @@ build_maestro_cli() {
   fi
 }
 
-create_symphony_api_systemd_service() {
-  echo "🔧 Creating systemd service for Symphony API auto-start..."
-
-  local symphony_dir="$HOME/symphony/api"
-
-  # symphony-api-margo.json uses caPath and authzPath to find files under ./mis.
-  # Since the container's working directory is /, ./mis points to /mis.
-  # Mounting the host mis directory to /mis is required so the mTLS/SBI HttpBinding
-  # can read https-ca.crt and authorized-clients.json.
-  mkdir -p "${symphony_dir}/mis"
-
-  sudo tee /etc/systemd/system/symphony-api.service > /dev/null <<EOF
-[Unit]
-Description=Margo Symphony API Server
-Requires=docker.service redis-server.service
-After=docker.service redis-server.service network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-RemainAfterExit=yes
-WorkingDirectory=${symphony_dir}
-ExecStartPre=/bin/sleep 15
-ExecStartPre=-/usr/bin/docker stop symphony-api-container
-ExecStartPre=-/usr/bin/docker rm symphony-api-container
-ExecStart=/usr/bin/docker run --rm --name symphony-api-container \
-    --network host \
-    -p 8082:8082 \
-    -e LOG_LEVEL=Debug \
-    -v ${symphony_dir}/certificates:/certificates \
-    -v ${symphony_dir}/mis:/mis \
-    -v ${symphony_dir}:/configs \
-    -e CONFIG=/configs/symphony-api-margo.json \
-    ${SYMPHONY_IMAGE_REF}
-ExecStartPost=/bin/bash -c 'sleep 8; \
-/usr/bin/docker exec symphony-api-container sh -c "if [ -f /certificates/harbor-ca.crt ]; then mkdir -p /usr/local/share/ca-certificates && cp /certificates/harbor-ca.crt /usr/local/share/ca-certificates/harbor.crt && update-ca-certificates && echo Harbor CA trusted in Symphony container; fi"; \
-sleep 2; \
-docker restart symphony-api-container'
-ExecStop=/usr/bin/docker stop symphony-api-container
-TimeoutStartSec=0
-Restart=on-failure
-RestartSec=10s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  sudo systemctl daemon-reload
-  sudo systemctl enable symphony-api.service
-
-  echo "✅ Symphony API systemd service created and enabled"
-  echo "📋 Service will start Symphony API automatically on boot"
-  echo "📁 Working directory: ${symphony_dir}"
-}
-
-remove_symphony_api_systemd_service() {
-  echo "Removing Symphony API systemd service..."
-
-  local service_name="symphony-api"
-  local service_file="/etc/systemd/system/${service_name}.service"
-
-  if [[ ! -f "$service_file" ]]; then
-    echo "Symphony API service does not exist"
-    return 0
-  fi
-
-  if sudo systemctl is-active --quiet "${service_name}.service"; then
-    echo "Stopping ${service_name}..."
-    sudo systemctl stop "${service_name}.service"
-  fi
-
-  if sudo systemctl is-enabled --quiet "${service_name}.service" 2>/dev/null; then
-    echo "Disabling ${service_name}..."
-    sudo systemctl disable "${service_name}.service"
-  fi
-
-  echo "Removing service file..."
-  sudo rm -f "$service_file"
-
-  sudo systemctl daemon-reload
-  sudo systemctl reset-failed 2>/dev/null || true
-
-  echo "✅ Symphony API systemd service removed successfully"
-}
 
 start_symphony_api_container() {
   cd "$HOME/symphony/api"
 
   echo "Stopping and removing existing symphony-api-container if present..."
-  docker stop symphony-api-container 2>/dev/null || true
-  docker rm symphony-api-container 2>/dev/null || true
-  pkill -f "symphony-api" 2>/dev/null || true
+  COMPOSE_CMD="docker compose -f docker-compose.yaml"
+
+  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.ci.yaml"
+  fi
+
+  $COMPOSE_CMD down
+
 
   # Copy Harbor CA if in CI environment
     HARBOR_CERT="$HOME/sandbox/scripts/harbor/certs/harbor.crt"
@@ -134,28 +55,8 @@ start_symphony_api_container() {
   fi
 
   echo "🚀 Starting Symphony API container..."
-
-  # Build docker run command with CI-specific options
-  DOCKER_RUN_CMD="docker run -dit --name symphony-api-container \
-      --network host \
-      -p 8082:8082 \
-      -e LOG_LEVEL=Debug \
-      -v $HOME/symphony/api/certificates:/certificates \
-      -v $HOME/symphony/api/mis:/mis \
-      -v $HOME/symphony/api/:/configs \
-      -e CONFIG=/configs/symphony-api-margo.json"
-
-  # Add CI-specific environment and host mappings
-  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
-    DOCKER_RUN_CMD="$DOCKER_RUN_CMD \
-      --add-host ${EXPOSED_HARBOR_HOST}:${RUNNER_IP} \
-      --add-host ${EXPOSED_SYMPHONY_HOST}:${RUNNER_IP} \
-      --add-host ${EXPOSED_MIS_HOST}:${RUNNER_IP} \
-      -e NODE_EXTRA_CA_CERTS=/certificates/harbor-ca.crt"
-  fi
-
-  # Execute docker run
-  eval "$DOCKER_RUN_CMD ${SYMPHONY_IMAGE_REF}"
+  
+  $COMPOSE_CMD up -d
 
   # Wait for container to start
   sleep 5
@@ -175,7 +76,6 @@ start_symphony_api_container() {
       echo "✅ Symphony API container started successfully"
       echo "📡 Container is running on port 8082 (host network), for NBI (Easy-CLI)"
       echo "📡 Container is running on port 8084 (host network), for Margo Management Interface"
-      create_symphony_api_systemd_service
   else
       echo "❌ Failed to start Symphony API container"
       docker logs symphony-api-container || true

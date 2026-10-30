@@ -440,23 +440,22 @@ start_symphony() {
 }
 
 stop_symphony() {
-  # TODO: this piece of code require corrections
   echo "Stopping and removing Symphony API container..."
 
-  # Stop the container if running
-  if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker stop symphony-api-container && echo '✅ Symphony API container stopped'
+# Stop the container if running
+if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
+  COMPOSE_CMD="docker compose -f docker-compose.yaml"
+
+  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.ci.yaml"
   fi
 
-  # Remove the container if it exists
-  if docker ps -a --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker rm symphony-api-container && echo '✅ Symphony API container removed'
-  else
-    echo 'ℹ️ Symphony API container not found'
-  fi
+  $COMPOSE_CMD down
+  echo "✅ Symphony API container stopped successfully."
+else
+  echo "ℹ️ Symphony API container not found, nothing to stop. Moving on..."
+fi
 
-  echo "proceeding to remove the systemd files..."
-  remove_symphony_api_systemd_service
 
   # Prompt user to delete Redis data
   echo ""

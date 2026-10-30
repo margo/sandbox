@@ -1,9 +1,9 @@
 #!/bin/bash
-# modules/wfm/redis.sh - Redis installation
+# modules/wfm/redis.sh - Redis installation/uninstallation
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-COMPOSE_FILE="$(dirname "${BASH_SOURCE[0]}")/../compose-files/redis-compose.yaml"
+COMPOSE_FILE="$HOME/sandbox/scripts/compose-files/redis-compose.yaml"
 
 install_redis() {
   

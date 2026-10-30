@@ -30,7 +30,7 @@ install_redis() {
     REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
     echo "⚡️ Redis ${REDIS_VERSION} already running as container, skipping installation"
   else
-    docker compose --project-directory "${COMPOSE_DIR}" -f "${COMPOSE_FILE}" up -d
+    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" up -d)
     REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
     echo "✅ Redis ${REDIS_VERSION} installed and running via Docker Compose"
   fi
@@ -40,7 +40,7 @@ uninstall_redis() {
   echo "🔄 Uninstalling Redis..."
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
-    docker compose --project-directory "${COMPOSE_DIR}" -f "${COMPOSE_FILE}" down
+    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" down)
     echo "✅ Redis container stopped and removed"
   else
     echo "⚡️ Redis container not found, skipping..."

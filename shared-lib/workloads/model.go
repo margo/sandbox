@@ -36,7 +36,6 @@ type Project struct {
 	Name             string
 	WorkingDir       string
 	Services         types.Services
-	Jobs             types.Jobs
 	Networks         types.Networks
 	Volumes          types.Volumes
 	Secrets          types.Secrets
@@ -46,7 +45,6 @@ type Project struct {
 	ComposeFiles     []string
 	Environment      types.Mapping
 	DisabledServices types.Services
-	DisabledJobs     types.Jobs
 	Profiles         []string
 }
 
@@ -279,7 +277,6 @@ func toComposeProject(project *Project) *types.Project {
 		Name:             project.Name,
 		WorkingDir:       project.WorkingDir,
 		Services:         project.Services,
-		Jobs:             project.Jobs,
 		Networks:         project.Networks,
 		Volumes:          project.Volumes,
 		Secrets:          project.Secrets,
@@ -289,7 +286,6 @@ func toComposeProject(project *Project) *types.Project {
 		ComposeFiles:     project.ComposeFiles,
 		Environment:      project.Environment,
 		DisabledServices: project.DisabledServices,
-		DisabledJobs:     project.DisabledJobs,
 		Profiles:         project.Profiles,
 	}
 }
@@ -303,7 +299,6 @@ func fromComposeProject(project *types.Project) *Project {
 		Name:             project.Name,
 		WorkingDir:       project.WorkingDir,
 		Services:         project.Services,
-		Jobs:             project.Jobs,
 		Networks:         project.Networks,
 		Volumes:          project.Volumes,
 		Secrets:          project.Secrets,
@@ -313,7 +308,6 @@ func fromComposeProject(project *types.Project) *Project {
 		ComposeFiles:     project.ComposeFiles,
 		Environment:      project.Environment,
 		DisabledServices: project.DisabledServices,
-		DisabledJobs:     project.DisabledJobs,
 		Profiles:         project.Profiles,
 	}
 }

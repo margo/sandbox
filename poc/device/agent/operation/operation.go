@@ -67,7 +67,7 @@ func NewDockerComposeClient(
 	if params.ViaSocket != nil {
 		socketPath := strings.TrimSpace(params.ViaSocket.SocketPath)
 		if socketPath == "" {
-			return nil, fmt.Errorf("Docker socket path cannot be empty")
+			return nil, fmt.Errorf("docker socket path cannot be empty")
 		}
 		if !strings.HasPrefix(socketPath, "unix://") {
 			socketPath = "unix://" + socketPath
@@ -121,7 +121,12 @@ func (c *DockerComposeClient) generateAbsProjectFilepath(projectName string) str
 // extracts it, and returns the path to the compose file.
 // repository: oci://harbor.machine:8443/library/nextcloud-compose-archive
 // revision:   1.0.0
-func (c *DockerComposeClient) DownloadCompose(ctx context.Context, repository string, revision string, projectName string) (string, error) {
+func (c *DockerComposeClient) DownloadCompose(
+	ctx context.Context,
+	repository string,
+	revision string,
+	projectName string,
+) (string, error) {
 	if strings.TrimSpace(repository) == "" {
 		return "", fmt.Errorf("repository cannot be empty")
 	}
@@ -160,7 +165,6 @@ func (c *DockerComposeClient) DownloadCompose(ctx context.Context, repository st
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true, //nolint:gosec // PoC environment with self-signed certs
-
 				},
 			},
 		},
@@ -359,7 +363,12 @@ func (c *DockerComposeClient) copyFile(src, dst string) error {
 	return dest.Sync()
 }
 
-func (d *DockerComposeClient) ComposeExists(ctx context.Context, composeFile string, projectName string, envVars map[string]string) (bool, error) {
+func (d *DockerComposeClient) ComposeExists(
+	ctx context.Context,
+	composeFile string,
+	projectName string,
+	envVars map[string]string,
+) (bool, error) {
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return false, nil
 	}
@@ -383,7 +392,12 @@ func (d *DockerComposeClient) ComposeExists(ctx context.Context, composeFile str
 	return true, nil
 }
 
-func (d *DockerComposeClient) DeployCompose(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (d *DockerComposeClient) DeployCompose(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return err
@@ -413,7 +427,12 @@ func (d *DockerComposeClient) DeployCompose(ctx context.Context, projectName str
 	return nil
 }
 
-func (c *DockerComposeClient) UpdateCompose(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (c *DockerComposeClient) UpdateCompose(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	return c.DeployCompose(ctx, projectName, composeFile, envVars)
 }
 
@@ -454,7 +473,12 @@ func (d *DockerComposeClient) loadProject(
 	return project, nil
 }
 
-func (d *DockerComposeClient) Up(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (d *DockerComposeClient) Up(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return fmt.Errorf("Up: %w", err)
@@ -465,7 +489,12 @@ func (d *DockerComposeClient) Up(ctx context.Context, projectName string, compos
 	return nil
 }
 
-func (d *DockerComposeClient) Down(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (d *DockerComposeClient) Down(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return fmt.Errorf("Down: %w", err)
@@ -474,7 +503,11 @@ func (d *DockerComposeClient) Down(ctx context.Context, projectName string, comp
 	return d.downProject(ctx, projectName, project)
 }
 
-func (d *DockerComposeClient) downProject(ctx context.Context, projectName string, project *workloads.Project) error {
+func (d *DockerComposeClient) downProject(
+	ctx context.Context,
+	projectName string,
+	project *workloads.Project,
+) error {
 	return d.service.Down(ctx, projectName, workloads.DownOptions{
 		RemoveOrphans: true,
 		Project:       *project,
@@ -483,7 +516,10 @@ func (d *DockerComposeClient) downProject(ctx context.Context, projectName strin
 	})
 }
 
-func (d *DockerComposeClient) removeProjectContainers(ctx context.Context, projectName string) error {
+func (d *DockerComposeClient) removeProjectContainers(
+	ctx context.Context,
+	projectName string,
+) error {
 	return d.service.Remove(ctx, projectName, workloads.RemoveOptions{
 		Stop:    true,
 		Volumes: true,
@@ -491,7 +527,12 @@ func (d *DockerComposeClient) removeProjectContainers(ctx context.Context, proje
 	})
 }
 
-func (d *DockerComposeClient) Pull(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (d *DockerComposeClient) Pull(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return err
@@ -507,7 +548,12 @@ func (d *DockerComposeClient) Pull(ctx context.Context, projectName string, comp
 	return nil
 }
 
-func (d *DockerComposeClient) Ps(ctx context.Context, projectName string, composeFile string, envVars map[string]string) ([]workloads.ContainerSummary, error) {
+func (d *DockerComposeClient) Ps(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) ([]workloads.ContainerSummary, error) {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return nil, fmt.Errorf("ps: %w", err)
@@ -521,7 +567,6 @@ func (d *DockerComposeClient) Ps(ctx context.Context, projectName string, compos
 	}
 
 	return summary, nil
-
 }
 
 func (d *DockerComposeClient) RemoveCompose(ctx context.Context, projectName string) error {
@@ -567,7 +612,12 @@ func (d *DockerComposeClient) RemoveCompose(ctx context.Context, projectName str
 	return nil
 }
 
-func (d *DockerComposeClient) Restart(ctx context.Context, projectName string, composeFile string, envVars map[string]string) error {
+func (d *DockerComposeClient) Restart(
+	ctx context.Context,
+	projectName string,
+	composeFile string,
+	envVars map[string]string,
+) error {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return err

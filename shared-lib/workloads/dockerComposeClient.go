@@ -36,7 +36,11 @@ func NewComposeService(dockerCli command.Cli, opts ...compose.Option) (ComposeCl
 	}, nil
 }
 
-func (c *DockerComposeClient) Push(ctx context.Context, project *Project, options PushOptions) error {
+func (c *DockerComposeClient) Push(
+	ctx context.Context,
+	project *Project,
+	options PushOptions,
+) error {
 	if c.service == nil {
 		return fmt.Errorf("compose service is not initialized")
 	}
@@ -48,7 +52,11 @@ func (c *DockerComposeClient) Push(ctx context.Context, project *Project, option
 	return nil
 }
 
-func (c *DockerComposeClient) Pull(ctx context.Context, project *Project, options PullOptions) error {
+func (c *DockerComposeClient) Pull(
+	ctx context.Context,
+	project *Project,
+	options PullOptions,
+) error {
 	if c.service == nil {
 		return fmt.Errorf("compose service is not initialized")
 	}
@@ -60,7 +68,11 @@ func (c *DockerComposeClient) Pull(ctx context.Context, project *Project, option
 	return nil
 }
 
-func (c *DockerComposeClient) Ps(ctx context.Context, projectName string, options PsOptions) ([]ContainerSummary, error) {
+func (c *DockerComposeClient) Ps(
+	ctx context.Context,
+	projectName string,
+	options PsOptions,
+) ([]ContainerSummary, error) {
 	if c.service == nil {
 		return nil, fmt.Errorf("compose service is not initialized")
 	}
@@ -78,7 +90,11 @@ func (c *DockerComposeClient) Ps(ctx context.Context, projectName string, option
 }
 
 // Restart restarts containers
-func (c *DockerComposeClient) Restart(ctx context.Context, projectName string, options RestartOptions) error {
+func (c *DockerComposeClient) Restart(
+	ctx context.Context,
+	projectName string,
+	options RestartOptions,
+) error {
 	if c.service == nil {
 		return fmt.Errorf("compose service is not initialized")
 	}
@@ -114,7 +130,11 @@ func (c *DockerComposeClient) Up(ctx context.Context, project *Project) error {
 }
 
 // Down executes the equivalent to a `compose down`
-func (c *DockerComposeClient) Down(ctx context.Context, projectName string, options DownOptions) error {
+func (c *DockerComposeClient) Down(
+	ctx context.Context,
+	projectName string,
+	options DownOptions,
+) error {
 	if c.service == nil {
 		return fmt.Errorf("compose service is not initialized")
 	}
@@ -126,7 +146,11 @@ func (c *DockerComposeClient) Down(ctx context.Context, projectName string, opti
 }
 
 // Remove executes the equivalent to a `compose rm`
-func (c *DockerComposeClient) Remove(ctx context.Context, projectName string, options RemoveOptions) error {
+func (c *DockerComposeClient) Remove(
+	ctx context.Context,
+	projectName string,
+	options RemoveOptions,
+) error {
 	if c.service == nil {
 		return fmt.Errorf("compose service is not initialized")
 	}
@@ -139,7 +163,10 @@ func (c *DockerComposeClient) Remove(ctx context.Context, projectName string, op
 }
 
 // LoadProject loads and validates a Compose project from configuration files.
-func (c *DockerComposeClient) LoadProject(ctx context.Context, options ProjectLoadOptions) (*Project, error) {
+func (c *DockerComposeClient) LoadProject(
+	ctx context.Context,
+	options ProjectLoadOptions,
+) (*Project, error) {
 	if c.service == nil {
 		return nil, fmt.Errorf("compose service is not initialized")
 	}

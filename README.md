@@ -15,6 +15,7 @@
   - [Telemetry and Monitoring](#telemetry-and-monitoring)
 - [Margo Identity and Authorization Framework (MIAF)](#margo-identity-and-authorization-framework-miaf)
   - [Margo Identity Service (MIS)](#margo-identity-service-mis)
+  - [MIS Helper Scripts](#mis-helper-scripts)
   - [MIAF Design Rationale](#miaf-design-rationale)
   - [PKI and Certificate Infrastructure](#pki-and-certificate-infrastructure)
 - [Identity Lifecycle and Operator Playbooks](#identity-lifecycle-and-operator-playbooks)
@@ -150,6 +151,8 @@ The Margo Identity Service issues X.509-SVIDs and publishes the Trust Domain dis
 - Lifecycle operations (SVID renewal, revocation, Root CA replacement) are operator-driven
 
 See the [MIS README](./mis/README.md) for deployment details, PKI setup, and trust model documentation.
+#### MIS Helper Scripts
+The sandbox provides a set of helper scripts for MIS operations, including PKI generation, configuration building, SVID minting, and CSR generation. For a full reference on available scripts and their usage, see the [MIS Scripts Documentation](./scripts/lib/mis/README.md).
 
 #### MIAF Design Rationale
 The sandbox's choices for MIS SVID minting, HTTP connection reuse, and client-side authorization reflect the current specification and operator-driven lifecycle. See [MIAF Design Rationale and Current Trade-offs](./docs/miaf-design-rationale.md) for the reasoning, security and performance trade-offs, and areas that may evolve with MIAF.

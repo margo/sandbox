@@ -3,10 +3,10 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-COMPOSE_FILE="$HOME/sandbox/scripts/compose-files/redis-compose.yaml"
+COMPOSE_FILE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../compose-files/redis-compose.yaml")"
+COMPOSE_DIR="$(dirname "${COMPOSE_FILE}")"
 
 install_redis() {
-  
   echo "🔄 Installing Redis ${REDIS_VERSION}..."
 
   if ! command_exists docker; then
@@ -30,7 +30,7 @@ install_redis() {
     REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
     echo "⚡️ Redis ${REDIS_VERSION} already running as container, skipping installation"
   else
-    docker compose -f "${COMPOSE_FILE}" up -d
+    docker compose --project-directory "${COMPOSE_DIR}" -f "${COMPOSE_FILE}" up -d
     REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
     echo "✅ Redis ${REDIS_VERSION} installed and running via Docker Compose"
   fi
@@ -40,7 +40,7 @@ uninstall_redis() {
   echo "🔄 Uninstalling Redis..."
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
-    docker compose -f "${COMPOSE_FILE}" down
+    docker compose --project-directory "${COMPOSE_DIR}" -f "${COMPOSE_FILE}" down
     echo "✅ Redis container stopped and removed"
   else
     echo "⚡️ Redis container not found, skipping..."
@@ -54,4 +54,3 @@ uninstall_redis() {
     echo "⚡️ Redis volume not found, skipping..."
   fi
 }
-

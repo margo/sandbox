@@ -16,7 +16,7 @@ import (
 	"github.com/docker/cli/cli/command"
 	"github.com/docker/cli/cli/flags"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/margo/sandbox/shared-lib/workloads"
+	"github.com/margo/sandbox/shared-lib/workloads/compose"
 	mobyclient "github.com/moby/moby/client"
 	"go.uber.org/multierr"
 	"oras.land/oras-go/v2"
@@ -42,7 +42,7 @@ type DockerSocketParams struct {
 }
 
 type DockerComposeClient struct {
-	service    workloads.ComposeClient
+	service    compose.Client
 	workingDir string
 }
 
@@ -92,7 +92,7 @@ func NewDockerComposeClient(
 	}
 
 	// Create a new Compose service instance
-	service, err := workloads.NewComposeService(dockerCLI)
+	service, err := compose.NewComposeService(dockerCLI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compose service: %w", err)
 	}
@@ -378,7 +378,7 @@ func (d *DockerComposeClient) ComposeExists(
 		return false, err
 	}
 
-	summary, err := d.service.Ps(ctx, projectName, workloads.PsOptions{
+	summary, err := d.service.Ps(ctx, projectName, compose.PsOptions{
 		Project: project,
 		All:     false,
 	})
@@ -415,7 +415,7 @@ func (d *DockerComposeClient) DeployCompose(
 		}
 	}
 
-	if err := d.service.Pull(ctx, project, workloads.PullOptions{
+	if err := d.service.Pull(ctx, project, compose.PullOptions{
 		IgnoreFailures: true,
 	}); err != nil {
 		return fmt.Errorf("failed to pull compose images: %w", err)
@@ -441,7 +441,7 @@ func (d *DockerComposeClient) loadProject(
 	projectName string,
 	composeFile string,
 	envVars map[string]string,
-) (*workloads.Project, error) {
+) (*compose.Project, error) {
 	if strings.TrimSpace(projectName) == "" {
 		return nil, fmt.Errorf("project name cannot be empty")
 	}
@@ -461,7 +461,7 @@ func (d *DockerComposeClient) loadProject(
 		return nil, fmt.Errorf("compose file path is a directory: %s", absComposeFile)
 	}
 
-	project, err := d.service.LoadProject(ctx, workloads.ProjectLoadOptions{
+	project, err := d.service.LoadProject(ctx, compose.ProjectLoadOptions{
 		ProjectName: projectName,
 		ConfigPaths: []string{absComposeFile},
 		WorkingDir:  filepath.Dir(absComposeFile),
@@ -506,9 +506,9 @@ func (d *DockerComposeClient) Down(
 func (d *DockerComposeClient) downProject(
 	ctx context.Context,
 	projectName string,
-	project *workloads.Project,
+	project *compose.Project,
 ) error {
-	return d.service.Down(ctx, projectName, workloads.DownOptions{
+	return d.service.Down(ctx, projectName, compose.DownOptions{
 		RemoveOrphans: true,
 		Project:       *project,
 		Volumes:       true,
@@ -520,7 +520,7 @@ func (d *DockerComposeClient) removeProjectContainers(
 	ctx context.Context,
 	projectName string,
 ) error {
-	return d.service.Remove(ctx, projectName, workloads.RemoveOptions{
+	return d.service.Remove(ctx, projectName, compose.RemoveOptions{
 		Stop:    true,
 		Volumes: true,
 		Force:   true,
@@ -538,7 +538,7 @@ func (d *DockerComposeClient) Pull(
 		return err
 	}
 
-	err = d.service.Pull(ctx, project, workloads.PullOptions{
+	err = d.service.Pull(ctx, project, compose.PullOptions{
 		IgnoreFailures: true,
 	})
 	if err != nil {
@@ -553,12 +553,12 @@ func (d *DockerComposeClient) Ps(
 	projectName string,
 	composeFile string,
 	envVars map[string]string,
-) ([]workloads.ContainerSummary, error) {
+) ([]compose.ContainerSummary, error) {
 	project, err := d.loadProject(ctx, projectName, composeFile, envVars)
 	if err != nil {
 		return nil, fmt.Errorf("ps: %w", err)
 	}
-	summary, err := d.service.Ps(ctx, projectName, workloads.PsOptions{
+	summary, err := d.service.Ps(ctx, projectName, compose.PsOptions{
 		Project: project,
 		All:     true,
 	})
@@ -588,7 +588,7 @@ func (d *DockerComposeClient) RemoveCompose(ctx context.Context, projectName str
 			)
 		}
 	} else {
-		err = d.service.Down(ctx, projectName, workloads.DownOptions{
+		err = d.service.Down(ctx, projectName, compose.DownOptions{
 			Project:       *project,
 			RemoveOrphans: true,
 			Images:        "all",
@@ -623,7 +623,7 @@ func (d *DockerComposeClient) Restart(
 		return err
 	}
 
-	err = d.service.Restart(ctx, projectName, workloads.RestartOptions{
+	err = d.service.Restart(ctx, projectName, compose.RestartOptions{
 		Project: project,
 	})
 	if err != nil {

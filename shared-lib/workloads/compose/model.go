@@ -1,4 +1,4 @@
-package workloads
+package compose
 
 import (
 	"sort"

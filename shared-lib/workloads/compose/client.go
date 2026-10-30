@@ -1,4 +1,4 @@
-package workloads
+package compose
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 // ComposeClient defines the interface for Docker Compose operations.
-type ComposeClient interface {
+type Client interface {
 	Push(ctx context.Context, project *Project, options PushOptions) error
 	Pull(ctx context.Context, project *Project, options PullOptions) error
 	Ps(ctx context.Context, projectName string, options PsOptions) ([]ContainerSummary, error)
@@ -21,29 +21,26 @@ type ComposeClient interface {
 	LoadProject(ctx context.Context, options ProjectLoadOptions) (*Project, error)
 }
 
-type DockerComposeClient struct {
+type composeService struct {
 	service api.Compose
 }
 
 // NewComposeService wraps compose.NewComposeService to instantiate an api.Compose service from a Docker CLI instance.
-func NewComposeService(dockerCli command.Cli, opts ...compose.Option) (ComposeClient, error) {
+func NewComposeService(dockerCli command.Cli, opts ...compose.Option) (Client, error) {
 	service, err := compose.NewComposeService(dockerCli, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compose service: %w", err)
 	}
-	return &DockerComposeClient{
+	return &composeService{
 		service: service,
 	}, nil
 }
 
-func (c *DockerComposeClient) Push(
+func (c *composeService) Push(
 	ctx context.Context,
 	project *Project,
 	options PushOptions,
 ) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
 	proj := toComposeProject(project)
 	opts := toComposePushOptions(options)
 	if err := c.service.Push(ctx, proj, opts); err != nil {
@@ -52,14 +49,11 @@ func (c *DockerComposeClient) Push(
 	return nil
 }
 
-func (c *DockerComposeClient) Pull(
+func (c *composeService) Pull(
 	ctx context.Context,
 	project *Project,
 	options PullOptions,
 ) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
 	proj := toComposeProject(project)
 	opts := toComposePullOptions(options)
 	if err := c.service.Pull(ctx, proj, opts); err != nil {
@@ -68,15 +62,11 @@ func (c *DockerComposeClient) Pull(
 	return nil
 }
 
-func (c *DockerComposeClient) Ps(
+func (c *composeService) Ps(
 	ctx context.Context,
 	projectName string,
 	options PsOptions,
 ) ([]ContainerSummary, error) {
-	if c.service == nil {
-		return nil, fmt.Errorf("compose service is not initialized")
-	}
-
 	opts := toComposePsOptions(options)
 	containerSummary, err := c.service.Ps(ctx, projectName, opts)
 	if err != nil {
@@ -90,14 +80,11 @@ func (c *DockerComposeClient) Ps(
 }
 
 // Restart restarts containers
-func (c *DockerComposeClient) Restart(
+func (c *composeService) Restart(
 	ctx context.Context,
 	projectName string,
 	options RestartOptions,
 ) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
 	opts := toComposeRestartOptions(options)
 	if err := c.service.Restart(ctx, projectName, opts); err != nil {
 		return fmt.Errorf("failed to restart compose: %w", err)
@@ -106,10 +93,7 @@ func (c *DockerComposeClient) Restart(
 }
 
 // Up executes the equivalent to a `compose up`
-func (c *DockerComposeClient) Up(ctx context.Context, project *Project) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
+func (c *composeService) Up(ctx context.Context, project *Project) error {
 	if project == nil {
 		return fmt.Errorf("compose project is nil")
 	}
@@ -130,14 +114,11 @@ func (c *DockerComposeClient) Up(ctx context.Context, project *Project) error {
 }
 
 // Down executes the equivalent to a `compose down`
-func (c *DockerComposeClient) Down(
+func (c *composeService) Down(
 	ctx context.Context,
 	projectName string,
 	options DownOptions,
 ) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
 	downOption := toComposeDownOptions(options)
 	if err := c.service.Down(ctx, projectName, downOption); err != nil {
 		return fmt.Errorf("failed to compose down project: %w", err)
@@ -146,15 +127,11 @@ func (c *DockerComposeClient) Down(
 }
 
 // Remove executes the equivalent to a `compose rm`
-func (c *DockerComposeClient) Remove(
+func (c *composeService) Remove(
 	ctx context.Context,
 	projectName string,
 	options RemoveOptions,
 ) error {
-	if c.service == nil {
-		return fmt.Errorf("compose service is not initialized")
-	}
-
 	removeOptions := toComposeRemoveOptions(options)
 	if err := c.service.Remove(ctx, projectName, removeOptions); err != nil {
 		return fmt.Errorf("failed to remove compose: %w", err)
@@ -163,14 +140,10 @@ func (c *DockerComposeClient) Remove(
 }
 
 // LoadProject loads and validates a Compose project from configuration files.
-func (c *DockerComposeClient) LoadProject(
+func (c *composeService) LoadProject(
 	ctx context.Context,
 	options ProjectLoadOptions,
 ) (*Project, error) {
-	if c.service == nil {
-		return nil, fmt.Errorf("compose service is not initialized")
-	}
-
 	project, err := c.service.LoadProject(ctx, toComposeProjectLoadOptions(options))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load compose project: %w", err)

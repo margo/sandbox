@@ -28,7 +28,7 @@ deploymentProfiles:
           repository: {{NEXTCLOUD_COMPOSE_REPOSITORY}} # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
           revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
-          timeout: 5m
+          timeout: 5m0s
     deviceConstraints:
       capacityRequirements:
         cpu:

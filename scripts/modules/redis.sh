@@ -1,24 +1,56 @@
 #!/bin/bash
-# modules/wfm/redis.sh - Redis installation
+# modules/wfm/redis.sh - Redis installation/uninstallation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh" 
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+
+COMPOSE_FILE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../compose-files/redis-compose.yaml")"
+COMPOSE_DIR="$(dirname "${COMPOSE_FILE}")"
 
 install_redis() {
-  local REDIS_VERSION="7.0.15"
-
   echo "🔄 Installing Redis ${REDIS_VERSION}..."
 
-  if command_exists redis-server; then
-    REDIS_VERSION="$(redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
-    echo "⚡️ Redis ${REDIS_VERSION} already installed, skipping installation"
+  if ! command_exists docker; then
+    echo "❌ Docker is not installed. Please install Docker first."
+    return 1
+  fi
+
+  if ! docker compose version &>/dev/null; then
+    echo "❌ Docker Compose plugin is not installed. Please install it first."
+    return 1
+  fi
+
+  if systemctl is-active --quiet redis-server 2>/dev/null || systemctl is-active --quiet redis 2>/dev/null; then
+    echo "⚠️  System Redis service detected, disabling it..."
+    sudo systemctl stop redis-server 2>/dev/null || sudo systemctl stop redis 2>/dev/null
+    sudo systemctl disable redis-server 2>/dev/null || sudo systemctl disable redis 2>/dev/null
+    echo "✅ System Redis service disabled"
+  fi
+
+  if docker ps --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
+    REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
+    echo "⚡️ Redis ${REDIS_VERSION} already running as container, skipping installation"
   else
-    sudo apt update
-    sudo apt install -y redis-server=${REDIS_VERSION}-* || sudo apt install -y redis-server
+    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" up -d)
+    REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
+    echo "✅ Redis ${REDIS_VERSION} installed and running via Docker Compose"
+  fi
+}
 
-    sudo systemctl enable redis-server
-    sudo systemctl start redis-server
+uninstall_redis() {
+  echo "🔄 Uninstalling Redis..."
 
-    REDIS_VERSION="$(redis-server --version)"
-    echo "✅ Redis ${REDIS_VERSION} installed"
+  if docker ps -a --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
+    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" down)
+    echo "✅ Redis container stopped and removed"
+  else
+    echo "⚡️ Redis container not found, skipping..."
+  fi
+
+  # Remove the named volume
+  if docker volume ls --format '{{.Name}}' | grep -q "^${REDIS_VOLUME_NAME}$"; then
+    docker volume rm "${REDIS_VOLUME_NAME}"
+    echo "✅ Redis volume '${REDIS_VOLUME_NAME}' removed"
+  else
+    echo "⚡️ Redis volume not found, skipping..."
   fi
 }

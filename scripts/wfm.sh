@@ -43,6 +43,10 @@ SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TA
 SYMPHONY_IMAGE_REF="${SYMPHONY_IMAGE_REF:-${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}}"
 SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/mis/authorized-clients.json"}"
 
+export REDIS_VERSION="7.0.15"
+export REDIS_CONTAINER_NAME="redis-wfm-db-container"
+export REDIS_VOLUME_NAME="redis-data"
+
 
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -279,6 +283,8 @@ uninstall_prerequisites() {
 
   # Step 7: Remove basic utilities and cleanup
   cleanup_basic_utilities
+  # Step 8: Uninstall Redis
+  uninstall_redis
 
   echo "Complete uninstallation finished"
 }

@@ -1,12 +1,12 @@
 services:
   redis:
-    image: redis:7.0.15
-    container_name: redis-wfm-db-container
+    image: redis:${REDIS_VERSION}
+    container_name: ${REDIS_CONTAINER_NAME}
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - ${REDIS_VOLUME_NAME}:/data
 
 volumes:
   redis-data:

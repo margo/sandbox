@@ -6,9 +6,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 COMPOSE_FILE="$(dirname "${BASH_SOURCE[0]}")/../compose-files/redis-compose.yaml"
 
 install_redis() {
-  local REDIS_VERSION="7.0.15"
-  local REDIS_CONTAINER_NAME="redis-wfm-db-container"
-
+  
   echo "🔄 Installing Redis ${REDIS_VERSION}..."
 
   if ! command_exists docker; then
@@ -21,7 +19,6 @@ install_redis() {
     return 1
   fi
 
-  # Disable system Redis service if running
   if systemctl is-active --quiet redis-server 2>/dev/null || systemctl is-active --quiet redis 2>/dev/null; then
     echo "⚠️  System Redis service detected, disabling it..."
     sudo systemctl stop redis-server 2>/dev/null || sudo systemctl stop redis 2>/dev/null
@@ -34,8 +31,27 @@ install_redis() {
     echo "⚡️ Redis ${REDIS_VERSION} already running as container, skipping installation"
   else
     docker compose -f "${COMPOSE_FILE}" up -d
-
     REDIS_VERSION="$(docker exec ${REDIS_CONTAINER_NAME} redis-server --version | cut -d ' ' -f 3 | cut -d '=' -f 2)"
     echo "✅ Redis ${REDIS_VERSION} installed and running via Docker Compose"
   fi
 }
+
+uninstall_redis() {
+  echo "🔄 Uninstalling Redis..."
+
+  if docker ps -a --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
+    docker compose -f "${COMPOSE_FILE}" down
+    echo "✅ Redis container stopped and removed"
+  else
+    echo "⚡️ Redis container not found, skipping..."
+  fi
+
+  # Remove the named volume
+  if docker volume ls --format '{{.Name}}' | grep -q "^${REDIS_VOLUME_NAME}$"; then
+    docker volume rm "${REDIS_VOLUME_NAME}"
+    echo "✅ Redis volume '${REDIS_VOLUME_NAME}' removed"
+  else
+    echo "⚡️ Redis volume not found, skipping..."
+  fi
+}
+

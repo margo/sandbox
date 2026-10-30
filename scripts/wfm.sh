@@ -42,7 +42,10 @@ SYMPHONY_TAG="latest"
 SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}"
 SYMPHONY_IMAGE_REF="${SYMPHONY_IMAGE_REF:-${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}}"
 SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/mis/authorized-clients.json"}"
-
+WFM_COMPOSE_CMD="docker compose -f margo-docker-compose.yaml"
+if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+  WFM_COMPOSE_CMD="$WFM_COMPOSE_CMD -f margo-docker-compose-ci.yaml"
+fi
 
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -424,6 +427,7 @@ start_symphony() {
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
 
   if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
     git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
@@ -440,23 +444,17 @@ start_symphony() {
 }
 
 stop_symphony() {
-  # TODO: this piece of code require corrections
+  cd $HOME/symphony/api
   echo "Stopping and removing Symphony API container..."
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
+# Stop the container if running
+if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
+  $WFM_COMPOSE_CMD down
+  echo "✅ Symphony API container stopped successfully."
+else
+  echo "ℹ️ Symphony API container not found, nothing to stop. Moving on..."
+fi
 
-  # Stop the container if running
-  if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker stop symphony-api-container && echo '✅ Symphony API container stopped'
-  fi
-
-  # Remove the container if it exists
-  if docker ps -a --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker rm symphony-api-container && echo '✅ Symphony API container removed'
-  else
-    echo 'ℹ️ Symphony API container not found'
-  fi
-
-  echo "proceeding to remove the systemd files..."
-  remove_symphony_api_systemd_service
 
   # Prompt user to delete Redis data
   echo ""

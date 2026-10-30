@@ -26,7 +26,7 @@ deploymentProfiles:
           repository: {{HELM_REPOSITORY}} # e.g., oci://<harbor-ip>:<harbor-port>/library/custom-otel-app
           revision: {{HELM_REVISION}} # e.g., 0.1.0
           wait: true
-          timeout: 5m
+          timeout: 5m0s
     deviceConstraints:
       capacityRequirements:
         cpu:

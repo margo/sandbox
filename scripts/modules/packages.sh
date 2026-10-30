@@ -62,7 +62,6 @@ push_nextcloud_to_oci() {
 
   local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
   local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
-  local tag="latest"
 
   cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
 
@@ -82,6 +81,21 @@ push_nextcloud_to_oci() {
   sed -i "s|{{NEXTCLOUD_COMPOSE_REPOSITORY}}|$NEXTCLOUD_COMPOSE_REPOSITORY|g" "$compose_deploy_file" 2>/dev/null || true
   sed -i "s|{{NEXTCLOUD_COMPOSE_REVISION}}|$NEXTCLOUD_COMPOSE_REVISION|g" "$compose_deploy_file" 2>/dev/null || true
 
+  # Extract SemVer version from margo.yaml per Margo specification
+  local tag=""
+  local app_name=""
+  local app_desc=""
+  if command -v yq &>/dev/null; then
+    tag=$(yq eval '.metadata.version // ""' margo.yaml 2>/dev/null)
+    app_name=$(yq eval '.metadata.name // "nextcloud"' margo.yaml 2>/dev/null)
+    app_desc=$(yq eval '.metadata.description // "Nextcloud Application"' margo.yaml 2>/dev/null)
+  fi
+
+  if [ -z "$tag" ]; then
+    tag=$(grep -E '^\s*version:' margo.yaml | head -n1 | awk '{print $2}' | tr -d '"'\''')
+  fi
+  tag="${tag:-1.0.0}"
+
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
 
   if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
@@ -94,12 +108,17 @@ push_nextcloud_to_oci() {
     done < <(find resources -type f 2>/dev/null)
   fi
 
-  echo "Pushing files: ${files[@]}"
+  echo "Pushing files: ${files[*]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
+    --annotation "org.opencontainers.image.title=${app_name:-nextcloud}" \
+    --annotation "org.opencontainers.image.version=${tag}" \
+    --annotation "org.opencontainers.image.description=${app_desc:-Nextcloud Application}" \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
+    # Maintain 'latest' alias tag for backward compatibility in sandbox
+    oras tag "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" "latest" 2>/dev/null || true
     echo "✅ Nextcloud package pushed to OCI Registry (HTTPS)"
     echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
@@ -113,7 +132,6 @@ push_custom_otel_to_oci() {
 
   local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
   local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
-  local tag="latest"
 
   cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
 
@@ -124,6 +142,21 @@ push_custom_otel_to_oci() {
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
+
+  # Extract SemVer version from margo.yaml per Margo specification
+  local tag=""
+  local app_name=""
+  local app_desc=""
+  if command -v yq &>/dev/null; then
+    tag=$(yq eval '.metadata.version // ""' margo.yaml 2>/dev/null)
+    app_name=$(yq eval '.metadata.name // "custom-otel"' margo.yaml 2>/dev/null)
+    app_desc=$(yq eval '.metadata.description // "Custom OTEL Application"' margo.yaml 2>/dev/null)
+  fi
+
+  if [ -z "$tag" ]; then
+    tag=$(grep -E '^\s*version:' margo.yaml | head -n1 | awk '{print $2}' | tr -d '"'\''')
+  fi
+  tag="${tag:-1.0.0}"
 
   local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
 
@@ -137,12 +170,17 @@ push_custom_otel_to_oci() {
     done < <(find resources -type f 2>/dev/null)
   fi
 
-  echo "Pushing files: ${files[@]}"
+  echo "Pushing files: ${files[*]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
+    --annotation "org.opencontainers.image.title=${app_name:-custom-otel}" \
+    --annotation "org.opencontainers.image.version=${tag}" \
+    --annotation "org.opencontainers.image.description=${app_desc:-Custom OTEL Application}" \
     "${files[@]}"
 
   if [ $? -eq 0 ]; then
+    # Maintain 'latest' alias tag for backward compatibility in sandbox
+    oras tag "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" "latest" 2>/dev/null || true
     echo "✅ Custom OTEL package pushed to OCI Registry (HTTPS)"
     echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else
@@ -217,36 +255,39 @@ push_nextcloud_compose_to_oci() {
     --password-stdin 
 
   if [ ! -f "compose.yaml" ]; then
-    echo "❌ compose.yaml not found in $app_dir"
+    echo "❌ compose.yaml not found in $app_dir (MUST be named compose.yaml)"
     return 1
   fi
 
   echo "📦 Creating Compose Archive..."
 
-    local staging_dir
-    staging_dir=$(mktemp -d)
+  local staging_dir
+  staging_dir=$(mktemp -d)
 
-    # Ensure cleanup on function exit
-    trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+  # Ensure cleanup on function exit
+  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
 
-    # The spec requires exactly one top level directory in the archive
-    # (matching the component name for human readability)
-    local component_name="nextcloud-stack"
-    local component_dir="$staging_dir/$component_name"
-    mkdir -p "$component_dir"
+  # The spec requires exactly one top-level directory in the archive
+  # matching the component name for readability and standard unpacking
+  local component_name="nextcloud-stack"
+  local component_dir="$staging_dir/$component_name"
+  mkdir -p "$component_dir"
 
-    # Copy compose.yaml into the component directory
-    cp "compose.yaml" "$component_dir/compose.yaml"
+  # Copy compose.yaml into the component directory
+  cp "compose.yaml" "$component_dir/compose.yaml"
 
-    # Create archive with the top-level directory
-    tar -czf "$archive_path" \
-        -C "$staging_dir" \
-        "$component_name"
+  # Bundle any local environment or configuration files referenced by compose
+  find . -maxdepth 1 \( -name "*.env*" -o -name "*.conf" -o -name "*.ini" \) -exec cp {} "$component_dir/" \; 2>/dev/null || true
 
-    if [ ! -f "$archive_path" ]; then
-        echo "❌ Failed to create Compose Archive"
-        return 1
-    fi
+  # Create archive with the single top-level directory
+  tar -czf "$archive_path" \
+      -C "$staging_dir" \
+      "$component_name"
+
+  if [ ! -f "$archive_path" ]; then
+      echo "❌ Failed to create Compose Archive"
+      return 1
+  fi
 
   echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."
@@ -258,10 +299,17 @@ push_nextcloud_compose_to_oci() {
     oras push \
       "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
-      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
+      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip" \
+      --annotation "org.margo.component.type=compose" \
+      --annotation "org.margo.component.version=${tag}" \
+      --annotation "org.opencontainers.image.title=${component_name}" \
+      --annotation "org.opencontainers.image.version=${tag}" \
+      --annotation "org.opencontainers.image.description=Nextcloud Compose Component"
   )
 
   if [ $? -eq 0 ]; then
+    # Maintain 'latest' alias tag for backward compatibility in sandbox
+    oras tag "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" "latest" 2>/dev/null || true
     echo "✅ Nextcloud Compose Archive pushed successfully"
     echo "📍 OCI: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
   else

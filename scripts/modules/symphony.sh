@@ -17,13 +17,7 @@ start_symphony_api_container() {
   cd "$HOME/symphony/api"
 
   echo "Stopping and removing existing symphony-api-container if present..."
-  COMPOSE_CMD="docker compose -f docker-compose.yaml"
-
-  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
-    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.ci.yaml"
-  fi
-
-  $COMPOSE_CMD down
+  $WFM_COMPOSE_CMD down
 
 
   # Copy Harbor CA if in CI environment
@@ -56,7 +50,7 @@ start_symphony_api_container() {
 
   echo "🚀 Starting Symphony API container..."
   
-  $COMPOSE_CMD up -d
+  $WFM_COMPOSE_CMD up -d
 
   # Wait for container to start
   sleep 5

@@ -46,6 +46,10 @@ SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/mis/author
 export REDIS_VERSION="7.0.15"
 export REDIS_CONTAINER_NAME="redis-wfm-db-container"
 
+WFM_COMPOSE_CMD="docker compose -f margo-docker-compose.yaml"
+if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+  WFM_COMPOSE_CMD="$WFM_COMPOSE_CMD -f margo-docker-compose-ci.yaml"
+fi
 
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -449,13 +453,7 @@ stop_symphony() {
 
 # Stop the container if running
 if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
-  COMPOSE_CMD="docker compose -f docker-compose.yaml"
-
-  if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
-    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.ci.yaml"
-  fi
-
-  $COMPOSE_CMD down
+  $WFM_COMPOSE_CMD down
   echo "✅ Symphony API container stopped successfully."
 else
   echo "ℹ️ Symphony API container not found, nothing to stop. Moving on..."

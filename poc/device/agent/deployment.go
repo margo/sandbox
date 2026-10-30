@@ -10,6 +10,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/shared-lib/constraints"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -25,7 +26,7 @@ type DeploymentManagerIfc interface {
 type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
-	composeClient *workloads.DockerComposeCliClient
+	composeClient *operation.DockerComposeClient
 	capabilities  *sbi.DeviceCapabilitiesManifest
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
@@ -37,7 +38,7 @@ func NewDeploymentManager(
 	db database.DatabaseIfc,
 	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
-	composeClient *workloads.DockerComposeCliClient,
+	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,
 ) *DeploymentManager {
 	return &DeploymentManager{
@@ -494,7 +495,7 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 
 		envVars := dm.convertParametersToEnvVars(values, component.Name)
 
-		exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName)
+		exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName, envVars)
 		if err != nil {
 			return fmt.Errorf("failed to check compose project existence: %v", err)
 		}

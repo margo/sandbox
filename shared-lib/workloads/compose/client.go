@@ -44,7 +44,7 @@ func (c *composeService) Push(
 	proj := toComposeProject(project)
 	opts := toComposePushOptions(options)
 	if err := c.service.Push(ctx, proj, opts); err != nil {
-		return fmt.Errorf("failed to push compose: %w", err)
+		return fmt.Errorf("failed to execute compose push: %w", err)
 	}
 	return nil
 }
@@ -57,7 +57,7 @@ func (c *composeService) Pull(
 	proj := toComposeProject(project)
 	opts := toComposePullOptions(options)
 	if err := c.service.Pull(ctx, proj, opts); err != nil {
-		return fmt.Errorf("failed to pull compose: %w", err)
+		return fmt.Errorf("failed to execute compose pull: %w", err)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (c *composeService) Ps(
 	opts := toComposePsOptions(options)
 	containerSummary, err := c.service.Ps(ctx, projectName, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get compose status: %w", err)
+		return nil, fmt.Errorf("failed to execute compose ps: %w", err)
 	}
 	var summary []ContainerSummary
 	for _, cs := range containerSummary {
@@ -87,7 +87,7 @@ func (c *composeService) Restart(
 ) error {
 	opts := toComposeRestartOptions(options)
 	if err := c.service.Restart(ctx, projectName, opts); err != nil {
-		return fmt.Errorf("failed to restart compose: %w", err)
+		return fmt.Errorf("failed to execute compose restart: %w", err)
 	}
 	return nil
 }
@@ -108,7 +108,7 @@ func (c *composeService) Up(ctx context.Context, project *Project) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to up service: %w", err)
+		return fmt.Errorf("failed to execute compose up: %w", err)
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func (c *composeService) Down(
 ) error {
 	downOption := toComposeDownOptions(options)
 	if err := c.service.Down(ctx, projectName, downOption); err != nil {
-		return fmt.Errorf("failed to compose down project: %w", err)
+		return fmt.Errorf("failed to execute compose down: %w", err)
 	}
 	return nil
 }
@@ -134,7 +134,7 @@ func (c *composeService) Remove(
 ) error {
 	removeOptions := toComposeRemoveOptions(options)
 	if err := c.service.Remove(ctx, projectName, removeOptions); err != nil {
-		return fmt.Errorf("failed to remove compose: %w", err)
+		return fmt.Errorf("failed to execute compose remove: %w", err)
 	}
 	return nil
 }
@@ -146,7 +146,7 @@ func (c *composeService) LoadProject(
 ) (*Project, error) {
 	project, err := c.service.LoadProject(ctx, toComposeProjectLoadOptions(options))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load compose project: %w", err)
+		return nil, fmt.Errorf("failed to execute compose load project: %w", err)
 	}
 	return fromComposeProject(project), nil
 }

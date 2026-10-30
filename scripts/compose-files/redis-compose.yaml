@@ -9,4 +9,4 @@ services:
       - ${REDIS_VOLUME_NAME}:/data
 
 volumes:
-  redis-data:
+  ${REDIS_VOLUME_NAME}:

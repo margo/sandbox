@@ -446,7 +446,6 @@ start_symphony() {
 }
 
 stop_symphony() {
-  local REDIS_CONTAINER_NAME="redis-wfm-db-container"
   echo "Stopping and removing Symphony API container..."
 
   # Stop the container if running

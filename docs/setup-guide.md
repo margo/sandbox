@@ -118,7 +118,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - A menu will appear
    - Type `1` and press Enter
    - Choose: `Option 1: PreRequisites: Setup`
-   - ⚠️ If the script says you were added to the 'docker' group:
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
      run Option 1 again to complete the setup.
 
    This installs everything needed like Docker and other tools. This may take 1-5 minutes.
@@ -252,7 +252,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    - A menu will appear
    - Type `1` and press Enter
    - Choose: `Option 1: PreRequisites Setup`
-   - ⚠️ If the script says you were added to the 'docker' group:
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
      run Option 1 again to complete the setup.
 
    This installs everything needed like Redis, Docker, Helm, and other tools. This may take 10-15 minutes.
@@ -403,7 +403,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    - Type `1` and press Enter
    - Choose: `Option 1: Install-prerequisites`
-   - ⚠️ If the script says you were added to the 'docker' group:
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
      run Option 1 again to complete the setup.
 
    This may take 10-15 minutes.

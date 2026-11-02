@@ -108,7 +108,7 @@ push_nextcloud_to_oci() {
     done < <(find resources -type f 2>/dev/null)
   fi
 
-  echo "Pushing files: ${files[*]}"
+  echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --annotation "org.opencontainers.image.title=${app_name:-nextcloud}" \
@@ -170,7 +170,7 @@ push_custom_otel_to_oci() {
     done < <(find resources -type f 2>/dev/null)
   fi
 
-  echo "Pushing files: ${files[*]}"
+  echo "Pushing files: ${files[@]}"
   oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
     --artifact-type "application/vnd.margo.app.v1+json" \
     --annotation "org.opencontainers.image.title=${app_name:-custom-otel}" \

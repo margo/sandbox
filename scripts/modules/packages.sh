@@ -292,20 +292,36 @@ push_nextcloud_compose_to_oci() {
   echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."
 
-  # ORAS requires a relative filename, so push from /tmp
+  # Create an annotation JSON file so annotations exist on BOTH the manifest and the layer
+  local annotations_file="$staging_dir/annotations.json"
+  cat > "$annotations_file" <<EOF
+{
+  "\$manifest": {
+    "org.margo.component.type": "compose",
+    "org.margo.component.version": "${tag}",
+    "org.opencontainers.image.title": "${component_name}",
+    "org.opencontainers.image.version": "${tag}",
+    "org.opencontainers.image.description": "Nextcloud Compose Component"
+  },
+  "${archive_name}": {
+    "org.margo.component.type": "compose",
+    "org.margo.component.version": "${tag}",
+    "org.opencontainers.image.title": "${archive_name}"
+  }
+}
+EOF
+
+  # ORAS requires relative filenames, so push from /tmp
   (
     cd /tmp || exit 1
 
     oras push \
       "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
-      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip" \
-      --annotation "org.margo.component.type=compose" \
-      --annotation "org.margo.component.version=${tag}" \
-      --annotation "org.opencontainers.image.title=${component_name}" \
-      --annotation "org.opencontainers.image.version=${tag}" \
-      --annotation "org.opencontainers.image.description=Nextcloud Compose Component"
+      --annotation-file "$annotations_file" \
+      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
   )
+
 
   if [ $? -eq 0 ]; then
     # Maintain 'latest' alias tag for backward compatibility in sandbox

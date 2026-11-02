@@ -40,17 +40,11 @@ uninstall_redis() {
   echo "🔄 Uninstalling Redis..."
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER_NAME}$"; then
-    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" down)
-    echo "✅ Redis container stopped and removed"
+    # -v flag will remove the volumes as well. 
+    (cd "${COMPOSE_DIR}" && docker compose -f "${COMPOSE_FILE}" down -v)
+    echo "✅ Redis container stopped and removed (along with related volume)"
   else
     echo "⚡️ Redis container not found, skipping..."
   fi
 
-  # Remove the named volume
-  if docker volume ls --format '{{.Name}}' | grep -q "^${REDIS_VOLUME_NAME}$"; then
-    docker volume rm "${REDIS_VOLUME_NAME}"
-    echo "✅ Redis volume '${REDIS_VOLUME_NAME}' removed"
-  else
-    echo "⚡️ Redis volume not found, skipping..."
-  fi
 }

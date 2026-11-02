@@ -1,12 +1,12 @@
 services:
   redis:
-    image: redis:${REDIS_VERSION}
-    container_name: ${REDIS_CONTAINER_NAME}
+    image: redis:${REDIS_VERSION:-7.0.15}
+    container_name: ${REDIS_CONTAINER_NAME:-redis-container}
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - ${REDIS_VOLUME_NAME}:/data
+      - redis-data:/data
 
 volumes:
-  ${REDIS_VOLUME_NAME}:
+  redis-data:

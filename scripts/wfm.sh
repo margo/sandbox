@@ -45,7 +45,6 @@ SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/mis/author
 
 export REDIS_VERSION="7.0.15"
 export REDIS_CONTAINER_NAME="redis-wfm-db-container"
-export REDIS_VOLUME_NAME="redis-data"
 
 
 # Load shared library

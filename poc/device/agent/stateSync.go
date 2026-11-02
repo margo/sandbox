@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
@@ -100,7 +101,7 @@ func (ss *StateSyncer) performSync() {
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			if pd.Status == http.StatusNotModified {
 				// 304 — expected cache hit, not an error
-				ss.log.Infow("No change in desired and current states (304 Not Modified)",
+				ss.log.Infow("no change in desired and current states (304 Not Modified)",
 					"status", pd.Status)
 			} else {
 				// 4xx/5xx — genuine WFM error
@@ -524,8 +525,8 @@ func (ss *StateSyncer) processDeploymentsIndividually(
 			ss.log.Errorw("Failed to fetch deployment YAML",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to fetch deployment: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to fetch deployment: %v", err))
 			continue
 		}
 
@@ -562,8 +563,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Deployment YAML not found in bundle",
 				"deploymentId", deploymentId,
 				"expectedFilename", yamlFilename)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				"Deployment YAML not found in bundle")
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				"deployment YAML not found in bundle")
 			continue
 		}
 
@@ -575,8 +576,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 				"deploymentId", deploymentId,
 				"expected", deploymentRef.Digest,
 				"actual", actualDigest)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				"Deployment digest verification failed")
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				"deployment digest verification failed")
 			continue
 		}
 
@@ -587,8 +588,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to unmarshal YAML to interface",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to parse YAML: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to parse YAML: %v", err))
 			continue
 		}
 
@@ -601,8 +602,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to marshal to JSON",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to convert to JSON: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to convert to JSON: %v", err))
 			continue
 		}
 
@@ -612,7 +613,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to unmarshal JSON to deployment",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
 				fmt.Sprintf("Failed to parse deployment: %v", err))
 			continue
 		}
@@ -645,7 +646,7 @@ func (ss *StateSyncer) storeDeployment(
 			},
 		},
 		AppId:       deploymentId,
-		State:       "PENDING",
+		State:       constant.AppDeploymentStateStatePending,
 		LastUpdated: time.Now(),
 		Digest:      &deploymentRef.Digest,
 		URL:         &deploymentRef.Url,
@@ -656,7 +657,7 @@ func (ss *StateSyncer) storeDeployment(
 		ss.log.Errorw("Failed to set desired state",
 			"deploymentId", deploymentId,
 			"error", err.Error())
-		ss.database.SetPhase(deploymentId, "FAILED",
+		ss.database.SetPhase(deploymentId, constant.PhaseFailed,
 			fmt.Sprintf("Failed to set desired state: %v", err))
 		return
 	}

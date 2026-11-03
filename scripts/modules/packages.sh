@@ -300,7 +300,7 @@ push_nextcloud_compose_to_oci() {
     "org.margo.component.version": "${tag}",
     "org.opencontainers.image.title": "${component_name}",
     "org.opencontainers.image.version": "${tag}",
-    "org.opencontainers.image.description": "Nextcloud Compose Component"
+    "org.opencontainers.image.description": "Nextcloud Compose Component",
     "org.opencontainers.image.authors": "${author}"
   },
   "${archive_name}": {

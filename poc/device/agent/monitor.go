@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/shared-lib/pointers"
 	"github.com/margo/sandbox/shared-lib/workloads"
@@ -73,7 +74,8 @@ func (hm *DeploymentMonitor) checkAllDeployments() {
 	deployments := hm.database.ListDeployments()
 
 	for _, deployment := range deployments {
-		if deployment.Phase == "running" || deployment.Phase == "deploying" {
+		if deployment.Phase == constant.PhaseRunning ||
+			deployment.Phase == constant.PhaseDeploying {
 			go hm.checkDeployment(deployment.AppID)
 		}
 	}

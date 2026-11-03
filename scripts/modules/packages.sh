@@ -220,7 +220,7 @@ push_nextcloud_compose_to_oci() {
     manifest_file="$(cd "$app_dir/../../margo-package" 2>/dev/null && pwd)/margo.yaml"
   fi
 
-  local tag=""
+  local compose_revision="${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}"
   local description=""
   local component_name="nextcloud-stack"
 
@@ -244,9 +244,9 @@ push_nextcloud_compose_to_oci() {
   description="${description:-Nextcloud Compose Component}"
 
   NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
-  NEXTCLOUD_COMPOSE_REVISION="$tag"
+  NEXTCLOUD_COMPOSE_REVISION="$compose_revision"
 
-  local archive_name="nextcloud-compose-archive-${tag}.tar.gz"
+  local archive_name="nextcloud-compose-archive-${compose_revision}.tar.gz"
   local archive_path="/tmp/${archive_name}"
 
   echo "📦 Creating Compose Archive..."
@@ -285,12 +285,12 @@ push_nextcloud_compose_to_oci() {
     cd /tmp || exit 1
 
     oras push \
-      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
       --annotation "org.margo.component.type=compose" \
-      --annotation "org.margo.component.version=${tag}" \
+      --annotation "org.margo.component.version=${compose_revision}" \
       --annotation "org.opencontainers.image.title=${component_name}" \
-      --annotation "org.opencontainers.image.version=${tag}" \
+      --annotation "org.opencontainers.image.version=${compose_revision}" \
       --annotation "org.opencontainers.image.authors=${author}" \
       --annotation "org.opencontainers.image.description=${description}" \
       "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"

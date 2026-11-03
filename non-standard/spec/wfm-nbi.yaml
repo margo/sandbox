@@ -1371,12 +1371,16 @@ components:
       properties:
         id:
           type: string
-          description: Unique device identifier
-          example: spiffe://margo.org/margo/wfm/wfm/wfmclient/docker-client
+          description: Unique device identifier, as supplied by operator
+          example: northstarida.xtapro.k3s.edge.abh456
           # x-go-field-tags: 'json:"id" yaml:"id"'
           x-oapi-codegen-extra-tags:
             json: "id"
             yaml: "id"
+        spiffeIdentity:
+          type: string
+          description: Spiffe Identifier attached to this particular target/device
+          example: spiffe://margo.org/margo/wfm/wfm/wfmclient/docker-client
         metadata:
           $ref: '#/components/schemas/Metadata'
           description: Metadata of the device

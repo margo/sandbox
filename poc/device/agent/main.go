@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -46,6 +47,9 @@ type Agent struct {
 	afWatcher      AuthFileWatcherIfc
 }
 
+// DeviceId pattern as defined in Margo Spec
+var validDeviceIdPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$`)
+
 func NewAgent(configPath string) (*Agent, error) {
 	logger, _ := zap.NewDevelopment()
 	log := logger.Sugar()
@@ -68,8 +72,14 @@ func NewAgent(configPath string) (*Agent, error) {
 			err.Error(),
 		)
 		return nil, err
+	}
 
-		// TODO: This should return? is there a case where capabilities are not required?
+	if !validDeviceIdPattern.MatchString(capabilities.Properties.Id) {
+		return nil, fmt.Errorf(
+			"configured deviceId %s does not match the pattern %s defined in spec, please correct it to proceed",
+			capabilities.Properties.Id,
+			validDeviceIdPattern.String(),
+		)
 	}
 
 	opts := []Option{}

@@ -66,19 +66,25 @@ Enter choice [1-9]: 1
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      symphony.machine                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| af3af6b3-01c1-42bb-9168-347e99a174b8 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 10:00 | 2026-09-23 10:00 |
+| ff243803-dc91-4fa8-8c56-52ab2417a519 | custom-otel-helm-... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
-|                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
-|                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
-|                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/custom-otel-helm-app-package", |                  |                  |
+|                                      |                      |         |           |           |             | "tag":"latest"}                     |                  |                  |
+| 84da2cf9-77f7-4872-b73a-1ccd35d2f55f | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
+|                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/nextcloud-compose-app-package" |                  |                  |
+|                                      |                      |         |           |           |             | ,"tag":"latest"}                    |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 |                                      |                      |         |           |           |             |                                     | PAGE 1/1         | TOTAL: 1         |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
@@ -90,7 +96,7 @@ Press Enter to continue...
 
 Select this option to display the devices that have onboarded to the sandbox WFM.
 
-> Note: Below is a example snippet showing the expected output of the selection. IDs displayed here are device client's SPIFFE ID from their respective SVID identity.
+> Note: Below is a example snippet showing the expected output of the selection. IDs displayed here are device id defined in `capabilities.json` for every device.
 ```
 Enter choice [1-9]: 2
 🖥️  Listing all devices from WFM...
@@ -99,18 +105,16 @@ Enter choice [1-9]: 2
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1    │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
-| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
-| spiffe://margo.org/margo/wfm/wfm/client/docker-client | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 |
-|                                                               |                              |                 |           | 9:26         |
-| spiffe://margo.org/margo/wfm/wfm/client/helm-client    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 |
-|                                                               |                              |                 |           | 9:26         |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
-|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
+| ID                                    | CLIENT SPIFFEID    | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
+| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-10-28 07:25 |
+| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-10-28 07:25 |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
+|                                       |                    |                              | PAGE 1/1        | TOTAL: 1  |                  |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
 
 Press Enter to continue...
 
@@ -130,17 +134,18 @@ Enter choice [1-9]: 3
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../docker-client | DEPLOY | INSTALLED      | 2026-09-23 10:20 |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-|                                      |            |            |                    |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE                             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| cc23ec83-9032-4e53-b28a-f94d9c60e490 | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | INSTALLED    | 2026-10-29 04:49 |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+|                                      |            |            |                                    |        |              | TOTAL: 1         |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
 
 Press Enter to continue...
+
 
 ```
 
@@ -189,39 +194,47 @@ Enter choice [1-9]: 6
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      symphony.machine                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| ae011433-28ed-4f4e-a8af-474810810746 | custom-otel-helm-app |         | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:52 | 2026-09-23 09:52 |
+| ff243803-dc91-4fa8-8c56-52ab2417a519 | custom-otel-helm-... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
-|                                      |                      |         |           |           |             | "admin"},"registryUrl":"172.19.59.1 |                  |                  |
-|                                      |                      |         |           |           |             | 48:8443","repository":"library/cust |                  |                  |
-|                                      |                      |         |           |           |             | om-otel-helm-app-package","tag":"la |                  |                  |
-|                                      |                      |         |           |           |             | test","url":""}                     |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/custom-otel-helm-app-package", |                  |                  |
+|                                      |                      |         |           |           |             | "tag":"latest"}                     |                  |                  |
+| 84da2cf9-77f7-4872-b73a-1ccd35d2f55f | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
+|                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/nextcloud-compose-app-package" |                  |                  |
+|                                      |                      |         |           |           |             | ,"tag":"latest"}                    |                  |                  |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 |                                      |                      |         |           |           |             |                                     | PAGE 1/1         | TOTAL: 1         |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 
-Enter the package name/ID to delete: ae011433-28ed-4f4e-a8af-474810810746
-Are you sure you want to delete app-pkg 'ae011433-28ed-4f4e-a8af-474810810746'? (y/N): y
-🗑️  Deleting package 'ae011433-28ed-4f4e-a8af-474810810746'...
+Enter the package name/ID to delete: 84da2cf9-77f7-4872-b73a-1ccd35d2f55f
+Are you sure you want to delete app-pkg '84da2cf9-77f7-4872-b73a-1ccd35d2f55f'? (y/N): y
+🗑️  Deleting package '84da2cf9-77f7-4872-b73a-1ccd35d2f55f'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
-│ Host:      symphony.machine                    │
+│ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-appPkgIdto be deleted ae011433-28ed-4f4e-a8af-474810810746
+appPkgIdto be deleted 84da2cf9-77f7-4872-b73a-1ccd35d2f55f
 app Pkg deletion request has been accepted!
 
-Application Pkg ae011433-28ed-4f4e-a8af-474810810746 deleted successfully
+Application Pkg 84da2cf9-77f7-4872-b73a-1ccd35d2f55f deleted successfully
 
-✅ Package 'ae011433-28ed-4f4e-a8af-474810810746' deleted successfully!
+✅ Package '84da2cf9-77f7-4872-b73a-1ccd35d2f55f' deleted successfully!
+
+Press Enter to continue...
 ```
 
 **Option 7: Deploy Instance**
@@ -232,7 +245,7 @@ Configuration Notes:
 - Below is a example snippet showing the expected output of the selection.
 - The id of the application package needs to be copied from the output shown below 'Available packages'.
 - The id of the device needs to be copied from the output shown below 'Available devices'.
-- While selecting device, a new column `ELIGIBLE` is now visible, indicating whether a particular device is eligible to run the application or not, based on [Device Eligibility Checks against a particular application](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) 
+- While selecting device, `ELIGIBLE` indicates whether a particular device is eligible to run the application or not, based on [Device Eligibility Checks against a particular application](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) 
 
 ```
 Enter choice [1-9]: 7
@@ -244,12 +257,18 @@ Enter choice [1-9]: 7
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 | ID                                   | NAME                 | VERSION | OPERATION | STATE     | SOURCE TYPE | SOURCE                              | CREATED          | UPDATED          |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
-| bfe50327-c1ab-4264-aff3-c3a481f22a07 | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-09-23 09:36 | 2026-09-23 09:36 |
+| ff243803-dc91-4fa8-8c56-52ab2417a519 | custom-otel-helm-... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
+|                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
+|                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
+|                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
+|                                      |                      |         |           |           |             | rary/custom-otel-helm-app-package", |                  |                  |
+|                                      |                      |         |           |           |             | "tag":"latest"}                     |                  |                  |
+| 84da2cf9-77f7-4872-b73a-1ccd35d2f55f | nextcloud-compose... | latest  | ONBOARD   | ONBOARDED | OCI_REPO    | {"authentication":{"password":"Harb | 2026-10-28 07:28 | 2026-10-28 07:28 |
 |                                      |                      |         |           |           |             | or12345","type":"basic","username": |                  |                  |
 |                                      |                      |         |           |           |             | "admin"},"registryUrl":"https://har |                  |                  |
 |                                      |                      |         |           |           |             | bor.machine:8443","repository":"lib |                  |                  |
@@ -259,7 +278,7 @@ Enter choice [1-9]: 7
 |                                      |                      |         |           |           |             |                                     | PAGE 1/1         | TOTAL: 1         |
 +--------------------------------------+----------------------+---------+-----------+-----------+-------------+-------------------------------------+------------------+------------------+
 
-Enter the package name/ID to deploy: bfe50327-c1ab-4264-aff3-c3a481f22a07
+Enter the package name/ID to deploy: ff243803-dc91-4fa8-8c56-52ab2417a519
 
 🖥️  Available devices:
 ┌─────────────────────────────────────────┐
@@ -267,30 +286,28 @@ Enter the package name/ID to deploy: bfe50327-c1ab-4264-aff3-c3a481f22a07
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
-| ID                                                            | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT    | ELIGIBLE |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
-| spiffe://margo.org/margo/wfm/wfm/client/docker-client | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-09-23 0 | true     |
-|                                                               |                              |                 |           | 9:26         |          |
-| spiffe://margo.org/margo/wfm/wfm/client/helm-client    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-09-23 0 | false    |
-|                                                               |                              |                 |           | 9:26         |          |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
-|                                                               |                              |                 | PAGE 1/1  | TOTAL: 1     |          |
-+---------------------------------------------------------------+------------------------------+-----------------+-----------+--------------+----------+
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
+| ID                                    | CLIENT SPIFFEID    | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        | ELIGIBLE |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
+| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-10-28 07:25 | true     |
+| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-10-28 07:25 | false    |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
+|                                       |                    |                              | PAGE 1/1        | TOTAL: 1  |                  |          |
++---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
 
-Enter the device ID for deployment: spiffe://margo.org/margo/wfm/wfm/client/docker-client
+Enter the device ID for deployment: northstarida.xtapro.k3s.edge.tlqpr
 
-🚀 Deploying 'bfe50327-c1ab-4264-aff3-c3a481f22a07' to device 'spiffe://margo.org/margo/wfm/wfm/client/docker-client'...
+🚀 Deploying 'ff243803-dc91-4fa8-8c56-52ab2417a519' to device 'northstarida.xtapro.k3s.edge.tlqpr'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-deploymentId 231282a3-b7c1-49d7-9c68-f0e0fb28c113 deploymentName nextcloud-stack-instance
+deploymentId 5224ed12-1ce3-4e54-8c25-b658ec28736b deploymentName com-go-otel-service-instance
 
 Application configuration applied successfully
 
@@ -302,17 +319,16 @@ Application configuration applied successfully
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| 231282a3-b7c1-49d7-9c68-f0e0fb28c113 | nextclo... | bfe5032... | .../docker-client | DEPLOY | PENDING      | 2026-09-23 09:37 |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-|                                      |            |            |                    |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-
-Press Enter to continue...
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE                             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| 5224ed12-1ce3-4e54-8c25-b658ec28736b | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | PENDING      | 2026-10-29 04:51 |
+| cc23ec83-9032-4e53-b28a-f94d9c60e490 | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | INSTALLED    | 2026-10-29 04:49 |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+|                                      |            |            |                                    |        |              | TOTAL: 2         |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
 
 ```
 
@@ -335,32 +351,33 @@ Enter choice [1-9]: 8
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../docker-client | DEPLOY | INSTALLED    | 2026-09-23 10:21 |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-|                                      |            |            |                    |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE                             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| 5224ed12-1ce3-4e54-8c25-b658ec28736b | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | INSTALLED    | 2026-10-29 04:51 |
+| cc23ec83-9032-4e53-b28a-f94d9c60e490 | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | INSTALLED    | 2026-10-29 04:51 |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+|                                      |            |            |                                    |        |              | TOTAL: 2         |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
 
-Enter the deployment/instance ID to delete: 03ce43e9-287a-43c4-8c9c-16f1323b4ecc
-Are you sure you want to delete instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc'? (y/N): y
-🗑️  Deleting instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc'...
+Enter the deployment/instance ID to delete: cc23ec83-9032-4e53-b28a-f94d9c60e490
+Are you sure you want to delete instance 'cc23ec83-9032-4e53-b28a-f94d9c60e490'? (y/N): y
+🗑️  Deleting instance 'cc23ec83-9032-4e53-b28a-f94d9c60e490'...
 ┌─────────────────────────────────────────┐
 │              Server Config              │
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-deploymentId to be deleted 03ce43e9-287a-43c4-8c9c-16f1323b4ecc
+deploymentId to be deleted cc23ec83-9032-4e53-b28a-f94d9c60e490
 application deployment deletion request has been accepted!
 
-Application Deployment 03ce43e9-287a-43c4-8c9c-16f1323b4ecc deleted successfully
+Application Deployment cc23ec83-9032-4e53-b28a-f94d9c60e490 deleted successfully
 
-✅ Instance '03ce43e9-287a-43c4-8c9c-16f1323b4ecc' deleted successfully!
+✅ Instance 'cc23ec83-9032-4e53-b28a-f94d9c60e490' deleted successfully!
 
 📋 Updated deployments:
 ┌─────────────────────────────────────────┐
@@ -368,15 +385,16 @@ Application Deployment 03ce43e9-287a-43c4-8c9c-16f1323b4ecc deleted successfully
 ├─────────────────────────────────────────┤
 │ Host:      symphony.machine             │
 │ Port:      8082                         │
-│ Basepath:      v1alpha2/margo/nbi/v1        │
+│ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| ID                                   | NAME       | PKG        | DEVICE             | OP     | RUNNINGSTATE | UPDATED          |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-| 03ce43e9-287a-43c4-8c9c-16f1323b4ecc | nextclo... | bfe5032... | .../docker-client | DEPLOY | REMOVING     | 2026-09-23 10:23 |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
-|                                      |            |            |                    |        |              | TOTAL: 1         |
-+--------------------------------------+------------+------------+--------------------+--------+--------------+------------------+
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| ID                                   | NAME       | PKG        | DEVICE                             | OP     | RUNNINGSTATE | UPDATED          |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+| 5224ed12-1ce3-4e54-8c25-b658ec28736b | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | INSTALLED    | 2026-10-29 04:51 |
+| cc23ec83-9032-4e53-b28a-f94d9c60e490 | com-go-... | ff24380... | northstarida.xtapro.k3s.edge.tlqpr | DEPLOY | REMOVING     | 2026-10-29 04:53 |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
+|                                      |            |            |                                    |        |              | TOTAL: 2         |
++--------------------------------------+------------+------------+------------------------------------+--------+--------------+------------------+
 
 Press Enter to continue...
 

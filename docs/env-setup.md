@@ -5,7 +5,10 @@
 Before running any script, make sure to update the environment variable files according to your system setup.
 The environment files are located here **(wfm.env, device-agent.env and mis.env)**: cd $HOME/workspace/sandbox/scripts
 
-> Note: All hostnames must be specified in lowercase only. EXPOSED_MIS_HOST must be same across all three VMs.
+> **Note:**
+>
+> - All hostnames must be specified in lowercase. `EXPOSED_MIS_HOST` must be the same across all three VMs.
+> - Separate hostnames for Symphony and Harbor are recommended. If you use the same hostname, avoid duplicate DNS entries to ensure proper CoreDNS operation.
 
 **For wfm.sh and wfm-cli.sh script**
 
@@ -50,5 +53,3 @@ export SANDBOX_REPO_BRANCH=main #it can be a tag also
 export EXPOSED_MIS_HOST=<domain name where Margo Identity Service will be reachable>
 export EXPOSED_MIS_PORT=<Host port on which you want to serve MIS>
 ```
-
-

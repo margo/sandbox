@@ -199,13 +199,6 @@ push_nextcloud_compose_to_oci() {
   local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/code/compose"
   local repository="${OCI_ORGANIZATION}/nextcloud-compose-archive"
 
-  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
-  NEXTCLOUD_COMPOSE_REVISION="1.0.0"
-
-  local tag=${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}
-  local archive_name="nextcloud-compose-archive-${tag}.tar.gz"
-  local archive_path="/tmp/${archive_name}"
-
   cd "$app_dir" || {
     echo "❌ Nextcloud package dir missing: $app_dir"
     return 1
@@ -221,43 +214,85 @@ push_nextcloud_compose_to_oci() {
     return 1
   fi
 
+  # Locate margo.yaml to pull version, tag, and description dynamically
+  local manifest_file="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package/margo.yaml"
+  if [ ! -f "$manifest_file" ]; then
+    manifest_file="$(cd "$app_dir/../../margo-package" 2>/dev/null && pwd)/margo.yaml"
+  fi
+
+  local compose_revision="${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}"
+  local description=""
+  local component_name="nextcloud-stack"
+
+  if command -v yq &>/dev/null && [ -f "$manifest_file" ]; then
+    tag=$(yq eval '.metadata.version // ""' "$manifest_file" 2>/dev/null)
+    description=$(yq eval '.metadata.description // .metadata.catalog.application.tagline // ""' "$manifest_file" 2>/dev/null)
+    local yaml_comp
+    yaml_comp=$(yq eval '.spec.deployments[0].components[0].name // ""' "$manifest_file" 2>/dev/null)
+    [ -n "$yaml_comp" ] && component_name="$yaml_comp"
+  fi
+
+  # Fallback using grep if yq is unavailable or returns empty
+  if [ -z "$tag" ] && [ -f "$manifest_file" ]; then
+    tag=$(grep -E '^\s*version:' "$manifest_file" | head -n1 | awk '{print $2}' | tr -d '"'\''')
+  fi
+  if [ -z "$description" ] && [ -f "$manifest_file" ]; then
+    description=$(grep -E '^\s*description:' "$manifest_file" | head -n1 | cut -d':' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'"'"']//' -e 's/["'"'"']$//')
+  fi
+
+  tag="${tag:-1.0.0}"
+  description="${description:-Nextcloud Compose Component}"
+
+  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
+  NEXTCLOUD_COMPOSE_REVISION="$compose_revision"
+
+  local archive_name="nextcloud-compose-archive-${compose_revision}.tar.gz"
+  local archive_path="/tmp/${archive_name}"
+
   echo "📦 Creating Compose Archive..."
 
-    local staging_dir
-    staging_dir=$(mktemp -d)
+  local staging_dir
+  staging_dir=$(mktemp -d)
 
-    # Ensure cleanup on function exit
-    trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+  # Ensure cleanup on function exit
+  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
 
-    # The spec requires exactly one top level directory in the archive
-    # (matching the component name for human readability)
-    local component_name="nextcloud-stack"
-    local component_dir="$staging_dir/$component_name"
-    mkdir -p "$component_dir"
+  # The spec requires exactly one top level directory in the archive
+  # (matching the component name for human readability)
+  local component_dir="$staging_dir/$component_name"
+  mkdir -p "$component_dir"
 
-    # Copy compose.yaml into the component directory
-    cp "compose.yaml" "$component_dir/compose.yaml"
+  # Copy compose.yaml into the component directory
+  cp "compose.yaml" "$component_dir/compose.yaml"
 
-    # Create archive with the top-level directory
-    tar -czf "$archive_path" \
-        -C "$staging_dir" \
-        "$component_name"
+  # Create archive with the top-level directory
+  tar -czf "$archive_path" \
+      -C "$staging_dir" \
+      "$component_name"
 
-    if [ ! -f "$archive_path" ]; then
-        echo "❌ Failed to create Compose Archive"
-        return 1
-    fi
+  if [ ! -f "$archive_path" ]; then
+      echo "❌ Failed to create Compose Archive"
+      return 1
+  fi
 
   echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."
+
+  local author="${MAINTAINER_EMAIL:-Margo Community (info@margo.org)}" # override with env var MAINTAINER_EMAIL
 
   # ORAS requires a relative filename, so push from /tmp
   (
     cd /tmp || exit 1
 
     oras push \
-      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
+      --annotation "org.margo.component.type=compose" \
+      --annotation "org.margo.component.version=${compose_revision}" \
+      --annotation "org.opencontainers.image.title=${component_name}" \
+      --annotation "org.opencontainers.image.version=${compose_revision}" \
+      --annotation "org.opencontainers.image.authors=${author}" \
+      --annotation "org.opencontainers.image.description=${description}" \
       "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
   )
 

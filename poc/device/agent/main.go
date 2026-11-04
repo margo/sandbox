@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
@@ -84,7 +85,7 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	opts := []Option{}
 	var helmClient *workloads.HelmClient
-	var composeClient *workloads.DockerComposeCliClient
+	var composeClient *operation.DockerComposeClient
 	for _, runtime := range cfg.Runtimes {
 		if runtime.Kubernetes != nil {
 			// Create Helm client
@@ -97,9 +98,9 @@ func NewAgent(configPath string) (*Agent, error) {
 
 		if runtime.Docker != nil {
 			// Create docker compose client
-			composeClient, err = workloads.NewDockerComposeCliClient(
-				workloads.DockerConnectivityParams{
-					ViaSocket: &workloads.DockerConnectionViaSocket{
+			composeClient, err = operation.NewDockerComposeClient(
+				operation.DockerConnectivityParams{
+					ViaSocket: &operation.DockerSocketParams{
 						SocketPath: runtime.Docker.Url,
 					},
 				},

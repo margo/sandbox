@@ -369,6 +369,7 @@ uninstall_go() {
 
   # Remove Go installation
   [ -d "/usr/local/go" ] && rm -rf "/usr/local/go" && echo "✅ Removed Go from /usr/local/go"
+  rm -f /usr/local/bin/go /usr/local/bin/gofmt
 
   # Remove Go from PATH in shell profiles
   sed -i '/\/usr\/local\/go\/bin/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
@@ -427,7 +428,10 @@ start_symphony() {
   validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
   # ────────────────────────────────────────────────────────────────────────
 
-  export PATH="$PATH:/usr/local/go/bin"; # TODO: remove this line as this is being set while installing go
+  # Fallback in case the /usr/local/bin symlink (created by install_go) is missing
+  if ! command -v go >/dev/null 2>&1; then
+    export PATH="$PATH:/usr/local/go/bin"
+  fi
 
   export GOINSECURE='github.com/margo/*'
   export GONOPROXY='github.com/margo/*'

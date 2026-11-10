@@ -40,6 +40,48 @@ func (e ComponentStatusState) Valid() bool {
 	}
 }
 
+// Defines values for DeploymentCacheRequirementAllocation.
+const (
+	DeploymentCacheRequirementAllocationExclusive DeploymentCacheRequirementAllocation = "exclusive"
+	DeploymentCacheRequirementAllocationShared    DeploymentCacheRequirementAllocation = "shared"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCacheRequirementAllocation enum.
+func (e DeploymentCacheRequirementAllocation) Valid() bool {
+	switch e {
+	case DeploymentCacheRequirementAllocationExclusive:
+		return true
+	case DeploymentCacheRequirementAllocationShared:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeploymentCacheRequirementLevel.
+const (
+	DeploymentCacheRequirementLevelL1d DeploymentCacheRequirementLevel = "L1d"
+	DeploymentCacheRequirementLevelL1i DeploymentCacheRequirementLevel = "L1i"
+	DeploymentCacheRequirementLevelL2  DeploymentCacheRequirementLevel = "L2"
+	DeploymentCacheRequirementLevelL3  DeploymentCacheRequirementLevel = "L3"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCacheRequirementLevel enum.
+func (e DeploymentCacheRequirementLevel) Valid() bool {
+	switch e {
+	case DeploymentCacheRequirementLevelL1d:
+		return true
+	case DeploymentCacheRequirementLevelL1i:
+		return true
+	case DeploymentCacheRequirementLevelL2:
+		return true
+	case DeploymentCacheRequirementLevelL3:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeploymentCpuRequirementArchitectures.
 const (
 	DeploymentCpuRequirementArchitecturesAmd64   DeploymentCpuRequirementArchitectures = "amd64"
@@ -61,6 +103,45 @@ func (e DeploymentCpuRequirementArchitectures) Valid() bool {
 	case DeploymentCpuRequirementArchitecturesOther:
 		return true
 	case DeploymentCpuRequirementArchitecturesRiscv64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeploymentCpuRequirementClass.
+const (
+	DeploymentCpuRequirementClassEfficiency  DeploymentCpuRequirementClass = "efficiency"
+	DeploymentCpuRequirementClassLowPower    DeploymentCpuRequirementClass = "low-power"
+	DeploymentCpuRequirementClassPerformance DeploymentCpuRequirementClass = "performance"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCpuRequirementClass enum.
+func (e DeploymentCpuRequirementClass) Valid() bool {
+	switch e {
+	case DeploymentCpuRequirementClassEfficiency:
+		return true
+	case DeploymentCpuRequirementClassLowPower:
+		return true
+	case DeploymentCpuRequirementClassPerformance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeploymentCpuRequirementType.
+const (
+	DeploymentCpuRequirementTypeIsolated DeploymentCpuRequirementType = "isolated"
+	DeploymentCpuRequirementTypeShared   DeploymentCpuRequirementType = "shared"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentCpuRequirementType enum.
+func (e DeploymentCpuRequirementType) Valid() bool {
+	switch e {
+	case DeploymentCpuRequirementTypeIsolated:
+		return true
+	case DeploymentCpuRequirementTypeShared:
 		return true
 	default:
 		return false
@@ -97,6 +178,48 @@ func (e DeploymentStatusManifestStatusState) Valid() bool {
 	}
 }
 
+// Defines values for DeviceCapabilitiesManifestPropertiesCacheAllocationTypes.
+const (
+	DeviceCapabilitiesManifestPropertiesCacheAllocationTypesExclusive DeviceCapabilitiesManifestPropertiesCacheAllocationTypes = "exclusive"
+	DeviceCapabilitiesManifestPropertiesCacheAllocationTypesShared    DeviceCapabilitiesManifestPropertiesCacheAllocationTypes = "shared"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestPropertiesCacheAllocationTypes enum.
+func (e DeviceCapabilitiesManifestPropertiesCacheAllocationTypes) Valid() bool {
+	switch e {
+	case DeviceCapabilitiesManifestPropertiesCacheAllocationTypesExclusive:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCacheAllocationTypesShared:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceCapabilitiesManifestPropertiesCacheLevel.
+const (
+	DeviceCapabilitiesManifestPropertiesCacheLevelL1d DeviceCapabilitiesManifestPropertiesCacheLevel = "L1d"
+	DeviceCapabilitiesManifestPropertiesCacheLevelL1i DeviceCapabilitiesManifestPropertiesCacheLevel = "L1i"
+	DeviceCapabilitiesManifestPropertiesCacheLevelL2  DeviceCapabilitiesManifestPropertiesCacheLevel = "L2"
+	DeviceCapabilitiesManifestPropertiesCacheLevelL3  DeviceCapabilitiesManifestPropertiesCacheLevel = "L3"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestPropertiesCacheLevel enum.
+func (e DeviceCapabilitiesManifestPropertiesCacheLevel) Valid() bool {
+	switch e {
+	case DeviceCapabilitiesManifestPropertiesCacheLevelL1d:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCacheLevelL1i:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCacheLevelL2:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCacheLevelL3:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeviceCapabilitiesManifestPropertiesCpusArchitecture.
 const (
 	DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64 DeviceCapabilitiesManifestPropertiesCpusArchitecture = "amd64"
@@ -112,6 +235,63 @@ func (e DeviceCapabilitiesManifestPropertiesCpusArchitecture) Valid() bool {
 	case DeviceCapabilitiesManifestPropertiesCpusArchitectureArm:
 		return true
 	case DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceCapabilitiesManifestPropertiesCpusClass.
+const (
+	DeviceCapabilitiesManifestPropertiesCpusClassEfficiency  DeviceCapabilitiesManifestPropertiesCpusClass = "efficiency"
+	DeviceCapabilitiesManifestPropertiesCpusClassLowPower    DeviceCapabilitiesManifestPropertiesCpusClass = "low-power"
+	DeviceCapabilitiesManifestPropertiesCpusClassPerformance DeviceCapabilitiesManifestPropertiesCpusClass = "performance"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestPropertiesCpusClass enum.
+func (e DeviceCapabilitiesManifestPropertiesCpusClass) Valid() bool {
+	switch e {
+	case DeviceCapabilitiesManifestPropertiesCpusClassEfficiency:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCpusClassLowPower:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCpusClassPerformance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceCapabilitiesManifestPropertiesCpusType.
+const (
+	DeviceCapabilitiesManifestPropertiesCpusTypeIsolated DeviceCapabilitiesManifestPropertiesCpusType = "isolated"
+	DeviceCapabilitiesManifestPropertiesCpusTypeShared   DeviceCapabilitiesManifestPropertiesCpusType = "shared"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestPropertiesCpusType enum.
+func (e DeviceCapabilitiesManifestPropertiesCpusType) Valid() bool {
+	switch e {
+	case DeviceCapabilitiesManifestPropertiesCpusTypeIsolated:
+		return true
+	case DeviceCapabilitiesManifestPropertiesCpusTypeShared:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes.
+const (
+	PercentThrottling DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes = "percent-throttling"
+	RateLimiting      DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes = "rate-limiting"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes enum.
+func (e DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes) Valid() bool {
+	switch e {
+	case PercentThrottling:
+		return true
+	case RateLimiting:
 		return true
 	default:
 		return false
@@ -253,6 +433,32 @@ func (e MatchExpressionOperator) Valid() bool {
 	}
 }
 
+// Defines values for MemoryBandwidthAllocationUnit.
+const (
+	MBps    MemoryBandwidthAllocationUnit = "MBps"
+	Percent MemoryBandwidthAllocationUnit = "percent"
+)
+
+// Valid indicates whether the value is a known member of the MemoryBandwidthAllocationUnit enum.
+func (e MemoryBandwidthAllocationUnit) Valid() bool {
+	switch e {
+	case MBps:
+		return true
+	case Percent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkloadSchedulingType.
+const (
+	Background WorkloadSchedulingType = "background"
+	BestEffort WorkloadSchedulingType = "best-effort"
+	Deadline   WorkloadSchedulingType = "deadline"
+	RealTime   WorkloadSchedulingType = "real-time"
+)
+
 // Defines values for ProblemDetailBackoffStrategy.
 const (
 	Exponential ProblemDetailBackoffStrategy = "exponential"
@@ -294,11 +500,14 @@ func (e AppDeploymentProfileType) Valid() bool {
 
 // CapacityRequirements Minimum device capacity required by the deployment profile.
 type CapacityRequirements struct {
-	// Cpu CPU element specifying the CPU requirements for the deployment.
-	Cpu *DeploymentCpuRequirement `json:"cpu,omitempty"`
+	// Cache Cache resources available on the device
+	Cache *[]DeploymentCacheRequirement `json:"cache,omitempty"`
 
-	// Memory The minimum amount of memory required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
-	Memory *string `json:"memory,omitempty"`
+	// Cpu CPU elements specifying the CPU requirements for the deployment.
+	Cpu *[]DeploymentCpuRequirement `json:"cpu,omitempty"`
+
+	// Memory Required memory and optional bandwidth allocation for the deployment profile
+	Memory *DeploymentMemoryRequirement `json:"memory,omitempty"`
 
 	// Storage The minimum amount of storage required. The value is given in binary units (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
 	Storage *string `json:"storage,omitempty"`
@@ -333,17 +542,50 @@ type DeploymentBundleRef struct {
 	Url *string `json:"url,omitempty"`
 }
 
+// DeploymentCacheRequirement Cache requirement or capability
+type DeploymentCacheRequirement struct {
+	// Allocation Cache allocation type. exclusive = dedicated cache partition (requires hardware CAT support), shared = shared cache access.
+	Allocation DeploymentCacheRequirementAllocation `json:"allocation"`
+
+	// Level Cache level. L3 = Level 3 Cache, L2 = Level 2 Cache, L1d = Level 1 Data Cache, L1i = Level 1 Instruction Cache.
+	Level DeploymentCacheRequirementLevel `json:"level"`
+
+	// Size Minimum required cache amount. Value is given in binary units (Ki = Kibibytes, Mi = Mebibytes, Gi = Gibibytes), e.g. "9216Ki".
+	Size *string `json:"size,omitempty"`
+}
+
+// DeploymentCacheRequirementAllocation Cache allocation type. exclusive = dedicated cache partition (requires hardware CAT support), shared = shared cache access.
+type DeploymentCacheRequirementAllocation string
+
+// DeploymentCacheRequirementLevel Cache level. L3 = Level 3 Cache, L2 = Level 2 Cache, L1d = Level 1 Data Cache, L1i = Level 1 Instruction Cache.
+type DeploymentCacheRequirementLevel string
+
 // DeploymentCpuRequirement CPU element specifying the CPU requirements for the deployment.
 type DeploymentCpuRequirement struct {
 	// Architectures The CPU architectures supported by the deployment.
 	Architectures *[]DeploymentCpuRequirementArchitectures `json:"architectures,omitempty"`
 
+	// Class Core class required by the workload
+	Class *DeploymentCpuRequirementClass `json:"class,omitempty"`
+
 	// Cores The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
 	Cores float32 `json:"cores"`
+
+	// Name Name of the container this CPU requirement applies to
+	Name *string `json:"name,omitempty"`
+
+	// Type Whether requested cores must be isolated or can be shared
+	Type *DeploymentCpuRequirementType `json:"type,omitempty"`
 }
 
 // DeploymentCpuRequirementArchitectures defines model for DeploymentCpuRequirement.Architectures.
 type DeploymentCpuRequirementArchitectures string
+
+// DeploymentCpuRequirementClass Core class required by the workload
+type DeploymentCpuRequirementClass string
+
+// DeploymentCpuRequirementType Whether requested cores must be isolated or can be shared
+type DeploymentCpuRequirementType string
 
 // DeploymentManifestRef Reference to a deployment manifest with content addressing and integrity verification.
 type DeploymentManifestRef struct {
@@ -358,6 +600,15 @@ type DeploymentManifestRef struct {
 
 	// Url Content-addressable endpoint of the form /api/v1/deployments/{deploymentId}/{digest}. The {digest} MUST equal deployments[].digest; the referenced resource is immutable
 	Url string `json:"url"`
+}
+
+// DeploymentMemoryRequirement Memory requirement for a deployment profile or component
+type DeploymentMemoryRequirement struct {
+	// BandwidthAllocation Optional memory bandwidth capping request
+	BandwidthAllocation *MemoryBandwidthAllocation `json:"bandwidthAllocation,omitempty"`
+
+	// Size Required memory for the deployment profile (e.g., "1Gi")
+	Size string `json:"size"`
 }
 
 // DeploymentStatusManifest defines model for DeploymentStatusManifest.
@@ -385,13 +636,47 @@ type DeviceCapabilitiesManifest struct {
 	// Labels Optional supplier-defined key/value pair metadata used for device matching via eligibilityRules label selectors. Values MUST be a string, number, boolean, or an array of strings or numbers. Margo does not assign semantics to any particular label key or value. Label keys are case-sensitive. Implementations SHOULD use stable, collision-resistant label names, prefixing with an organization domain is recommended.
 	Labels     *map[string]DeviceCapabilitiesManifest_Labels_AdditionalProperties `json:"labels,omitempty"`
 	Properties struct {
+		// Cache Cache resources available on the device
+		Cache *[]struct {
+			// AllocationTypes Cache allocation types supported by the device. exclusive = device supports dedicated cache partitioning, shared = device supports shared cache access.
+			AllocationTypes []DeviceCapabilitiesManifestPropertiesCacheAllocationTypes `json:"allocationTypes"`
+
+			// Level Cache level. L3 = Level 3 Cache, L2 = Level 2 Cache, L1d = Level 1 Data Cache, L1i = Level 1 Instruction Cache.
+			Level DeviceCapabilitiesManifestPropertiesCacheLevel `json:"level"`
+
+			// Size Minimum required cache amount. Value is given in binary units (Ki = Kibibytes, Mi = Mebibytes, Gi = Gibibytes), e.g. "9216Ki".
+			Size string `json:"size"`
+		} `json:"cache,omitempty"`
 		Cpus *[]struct {
 			Architecture *DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-			Cores        float32                                               `json:"cores"`
+
+			// Class Core class (P-core, E-core, etc.)
+			Class *DeviceCapabilitiesManifestPropertiesCpusClass `json:"class,omitempty"`
+			Cores float32                                        `json:"cores"`
+
+			// Frequency Frequency characteristics for this core kind
+			Frequency *struct {
+				// BaseMHz Base CPU frequency in MHz
+				BaseMHz *float32 `json:"baseMHz,omitempty"`
+
+				// MaxMHz Maximum achievable CPU frequency in MHz
+				MaxMHz *float32 `json:"maxMHz,omitempty"`
+			} `json:"frequency,omitempty"`
+
+			// Type Whether these cores are kernel-isolated
+			Type *DeviceCapabilitiesManifestPropertiesCpusType `json:"type,omitempty"`
 		} `json:"cpus,omitempty"`
-		Id                       DeviceId                                                        `json:"id"`
-		Interfaces               *[]DeviceCommunicationInterface                                 `json:"interfaces,omitempty"`
-		Memory                   *string                                                         `json:"memory,omitempty"`
+		Id         DeviceId                        `json:"id"`
+		Interfaces *[]DeviceCommunicationInterface `json:"interfaces,omitempty"`
+
+		// Memory Memory capability reported by the device
+		Memory *struct {
+			// BandwidthAllocationTypes Supported memory bandwidth allocation strategies. percent-throttling = cap memory bandwidth usage by percentage. rate-limiting = cap memory bandwidth to a fixed throughput.
+			BandwidthAllocationTypes *[]DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes `json:"bandwidthAllocationTypes,omitempty"`
+
+			// Size Total available memory on the device (e.g., "16Gi")
+			Size string `json:"size"`
+		} `json:"memory,omitempty"`
 		ModelNumber              string                                                          `json:"modelNumber"`
 		OtelCollector            *bool                                                           `json:"otelCollector,omitempty"`
 		Peripherals              *[]DevicePeripheral                                             `json:"peripherals,omitempty"`
@@ -400,6 +685,10 @@ type DeviceCapabilitiesManifest struct {
 		SupportedDeploymentTypes *[]DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes,omitempty"`
 		SupportedRuntimes        *[]DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
 		Vendor                   string                                                          `json:"vendor"`
+		// Workload Supported workload scheduling types on the device
+		Workload *struct {
+			SchedulingTypes *[]WorkloadSchedulingType `json:"schedulingTypes,omitempty"`
+		} `json:"workload,omitempty"`
 	} `json:"properties"`
 }
 
@@ -423,8 +712,32 @@ type DeviceCapabilitiesManifest_Labels_AdditionalProperties struct {
 	union json.RawMessage
 }
 
+// DeviceCapabilitiesManifestPropertiesCacheAllocationTypes defines model for DeviceCapabilitiesManifest.Properties.Cache.AllocationTypes.
+type DeviceCapabilitiesManifestPropertiesCacheAllocationTypes string
+
+// DeviceCapabilitiesManifestPropertiesCacheLevel Cache level. L3 = Level 3 Cache, L2 = Level 2 Cache, L1d = Level 1 Data Cache, L1i = Level 1 Instruction Cache.
+type DeviceCapabilitiesManifestPropertiesCacheLevel string
+
 // DeviceCapabilitiesManifestPropertiesCpusArchitecture defines model for DeviceCapabilitiesManifest.Properties.Cpus.Architecture.
 type DeviceCapabilitiesManifestPropertiesCpusArchitecture string
+
+// DeviceCapabilitiesManifestPropertiesCpusClass Core class (P-core, E-core, etc.)
+type DeviceCapabilitiesManifestPropertiesCpusClass string
+
+// DeviceCapabilitiesManifestPropertiesCpusType Whether these cores are kernel-isolated
+type DeviceCapabilitiesManifestPropertiesCpusType string
+
+// DeviceCapabilitiesManifestPropertiesMemory defines model for DeviceCapabilitiesManifest.Properties.Memory.
+type DeviceCapabilitiesManifestPropertiesMemory = struct {
+	// BandwidthAllocationTypes Supported memory bandwidth allocation strategies. percent-throttling = cap memory bandwidth usage by percentage. rate-limiting = cap memory bandwidth to a fixed throughput.
+	BandwidthAllocationTypes *[]DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes `json:"bandwidthAllocationTypes,omitempty"`
+
+	// Size Total available memory on the device (e.g., "16Gi")
+	Size string `json:"size"`
+}
+
+// DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes defines model for DeviceCapabilitiesManifest.Properties.Memory.BandwidthAllocationTypes.
+type DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes string
 
 // DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes defines model for DeviceCapabilitiesManifest.Properties.SupportedDeploymentTypes.
 type DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes string
@@ -494,6 +807,18 @@ type MatchExpression struct {
 
 // MatchExpressionOperator Operator used to evaluate the referenced value.
 type MatchExpressionOperator string
+
+// MemoryBandwidthAllocation Memory bandwidth allocation requested by a workload
+type MemoryBandwidthAllocation struct {
+	// Unit Unit used for memory bandwidth capping. percent = percentage-based cap. MBps = throughput cap in megabytes per second.
+	Unit MemoryBandwidthAllocationUnit `json:"unit"`
+
+	// Value Requested bandwidth cap value expressed in the selected unit
+	Value int `json:"value"`
+}
+
+// MemoryBandwidthAllocationUnit Unit used for memory bandwidth capping. percent = percentage-based cap. MBps = throughput cap in megabytes per second.
+type MemoryBandwidthAllocationUnit string
 
 // ProblemDetail RFC 9457 Problem Details for HTTP APIs. Returned with Content-Type: application/problem+json. See https://www.rfc-editor.org/rfc/rfc9457. Extension members (RFC 9457 §3.2) are permitted via additionalProperties. Vendors MAY add custom fields alongside standard margo fields. Vendor-specific problem types MUST use their own URI namespace. The https://docs.margo.org/specification/problem-types namespace is reserved for Margo.
 type ProblemDetail struct {
@@ -628,6 +953,9 @@ type AppParameterValue struct {
 
 // ApplicationDeploymentProfileComponent A component within a deployment profile. Uses the unified ComponentProperties shape — both Helm and Compose components share the same OCI coordinate structure.
 type ApplicationDeploymentProfileComponent struct {
+	// DeviceConstraints Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
+	DeviceConstraints *DeviceConstraints `json:"deviceConstraints,omitempty"`
+
 	// Name Name of the component
 	Name       string `json:"name"`
 	Properties struct {
@@ -643,7 +971,40 @@ type ApplicationDeploymentProfileComponent struct {
 		// Wait Whether to wait for component installation to complete before proceeding. Default is true. Only applies when multiple components are provided.
 		Wait *bool `json:"wait,omitempty"`
 	} `json:"properties"`
+
+	// Workload Workload scheduling configuration for a component
+	Workload *Workload `json:"workload,omitempty"`
 }
+
+// Workload Workload scheduling configuration for a component
+type Workload struct {
+	// Deadline Deadline scheduling configuration
+	Deadline *WorkloadDeadline `json:"deadline,omitempty"`
+
+	// Nice Nice value for best-effort/background scheduling
+	Nice *int `json:"nice,omitempty"`
+
+	// Priority Static priority for real-time scheduling
+	Priority *int `json:"priority,omitempty"`
+
+	// Scheduling Workload scheduling class. background covers SCHED_BATCH and SCHED_IDLE, best-effort covers SCHED_NORMAL/SCHED_OTHER, deadline maps to SCHED_DEADLINE, real-time maps to SCHED_FIFO/SCHED_RR.
+	Scheduling *WorkloadSchedulingType `json:"scheduling,omitempty"`
+}
+
+// WorkloadDeadline Deadline scheduling configuration
+type WorkloadDeadline struct {
+	// Deadline Task finish time
+	Deadline *int `json:"deadline,omitempty"`
+
+	// Period Task activation frequency
+	Period *int `json:"period,omitempty"`
+
+	// Runtime CPU runtime needed per period
+	Runtime *int `json:"runtime,omitempty"`
+}
+
+// WorkloadSchedulingType Workload scheduling class. background covers SCHED_BATCH and SCHED_IDLE, best-effort covers SCHED_NORMAL/SCHED_OTHER, deadline maps to SCHED_DEADLINE, real-time maps to SCHED_FIFO/SCHED_RR.
+type WorkloadSchedulingType string
 
 // GetApiV1BundlesDigestParams defines parameters for GetApiV1BundlesDigest.
 type GetApiV1BundlesDigestParams struct {

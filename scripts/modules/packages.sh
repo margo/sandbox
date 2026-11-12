@@ -205,46 +205,21 @@ push_nextcloud_compose_to_oci() {
   }
 
   echo "$REGISTRY_PASS" | oras login \
-    "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" \
-    --password-stdin 
+  "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
+  -u "$REGISTRY_USER" \
+  --password-stdin || {
+  echo "❌ Failed to authenticate with OCI Registry"
+  return 1
+  }
 
   if [ ! -f "compose.yaml" ]; then
     echo "❌ compose.yaml not found in $app_dir"
     return 1
   fi
 
-  # Locate margo.yaml to pull version, tag, and description dynamically
-  local manifest_file="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package/margo.yaml"
-  if [ ! -f "$manifest_file" ]; then
-    manifest_file="$(cd "$app_dir/../../margo-package" 2>/dev/null && pwd)/margo.yaml"
-  fi
-
   local compose_revision="${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}"
-  local description=""
+  local description="Nextcloud Compose Component"
   local component_name="nextcloud-stack"
-
-  if command -v yq &>/dev/null && [ -f "$manifest_file" ]; then
-    tag=$(yq eval '.metadata.version // ""' "$manifest_file" 2>/dev/null)
-    description=$(yq eval '.metadata.description // .metadata.catalog.application.tagline // ""' "$manifest_file" 2>/dev/null)
-    local yaml_comp
-    yaml_comp=$(yq eval '.spec.deployments[0].components[0].name // ""' "$manifest_file" 2>/dev/null)
-    [ -n "$yaml_comp" ] && component_name="$yaml_comp"
-  fi
-
-  # Fallback using grep if yq is unavailable or returns empty
-  if [ -z "$tag" ] && [ -f "$manifest_file" ]; then
-    tag=$(grep -E '^\s*version:' "$manifest_file" | head -n1 | awk '{print $2}' | tr -d '"'\''')
-  fi
-  if [ -z "$description" ] && [ -f "$manifest_file" ]; then
-    description=$(grep -E '^\s*description:' "$manifest_file" | head -n1 | cut -d':' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'"'"']//' -e 's/["'"'"']$//')
-  fi
-
-  tag="${tag:-1.0.0}"
-  description="${description:-Nextcloud Compose Component}"
-
-  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
-  NEXTCLOUD_COMPOSE_REVISION="$compose_revision"
 
   local archive_name="nextcloud-compose-archive-${compose_revision}.tar.gz"
   local archive_path="/tmp/${archive_name}"
@@ -255,7 +230,7 @@ push_nextcloud_compose_to_oci() {
   staging_dir=$(mktemp -d)
 
   # Ensure cleanup on function exit
-  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+  trap 'rm -rf "$staging_dir" "$archive_path"' RETURN EXIT INT TERM
 
   # The spec requires exactly one top level directory in the archive
   # (matching the component name for human readability)
@@ -279,10 +254,15 @@ push_nextcloud_compose_to_oci() {
   echo "📤 Pushing Compose Archive to OCI Registry..."
 
   local author="${MAINTAINER_EMAIL:-Margo Community (info@margo.org)}" # override with env var MAINTAINER_EMAIL
-
+  
   # ORAS requires a relative filename, so push from /tmp
   (
     cd /tmp || exit 1
+
+    if [ ! -f "$archive_name" ]; then
+      echo "❌ Archive file not found in /tmp: $archive_name"
+      exit 1
+    fi
 
     oras push \
       "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${compose_revision}" \
@@ -298,7 +278,7 @@ push_nextcloud_compose_to_oci() {
 
   if [ $? -eq 0 ]; then
     echo "✅ Nextcloud Compose Archive pushed successfully"
-    echo "📍 OCI: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
+    echo "📍 OCI: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${compose_revision}"
   else
     echo "❌ Failed to push Nextcloud Compose Archive"
     return 1

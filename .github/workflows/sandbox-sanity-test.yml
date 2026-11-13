@@ -26,9 +26,19 @@ permissions:
 
 jobs:
   sandbox-e2e-functional-test-job:
-    runs-on: ubuntu-24.04
+    name: sandbox-e2e-functional-test-job (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     env:
       CI: "true"
+      TARGET_ARCH: ${{ matrix.arch }}
 
       # Branches
       SYMPHONY_BRANCH: ${{ github.event.inputs.symphony_branch_override || 'development' }}
@@ -231,7 +241,7 @@ jobs:
 
           (
             cd "${SANDBOX_DIR}/mis"
-            make container IMAGE_NAME=mis IMAGE_TAG=ci-test
+            make container GOARCH="${TARGET_ARCH}" IMAGE_NAME=mis IMAGE_TAG=ci-test
           ) &
           MIS_PID=$!
 

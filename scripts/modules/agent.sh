@@ -108,8 +108,12 @@ set_capabilities_id() {
   random_suffix=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 5)
   new_id="northstarida.xtapro.${new_runtime}.edge.${random_suffix}"
 
-  jq --arg id "$new_id" '.properties.id = $id' "$file" > "${file}.tmp" && \
-    mv "${file}.tmp" "$file"
+  if ! jq --arg id "$new_id" '.properties.id = $id' "$file" > "${file}.tmp"; then
+    rm -f "${file}.tmp"
+    echo "Failed to update capabilities.json"
+    return 1
+  fi
+  mv "${file}.tmp" "$file" || { echo "Failed to replace capabilities.json"; return 1; }
 
   echo "capabilities.json properties.id updated to: $new_id"
 }

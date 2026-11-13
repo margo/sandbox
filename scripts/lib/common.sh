@@ -178,3 +178,19 @@ validate_mis_host() {
 
   echo "[INFO] EXPOSED_MIS_HOST validated: '$host' (trust domain: '$trust_domain')"
 }
+
+resolve_target_arch() {
+  local host_arch="$(uname -m)"
+  case "${host_arch}" in
+    x86_64|amd64)
+      echo "amd64"
+      ;;
+    aarch64|arm64)
+      echo "arm64"
+      ;;
+    *)
+      echo "Unsupported architecture" >&2
+      return 1
+      ;;
+  esac
+}

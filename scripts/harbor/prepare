@@ -64,7 +64,7 @@ docker run --rm -v $input_dir:/input \
                     -v $config_dir:/config \
                     -v ${prepare_base_dir}:/hostfs${prepare_base_dir} \
                     --privileged \
-                    goharbor/prepare:v2.13.2 prepare $@
+                    goharbor/prepare:v2.16.0 prepare $@
 
 echo "Clean up the input dir"
 # Clean up input dir

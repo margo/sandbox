@@ -193,79 +193,85 @@ build_custom_otel_container_images() {
   echo "📦 Chart: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/custom-otel-helm:$CHART_VERSION"
 }
 
-push_nextcloud_compose_to_oci() {
-  echo "📦 Pushing Nextcloud Compose Archive to OCI Registry (HTTPS)..."
+push_nextcloud_compose_to_oci() (
+  set -euo pipefail
 
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/code/compose"
-  local repository="${OCI_ORGANIZATION}/nextcloud-compose-archive"
+  local_app_dir="${NEXTCLOUD_COMPOSE_DIR:-$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/code/compose}"
+  registry="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+  repository="${OCI_ORGANIZATION}/nextcloud-compose-archive"
+  compose_revision="${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}"
+  component_name="${NEXTCLOUD_COMPONENT_NAME:-nextcloud-stack}"
+  description="${NEXTCLOUD_DESCRIPTION:-Nextcloud Compose Component}"
+  author="${MAINTAINER_EMAIL:-Margo Community (info@margo.org)}"
 
-  NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
-  NEXTCLOUD_COMPOSE_REVISION="1.0.0"
+  for tool in oras jq tar; do
+    command -v "$tool" >/dev/null || { echo "❌ Required tool missing: $tool"; exit 1; }
+  done
 
-  local tag=${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}
-  local archive_name="nextcloud-compose-archive-${tag}.tar.gz"
-  local archive_path="/tmp/${archive_name}"
-
-  cd "$app_dir" || {
-    echo "❌ Nextcloud package dir missing: $app_dir"
-    return 1
-  }
-
-  echo "$REGISTRY_PASS" | oras login \
-    "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" \
-    --password-stdin 
-
-  if [ ! -f "compose.yaml" ]; then
-    echo "❌ compose.yaml not found in $app_dir"
-    return 1
+  # --- Input Validation (SemVer 2.0 without leading 'v') ---------------------
+  semver_re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
+  if [[ ! "$compose_revision" =~ $semver_re ]]; then
+    echo "❌ Revision '$compose_revision' is not valid SemVer 2.0 (no leading 'v', no '+build')"
+    exit 1
   fi
 
-  echo "📦 Creating Compose Archive..."
+  [ -d "$local_app_dir" ] || { echo "❌ App directory missing: $local_app_dir"; exit 1; }
+  [ -f "$local_app_dir/compose.yaml" ] || { echo "❌ compose.yaml not found in $local_app_dir"; exit 1; }
 
-    local staging_dir
-    staging_dir=$(mktemp -d)
+  # --- Staging & Archive Creation --------------------------------------------
+  workdir=$(mktemp -d)
+  trap 'rm -rf "$workdir"' EXIT
 
-    # Ensure cleanup on function exit
-    trap 'rm -rf "$staging_dir" "$archive_path"' RETURN
+  echo "📦 Packaging Compose component..."
+  archive_name="${component_name}-${compose_revision}-compose.tar.gz"
+  archive_path="$workdir/$archive_name"
 
-    # The spec requires exactly one top level directory in the archive
-    # (matching the component name for human readability)
-    local component_name="nextcloud-stack"
-    local component_dir="$staging_dir/$component_name"
-    mkdir -p "$component_dir"
+  # Spec: exactly one top-level directory named after the component
+  mkdir -p "$workdir/stage/$component_name"
+  cp -a "$local_app_dir"/. "$workdir/stage/$component_name"/
 
-    # Copy compose.yaml into the component directory
-    cp "compose.yaml" "$component_dir/compose.yaml"
+  # Create deterministic tarball, excluding version control files
+  tar --exclude='.git' --owner=0 --group=0 --numeric-owner \
+      -czf "$archive_path" -C "$workdir/stage" "$component_name"
 
-    # Create archive with the top-level directory
-    tar -czf "$archive_path" \
-        -C "$staging_dir" \
-        "$component_name"
+   # --- Annotations: MUST be on the layer descriptor --------------------------
+  annotations_file="$workdir/annotations.json"
+  jq -n \
+    --arg layer "$archive_name" \
+    --arg ver "$compose_revision" \
+    --arg title "$component_name" \
+    --arg authors "$author" \
+    --arg desc "$description" \
+    '{
+      ($layer): {
+        "org.margo.component.type": "compose",
+        "org.margo.component.version": $ver,
+        "org.opencontainers.image.title": $title,
+        "org.opencontainers.image.authors": $authors,
+        "org.opencontainers.image.description": $desc,
+        "org.opencontainers.image.version": $ver
+      },
+      "$manifest": {
+        "org.margo.component.type": "compose",
+        "org.margo.component.version": $ver,
+        "org.opencontainers.image.version": $ver
+      }
+    }' > "$annotations_file"
 
-    if [ ! -f "$archive_path" ]; then
-        echo "❌ Failed to create Compose Archive"
-        return 1
-    fi
+  # --- Login & push ----------------------------------------------------------
+  echo "$REGISTRY_PASS" | oras login "$registry" -u "$REGISTRY_USER" --password-stdin \
+    || { echo "❌ Failed to authenticate with OCI Registry"; exit 1; }
 
-  echo "📦 Compose Archive created: $archive_path"
   echo "📤 Pushing Compose Archive to OCI Registry..."
-
-  # ORAS requires a relative filename, so push from /tmp
+  # oras needs a relative file name, so push from the work dir
   (
-    cd /tmp || exit 1
-
-    oras push \
-      "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
+    cd "$workdir" || exit 1
+    oras push --debug "${registry}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
+      --annotation-file "$annotations_file" \
       "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
-  )
+  ) || { echo "❌ Failed to push Compose Archive"; exit 1; }
 
-  if [ $? -eq 0 ]; then
-    echo "✅ Nextcloud Compose Archive pushed successfully"
-    echo "📍 OCI: oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
-  else
-    echo "❌ Failed to push Nextcloud Compose Archive"
-    return 1
-  fi
-}
+  echo "✅ Compose Archive published to oci://${registry}/${repository}:${compose_revision}"
+
+)

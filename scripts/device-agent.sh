@@ -367,7 +367,6 @@ generate_private_key_and_csr() {
     identity_dir="helm-identity"
   fi
 
-
   local certs_dir="${HOME}/certs/${identity_dir}"
   local csr_gen_script="${SCRIPT_DIR}/lib/mis/csr_gen.sh"
 
@@ -383,20 +382,29 @@ generate_private_key_and_csr() {
   echo "🔐 Generate Private Key & CSR for WFM Client"
   echo "======================================================================="
   echo ""
-  echo "  The SPIFFE ID must follow this format:"
+  echo "  The SPIFFE ID is optional at this stage."
+  echo "  Per MIAF2 §3, the SPIFFE ID in the CSR is advisory —"
+  echo "  the MIS (CA) is authoritative and assigns the final identity"
+  echo "  at SVID minting time."
+  echo ""
+  echo "  If provided, the SPIFFE ID must follow this format:"
   echo "    spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
   echo "  Example:"
   echo "    spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
   echo ""
 
-  # Prompt for SPIFFE ID
-  while true; do
-    read -p "  Enter SPIFFE ID: " spiffe_id
+  # ── SPIFFE ID prompt (optional) ───────────────────────────────────────────
+  local spiffe_id=""
+  local spiffe_args=()
 
-    # Validate non-empty
+  while true; do
+    read -p "  Enter SPIFFE ID (or press Enter to skip): " spiffe_id
+
+    # User skipped — no SPIFFE ID
     if [[ -z "${spiffe_id// /}" ]]; then
-      echo "  ⚠️  SPIFFE ID cannot be empty. Please try again."
-      continue
+      echo "  ℹ️  No SPIFFE ID provided. The MIS will prompt for it at the time of identity minting."
+      spiffe_args=()
+      break
     fi
 
     # Validate scheme
@@ -405,7 +413,7 @@ generate_private_key_and_csr() {
       continue
     fi
 
-    # Validate expected path structure: /margo/wfm/<wfm-id>/client/<wfm-client-id>
+    # Validate expected path structure
     if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$ ]]; then
       echo "  ⚠️  SPIFFE ID does not match expected format:"
       echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
@@ -413,10 +421,21 @@ generate_private_key_and_csr() {
       continue
     fi
 
+    echo "  ⚠️  Note: This SPIFFE ID is advisory. The MIS prompt may override it at minting."
+    spiffe_args=(--spiffe-id "${spiffe_id}")
     break
   done
 
-  # Create output directory if it doesn't exist
+  # ── Check for existing key (renewal detection) ────────────────────────────
+  local key_path="${certs_dir}/payload-key.pem"
+  if [[ -f "${key_path}" ]]; then
+    echo ""
+    echo "  ℹ️  Existing key found at: ${key_path}"
+    echo "      The existing key will be reused (renewal mode)."
+    echo "      Only a fresh CSR will be generated."
+  fi
+
+  # ── Create output directory if it doesn't exist ───────────────────────────
   if [[ ! -d "${certs_dir}" ]]; then
     echo ""
     echo "🔄 Creating certificates directory: ${certs_dir}"
@@ -428,20 +447,25 @@ generate_private_key_and_csr() {
   fi
 
   echo ""
-  echo "🔄 Generating private key and CSR..."
-  echo "   SPIFFE ID  : ${spiffe_id}"
+  echo "🔄 Generating CSR..."
+  if [[ -n "${spiffe_id}" ]]; then
+    echo "   SPIFFE ID  : ${spiffe_id} (advisory)"
+  else
+    echo "   SPIFFE ID  : not set"
+  fi
   echo "   Output Dir : ${certs_dir}"
   echo ""
 
+  # ── Invoke csr_gen.sh ─────────────────────────────────────────────────────
   "${csr_gen_script}" \
-    --spiffe-id "${spiffe_id}" \
-    --key-out   "${certs_dir}/payload-key.pem" \
-    --csr-out   "${certs_dir}/payload-req.csr"
+    "${spiffe_args[@]}" \
+    --key-out "${certs_dir}/payload-key.pem" \
+    --csr-out "${certs_dir}/payload-req.csr"
 
   local exit_code=$?
   if [[ ${exit_code} -ne 0 ]]; then
     echo ""
-    echo "❌ Failed to generate private key and CSR (exit code: ${exit_code})"
+    echo "❌ Failed to generate CSR (exit code: ${exit_code})"
     return 1
   fi
 
@@ -453,7 +477,8 @@ generate_private_key_and_csr() {
   echo ""
   echo "  Next steps:"
   echo "    • Submit ${certs_dir}/payload-req.csr to your MIS to mint an SVID"
-  echo "    • Place the returned SVID in: ${certs_dir}"
+  echo "    • The MIS will prompt & assign the final SPIFFE ID at minting time"
+  echo "    • Place the returned SVID at: ${certs_dir}/payload-cert.pem"
   echo "======================================================================="
 }
 

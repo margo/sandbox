@@ -188,6 +188,7 @@ deploy_instance() {
   
   echo ""
   echo "🚀 Deploying '$package_id' to device '$device_id'..."
+ 
   if check_maestro_cli; then
     if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file"; then
       echo "✅ Instance deployment request sent successfully!"
@@ -299,9 +300,14 @@ deploy_instance_non_interactive() {
   echo ""
   echo "🚀 Deploying '$package_id' to device '$device_id'..."
   if check_maestro_cli; then
-    if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file"; then
+    local deploy_output
+    deploy_output=$(${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file" 2>&1)
+    # local deploy_status=$? contains the exit status of the most recently executed command
+    local deploy_status=$?
+    echo "$deploy_output"
+
+    if [ $deploy_status -eq 0 ] && ! echo "$deploy_output" | grep -qi "Apply failed"; then
       echo "✅ Instance deployment request sent successfully!"
-      
       echo ""
       echo "📋 Updated deployments:"
       ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" list deployment

@@ -185,12 +185,12 @@ COMPONENT
 
   # Profile-specific parameters
   if grep -q "parameters:" "$margo_file"; then
-    echo "  parameters:" >> "$output_file"
 
     if [ "$profile_type" = "helm" ]; then
       # helm: emit otlp endpoint if otel/otlp present in margo.yaml
       if grep -qi "otel\|otlp" "$margo_file"; then
         cat >> "$output_file" <<EOF
+  parameters:
     otlpEndpoint:
       value: "http://otel-collector-opentelemetry-collector.observability:4318"
       targets:
@@ -216,23 +216,20 @@ EOF
           exit
         }
       ' "$margo_file")
-
-      if [ -n "$port_param" ]; then
+      # Only generate override when matching parameter and port are found
+      if [ -n "$port_param" ] && [ -n "$port_number" ]; then
         port_value=$(awk "/^  ${port_param}:/,/targets:/ { if (/value:/) print }" "$margo_file" \
           | head -1 | sed 's/.*value:\s*//' | tr -d '"' | tr -d "'" | xargs)
-      fi
-
-      port_value="${port_value:-${port_number:-80}}"
-      port_number="${port_number:-80}"
-      port_param="${port_param:-servicePort}"
-
-      cat >> "$output_file" <<EOF
+        port_value="${port_value:-${port_number}}"
+        cat >> "$output_file" <<EOF
+  parameters:
     ${port_param}:
       value: ${port_value}
       targets:
         - pointer: PORTS.${port_number}
           components: ["${component_name}"]
 EOF
+      fi
     fi
   fi
 }

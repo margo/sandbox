@@ -234,62 +234,43 @@ push_nextcloud_compose_to_oci() (
   tar --exclude='.git' --owner=0 --group=0 --numeric-owner \
       -czf "$archive_path" -C "$workdir/stage" "$component_name"
 
+   # --- Annotations: MUST be on the layer descriptor --------------------------
+  annotations_file="$workdir/annotations.json"
+  jq -n \
+    --arg layer "$archive_name" \
+    --arg ver "$compose_revision" \
+    --arg title "$component_name" \
+    --arg authors "$author" \
+    --arg desc "$description" \
+    '{
+      ($layer): {
+        "org.margo.component.type": "compose",
+        "org.margo.component.version": $ver,
+        "org.opencontainers.image.title": $title,
+        "org.opencontainers.image.authors": $authors,
+        "org.opencontainers.image.description": $desc,
+        "org.opencontainers.image.version": $ver
+      },
+      "$manifest": {
+        "org.margo.component.type": "compose",
+        "org.margo.component.version": $ver,
+        "org.opencontainers.image.version": $ver
+      }
+    }' > "$annotations_file"
 
-  # --- Login & push (spec-style annotations) ----------------------------------
+  # --- Login & push ----------------------------------------------------------
   echo "$REGISTRY_PASS" | oras login "$registry" -u "$REGISTRY_USER" --password-stdin \
     || { echo "❌ Failed to authenticate with OCI Registry"; exit 1; }
 
   echo "📤 Pushing Compose Archive to OCI Registry..."
+  # oras needs a relative file name, so push from the work dir
   (
     cd "$workdir" || exit 1
     oras push "${registry}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
-      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip" \
-      --annotation "org.margo.component.type=compose" \
-      --annotation "org.margo.component.version=${compose_revision}" \
-      --annotation "org.opencontainers.image.title=${component_name}" \
-      --annotation "org.opencontainers.image.version=${compose_revision}" \
-      --annotation "org.opencontainers.image.authors=${author}" \
-      --annotation "org.opencontainers.image.description=${description}"
-  ) || { echo "❌ Failed to push Nextcloud Compose Archive"; exit 1; }
-
-   # --- Annotations: MUST be on the layer descriptor --------------------------
-  # annotations_file="$workdir/annotations.json"
-  # jq -n \
-  #   --arg layer "$archive_name" \
-  #   --arg ver "$compose_revision" \
-  #   --arg title "$component_name" \
-  #   --arg authors "$author" \
-  #   --arg desc "$description" \
-  #   '{
-  #     ($layer): {
-  #       "org.margo.component.type": "compose",
-  #       "org.margo.component.version": $ver,
-  #       "org.opencontainers.image.title": $title,
-  #       "org.opencontainers.image.authors": $authors,
-  #       "org.opencontainers.image.description": $desc,
-  #       "org.opencontainers.image.version": $ver
-  #     },
-  #     "$manifest": {
-  #       "org.margo.component.type": "compose",
-  #       "org.margo.component.version": $ver,
-  #       "org.opencontainers.image.version": $ver
-  #     }
-  #   }' > "$annotations_file"
-
-  # # --- Login & push ----------------------------------------------------------
-  # echo "$REGISTRY_PASS" | oras login "$registry" -u "$REGISTRY_USER" --password-stdin \
-  #   || { echo "❌ Failed to authenticate with OCI Registry"; exit 1; }
-
-  # echo "📤 Pushing Compose Archive to OCI Registry..."
-  # # oras needs a relative file name, so push from the work dir
-  # (
-  #   cd "$workdir" || exit 1
-  #   oras push "${registry}/${repository}:${compose_revision}" \
-  #     --artifact-type "application/vnd.org.margo.component.compose+json" \
-  #     --annotation-file "$annotations_file" \
-  #     "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
-  # ) || { echo "❌ Failed to push Nextcloud Compose Archive"; exit 1; }
+      --annotation-file "$annotations_file" \
+      "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"
+  ) || { echo "❌ Failed to push Compose Archive"; exit 1; }
 
   echo "✅ Compose Archive published to oci://${registry}/${repository}:${compose_revision}"
 

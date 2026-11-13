@@ -266,6 +266,8 @@ push_nextcloud_compose_to_oci() (
   # oras needs a relative file name, so push from the work dir
   (
     cd "$workdir" || exit 1
+    ln -sf "$archive_name" "$component_name"
+    
     oras push --debug "${registry}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
       --annotation-file "$annotations_file" \

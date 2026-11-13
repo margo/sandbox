@@ -770,6 +770,20 @@ components:
           - repository
           - revision
           type: object
+        deviceConstraints:
+          # x-go-field-tags: 'json:"deviceConstraints" yaml:"deviceConstraints"'
+          x-oapi-codegen-extra-tags:
+            json: "deviceConstraints"
+            yaml: "deviceConstraints"
+          description: Description of the device capabilties required for this particular application
+          $ref: "#/components/schemas/DeviceConstraints"
+        workload:
+          # x-go-field-tags: 'json:"workload,omitempty" yaml:"workload,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "workload,omitempty"
+            yaml: "workload,omitempty"
+          $ref: '#/components/schemas/Workload'
+          description: Workload scheduling policy and tuning for this component
       required:
       - name
       - properties
@@ -937,7 +951,43 @@ components:
       - name
       - schema
       type: object
-
+    WorkloadSchedulingType:
+      type: string
+      enum: [background, best-effort, deadline, real-time]
+      default: best-effort
+      description: >
+        Workload scheduling class.
+        background covers SCHED_BATCH and SCHED_IDLE,
+        best-effort covers SCHED_NORMAL/SCHED_OTHER,
+        deadline maps to SCHED_DEADLINE,
+        real-time maps to SCHED_FIFO/SCHED_RR.
+    WorkloadDeadline:
+      type: object
+      description: Deadline scheduling configuration
+      properties:
+        deadline:
+          type: integer
+          description: Task finish time
+        period:
+          type: integer
+          description: Task activation frequency
+        runtime:
+          type: integer
+          description: CPU runtime needed per period
+    Workload:
+      type: object
+      description: Workload scheduling configuration for a component
+      properties:
+        scheduling:
+          $ref: '#/components/schemas/WorkloadSchedulingType'
+        priority:
+          type: integer
+          description: Static priority for real-time scheduling
+        nice:
+          type: integer
+          description: Nice value for best-effort/background scheduling
+        deadline:
+          $ref: '#/components/schemas/WorkloadDeadline'
     # Application Package Schemas
     ApplicationPackageManifestRequest:
       type: object
@@ -1203,7 +1253,12 @@ components:
             wait:
               type: boolean
               description: Wait for the component to be ready
-
+        deviceConstraints:
+          description: Description of the device capabilties required for this particular component
+          $ref: "#/components/schemas/DeviceConstraints"
+        workload:
+          $ref: '#/components/schemas/Workload'
+          description: Workload scheduling policy and tuning for this component
 
     DeploymentParameterTarget:
       type: object
@@ -1436,14 +1491,26 @@ components:
       description: Minimum device capacity required by the deployment profile.
       properties:
         cpu:
-          $ref: '#/components/schemas/DeploymentCpuRequirement'
-          description: CPU element specifying the CPU requirements for the deployment.
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentCpuRequirement'
+          description: CPU elements specifying the CPU requirements for the deployment.
+        cache:
+          # x-go-field-tags: 'json:"cache,omitempty" yaml:"cache,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "cache,omitempty"
+            yaml: "cache,omitempty"
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentCacheRequirement'
+          description: Cache requirements
         memory:
-          type: string
-          description: >-
-            The minimum amount of memory required. The value is given in binary units
-            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
-          pattern: ^[0-9]+(Mi|Gi|Ki)$
+          # x-go-field-tags: 'json:"memory,omitempty" yaml:"memory,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "memory,omitempty"
+            yaml: "memory,omitempty"
+          $ref: '#/components/schemas/DeploymentMemoryRequirement'
+          description: Required memory and optional bandwidth allocation
         storage:
           type: string
           description: >-
@@ -1465,6 +1532,109 @@ components:
             type: string
             enum: [amd64, arm64, arm, riscv64, other]
           description: The CPU architectures supported by the deployment.
+        class:
+          # x-go-field-tags: 'json:"class,omitempty" yaml:"class,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "class,omitempty"
+            yaml: "class,omitempty"
+          description: Core class required by the workload
+          type: string
+          enum:
+          - performance
+          - efficiency
+          - low-power
+        type:
+          # x-go-field-tags: 'json:"type,omitempty" yaml:"type,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "type,omitempty"
+            yaml: "type,omitempty"
+          description: Whether requested cores must be isolated or can be shared
+          type: string
+          enum:
+          - shared
+          - isolated
+        name:
+          # x-go-field-tags: 'json:"name,omitempty" yaml:"name,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "name,omitempty"
+            yaml: "name,omitempty"
+          description: Name of the container this CPU requirement applies to
+          type: string
+    DeploymentCacheRequirement:
+      type: object
+      description: Cache requirement or capability
+      required: [level, allocation, size]
+      properties:
+        level:
+          # x-go-field-tags: 'json:"level" yaml:"level"'
+          x-oapi-codegen-extra-tags:
+            json: "level"
+            yaml: "level"
+          type: string
+          enum: [L3, L2, L1d, L1i]
+          description: >
+            Cache level.
+            L3 = Level 3 Cache, L2 = Level 2 Cache,
+            L1d = Level 1 Data Cache, L1i = Level 1 Instruction Cache.
+        allocation:
+          # x-go-field-tags: 'json:"allocation" yaml:"allocation"'
+          x-oapi-codegen-extra-tags:
+            json: "allocation"
+            yaml: "allocation"
+          type: string
+          enum: [exclusive, shared]
+          description: >
+            Cache allocation type.
+            exclusive = dedicated cache partition (requires hardware CAT support),
+            shared = shared cache access.
+        size:
+          # x-go-field-tags: 'json:"size" yaml:"size"'
+          x-oapi-codegen-extra-tags:
+            json: "size"
+            yaml: "size"
+          type: string
+          description: >
+            Minimum required cache amount. Value is given in binary units
+            (Ki = Kibibytes, Mi = Mebibytes, Gi = Gibibytes), e.g. "9216Ki".
+    MemoryBandwidthAllocation:
+      type: object
+      description: Memory bandwidth allocation requested by a workload
+      required: [unit, value]
+      properties:
+        unit:
+          # x-go-field-tags: 'json:"unit" yaml:"unit"'
+          x-oapi-codegen-extra-tags:
+            json: "unit"
+            yaml: "unit"
+          type: string
+          enum: [percent, MBps]
+          description: Unit for memory bandwidth capping
+        value:
+          # x-go-field-tags: 'json:"value" yaml:"value"'
+          x-oapi-codegen-extra-tags:
+            json: "value"
+            yaml: "value"
+          type: integer
+          description: Requested bandwidth cap in the selected unit
+    DeploymentMemoryRequirement:
+      type: object
+      description: Memory requirement for a deployment profile or component
+      required: [size]
+      properties:
+        size:
+          # x-go-field-tags: 'json:"size" yaml:"size"'
+          x-oapi-codegen-extra-tags:
+            json: "size"
+            yaml: "size"
+          type: string
+          description: Required memory size (e.g., "1Gi")
+        bandwidthAllocation:
+          # x-go-field-tags: 'json:"bandwidthAllocation,omitempty" yaml:"bandwidthAllocation,omitempty"'
+          x-oapi-codegen-extra-tags:
+            json: "bandwidthAllocation,omitempty"
+            yaml: "bandwidthAllocation,omitempty"
+          $ref: '#/components/schemas/MemoryBandwidthAllocation'
+          description: Optional memory bandwidth capping
     EligibilityRule:
       type: object
       description: A rule matching properties and supplier-defined labels reported through the device capabilities.
@@ -1509,7 +1679,6 @@ components:
         itemSelector:
           $ref: '#/components/schemas/Selector'
           description: Selector evaluated against array elements. Required for the `ContainsAll` or `ContainsAny` operator.
-    
 
     # Common Schemas
     ContextualInfo:

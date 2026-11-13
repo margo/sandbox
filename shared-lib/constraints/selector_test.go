@@ -28,24 +28,29 @@ func buildDevice(
 	return d
 }
 
+type deviceCPU = struct {
+	Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
+	Class        *clModels.DeviceCapabilitiesManifestPropertiesCpusClass        `json:"class,omitempty"`
+	Cores        float32                                                        `json:"cores"`
+	Frequency    *struct {
+		BaseMHz *float32 `json:"baseMHz,omitempty"`
+		MaxMHz  *float32 `json:"maxMHz,omitempty"`
+	} `json:"frequency,omitempty"`
+	Type *clModels.DeviceCapabilitiesManifestPropertiesCpusType `json:"type,omitempty"`
+}
+
 // withCPU appends a CPU entry to the device's Cpus slice.
 func withCPU(
 	device *clModels.DeviceCapabilitiesManifest,
 	cores float32,
 	arch clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture,
 ) *clModels.DeviceCapabilitiesManifest {
-	cpu := struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	cpu := deviceCPU{
 		Architecture: &arch,
 		Cores:        cores,
 	}
 	if device.Properties.Cpus == nil {
-		device.Properties.Cpus = &[]struct {
-			Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-			Cores        float32                                                        `json:"cores"`
-		}{}
+		device.Properties.Cpus = &[]deviceCPU{}
 	}
 	*device.Properties.Cpus = append(*device.Properties.Cpus, cpu)
 	return device
@@ -56,7 +61,7 @@ func withMemory(
 	device *clModels.DeviceCapabilitiesManifest,
 	memory string,
 ) *clModels.DeviceCapabilitiesManifest {
-	device.Properties.Memory = &memory
+	device.Properties.Memory = &clModels.DeviceCapabilitiesManifestPropertiesMemory{Size: memory}
 	return device
 }
 
@@ -246,7 +251,9 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{Cores: 4},
+				},
 			}, nil),
 			wantEligible: true,
 		},
@@ -258,7 +265,9 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{Cores: 4},
+				},
 			}, nil),
 			wantEligible: true,
 		},
@@ -270,7 +279,9 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{Cores: 4},
+				},
 			}, nil),
 			wantEligible: false,
 		},
@@ -282,9 +293,11 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores:         4,
-					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores:         4,
+						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+					},
 				},
 			}, nil),
 			wantEligible: true,
@@ -297,9 +310,11 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores:         4,
-					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqArm64},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores:         4,
+						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqArm64},
+					},
 				},
 			}, nil),
 			wantEligible: false,
@@ -312,30 +327,34 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 				arm64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores:         4,
-					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqArm64},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores:         4,
+						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqArm64},
+					},
 				},
 			}, nil),
 			wantEligible: true,
 		},
 		{
-			name: "multiple architectures required [amd64, arm64], device has amd64 → eligible",
+			name: "multiple architectures required [amd64, arm64], device has only amd64 → not eligible",
 			device: withCPU(
 				buildDevice("dev-107", "Stark Industries", "MK-VII", "SN-0107"),
 				4,
 				amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores: 4,
-					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{
-						reqAmd64,
-						reqArm64,
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores: 4,
+						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{
+							reqAmd64,
+							reqArm64,
+						},
 					},
 				},
 			}, nil),
-			wantEligible: true,
+			wantEligible: false,
 		},
 		{
 			name: "CapacityRequirements.Cpu is nil → eligible regardless of device CPU",
@@ -353,20 +372,24 @@ func TestIsDeviceEligible_CapacityRequirements_CPU(t *testing.T) {
 			name:   "device has no CPU defined, CPU requirement is set → not eligible",
 			device: buildDevice("dev-109", "Stark Industries", "MK-IX", "SN-0109"),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{Cores: 4},
+				},
 			}, nil),
 			wantEligible: false,
 		},
 		{
-			name: "device has multiple CPU entries summing above requirement → not eligible",
+			name: "device has multiple CPU entries summing to requirement → eligible",
 			device: withCPU(
 				withCPU(buildDevice("dev-110", "Stark Industries", "MK-X", "SN-0110"), 2, amd64),
 				2, amd64,
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{Cores: 4},
+				},
 			}, nil),
-			wantEligible: false,
+			wantEligible: true,
 		},
 	}
 
@@ -409,7 +432,7 @@ func TestIsDeviceEligible_CapacityRequirements_MemoryAndStorage(t *testing.T) {
 			name:   "device memory == required memory (512Mi) → eligible",
 			device: withMemory(buildDevice("dev-201", "Acme", "M-I", "SN-0201"), "512Mi"),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Memory: pointers.Ptr("512Mi"),
+				Memory: &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 			}, nil),
 			wantEligible: true,
 		},
@@ -417,7 +440,7 @@ func TestIsDeviceEligible_CapacityRequirements_MemoryAndStorage(t *testing.T) {
 			name:   "device memory (1Gi) > required memory (512Mi) → eligible",
 			device: withMemory(buildDevice("dev-202", "Acme", "M-II", "SN-0202"), "1Gi"),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Memory: pointers.Ptr("512Mi"),
+				Memory: &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 			}, nil),
 			wantEligible: true,
 		},
@@ -425,7 +448,7 @@ func TestIsDeviceEligible_CapacityRequirements_MemoryAndStorage(t *testing.T) {
 			name:   "device memory (256Mi) < required memory (512Mi) → not eligible",
 			device: withMemory(buildDevice("dev-203", "Acme", "M-III", "SN-0203"), "256Mi"),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Memory: pointers.Ptr("512Mi"),
+				Memory: &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 			}, nil),
 			wantEligible: false,
 		},
@@ -441,7 +464,7 @@ func TestIsDeviceEligible_CapacityRequirements_MemoryAndStorage(t *testing.T) {
 			name:   "device has no memory field set, memory requirement present → not eligible",
 			device: buildDevice("dev-205", "Acme", "M-V", "SN-0205"),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Memory: pointers.Ptr("512Mi"),
+				Memory: &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 			}, nil),
 			wantEligible: false,
 		},
@@ -547,11 +570,13 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 				"20Gi",
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores:         4,
-					Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores:         4,
+						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+					},
 				},
-				Memory:  pointers.Ptr("2Gi"),
+				Memory:  &clModels.DeploymentMemoryRequirement{Size: "2Gi"},
 				Storage: pointers.Ptr("20Gi"),
 			}, nil),
 			wantEligible: true,
@@ -567,10 +592,12 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 				"20Gi",
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores: 4,
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores: 4,
+					},
 				},
-				Memory:  pointers.Ptr("512Mi"),
+				Memory:  &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 				Storage: pointers.Ptr("20Gi"),
 			}, nil),
 			wantEligible: false,
@@ -586,10 +613,12 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 				"5Gi",
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores: 4,
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores: 4,
+					},
 				},
-				Memory:  pointers.Ptr("2Gi"),
+				Memory:  &clModels.DeploymentMemoryRequirement{Size: "2Gi"},
 				Storage: pointers.Ptr("10Gi"),
 			}, nil),
 			wantEligible: false,
@@ -605,10 +634,12 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 				"20Gi",
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores: 4,
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores: 4,
+					},
 				},
-				Memory:  pointers.Ptr("2Gi"),
+				Memory:  &clModels.DeploymentMemoryRequirement{Size: "2Gi"},
 				Storage: pointers.Ptr("20Gi"),
 			}, nil),
 			wantEligible: false,
@@ -624,10 +655,12 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 				"1Gi",
 			),
 			checks: buildConstraints(&clModels.CapacityRequirements{
-				Cpu: &clModels.DeploymentCpuRequirement{
-					Cores: 4,
+				Cpu: &[]clModels.DeploymentCpuRequirement{
+					{
+						Cores: 4,
+					},
 				},
-				Memory:  pointers.Ptr("512Mi"),
+				Memory:  &clModels.DeploymentMemoryRequirement{Size: "512Mi"},
 				Storage: pointers.Ptr("10Gi"),
 			}, nil),
 			wantEligible: false,
@@ -645,8 +678,10 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 			),
 			checks: &clModels.DeviceConstraints{
 				CapacityRequirements: &clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{
-						Cores: 8, // device only has 1 core → fails
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{
+							Cores: 8, // device only has 1 core → fails
+						},
 					},
 				},
 				EligibilityRules: &[]clModels.EligibilityRule{
@@ -664,8 +699,10 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 			),
 			checks: &clModels.DeviceConstraints{
 				CapacityRequirements: &clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{
-						Cores: 4,
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{
+							Cores: 4,
+						},
 					},
 				},
 				EligibilityRules: &[]clModels.EligibilityRule{
@@ -683,8 +720,10 @@ func TestIsDeviceEligible_CapacityRequirements_Combined(t *testing.T) {
 			),
 			checks: &clModels.DeviceConstraints{
 				CapacityRequirements: &clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{
-						Cores: 4,
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{
+							Cores: 4,
+						},
 					},
 				},
 				EligibilityRules: &[]clModels.EligibilityRule{
@@ -1187,7 +1226,9 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/os must be "Zephyr RTOS" → fails
@@ -1222,7 +1263,9 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/os must be "Zephyr RTOS" → fails
@@ -1259,7 +1302,9 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Single combined rule: label AND property must both pass
@@ -1307,11 +1352,13 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{
-						Cores:         4,
-						Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{
+							Cores:         4,
+							Architectures: &[]clModels.DeploymentCpuRequirementArchitectures{reqAmd64},
+						},
 					},
-					Memory:  pointers.Ptr("2Gi"),
+					Memory:  &clModels.DeploymentMemoryRequirement{Size: "2Gi"},
 					Storage: pointers.Ptr("20Gi"),
 				},
 				[]clModels.EligibilityRule{
@@ -1360,7 +1407,9 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 2},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 2},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: label example.com/hypervisor must exist → fails (not present)
@@ -1410,8 +1459,10 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			),
 			checks: &clModels.DeviceConstraints{
 				CapacityRequirements: &clModels.CapacityRequirements{
-					Cpu:     &clModels.DeploymentCpuRequirement{Cores: 4},
-					Memory:  pointers.Ptr("4Gi"),
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
+					Memory:  &clModels.DeploymentMemoryRequirement{Size: "4Gi"},
 					Storage: pointers.Ptr("10Gi"), // device has only 2Gi → fails
 				},
 				EligibilityRules: &[]clModels.EligibilityRule{
@@ -1449,7 +1500,9 @@ func TestIsDeviceEligible_MultipleEligibilityRules_WithCapacity(t *testing.T) {
 			// device.Labels is nil (buildDevice does not set labels)
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 2},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 2},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: requires label → fails because device has no labels
@@ -1706,7 +1759,9 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: ContainsAll requires NVIDIA GPU → fails
@@ -1833,7 +1888,9 @@ func TestIsDeviceEligible_ContainsAllContainsAny_WithEligibilityRules(t *testing
 			),
 			checks: buildConstraints(
 				&clModels.CapacityRequirements{
-					Cpu: &clModels.DeploymentCpuRequirement{Cores: 4},
+					Cpu: &[]clModels.DeploymentCpuRequirement{
+						{Cores: 4},
+					},
 				},
 				[]clModels.EligibilityRule{
 					// Rule 1: ContainsAll requires NVIDIA GPU → fails (AMD GPU present)

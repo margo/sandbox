@@ -470,6 +470,20 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 		projectName := fmt.Sprintf("%s-%s", strings.ToLower(component.Name), deploymentId[:8])
 		projectName = strings.ReplaceAll(projectName, "_", "-")
 
+		dm.log.Infow(
+			"compose device constraints",
+			"appId",
+			deploymentId,
+			"profileType",
+			appDeployment.Spec.DeploymentProfile.Type,
+			"profileDeviceConstraints",
+			appDeployment.Spec.DeploymentProfile.DeviceConstraints,
+			"componentName",
+			component.Name,
+			"device constraints",
+			dm.extractComponentDeviceConstraints(component),
+		)
+
 		values := map[string]interface{}{}
 		if appDeployment.Spec.Parameters != nil {
 			componentValues, err := pkg.ConvertAllAppDeploymentParamsToValues(
@@ -777,4 +791,13 @@ func (dm *DeploymentManager) convertParametersToEnvVars(
 	}
 
 	return envVars
+}
+
+// TODO: this is just a method used for logging purposes. To be removed once the
+// implementation is added
+// extractComponentDeviceConstraints reads deviceConstraints from the component.
+func (dm *DeploymentManager) extractComponentDeviceConstraints(
+	component sbi.ApplicationDeploymentProfileComponent,
+) *sbi.DeviceConstraints {
+	return component.DeviceConstraints
 }

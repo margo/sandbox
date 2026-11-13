@@ -57,98 +57,82 @@ get_margo_media_type() {
   fi
 }
 
-push_nextcloud_to_oci() {
-  echo "📦 Pushing Nextcloud application package to OCI Registry (HTTPS)..."
+push_app_package_to_registry() {
+  local package_source_dir="$1"
+  local package_repo_name="$2"
+  local tag="${3:-latest}"
 
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package"
-  local repository="${OCI_ORGANIZATION}/nextcloud-compose-app-package"
-  local tag="latest"
+  if [ -z "$package_source_dir" ] || [ -z "$package_repo_name" ]; then
+    echo "❌ Usage: push_app_package_to_registry <package_source_dir> <package_repo_name> [tag]"
+    echo "   Example: push_app_package_to_registry '$HOME/sandbox/poc/tests/artefacts/nextcloud-compose' 'nextcloud-compose-app-package'"
+    return 1
+  fi
 
-  cd "$app_dir" || { echo "❌ Nextcloud package dir missing"; return 1; }
+  local app_dir="$package_source_dir/margo-package"
+  local repository="${OCI_ORGANIZATION}/${package_repo_name}"
+  local registry_host="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+  local original_dir
 
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin 
+  original_dir="$(pwd)"
+  cd "$app_dir" || { echo "❌ margo-package dir missing: $app_dir"; return 1; }
+
+  echo "📦 Pushing ${package_repo_name} package to OCI Registry (HTTPS)..."
+  echo "$REGISTRY_PASS" | oras login "$registry_host" \
+    -u "$REGISTRY_USER" --password-stdin
 
   if [ ! -f "margo.yaml" ]; then
+    cd "$original_dir" || true
     echo "❌ margo.yaml not found in $app_dir"
     return 1
   fi
 
+  local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
+
+  if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
+    while IFS= read -r file; do
+      if [ -f "$file" ]; then
+        local media_type
+        media_type=$(get_margo_media_type "$file")
+        files+=("$file:${media_type}")
+      fi
+    done < <(find resources -type f 2>/dev/null)
+  fi
+
+  echo "Pushing files: ${files[*]}"
+  oras push "${registry_host}/${repository}:${tag}" \
+    --artifact-type "application/vnd.margo.app.v1+json" \
+    "${files[@]}"
+
+  local push_status=$?
+  cd "$original_dir" || true
+
+  if [ $push_status -eq 0 ]; then
+    echo "✅ ${package_repo_name} package pushed to OCI Registry (HTTPS)"
+    echo "📍 Location: https://${registry_host}/${repository}:${tag}"
+  else
+    echo "❌ Failed to push ${package_repo_name} package"
+    return 1
+  fi
+}
+
+push_nextcloud_to_oci() {
   NEXTCLOUD_COMPOSE_REPOSITORY="oci://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/library/nextcloud-compose-archive"
   NEXTCLOUD_COMPOSE_REVISION="1.0.0"
-  compose_deploy_file="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package/margo.yaml"
+  local compose_deploy_file="$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/margo-package/margo.yaml"
 
   echo "Updating compose margo.yaml with repository and revision..."
   sed -i "s|{{NEXTCLOUD_COMPOSE_REPOSITORY}}|$NEXTCLOUD_COMPOSE_REPOSITORY|g" "$compose_deploy_file" 2>/dev/null || true
   sed -i "s|{{NEXTCLOUD_COMPOSE_REVISION}}|$NEXTCLOUD_COMPOSE_REVISION|g" "$compose_deploy_file" 2>/dev/null || true
 
-  local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-
-  if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
-    while IFS= read -r file; do
-      if [ -f "$file" ]; then
-        local media_type
-        media_type=$(get_margo_media_type "$file")
-        files+=("$file:${media_type}")
-      fi
-    done < <(find resources -type f 2>/dev/null)
-  fi
-
-  echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
-    --artifact-type "application/vnd.margo.app.v1+json" \
-    "${files[@]}"
-
-  if [ $? -eq 0 ]; then
-    echo "✅ Nextcloud package pushed to OCI Registry (HTTPS)"
-    echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
-  else
-    echo "❌ Failed to push Nextcloud package"
-    return 1
-  fi
+  push_app_package_to_registry \
+    "$HOME/sandbox/poc/tests/artefacts/nextcloud-compose" \
+    "nextcloud-compose-app-package"
 }
 
 push_custom_otel_to_oci() {
-  echo "📦 Pushing Custom OTEL application package to OCI Registry (HTTPS)..."
-
-  local app_dir="$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app/margo-package"
-  local repository="${OCI_ORGANIZATION}/custom-otel-helm-app-package"
-  local tag="latest"
-
-  cd "$app_dir" || { echo "❌ Custom OTEL package dir missing"; return 1; }
-
-  echo "$REGISTRY_PASS" | oras login "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}" \
-    -u "$REGISTRY_USER" --password-stdin 
-
-  if [ ! -f "margo.yaml" ]; then
-    echo "❌ margo.yaml not found in $app_dir"
-    return 1
-  fi
-
-  local files=("margo.yaml:application/vnd.margo.app.description.v1+yaml")
-
-  if [ -d "resources" ] && [ "$(ls -A resources 2>/dev/null)" ]; then
-    while IFS= read -r file; do
-      if [ -f "$file" ]; then
-        local media_type
-        media_type=$(get_margo_media_type "$file")
-        files+=("$file:${media_type}")
-      fi
-    done < <(find resources -type f 2>/dev/null)
-  fi
-
-  echo "Pushing files: ${files[@]}"
-  oras push "${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}" \
-    --artifact-type "application/vnd.margo.app.v1+json" \
-    "${files[@]}"
-
-  if [ $? -eq 0 ]; then
-    echo "✅ Custom OTEL package pushed to OCI Registry (HTTPS)"
-    echo "📍 Location: https://${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}/${repository}:${tag}"
-  else
-    echo "❌ Failed to push Custom OTEL package"
-    return 1
-  fi
+  push_app_package_to_registry \
+    "$HOME/sandbox/poc/tests/artefacts/custom-otel-helm-app" \
+    "custom-otel-helm-app-package"
 }
 
 build_custom_otel_container_images() {

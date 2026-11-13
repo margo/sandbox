@@ -11,35 +11,29 @@ import (
 	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
+type deviceCPU = struct {
+	Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
+	Class        *clModels.DeviceCapabilitiesManifestPropertiesCpusClass        `json:"class,omitempty"`
+	Cores        float32                                                        `json:"cores"`
+	Frequency    *struct {
+		BaseMHz *float32 `json:"baseMHz,omitempty"`
+		MaxMHz  *float32 `json:"maxMHz,omitempty"`
+	} `json:"frequency,omitempty"`
+	Type *clModels.DeviceCapabilitiesManifestPropertiesCpusType `json:"type,omitempty"`
+}
+
+func memoryPtr(size string) *clModels.DeviceCapabilitiesManifestPropertiesMemory {
+	return &clModels.DeviceCapabilitiesManifestPropertiesMemory{Size: size}
+}
+
 // ---------------------------------------------------------------------------
 // Helpers — build a minimal but valid DeviceCapabilitiesManifest
 // ---------------------------------------------------------------------------
 
 func deviceWithVendor(vendor string) *clModels.DeviceCapabilitiesManifest {
-	return &clModels.DeviceCapabilitiesManifest{
-		Properties: struct {
-			Cpus *[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			} `json:"cpus,omitempty"`
-			Id                       clModels.DeviceId                                                        `json:"id"`
-			Interfaces               *[]clModels.DeviceCommunicationInterface                                 `json:"interfaces,omitempty"`
-			Memory                   *string                                                                  `json:"memory,omitempty"`
-			ModelNumber              string                                                                   `json:"modelNumber"`
-			OtelCollector            *bool                                                                    `json:"otelCollector,omitempty"`
-			Peripherals              *[]clModels.DevicePeripheral                                             `json:"peripherals,omitempty"`
-			SerialNumber             string                                                                   `json:"serialNumber"`
-			Storage                  *string                                                                  `json:"storage,omitempty"`
-			SupportedDeploymentTypes *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes,omitempty"`
-			SupportedRuntimes        *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
-			Vendor                   string                                                                   `json:"vendor"`
-		}{
-			Id:           "test-device-001",
-			Vendor:       vendor,
-			ModelNumber:  "M-001",
-			SerialNumber: "SN-001",
-		},
-	}
+	d := baseDevice()
+	d.Properties.Vendor = vendor
+	return d
 }
 
 // ---------------------------------------------------------------------------
@@ -48,30 +42,12 @@ func deviceWithVendor(vendor string) *clModels.DeviceCapabilitiesManifest {
 
 // baseDevice returns a minimal valid DeviceCapabilitiesManifest.
 func baseDevice() *clModels.DeviceCapabilitiesManifest {
-	return &clModels.DeviceCapabilitiesManifest{
-		Properties: struct {
-			Cpus *[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			} `json:"cpus,omitempty"`
-			Id                       clModels.DeviceId                                                        `json:"id"`
-			Interfaces               *[]clModels.DeviceCommunicationInterface                                 `json:"interfaces,omitempty"`
-			Memory                   *string                                                                  `json:"memory,omitempty"`
-			ModelNumber              string                                                                   `json:"modelNumber"`
-			OtelCollector            *bool                                                                    `json:"otelCollector,omitempty"`
-			Peripherals              *[]clModels.DevicePeripheral                                             `json:"peripherals,omitempty"`
-			SerialNumber             string                                                                   `json:"serialNumber"`
-			Storage                  *string                                                                  `json:"storage,omitempty"`
-			SupportedDeploymentTypes *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes,omitempty"`
-			SupportedRuntimes        *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
-			Vendor                   string                                                                   `json:"vendor"`
-		}{
-			Id:           "test-device-001",
-			Vendor:       "Acme Corp",
-			ModelNumber:  "M-001",
-			SerialNumber: "SN-001",
-		},
-	}
+	d := &clModels.DeviceCapabilitiesManifest{}
+	d.Properties.Id = "test-device-001"
+	d.Properties.Vendor = "Acme Corp"
+	d.Properties.ModelNumber = "M-001"
+	d.Properties.SerialNumber = "SN-001"
+	return d
 }
 
 // engine returns a *propertySelectorEngine (concrete type) for white-box testing.
@@ -150,14 +126,14 @@ func TestResolvePointer_TopLevel_BoolField_False(t *testing.T) {
 
 func TestResolvePointer_TopLevel_StringField_Memory(t *testing.T) {
 	d := baseDevice()
-	d.Properties.Memory = pointers.Ptr("64Gi")
+	d.Properties.Memory = memoryPtr("64Gi")
 	e := engine(d)
 
 	val, exists, err := e.resolvePointer("/memory")
 
 	require.NoError(t, err)
 	assert.True(t, exists)
-	assert.Equal(t, "64Gi", val)
+	assert.Equal(t, map[string]any{"size": "64Gi"}, val)
 }
 
 // ---------------------------------------------------------------------------
@@ -240,10 +216,7 @@ func TestResolvePointer_Nested_ArrayIndex_CoresAsFloat64(t *testing.T) {
 	// After JSON round-trip all numbers become float64.
 	d := baseDevice()
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -259,10 +232,7 @@ func TestResolvePointer_Nested_ArrayIndex_CoresAsFloat64(t *testing.T) {
 func TestResolvePointer_Nested_ArrayIndex_Architecture(t *testing.T) {
 	d := baseDevice()
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: float32(8)},
 	}
 	e := engine(d)
@@ -278,10 +248,7 @@ func TestResolvePointer_Nested_SecondArrayElement(t *testing.T) {
 	d := baseDevice()
 	arch0 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
 	arch1 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch0, Cores: 4},
 		{Architecture: &arch1, Cores: 8},
 	}
@@ -297,10 +264,7 @@ func TestResolvePointer_Nested_SecondArrayElement(t *testing.T) {
 func TestResolvePointer_Nested_OutOfBoundsIndex_NotFound(t *testing.T) {
 	d := baseDevice()
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: 4},
 	}
 	e := engine(d)
@@ -426,30 +390,12 @@ func TestResolvePointer_DifferentPointers_IndependentResults(t *testing.T) {
 
 // minimalDevice returns a DeviceCapabilitiesManifest with only the required fields set.
 func minimalDevice() *clModels.DeviceCapabilitiesManifest {
-	return &clModels.DeviceCapabilitiesManifest{
-		Properties: struct {
-			Cpus *[]struct {
-				Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-				Cores        float32                                                        `json:"cores"`
-			} `json:"cpus,omitempty"`
-			Id                       clModels.DeviceId                                                        `json:"id"`
-			Interfaces               *[]clModels.DeviceCommunicationInterface                                 `json:"interfaces,omitempty"`
-			Memory                   *string                                                                  `json:"memory,omitempty"`
-			ModelNumber              string                                                                   `json:"modelNumber"`
-			OtelCollector            *bool                                                                    `json:"otelCollector,omitempty"`
-			Peripherals              *[]clModels.DevicePeripheral                                             `json:"peripherals,omitempty"`
-			SerialNumber             string                                                                   `json:"serialNumber"`
-			Storage                  *string                                                                  `json:"storage,omitempty"`
-			SupportedDeploymentTypes *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes,omitempty"`
-			SupportedRuntimes        *[]clModels.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes,omitempty"`
-			Vendor                   string                                                                   `json:"vendor"`
-		}{
-			Id:           "dev-001",
-			Vendor:       "Acme Corp",
-			ModelNumber:  "M-001",
-			SerialNumber: "SN-001",
-		},
-	}
+	d := &clModels.DeviceCapabilitiesManifest{}
+	d.Properties.Id = "dev-001"
+	d.Properties.Vendor = "Acme Corp"
+	d.Properties.ModelNumber = "M-001"
+	d.Properties.SerialNumber = "SN-001"
+	return d
 }
 
 // ---------------------------------------------------------------------------
@@ -513,13 +459,13 @@ func TestResolvePointer_SingleKey_OtelCollector_False(t *testing.T) {
 
 func TestResolvePointer_SingleKey_Memory_Match(t *testing.T) {
 	d := minimalDevice()
-	d.Properties.Memory = pointers.Ptr("64Gi")
+	d.Properties.Memory = memoryPtr("64Gi")
 
 	val, exists, err := engine(d).resolvePointer("/memory")
 
 	require.NoError(t, err)
 	assert.True(t, exists)
-	assert.Equal(t, "64Gi", val)
+	assert.Equal(t, map[string]any{"size": "64Gi"}, val)
 }
 
 func TestResolvePointer_SingleKey_Storage_Match(t *testing.T) {
@@ -715,10 +661,7 @@ func cpuDevice() *clModels.DeviceCapabilitiesManifest {
 	d := minimalDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
 	arm64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 		{Architecture: &arm64, Cores: float32(8)},
 	}
@@ -902,10 +845,7 @@ func TestHandleIn_ScalarNumber_Match(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	cores := float32(4)
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: cores},
 	}
 	engine := New(device).(*propertySelectorEngine)
@@ -924,10 +864,7 @@ func TestHandleIn_ScalarNumber_Match(t *testing.T) {
 func TestHandleIn_ScalarNumber_NoMatch(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: float32(2)},
 	}
 	engine := New(device).(*propertySelectorEngine)
@@ -1123,10 +1060,7 @@ func TestHandleIn_NestedPointer_Match(t *testing.T) {
 	// /cpus/0/architecture resolves through two levels of nesting
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: 4},
 	}
 	engine := New(device).(*propertySelectorEngine)
@@ -1286,10 +1220,7 @@ func TestHandleNotIn_ScalarString_SingleValue_Match_ReturnsFalse(t *testing.T) {
 func TestHandleNotIn_ScalarNumber_NotInValues_ReturnsTrue(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: float32(2)},
 	}
 	e := New(device).(*propertySelectorEngine)
@@ -1308,10 +1239,7 @@ func TestHandleNotIn_ScalarNumber_NotInValues_ReturnsTrue(t *testing.T) {
 func TestHandleNotIn_ScalarNumber_InValues_ReturnsFalse(t *testing.T) {
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: float32(4)},
 	}
 	e := New(device).(*propertySelectorEngine)
@@ -1590,10 +1518,7 @@ func TestHandleNotIn_NestedPointer_NotInValues_ReturnsTrue(t *testing.T) {
 	// /cpus/0/architecture = "amd64"; values=["arm64"] → not in → true
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: 4},
 	}
 	e := New(device).(*propertySelectorEngine)
@@ -1613,10 +1538,7 @@ func TestHandleNotIn_NestedPointer_InValues_ReturnsFalse(t *testing.T) {
 	// /cpus/0/architecture = "arm64"; values=["arm64", "amd64"] → in → false
 	device := deviceWithVendor("Acme")
 	arch := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureArm64
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &arch, Cores: 8},
 	}
 	e := New(device).(*propertySelectorEngine)
@@ -1872,7 +1794,7 @@ func TestHandleExists_OptionalBool_OtelCollector_Nil_ReturnsFalse(t *testing.T) 
 
 func TestHandleExists_OptionalString_Memory_Present_ReturnsTrue(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Memory = pointers.Ptr("64Gi")
+	device.Properties.Memory = memoryPtr("64Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2045,10 +1967,7 @@ func TestHandleExists_Nested_CpuArchitecture_Present_ReturnsTrue(t *testing.T) {
 func TestHandleExists_Nested_CpuArchitecture_Absent_ReturnsFalse(t *testing.T) {
 	// CPU entry with no Architecture set → "architecture" key omitted from JSON.
 	device := baseDevice()
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Cores: float32(4)}, // Architecture is nil → omitted
 	}
 	e := engine(device)
@@ -2202,7 +2121,7 @@ func TestHandleExists_RepeatedCalls_ConsistentResults(t *testing.T) {
 func TestHandleExists_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	// Resolving two different keys on the same engine must not interfere.
 	device := baseDevice()
-	device.Properties.Memory = pointers.Ptr("64Gi")
+	device.Properties.Memory = memoryPtr("64Gi")
 	device.Properties.Storage = nil // absent
 	e := engine(device)
 
@@ -2320,7 +2239,7 @@ func TestHandleDoesNotExists_OptionalBool_OtelCollector_Nil_ReturnsTrue(t *testi
 
 func TestHandleDoesNotExists_OptionalString_Memory_Present_ReturnsFalse(t *testing.T) {
 	device := baseDevice()
-	device.Properties.Memory = pointers.Ptr("64Gi")
+	device.Properties.Memory = memoryPtr("64Gi")
 	e := engine(device)
 
 	me := &clModels.MatchExpression{
@@ -2496,10 +2415,7 @@ func TestHandleDoesNotExists_Nested_CpuArchitecture_Present_ReturnsFalse(t *test
 func TestHandleDoesNotExists_Nested_CpuArchitecture_Absent_ReturnsTrue(t *testing.T) {
 	// CPU entry with no Architecture set → "architecture" key omitted from JSON → true.
 	device := baseDevice()
-	device.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	device.Properties.Cpus = &[]deviceCPU{
 		{Cores: float32(4)}, // Architecture is nil → omitted
 	}
 	e := engine(device)
@@ -2675,7 +2591,7 @@ func TestHandleDoesNotExists_TwoIndependentKeys_DoNotInterfere(t *testing.T) {
 	// Resolving two different keys on the same engine must not interfere.
 	// /memory is present, /storage is absent.
 	device := baseDevice()
-	device.Properties.Memory = pointers.Ptr("64Gi")
+	device.Properties.Memory = memoryPtr("64Gi")
 	device.Properties.Storage = nil
 	e := engine(device)
 
@@ -3896,10 +3812,7 @@ func TestHandleContainsAll_EmptyCpusArray_ReturnsFalse(t *testing.T) {
 	// Cpus is an explicitly empty slice →
 	// nothing to iterate over → false.
 	d := baseDevice()
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{}
+	d.Properties.Cpus = &[]deviceCPU{}
 	e := engine(d)
 
 	me := clModels.MatchExpression{
@@ -5400,10 +5313,7 @@ func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_DoesNotExist_Retu
 	// CPU entry with no Architecture set → "architecture" key absent in JSON.
 	// itemSelector: /architecture DoesNotExist → key absent → true for that element → true.
 	d := baseDevice()
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Cores: float32(4)}, // Architecture is nil → omitted from JSON
 	}
 	e := engine(d)
@@ -5430,10 +5340,7 @@ func TestHandleContainsAll_AbsentOptionalField_ArchitectureNil_ExistsOperator_Re
 	// itemSelector: /architecture Exists → key absent → false for that element.
 	// Only one element in array → no element satisfies → false.
 	d := baseDevice()
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Cores: float32(4)}, // Architecture is nil → omitted from JSON
 	}
 	e := engine(d)
@@ -5647,10 +5554,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_DoNotInterf
 	// Different arrays on the same engine must not interfere.
 	d := containsAllPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -5691,10 +5595,7 @@ func TestHandleContainsAll_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 	// expr2: /cpus        → /architecture In ["riscv64"]  → false
 	d := containsAllPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -6013,10 +5914,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_BothTrue_Return
 	// 2. /cpus        ContainsAll {/architecture In ["amd64"]} → true
 	d := containsAllPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -6058,10 +5956,7 @@ func TestHandleContainsAll_ViaEvaluate_TwoContainsAllExpressions_SecondFails_Ret
 	// Second fails → Evaluate returns false.
 	d := containsAllPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -6610,10 +6505,7 @@ func TestHandleContainsAny_EmptyPeripheralsArray_ReturnsFalse(t *testing.T) {
 func TestHandleContainsAny_EmptyCpusArray_ReturnsFalse(t *testing.T) {
 	// Cpus is an explicitly empty slice → nothing to iterate over → false.
 	d := baseDevice()
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{}
+	d.Properties.Cpus = &[]deviceCPU{}
 	e := engine(d)
 
 	me := clModels.MatchExpression{
@@ -8185,10 +8077,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_BothTrue_Do
 	// Different arrays on the same engine must not interfere.
 	d := containsAnyPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -8229,10 +8118,7 @@ func TestHandleContainsAny_TwoIndependentExpressions_DifferentArrays_FirstTrueSe
 	// expr2: /cpus        → /architecture In ["riscv64"]  → false
 	d := containsAnyPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)
@@ -8373,10 +8259,7 @@ func TestHandleContainsAny_ViaEvaluate_TwoContainsAnyExpressions_BothTrue_Return
 	// 2. /cpus        ContainsAny {/architecture In ["amd64"]} → true
 	d := containsAnyPeripheralDevice()
 	amd64 := clModels.DeviceCapabilitiesManifestPropertiesCpusArchitectureAmd64
-	d.Properties.Cpus = &[]struct {
-		Architecture *clModels.DeviceCapabilitiesManifestPropertiesCpusArchitecture `json:"architecture,omitempty"`
-		Cores        float32                                                        `json:"cores"`
-	}{
+	d.Properties.Cpus = &[]deviceCPU{
 		{Architecture: &amd64, Cores: float32(4)},
 	}
 	e := engine(d)

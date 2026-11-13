@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-export PATH="$PATH:$HOME/go/bin"
+export PATH="$PATH:$(go env GOPATH)/bin"
 
 # Configuration
 #WFM_SBI_SPEC=("spec/wfm-sbi.yaml")

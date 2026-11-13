@@ -21,7 +21,7 @@ func New(i clModels.DeviceCapabilitiesManifest) common.CapacityEligibilityChecke
 type deviceCapabilities clModels.DeviceCapabilitiesManifest
 
 // CheckEligibility validates that a device meets all capacity requirements
-// defined in checks (CPU, memory, storage). Returns true if all checks pass,
+// defined in checks (CPU, cache, memory, storage). Returns true if all checks pass,
 // along with a human-readable reason string if any check fails.
 func (dc *deviceCapabilities) CheckEligibility(
 	checks *clModels.CapacityRequirements,
@@ -33,19 +33,18 @@ func (dc *deviceCapabilities) CheckEligibility(
 	}
 
 	if checks.Cpu != nil {
-		// Convert architecture enum slice to string slice for comparison.
-		var archStrings *[]string
-		if checks.Cpu.Architectures != nil {
-			archs := make([]string, len(*checks.Cpu.Architectures))
-			for i, a := range *checks.Cpu.Architectures {
-				archs[i] = string(a)
-			}
-			archStrings = &archs
+		if !dc.HasEnoughCpu(*checks.Cpu) {
+			return false, "cpu requirement not fulfilled", nil
 		}
+	}
 
-		result := dc.HasEnoughCPUCores(archStrings, checks.Cpu.Cores)
+	if checks.Cache != nil {
+		result, err := dc.HasEnoughCache(checks.Cache)
+		if err != nil {
+			return false, "", err
+		}
 		if !result {
-			return result, "cpu requirement not fulfilled", nil
+			return false, "cache requirement not fulfilled", nil
 		}
 	}
 
@@ -73,60 +72,213 @@ func (dc *deviceCapabilities) CheckEligibility(
 	return true, "", nil
 }
 
-// HasEnoughCPUCores checks whether the device has at least the required number
-// of CPU cores. If arch is provided, only CPUs matching one of the specified
-// architectures are considered. If arch is nil, any CPU with sufficient cores satisfies the requirement.
-func (dc *deviceCapabilities) HasEnoughCPUCores(arch *[]string, cores float32) bool {
-	if dc.Properties.Cpus == nil {
+// HasEnoughCpu maps both the device's CPU capabilities and the
+// deployment's CPU requirements into map[cpuType]map[cpuArch]cores, then
+// cross-references the required cores against the device's available cores
+func (dc *deviceCapabilities) HasEnoughCpu(reqs []clModels.DeploymentCpuRequirement) bool {
+	if len(reqs) == 0 {
+		return true
+	}
+	if dc.Properties.Cpus == nil || len(*dc.Properties.Cpus) == 0 {
 		return false
 	}
 
-	for _, c := range *dc.Properties.Cpus {
+	deviceCPUs := dc.mapDeviceCpus()
+	requiredCPUs := mapCpuRequirements(reqs)
 
-		// No architecture filter specified — any CPU with enough cores satisfies the requirement.
-		if arch == nil {
-			if c.Cores >= cores {
-				return true
+	for reqType, reqArchMap := range requiredCPUs {
+		for reqArch, reqCores := range reqArchMap {
+			if availableCpuCores(deviceCPUs, reqType, reqArch) < reqCores {
+				return false
 			}
-			continue
 		}
-
-		// Skip CPUs that don't report their architecture, as we cannot verify compatibility.
-		if c.Architecture == nil {
-			continue
-		}
-
-		// Skip CPUs whose architecture is not in the required architectures list.
-		if i := slices.Index(*arch, string(*c.Architecture)); i == -1 {
-			continue
-		}
-
-		if c.Cores >= cores {
-			return true
-		}
-
 	}
 
-	return false
+	return true
 }
 
-// HasEnoughMemory checks whether the device has at least the required amount of memory.
-// A nil requirement is treated as no constraint and always passes.
-func (dc *deviceCapabilities) HasEnoughMemory(mem *string) (bool, error) {
-	// No memory requirement specified — always satisfied.
-	if mem == nil || *mem == "" {
-		return true, nil
+func (dc *deviceCapabilities) mapDeviceCpus() map[string]map[string]float32 {
+	deviceCpus := make(map[string]map[string]float32)
+	if dc.Properties.Cpus == nil {
+		return deviceCpus
 	}
 
-	if dc.Properties.Memory == nil || *dc.Properties.Memory == "" {
+	for _, cpu := range *dc.Properties.Cpus {
+		cpuType := ""
+		if cpu.Type != nil {
+			cpuType = string(*cpu.Type)
+		}
+
+		cpuArch := ""
+		if cpu.Architecture != nil {
+			cpuArch = string(*cpu.Architecture)
+		}
+
+		if deviceCpus[cpuType] == nil {
+			deviceCpus[cpuType] = make(map[string]float32)
+		}
+		deviceCpus[cpuType][cpuArch] += cpu.Cores
+	}
+
+	return deviceCpus
+}
+
+func mapCpuRequirements(reqs []clModels.DeploymentCpuRequirement) map[string]map[string]float32 {
+	requiredCpus := make(map[string]map[string]float32)
+
+	for _, req := range reqs {
+		cpuType := ""
+		if req.Type != nil {
+			cpuType = string(*req.Type)
+		}
+
+		if requiredCpus[cpuType] == nil {
+			requiredCpus[cpuType] = make(map[string]float32)
+		}
+
+		if req.Architectures == nil || len(*req.Architectures) == 0 {
+			requiredCpus[cpuType][""] += req.Cores
+			continue
+		}
+
+		for _, arch := range *req.Architectures {
+			requiredCpus[cpuType][string(arch)] += req.Cores
+		}
+	}
+
+	return requiredCpus
+}
+
+func availableCpuCores(deviceCpus map[string]map[string]float32, reqType, reqArch string) float32 {
+	var available float32
+	for devType, devArchMap := range deviceCpus {
+		if reqType != "" && devType != reqType {
+			continue
+		}
+		for devArch, cores := range devArchMap {
+			if reqArch != "" && devArch != reqArch {
+				continue
+			}
+			available += cores
+		}
+	}
+	return available
+}
+
+// maps both the device's cache capabilities and the
+// deployment's cache requirements into map[cacheLevel]sizeInBytes, then
+// cross-references the required bytes against the device's available bytes
+func (dc *deviceCapabilities) HasEnoughCache(cacheReqs *[]clModels.DeploymentCacheRequirement) (bool, error) {
+	if cacheReqs == nil || len(*cacheReqs) == 0 {
+		return true, nil
+	}
+	if dc.Properties.Cache == nil || len(*dc.Properties.Cache) == 0 {
 		return false, nil
 	}
 
-	ok, err := satisfies(*mem, *dc.Properties.Memory)
+	deviceCaches, err := dc.mapDeviceCaches()
 	if err != nil {
-		return false, fmt.Errorf("failed to check memory requirements, err : %s", err.Error())
+		return false, err
 	}
-	return ok, nil
+
+	requiredCaches, err := mapCacheRequirements(*cacheReqs)
+	if err != nil {
+		return false, err
+	}
+
+	for reqLevel, reqBytes := range requiredCaches {
+		devBytes, exists := deviceCaches[reqLevel]
+		if !exists || devBytes < reqBytes {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (dc *deviceCapabilities) mapDeviceCaches() (map[string]int64, error) {
+	deviceCaches := make(map[string]int64)
+	if dc.Properties.Cache == nil {
+		return deviceCaches, nil
+	}
+
+	for _, cache := range *dc.Properties.Cache {
+		q, err := quantity.Parse(cache.Size)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check cache requirements, err : %s", err.Error())
+		}
+		deviceCaches[string(cache.Level)] += q.Bytes()
+	}
+
+	return deviceCaches, nil
+}
+
+func mapCacheRequirements(reqs []clModels.DeploymentCacheRequirement) (map[string]int64, error) {
+	requiredCaches := make(map[string]int64)
+
+	for _, req := range reqs {
+		var needed int64
+		if req.Size != nil && *req.Size != "" {
+			q, err := quantity.Parse(*req.Size)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check cache requirements, err : %s", err.Error())
+			}
+			needed = q.Bytes()
+		}
+		requiredCaches[string(req.Level)] += needed
+	}
+
+	return requiredCaches, nil
+}
+
+// HasEnoughMemory checks whether the device has at least the required amount of memory
+// and supports any requested memory bandwidth allocation strategy.
+// A nil requirement is treated as no constraint and always passes.
+func (dc *deviceCapabilities) HasEnoughMemory(mem *clModels.DeploymentMemoryRequirement) (bool, error) {
+	// No memory requirement specified — always satisfied.
+	if mem == nil {
+		return true, nil
+	}
+
+	if mem.Size != "" {
+		if dc.Properties.Memory == nil || dc.Properties.Memory.Size == "" {
+			return false, nil
+		}
+
+		ok, err := satisfies(mem.Size, dc.Properties.Memory.Size)
+		if err != nil {
+			return false, fmt.Errorf("failed to check memory requirements, err : %s", err.Error())
+		}
+		if !ok {
+			return false, nil
+		}
+	}
+
+	if mem.BandwidthAllocation != nil {
+		if dc.Properties.Memory == nil || dc.Properties.Memory.BandwidthAllocationTypes == nil {
+			return false, nil
+		}
+		var requiredType clModels.DeviceCapabilitiesManifestPropertiesMemoryBandwidthAllocationTypes
+		switch mem.BandwidthAllocation.Unit {
+		case clModels.Percent:
+			if mem.BandwidthAllocation.Value <= 0 || mem.BandwidthAllocation.Value > 100 {
+				return false, nil
+			}
+			requiredType = clModels.PercentThrottling
+		case clModels.MBps:
+			if mem.BandwidthAllocation.Value <= 0 {
+				return false, nil
+			}
+			requiredType = clModels.RateLimiting
+		default:
+			return false, nil
+		}
+		if !slices.Contains(*dc.Properties.Memory.BandwidthAllocationTypes, requiredType) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // HasEnoughStorage checks whether the device has at least the required amount of storage.

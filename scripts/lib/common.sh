@@ -22,6 +22,19 @@ package_installed() {
     dpkg -s "$1" >/dev/null 2>&1
 }
 
+detect_arch() {
+	# add more cases if needed.
+	local raw="${1:-$(uname -m)}"
+    case "$raw" in
+        x86_64|amd64)  echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *)
+            echo "❌ Architecture '${raw}' is not supported (supported: amd64, arm64)." >&2
+            return 1
+            ;;
+    esac
+}
+
 get_ubuntu_codename() {
     lsb_release -cs 2>/dev/null || echo "noble"
 }

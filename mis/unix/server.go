@@ -154,10 +154,19 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("request validation passed")
 
 	op := operations.New(m.logger)
+	var certPEM, keyPEM []byte
+	var err error
 
-	// Generate X.509 SVID
-	m.logger.Debug("generating X.509 SVID")
-	certPEM, keyPEM, err := op.GenerateX509SVID(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
+	// In case CSR Is provided, use it to generate SVID.
+	if req.CSR != "" {
+		m.logger.Debug("generating X.509 SVID using CSR")
+		certPEM, err = op.GenerateX509SVIDUsingCSR(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
+	} else {
+		// else, Generate X.509 SVID with key.
+		m.logger.Debug("generating X.509 SVID & key")
+		certPEM, keyPEM, err = op.GenerateX509SVID(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
+	}
+
 	if err != nil {
 		m.logger.Error("failed to generate X.509 SVID", "error", err)
 		helpers.WriteError(

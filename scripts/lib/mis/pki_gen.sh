@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # PKI Generator Script
-# Generates: https CA, minter CA, and a server certificate signed by https CA
+# Generates: https CA, minter CA, server certificate, and HTTPS CA trust pin
+# Trust pin: SPKI SHA-256 (RFC 7469 §2.4) of the HTTPS CA — per miaf-credential-provisioning-and-acquisition §4/§5
 # =============================================================================
 
 set -euo pipefail
@@ -33,6 +34,9 @@ SERVER_CRT="$OUTPUT_DIR/https-server.crt"
 SERVER_CSR="$OUTPUT_DIR/https-server.csr"
 SERVER_EXT="$OUTPUT_DIR/https-server_ext.cnf"
 
+# Trust pin output (miaf-credential-provisioning-and-acquisition §4/§5: SPKI SHA-256 of HTTPS CA, RFC 7469 §2.4)
+TRUST_PIN_FILE="$OUTPUT_DIR/https-ca-trust-pin.txt"
+
 # --- Helpers ------------------------------------------------------------------
 log()  { echo "[INFO]  $(date '+%Y-%m-%d %H:%M:%S') $*"; }
 warn() { echo "[WARN]  $(date '+%Y-%m-%d %H:%M:%S') $*"; }
@@ -45,7 +49,6 @@ prompt() {
     local input
 
     read -rp "  ${prompt_text} [${default_val}]: " input
-    # If user pressed Enter without input, use default
     printf -v "$var_name" '%s' "${input:-$default_val}"
 }
 
@@ -73,17 +76,17 @@ collect_interactive_inputs() {
     echo "  Press Enter to accept the default value shown in brackets."
     echo ""
 
-    prompt CN          "Common Name (CN)"                  "$DEFAULT_CN"
-    prompt C           "Country (C, 2-letter ISO code)"    "$DEFAULT_C"
-    prompt ST          "State / Province (ST)"             "$DEFAULT_ST"
-    prompt L           "Locality / City (L)"               "$DEFAULT_L"
-    prompt O           "Organization (O)"                  "$DEFAULT_O"
-    prompt OU          "Organizational Unit (OU)"          "$DEFAULT_OU"
-    prompt EMAIL       "Email Address"                     "$DEFAULT_EMAIL"
-    prompt CA_VALIDITY "CA validity in days (10yr=3650)"   "$CA_DAYS"
+    prompt CN           "Common Name (CN)"                 "$DEFAULT_CN"
+    prompt C            "Country (C, 2-letter ISO code)"   "$DEFAULT_C"
+    prompt ST           "State / Province (ST)"            "$DEFAULT_ST"
+    prompt L            "Locality / City (L)"              "$DEFAULT_L"
+    prompt O            "Organization (O)"                 "$DEFAULT_O"
+    prompt OU           "Organizational Unit (OU)"         "$DEFAULT_OU"
+    prompt EMAIL        "Email Address"                    "$DEFAULT_EMAIL"
+    prompt CA_VALIDITY  "CA validity in days (10yr=3650)"  "$CA_DAYS"
     prompt SRV_VALIDITY "Server cert validity in days"     "$CERT_DAYS"
-    prompt DNS_SAN     "Server DNS SAN"                    "$DEFAULT_DNS_SAN"
-    prompt MINTER_CA_CN  "Minter CA Common Name (CN)"         "$DEFAULT_MINTER_CA_CN"
+    prompt DNS_SAN      "Server DNS SAN"                   "$DEFAULT_DNS_SAN"
+    prompt MINTER_CA_CN "Minter CA Common Name (CN)"       "$DEFAULT_MINTER_CA_CN"
 
     echo ""
     log "Configuration collected."
@@ -204,6 +207,41 @@ EOF
     log "Temporary CSR and extension files removed."
 }
 
+# --- Trust Pin Generation -----------------------------------------------------
+# Rules (miaf-credential-provisioning-and-acquisition §4 + §5):
+#   1. Pin the HTTPS CA's SubjectPublicKeyInfo — NOT the leaf server cert
+#      (leaf pins break on every certificate renewal)
+#   2. Format: base64( SHA-256( DER-encoded SPKI ) ) — RFC 7469 §2.4
+#   3. The HTTPS CA is already scoped to MIS endpoints only (it signs no SVIDs)
+#   4. This pin works for IP-addressed MIS endpoints (no DNS required)
+#   5. Principals SHOULD still validate RFC 9525 hostname even when pin matches
+generate_trust_pin() {
+    log "--- Generating HTTPS CA Trust Pin (miaf-credential-provisioning-and-acquisition §4/§5, RFC 7469 §2.4) ---"
+
+    # Step 1: Extract the DER-encoded SubjectPublicKeyInfo from the HTTPS CA cert
+    # Step 2: SHA-256 hash the raw DER bytes
+    # Step 3: base64-encode the hash
+    local pin
+    pin=$(openssl x509 -in "$HTTPS_CA_CRT" -noout -pubkey \
+        | openssl pkey -pubin -outform DER \
+        | openssl dgst -sha256 -binary \
+        | openssl enc -base64 -A)
+
+    # Write pin to file in the format: sha256/<base64-value>
+    # This matches the RFC 7469 §2.4 pin-directive format used by HPKP
+    # and referenced by the miaf-credential-provisioning-and-acquisition §4 formats table.
+    printf 'sha256/%s\n' "$pin" > "$TRUST_PIN_FILE"
+
+    log "Trust pin written to: $TRUST_PIN_FILE"
+    log "Trust pin value: sha256/${pin}"
+    log ""
+    log "  NOTE (miaf-credential-provisioning-and-acquisition §5):"
+    log "  - This pin is derived from the HTTPS CA (CA-level pin, not leaf-level)"
+    log "  - Distribute this pin out-of-band to principals before first connection"
+    log "  - Pre-distribute a successor pin before this CA expires"
+    log "  - Principals SHOULD still validate RFC 9525 hostname even when pin matches"
+}
+
 # --- Verification -------------------------------------------------------------
 verify_certificates() {
     log "============================================================"
@@ -226,6 +264,43 @@ verify_certificates() {
     openssl verify -CAfile "$HTTPS_CA_CRT" "$SERVER_CRT" \
         && log "Chain verification: OK" \
         || warn "Chain verification FAILED"
+
+    echo ""
+    log ">> Verifying Trust Pin (SPKI SHA-256 of HTTPS CA):"
+
+    # Check 1: file exists and is non-empty
+    if [ ! -s "$TRUST_PIN_FILE" ]; then
+        warn "Trust pin file is missing or empty: $TRUST_PIN_FILE"
+        return 1
+    fi
+
+    local stored_pin
+    stored_pin=$(cat "$TRUST_PIN_FILE" | tr -d '[:space:]')
+
+    # Check 2: format must be sha256/<base64>
+    if ! echo "$stored_pin" | grep -qE '^sha256/[A-Za-z0-9+/]{43}=$'; then
+        warn "Trust pin format invalid: $stored_pin"
+        warn "Expected format: sha256/<44-char-base64>"
+        return 1
+    fi
+
+    # Check 3: recompute pin independently and compare
+    local recomputed_pin
+    recomputed_pin="sha256/$(openssl x509 -in "$HTTPS_CA_CRT" -noout -pubkey \
+        | openssl pkey -pubin -outform DER \
+        | openssl dgst -sha256 -binary \
+        | openssl enc -base64 -A)"
+
+    if [ "$stored_pin" = "$recomputed_pin" ]; then
+        log "  Stored pin  : $stored_pin"
+        log "  Recomputed  : $recomputed_pin"
+        log "  Pin verification: OK — pin matches HTTPS CA public key"
+    else
+        warn "  Stored pin  : $stored_pin"
+        warn "  Recomputed  : $recomputed_pin"
+        warn "  Pin verification: FAILED — pin does NOT match HTTPS CA"
+        return 1
+    fi
 }
 
 # --- Summary ------------------------------------------------------------------
@@ -234,12 +309,13 @@ print_summary() {
     echo "============================================================"
     echo "  Generated Files Summary"
     echo "============================================================"
-    printf "  %-30s %s\n" "HTTPS CA Key:"        "$HTTPS_CA_KEY"
-    printf "  %-30s %s\n" "HTTPS CA Certificate:" "$HTTPS_CA_CRT"
-    printf "  %-30s %s\n" "Minter CA Key:"       "$MINTER_CA_KEY"
-    printf "  %-30s %s\n" "Minter CA Certificate:" "$MINTER_CA_CRT"
-    printf "  %-30s %s\n" "Server Key:"          "$SERVER_KEY"
-    printf "  %-30s %s\n" "Server Certificate:"  "$SERVER_CRT"
+    printf "  %-32s %s\n" "HTTPS CA Key:"          "$HTTPS_CA_KEY"
+    printf "  %-32s %s\n" "HTTPS CA Certificate:"  "$HTTPS_CA_CRT"
+    printf "  %-32s %s\n" "Minter CA Key:"         "$MINTER_CA_KEY"
+    printf "  %-32s %s\n" "Minter CA Certificate:" "$MINTER_CA_CRT"
+    printf "  %-32s %s\n" "Server Key:"            "$SERVER_KEY"
+    printf "  %-32s %s\n" "Server Certificate:"    "$SERVER_CRT"
+    printf "  %-32s %s\n" "HTTPS CA Trust Pin:"    "$TRUST_PIN_FILE"
     echo "============================================================"
     echo ""
     log "All done!"
@@ -248,19 +324,28 @@ print_summary() {
 # --- Usage --------------------------------------------------------------------
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--interactive | --automated] [--dns <DNS_SAN> | --minter-cn <MINTER_COMMON_NAME>]
+Usage: $(basename "$0") [--interactive | --automated] [--dns <DNS_SAN>] [--minter-cn <CN>]
 
 Modes:
   --interactive   Prompt for all certificate fields interactively.
   --automated     Use built-in defaults (no prompts).
 
 Options:
-  --dns <value>         Override the server DNS SAN (used in automated mode).
-                        Falls back to default: $DEFAULT_DNS_SAN
-  --minter-cn <value>   Override the SVID minting CA Common Name (used in automated mode).
-                        Falls back to default: $DEFAULT_MINTER_CA_CN
+  --dns <value>         Override the server DNS SAN (automated mode).
+                        Default: $DEFAULT_DNS_SAN
+  --minter-cn <value>   Override the SVID minting CA Common Name (automated mode).
+                        Default: $DEFAULT_MINTER_CA_CN
 
-If no mode is specified, the script will ask you to choose.
+Outputs (in $OUTPUT_DIR/):
+  https-ca.key              HTTPS CA private key
+  https-ca.crt              HTTPS CA certificate (trust anchor)
+  ca.key                    Minter CA private key
+  ca.crt                    Minter CA certificate
+  https-server.key          MIS server private key
+  https-server.crt          MIS server certificate
+  https-ca-trust-pin.txt    SPKI SHA-256 trust pin of HTTPS CA (miaf-credential-provisioning-and-acquisition §4/§5)
+                            Format: sha256/<base64>  (RFC 7469 §2.4)
+                            Distribute out-of-band to principals as initial bootstrap anchor.
 EOF
     exit 0
 }
@@ -269,6 +354,7 @@ EOF
 main() {
     local mode=""
     local dns_override=""
+    local minter_cn_override=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -286,13 +372,14 @@ main() {
                 minter_cn_override="$1"
                 ;;
             --help|-h) usage ;;
-            *) die "Unknown argument: $1. Use --interactive, --automated, or --dns <value>." ;;
+            *) die "Unknown argument: $1. Use --help for usage." ;;
         esac
         shift
     done
+
     echo ""
     echo "============================================================"
-    echo "  PKI Generator — HTTPS CA, Minter CA & Server Certificate"
+    echo "  PKI Generator — HTTPS CA, Minter CA, Server Cert & Trust Pin"
     echo "============================================================"
     echo ""
 
@@ -328,13 +415,10 @@ main() {
     echo ""
     generate_server_cert
     echo ""
+    generate_trust_pin   
+    echo ""
     verify_certificates
     print_summary
 }
 
 main "$@"
-
-
-
-
-

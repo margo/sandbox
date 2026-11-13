@@ -137,7 +137,7 @@ changelog:
 release:
   make_latest: true
   header: |
-    ## This release targets the Margo spec version: {{.Env.MARGO_SPEC_VERSION}}, which can be tracked here, https://github.com/margo/specification .
+    ## This release targets the Margo spec version: {{.Env.MARGO_SPEC_VERSION}}, which can be tracked here,  https://github.com/margo/specification/tree/{{.Env.MARGO_SPEC_VERSION}} .
   footer: |
     **Full Changelog**: https://github.com/margo/sandbox/compare/{{ .PreviousTag }}...{{ .Tag }}
   github:

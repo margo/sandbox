@@ -128,7 +128,7 @@ _spiffe_set_wfm_entry() {
     echo "   💡 Tip: The entered value will be set as the WFM SPIFFE ID."
   fi
 
-  echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+  echo "   Example: spiffe://margo.org/margo/wfm/wfm"
   read -rp "   Enter SPIFFE ID: " new_id
 
   new_id="$(echo "$new_id" | xargs)"  # trim whitespace
@@ -169,15 +169,15 @@ _spiffe_add_entries() {
 
   case "$role" in
     wfm)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      echo "   Example: spiffe://margo.org/margo/wfm/wfm"
       echo "   💡 Tip: Only one WFM SPIFFE ID is expected. Adding multiple is discouraged."
       ;;
     wfmclient)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1  spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-2"
+      echo "   Example: spiffe://margo.org/margo/wfm/wfm/client/docker-client  spiffe://margo.org/margo/wfm/wfm/client/helm-client"
       echo "   💡 Tip: Multiple WFM client SPIFFE IDs are supported and encouraged."
       ;;
     *)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      echo "   Example: spiffe://margo.org/margo/wfm/wfm"
       ;;
   esac
 
@@ -256,7 +256,7 @@ _spiffe_edit_entry() {
 
   echo ""
   echo "✏️  Current WFM SPIFFE ID: $current_id"
-  echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+  echo "   Example: spiffe://margo.org/margo/wfm/wfm"
   echo "   💡 Tip: Only one WFM SPIFFE ID is expected. The existing entry will be replaced."
   read -rp "   Enter new SPIFFE ID: " new_id
 
@@ -291,11 +291,11 @@ _spiffe_remove_entries() {
 
   case "$role" in
     wfmclient)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-1  spiffe://margo.org/margo/wfm/symphony-1/client/dockerdevice-2"
+      echo "   Example: spiffe://margo.org/margo/wfm/wfm/client/docker-client  spiffe://margo.org/margo/wfm/wfm/client/helm-client"
       echo "   💡 Tip: You can remove multiple WFM client SPIFFE IDs at once."
       ;;
     *)
-      echo "   Example: spiffe://margo.org/margo/wfm/symphony-1"
+      echo "   Example: spiffe://margo.org/margo/wfm/wfm"
       ;;
   esac
 

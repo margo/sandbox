@@ -53,6 +53,7 @@ type Config struct {
 	MIAF         MIAFConfig                  `yaml:"miaf"         validate:"required"`
 	Wfm          WFMConfig                   `yaml:"wfm"          validate:"required"`
 	StateSeeking StateSeekingConfig          `yaml:"stateSeeking" validate:"required"`
+	Bundle       BundleConfig                `yaml:"bundle"` // optional; defaults are used when omitted
 	Capabilities CapabilitiesDiscoveryConfig `yaml:"capabilities" validate:"required"`
 	Runtimes     []RuntimeInfo               `yaml:"runtimes"     validate:"required"`
 }
@@ -63,6 +64,16 @@ type DatabaseConfig struct {
 
 type StateSeekingConfig struct {
 	Interval uint16 `yaml:"interval" validate:"required"`
+}
+
+const (
+	DefaultBundleDeploymentThreshold = 5
+	DefaultBundleSizeThresholdMB     = 50
+)
+
+type BundleConfig struct {
+	DeploymentThreshold int `yaml:"deploymentThreshold"`
+	SizeThresholdMB     int `yaml:"sizeThresholdMB"`
 }
 
 type WFMConfig struct {
@@ -201,6 +212,14 @@ func validateConfig(config *Config) error {
 
 	if config.MIAF.MIS.CacheInterval == 0 {
 		config.MIAF.MIS.CacheInterval = 60
+	}
+
+	if config.Bundle.DeploymentThreshold <= 0 {
+		config.Bundle.DeploymentThreshold = DefaultBundleDeploymentThreshold
+	}
+
+	if config.Bundle.SizeThresholdMB <= 0 {
+		config.Bundle.SizeThresholdMB = DefaultBundleSizeThresholdMB
 	}
 
 	return nil

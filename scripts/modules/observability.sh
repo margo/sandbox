@@ -45,6 +45,7 @@ install_jaeger() {
     --set collector.service.additionalPorts[0].protocol=TCP \
     --set query.enabled=true \
     --set query.service.type=NodePort \
+    --set cassandra.config.cluster_size=1 \
     --set query.service.nodePort=32500
 
   echo "⏳ Waiting for Jaeger pods to initialize..."

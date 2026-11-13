@@ -99,22 +99,41 @@ func (sbiClient *SbiHttpClient) SyncState(
 	// Handle status codes according to OpenAPI spec
 	switch resp.StatusCode {
 	case 200:
-		// OK - new data available
 		if desiredStateResp.ApplicationvndMargoManifestV1JSON200 != nil {
 			return desiredStateResp.ApplicationvndMargoManifestV1JSON200, nil
 		}
-		return nil, fmt.Errorf("unexpected response structure for status 200")
+		return nil, fmt.Errorf("SyncState: unexpected response structure for status 200")
 
 	case 304:
-		// Not Modified - no new data
 		return nil, nil
 
+	case 403:
+		if desiredStateResp.ApplicationproblemJSON403 != nil {
+			return nil, sbi.WrapProblemDetail(
+				"SyncState",
+				desiredStateResp.ApplicationproblemJSON403,
+			)
+		}
+		return nil, fmt.Errorf("SyncState: not authorized: %d", resp.StatusCode)
+
 	case 406:
-		// Not Acceptable - server cannot generate response matching Accept header
-		return nil, fmt.Errorf("server cannot generate response matching Accept header")
+		if desiredStateResp.ApplicationproblemJSON406 != nil {
+			return nil, sbi.WrapProblemDetail(
+				"SyncState",
+				desiredStateResp.ApplicationproblemJSON406,
+			)
+		}
+		return nil, fmt.Errorf("SyncState: server cannot generate response matching Accept header")
 
 	default:
-		return nil, fmt.Errorf("unexpected status code returned by server: %d", resp.StatusCode)
+		if apiErr := sbi.ParseErrorResponseFromBytes(
+			resp.StatusCode,
+			resp.Header.Get("Content-Type"),
+			desiredStateResp.Body,
+		); apiErr != nil {
+			return nil, fmt.Errorf("SyncState: %w", apiErr)
+		}
+		return nil, fmt.Errorf("SyncState: unexpected status code: %d", resp.StatusCode)
 	}
 }
 
@@ -160,22 +179,47 @@ func (sbiClient *SbiHttpClient) SyncStateWithResponse(
 	// Handle status codes according to OpenAPI spec
 	switch resp.StatusCode {
 	case 200:
-		// OK - new data available
 		if desiredStateResp.ApplicationvndMargoManifestV1JSON200 != nil {
 			return desiredStateResp.ApplicationvndMargoManifestV1JSON200, resp, nil
 		}
 		resp.Body.Close()
-		return nil, nil, fmt.Errorf("unexpected response structure for status 200")
+		return nil, nil, fmt.Errorf(
+			"SyncStateWithResponse: unexpected response structure for status 200",
+		)
+
+	case 403:
+		resp.Body.Close()
+		if desiredStateResp.ApplicationproblemJSON403 != nil {
+			return nil, nil, sbi.WrapProblemDetail(
+				"SyncStateWithResponse",
+				desiredStateResp.ApplicationproblemJSON403,
+			)
+		}
+		return nil, nil, fmt.Errorf("SyncStateWithResponse: not authorized: %d", resp.StatusCode)
 
 	case 406:
-		// Not Acceptable
 		resp.Body.Close()
-		return nil, nil, fmt.Errorf("server cannot generate response matching Accept header")
+		if desiredStateResp.ApplicationproblemJSON406 != nil {
+			return nil, nil, sbi.WrapProblemDetail(
+				"SyncStateWithResponse",
+				desiredStateResp.ApplicationproblemJSON406,
+			)
+		}
+		return nil, nil, fmt.Errorf(
+			"SyncStateWithResponse: server cannot generate response matching Accept header",
+		)
 
 	default:
 		resp.Body.Close()
+		if apiErr := sbi.ParseErrorResponseFromBytes(
+			resp.StatusCode,
+			resp.Header.Get("Content-Type"),
+			desiredStateResp.Body,
+		); apiErr != nil {
+			return nil, nil, fmt.Errorf("SyncStateWithResponse: %w", apiErr)
+		}
 		return nil, nil, fmt.Errorf(
-			"unexpected status code returned by server: %d",
+			"SyncStateWithResponse: unexpected status code: %d",
 			resp.StatusCode,
 		)
 	}
@@ -239,7 +283,45 @@ func (sbiClient *SbiHttpClient) ReportDeploymentStatus(
 	}
 	defer resp.Body.Close()
 
-	return nil
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
+		return nil
+	}
+
+	parsedResp, err := sbi.ParsePostApiV1DeploymentsDeploymentIdStatusResponse(resp)
+	if err != nil {
+		return fmt.Errorf("ReportDeploymentStatus: failed to parse response: %w", err)
+	}
+	switch resp.StatusCode {
+	case http.StatusBadRequest:
+		if parsedResp.ApplicationproblemJSON400 != nil {
+			return sbi.WrapProblemDetail(
+				"ReportDeploymentStatus",
+				parsedResp.ApplicationproblemJSON400,
+			)
+		}
+	case http.StatusForbidden:
+		if parsedResp.ApplicationproblemJSON403 != nil {
+			return sbi.WrapProblemDetail(
+				"ReportDeploymentStatus",
+				parsedResp.ApplicationproblemJSON403,
+			)
+		}
+	case http.StatusUnprocessableEntity:
+		if parsedResp.ApplicationproblemJSON422 != nil {
+			return sbi.WrapProblemDetail(
+				"ReportDeploymentStatus",
+				parsedResp.ApplicationproblemJSON422,
+			)
+		}
+	}
+	if apiErr := sbi.ParseErrorResponseFromBytes(
+		resp.StatusCode,
+		resp.Header.Get("Content-Type"),
+		parsedResp.Body,
+	); apiErr != nil {
+		return fmt.Errorf("ReportDeploymentStatus: %w", apiErr)
+	}
+	return fmt.Errorf("ReportDeploymentStatus: unexpected status code: %d", resp.StatusCode)
 }
 
 // FetchDeploymentYAML with caching support and enhanced logging
@@ -276,7 +358,7 @@ func (sbiClient *SbiHttpClient) FetchDeploymentYAML(
 	// Handle 304 Not Modified
 	if resp.StatusCode == http.StatusNotModified {
 		fmt.Printf("INFO: [Cache HIT] Deployment %s not modified (304) - using cached version\n",
-			deploymentId[:8])
+			deploymentId)
 
 		cachedData, err := sbiClient.deploymentCache.GetDeployment(deploymentId, digest)
 		if err != nil {
@@ -286,7 +368,29 @@ func (sbiClient *SbiHttpClient) FetchDeploymentYAML(
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("deployment fetch failed with status: %d", resp.StatusCode)
+		parsedResp, parseErr := sbi.ParseGetApiV1DeploymentsDeploymentIdDigestResponse(resp)
+		if parseErr == nil {
+			if parsedResp.ApplicationproblemJSON403 != nil {
+				return nil, sbi.WrapProblemDetail(
+					"FetchDeploymentYAML",
+					parsedResp.ApplicationproblemJSON403,
+				)
+			}
+			if parsedResp.ApplicationproblemJSON404 != nil {
+				return nil, sbi.WrapProblemDetail(
+					"FetchDeploymentYAML",
+					parsedResp.ApplicationproblemJSON404,
+				)
+			}
+			if apiErr := sbi.ParseErrorResponseFromBytes(
+				resp.StatusCode,
+				resp.Header.Get("Content-Type"),
+				parsedResp.Body,
+			); apiErr != nil {
+				return nil, fmt.Errorf("FetchDeploymentYAML: %w", apiErr)
+			}
+		}
+		return nil, fmt.Errorf("FetchDeploymentYAML: unexpected status %d", resp.StatusCode)
 	}
 
 	// Read YAML content
@@ -369,7 +473,29 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bundle download failed with status: %d", resp.StatusCode)
+		parsedResp, parseErr := sbi.ParseGetApiV1BundlesDigestResponse(resp)
+		if parseErr == nil {
+			if parsedResp.ApplicationproblemJSON403 != nil {
+				return nil, sbi.WrapProblemDetail(
+					"DownloadBundle",
+					parsedResp.ApplicationproblemJSON403,
+				)
+			}
+			if parsedResp.ApplicationproblemJSON404 != nil {
+				return nil, sbi.WrapProblemDetail(
+					"DownloadBundle",
+					parsedResp.ApplicationproblemJSON404,
+				)
+			}
+			if apiErr := sbi.ParseErrorResponseFromBytes(
+				resp.StatusCode,
+				resp.Header.Get("Content-Type"),
+				parsedResp.Body,
+			); apiErr != nil {
+				return nil, fmt.Errorf("DownloadBundle: %w", apiErr)
+			}
+		}
+		return nil, fmt.Errorf("DownloadBundle: unexpected status %d", resp.StatusCode)
 	}
 
 	// Read bundle data
@@ -423,16 +549,38 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated:
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
 		return nil
-	case http.StatusBadRequest:
-		return fmt.Errorf("malformed capabilities request: %d", resp.StatusCode)
-	case http.StatusForbidden:
-		return fmt.Errorf("not authorized to report capabilities: %d", resp.StatusCode)
-	case http.StatusUnprocessableEntity:
-		return fmt.Errorf("capabilities request contains semantic error: %d", resp.StatusCode)
-	default:
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
+
+	parsedResp, err := sbi.ParsePutApiV1CapabilitiesDeviceIdResponse(resp)
+	if err != nil {
+		return fmt.Errorf("ReportCapabilities: failed to parse response: %w", err)
+	}
+	switch resp.StatusCode {
+	case http.StatusBadRequest:
+		if parsedResp.ApplicationproblemJSON400 != nil {
+			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON400)
+		}
+	case http.StatusForbidden:
+		if parsedResp.ApplicationproblemJSON403 != nil {
+			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON403)
+		}
+	case http.StatusNotFound:
+		if parsedResp.ApplicationproblemJSON404 != nil {
+			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON404)
+		}
+	case http.StatusUnprocessableEntity:
+		if parsedResp.ApplicationproblemJSON422 != nil {
+			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON422)
+		}
+	}
+	if apiErr := sbi.ParseErrorResponseFromBytes(
+		resp.StatusCode,
+		resp.Header.Get("Content-Type"),
+		parsedResp.Body,
+	); apiErr != nil {
+		return fmt.Errorf("ReportCapabilities: %w", apiErr)
+	}
+	return fmt.Errorf("ReportCapabilities: unexpected status code: %d", resp.StatusCode)
 }

@@ -10,13 +10,17 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/archive"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
+
+const bytesPerMB = 1024 * 1024
 
 type StateSyncerIfc interface {
 	Start()
@@ -31,12 +35,15 @@ type StateSyncer struct {
 	log                       *zap.SugaredLogger
 	stopChan                  chan struct{}
 	stateSyncingIntervalInSec uint16
+	bundleThreshold           int
+	bundleSizeThresholdBytes  float64
 }
 
 func NewStateSyncer(
 	db *database.Database,
 	client wfm.SBIAPIClientInterface,
 	stateSeekingIntervalInSec uint16,
+	bundleCfg types.BundleConfig,
 	log *zap.SugaredLogger,
 ) *StateSyncer {
 	return &StateSyncer{
@@ -45,6 +52,8 @@ func NewStateSyncer(
 		log:                       log,
 		stopChan:                  make(chan struct{}),
 		stateSyncingIntervalInSec: stateSeekingIntervalInSec,
+		bundleThreshold:           bundleCfg.DeploymentThreshold,
+		bundleSizeThresholdBytes:  float64(bundleCfg.SizeThresholdMB) * bytesPerMB,
 	}
 }
 
@@ -92,7 +101,7 @@ func (ss *StateSyncer) performSync() {
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			if pd.Status == http.StatusNotModified {
 				// 304 — expected cache hit, not an error
-				ss.log.Infow("No change in desired and current states (304 Not Modified)",
+				ss.log.Infow("no change in desired and current states (304 Not Modified)",
 					"status", pd.Status)
 			} else {
 				// 4xx/5xx — genuine WFM error
@@ -470,24 +479,29 @@ func (ss *StateSyncer) shouldDownloadBundle(
 		return false
 	}
 
-	// Heuristic: If more than 5 deployments, use bundle for efficiency
-	if len(manifest.Deployments) > 5 {
-		ss.log.Infow("Using bundle download (many deployments)",
-			"deploymentCount", len(manifest.Deployments))
+	// Download the bundle when deployments exceed the threshold (default: 5)
+	// to reduce request overhead
+	if len(manifest.Deployments) > ss.bundleThreshold {
+		ss.log.Infow("Using bundle download (deployment count above threshold)",
+			"deploymentCount", len(manifest.Deployments),
+			"threshold", ss.bundleThreshold)
 		return true
 	}
 
-	// Heuristic: If bundle size is reasonable ( > 50MB), use bundle
+	// Download the bundle if it exceeds the size threshold (default: 50 MB).
 	if manifest.Bundle.SizeBytes != nil &&
-		*manifest.Bundle.SizeBytes > 50*1024*1024 {
-		ss.log.Infow("Using bundle download (reasonable size)",
-			"sizeBytes", *manifest.Bundle.SizeBytes)
+		float64(*manifest.Bundle.SizeBytes) > ss.bundleSizeThresholdBytes {
+		ss.log.Infow("Using bundle download (bundle size above threshold)",
+			"sizeBytes", *manifest.Bundle.SizeBytes,
+			"thresholdBytes", ss.bundleSizeThresholdBytes)
 		return true
 	}
 
-	// Default: fetch individually for small number of deployments
+	// Default: both values are at or below their thresholds, so fetch
+	// each deployment individually.
 	ss.log.Infow("Using individual deployment fetch",
-		"deploymentCount", len(manifest.Deployments))
+		"deploymentCount", len(manifest.Deployments),
+		"threshold", ss.bundleThreshold)
 	return false
 }
 
@@ -511,8 +525,8 @@ func (ss *StateSyncer) processDeploymentsIndividually(
 			ss.log.Errorw("Failed to fetch deployment YAML",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to fetch deployment: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to fetch deployment: %v", err))
 			continue
 		}
 
@@ -549,8 +563,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Deployment YAML not found in bundle",
 				"deploymentId", deploymentId,
 				"expectedFilename", yamlFilename)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				"Deployment YAML not found in bundle")
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				"deployment YAML not found in bundle")
 			continue
 		}
 
@@ -562,8 +576,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 				"deploymentId", deploymentId,
 				"expected", deploymentRef.Digest,
 				"actual", actualDigest)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				"Deployment digest verification failed")
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				"deployment digest verification failed")
 			continue
 		}
 
@@ -574,8 +588,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to unmarshal YAML to interface",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to parse YAML: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to parse YAML: %v", err))
 			continue
 		}
 
@@ -588,8 +602,8 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to marshal to JSON",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
-				fmt.Sprintf("Failed to convert to JSON: %v", err))
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
+				fmt.Sprintf("failed to convert to JSON: %v", err))
 			continue
 		}
 
@@ -599,7 +613,7 @@ func (ss *StateSyncer) processDeploymentsFromBundle(
 			ss.log.Errorw("Failed to unmarshal JSON to deployment",
 				"deploymentId", deploymentId,
 				"error", err)
-			ss.database.SetPhase(deploymentId, "FAILED",
+			ss.database.SetPhase(deploymentId, constant.PhaseFailed,
 				fmt.Sprintf("Failed to parse deployment: %v", err))
 			continue
 		}
@@ -632,7 +646,7 @@ func (ss *StateSyncer) storeDeployment(
 			},
 		},
 		AppId:       deploymentId,
-		State:       "PENDING",
+		State:       constant.AppDeploymentStateStatePending,
 		LastUpdated: time.Now(),
 		Digest:      &deploymentRef.Digest,
 		URL:         &deploymentRef.Url,
@@ -643,7 +657,7 @@ func (ss *StateSyncer) storeDeployment(
 		ss.log.Errorw("Failed to set desired state",
 			"deploymentId", deploymentId,
 			"error", err.Error())
-		ss.database.SetPhase(deploymentId, "FAILED",
+		ss.database.SetPhase(deploymentId, constant.PhaseFailed,
 			fmt.Sprintf("Failed to set desired state: %v", err))
 		return
 	}

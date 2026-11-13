@@ -1,8 +1,18 @@
 #!/bin/bash
 # modules/go.sh - Go installation
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"  
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
+# sudo resets PATH to its secure_path, which does not include /usr/local/go/bin.
+# `export PATH` only affects the current shell, so symlink the Go binaries into
+# /usr/local/bin, which is on sudo's secure_path by default.
+link_go_for_sudo() {
+  if [[ -x /usr/local/go/bin/go ]]; then
+    sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go
+    sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+    echo "🔗 Linked Go into /usr/local/bin (available under sudo)"
+  fi
+}
 
 install_go() {
   cd $HOME
@@ -10,7 +20,7 @@ install_go() {
   if [[ "$PATH" != *"/usr/local/go/bin"* ]] ; then
     export PATH=$PATH:/usr/local/go/bin
   fi
-  
+
   if command_exists go; then
     GO_VERSION="$(go version | cut -d ' ' -f 3 | cut -c 3-)"
     echo "⚡️ Go ${GO_VERSION} already installed, skipping installation"
@@ -25,4 +35,7 @@ install_go() {
     go version
     echo "✅ Go installed"
   fi
+
+  # Runs on both paths, so VMs that already have Go also get the symlink
+  link_go_for_sudo
 }

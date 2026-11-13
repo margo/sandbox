@@ -9,9 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	mc "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
+	"github.com/margo/sandbox/shared-lib/misc"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"go.uber.org/zap"
 )
 
 type AppDeploymentState struct {
@@ -35,7 +38,7 @@ type DeploymentRecord struct {
 	DesiredState           *AppDeploymentState
 	CurrentState           *AppDeploymentState
 	ComponentViseStatus    map[string]sbi.ComponentStatus
-	Phase                  string // "deploying", "running", "failed", "removing", "removed"
+	Phase                  constant.Phase // "deploying", "running", "failed", "removing", "removed", "pending"
 	Message                string
 	LastUpdated            time.Time
 	AdoptedManifestVersion uint64
@@ -47,16 +50,6 @@ type DeploymentBundleRecord struct {
 	ArchivePath    string
 	UpdatedAt      time.Time
 }
-
-type DeploymentRecordChangeType string
-
-const (
-	DeploymentChangeTypeRecordAdded           DeploymentRecordChangeType = "RECORD-ADDED"
-	DeploymentChangeTypeRecordDeleted         DeploymentRecordChangeType = "RECORD-DELETED"
-	DeploymentChangeTypeComponentPhaseChanged DeploymentRecordChangeType = "COMPONENT-PHASE-CHANGED"
-	DeploymentChangeTypeDesiredStateAdded     DeploymentRecordChangeType = "DESIRED-STATE-ADDED"
-	DeploymentChangeTypeCurrentStateAdded     DeploymentRecordChangeType = "CURRENT-STATE-ADDED"
-)
 
 type TrustBundleCache struct {
 	Value       []byte
@@ -92,10 +85,10 @@ type DatabaseIfc interface {
 	// if your database engine already has persistence, then just keep the implementation empty
 	// we added an in-memory database implementation for this margo poc, hence needed this one
 	TriggerDataPersist()
-	Subscribe(callback func(string, *DeploymentRecord, DeploymentRecordChangeType))
+	Subscribe(callback func(string, *DeploymentRecord, constant.DeploymentRecordChangeType))
 	SetDesiredState(deploymentId string, state AppDeploymentState) error
 	SetCurrentState(deploymentId string, state AppDeploymentState)
-	SetPhase(deploymentId, phase, message string)
+	SetPhase(deploymentId string, phase constant.Phase, message string)
 	SetComponentStatus(deploymentId, componentName string, status sbi.ComponentStatus)
 	GetDeployment(deploymentId string) (*DeploymentRecord, error)
 	ListDeployments() []*DeploymentRecord
@@ -126,10 +119,16 @@ type DatabaseIfc interface {
 	GetAdoptedManifestVersion(deploymentId string) (uint64, error)
 }
 
+type dbNotification struct {
+	appID      string
+	record     *DeploymentRecord
+	changeType constant.DeploymentRecordChangeType
+}
+
 type Database struct {
 	deviceSettings *DeviceSettingsRecord
 	deployments    map[string]*DeploymentRecord
-	subscribers    []func(string, *DeploymentRecord, DeploymentRecordChangeType) // appID, record
+	subscribers    []func(string, *DeploymentRecord, constant.DeploymentRecordChangeType) // appID, record
 	mu             sync.RWMutex
 	subscriberMu   sync.RWMutex
 
@@ -137,6 +136,10 @@ type Database struct {
 	dataDir     string
 	persistChan chan struct{}
 	stopPersist chan struct{}
+
+	// for serialized FIFO event notifications
+	notifyChan chan dbNotification
+	log        *zap.SugaredLogger
 }
 
 // ETag management for efficient polling
@@ -328,7 +331,7 @@ func (db *Database) GetAdoptedManifestVersion(deploymentId string) (uint64, erro
 	return record.AdoptedManifestVersion, nil
 }
 
-func NewDatabase(dataDir string) *Database {
+func NewDatabase(dataDir string, log *zap.SugaredLogger) *Database {
 	err := os.MkdirAll(dataDir, 0o750)
 	// cannot create data directory, in that case, cannot proceed
 	if err != nil {
@@ -338,10 +341,13 @@ func NewDatabase(dataDir string) *Database {
 	db := &Database{
 		deployments:    make(map[string]*DeploymentRecord),
 		deviceSettings: &DeviceSettingsRecord{},
-		subscribers:    make([]func(string, *DeploymentRecord, DeploymentRecordChangeType), 0),
-		dataDir:        dataDir,
-		persistChan:    make(chan struct{}, 1),
-		stopPersist:    make(chan struct{}),
+		subscribers: make([]func(string, *DeploymentRecord,
+			constant.DeploymentRecordChangeType), 0),
+		dataDir:     dataDir,
+		persistChan: make(chan struct{}, 1),
+		stopPersist: make(chan struct{}),
+		notifyChan:  make(chan dbNotification, 1000),
+		log:         log,
 	}
 
 	// Load from disk
@@ -349,6 +355,8 @@ func NewDatabase(dataDir string) *Database {
 
 	// Start persistence goroutine
 	go db.persistenceLoop()
+	// Start ordered notification dispatcher goroutine
+	go db.notificationLoop()
 
 	return db
 }
@@ -429,7 +437,7 @@ func (db *Database) load() {
 }
 
 func (db *Database) Subscribe(
-	callback func(string, *DeploymentRecord, DeploymentRecordChangeType),
+	callback func(string, *DeploymentRecord, constant.DeploymentRecordChangeType),
 ) {
 	db.subscriberMu.Lock()
 	defer db.subscriberMu.Unlock()
@@ -439,18 +447,36 @@ func (db *Database) Subscribe(
 func (db *Database) notify(
 	appID string,
 	record *DeploymentRecord,
-	changeType DeploymentRecordChangeType,
+	changeType constant.DeploymentRecordChangeType,
 ) {
-	db.subscriberMu.RLock()
-	defer db.subscriberMu.RUnlock()
-	subscribers := make(
-		[]func(string, *DeploymentRecord, DeploymentRecordChangeType),
-		len(db.subscribers),
-	)
-	copy(subscribers, db.subscribers)
+	clonedRecord, err := misc.CloneObject(record)
+	if err != nil {
+		db.log.Warnw(
+			"failed to clone deployment record therefore skipping notify",
+			"appId",
+			appID,
+			"error",
+			err,
+		)
+		return
+	}
 
-	for _, callback := range subscribers {
-		go callback(appID, record, changeType)
+	db.notifyChan <- dbNotification{appID: appID, record: clonedRecord, changeType: changeType}
+}
+
+func (db *Database) notificationLoop() {
+	for notify := range db.notifyChan {
+		db.subscriberMu.RLock()
+		subscribers := make(
+			[]func(string, *DeploymentRecord, constant.DeploymentRecordChangeType),
+			len(db.subscribers),
+		)
+		copy(subscribers, db.subscribers)
+		db.subscriberMu.RUnlock()
+
+		for _, callback := range subscribers {
+			callback(notify.appID, notify.record, notify.changeType)
+		}
 	}
 }
 
@@ -467,7 +493,7 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 			AppID:               deploymentId,
 			DeploymentID:        deploymentId,
 			ComponentViseStatus: make(map[string]sbi.ComponentStatus),
-			Phase:               "pending",
+			Phase:               constant.PhasePending,
 			LastUpdated:         time.Now(),
 		}
 	}
@@ -484,7 +510,7 @@ func (db *Database) SetDesiredState(deploymentId string, state AppDeploymentStat
 	// record should be updated in db after assigning all fields in record
 	db.deployments[deploymentId] = record
 
-	db.notify(deploymentId, record, DeploymentChangeTypeDesiredStateAdded)
+	db.notify(deploymentId, record, constant.DeploymentChangeTypeDesiredStateAdded)
 
 	return nil
 }
@@ -500,11 +526,11 @@ func (db *Database) SetCurrentState(deploymentId string, state AppDeploymentStat
 
 	record.CurrentState = &state
 	record.LastUpdated = time.Now()
-	db.notify(deploymentId, record, DeploymentChangeTypeCurrentStateAdded)
+	db.notify(deploymentId, record, constant.DeploymentChangeTypeCurrentStateAdded)
 
 }
 
-func (db *Database) SetPhase(deploymentId, phase, message string) {
+func (db *Database) SetPhase(deploymentId string, phase constant.Phase, message string) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -516,7 +542,7 @@ func (db *Database) SetPhase(deploymentId, phase, message string) {
 	record.Phase = phase
 	record.Message = message
 	record.LastUpdated = time.Now()
-	db.notify(deploymentId, record, DeploymentChangeTypeComponentPhaseChanged)
+	db.notify(deploymentId, record, constant.DeploymentChangeTypeComponentPhaseChanged)
 }
 
 func (db *Database) SetComponentStatus(
@@ -537,13 +563,13 @@ func (db *Database) SetComponentStatus(
 	// Update overall phase based on component status
 	switch status.State {
 	case sbi.ComponentStatusStateInstalled:
-		record.Phase = "running"
+		record.Phase = constant.PhaseRunning
 	case sbi.ComponentStatusStateFailed:
-		record.Phase = "failed"
+		record.Phase = constant.PhaseFailed
 	}
 
 	// Notify subscribers so StatusReporter can re-report with updated component status
-	db.notify(deploymentId, record, DeploymentChangeTypeComponentPhaseChanged)
+	db.notify(deploymentId, record, constant.DeploymentChangeTypeComponentPhaseChanged)
 }
 
 func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error) {
@@ -555,9 +581,7 @@ func (db *Database) GetDeployment(deploymentId string) (*DeploymentRecord, error
 		return nil, fmt.Errorf("deployment %s not found", deploymentId)
 	}
 
-	// Return a copy
-	copy := *record
-	return &copy, nil
+	return record, nil
 }
 
 func (db *Database) ListDeployments() []*DeploymentRecord {
@@ -566,8 +590,7 @@ func (db *Database) ListDeployments() []*DeploymentRecord {
 
 	records := make([]*DeploymentRecord, 0, len(db.deployments))
 	for _, record := range db.deployments {
-		copy := *record
-		records = append(records, &copy)
+		records = append(records, record)
 	}
 	return records
 }
@@ -578,7 +601,7 @@ func (db *Database) RemoveDeployment(deploymentId string) {
 
 	if record, exists := db.deployments[deploymentId]; exists {
 		delete(db.deployments, deploymentId)
-		db.notify(deploymentId, record, DeploymentChangeTypeRecordDeleted)
+		db.notify(deploymentId, record, constant.DeploymentChangeTypeRecordDeleted)
 		db.TriggerDataPersist()
 	}
 }
@@ -592,7 +615,7 @@ func (db *Database) NeedsReconciliation(deploymentId string) bool {
 		return false
 	}
 
-	if record.DesiredState.Status.Status.State == "REMOVED" {
+	if record.DesiredState.Status.Status.State == sbi.DeploymentStatusManifestStatusStateRemoved {
 		return false
 	}
 

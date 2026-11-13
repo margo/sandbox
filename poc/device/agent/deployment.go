@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/shared-lib/constraints"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -25,7 +27,7 @@ type DeploymentManagerIfc interface {
 type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
-	composeClient *workloads.DockerComposeCliClient
+	composeClient *operation.DockerComposeClient
 	capabilities  *sbi.DeviceCapabilitiesManifest
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
@@ -37,7 +39,7 @@ func NewDeploymentManager(
 	db database.DatabaseIfc,
 	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
-	composeClient *workloads.DockerComposeCliClient,
+	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,
 ) *DeploymentManager {
 	return &DeploymentManager{
@@ -66,9 +68,9 @@ func (dm *DeploymentManager) Stop() {
 func (dm *DeploymentManager) onDeploymentChange(
 	deploymentId string,
 	record *database.DeploymentRecord,
-	changeType database.DeploymentRecordChangeType,
+	changeType constant.DeploymentRecordChangeType,
 ) {
-	if changeType == database.DeploymentChangeTypeDesiredStateAdded {
+	if changeType == constant.DeploymentChangeTypeDesiredStateAdded {
 		if dm.database.NeedsReconciliation(deploymentId) {
 			dm.log.Infow("Deployment needs reconciliation", "appId", deploymentId)
 			go dm.reconcileDeployment(deploymentId)
@@ -234,7 +236,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		failedState := desiredState
 		failedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateFailed
 		dm.database.SetCurrentState(deploymentId, failedState)
-		dm.database.SetPhase(deploymentId, "FAILED", "No components found")
+		dm.database.SetPhase(deploymentId, constant.PhaseFailed, "no components found")
 		return
 	}
 
@@ -246,7 +248,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetCurrentState(deploymentId, failedState)
 		dm.database.SetPhase(
 			deploymentId,
-			"FAILED",
+			constant.PhaseFailed,
 			fmt.Sprintf("failed to check for device eligibility, err : %s", err.Error()),
 		)
 		return
@@ -259,7 +261,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetCurrentState(deploymentId, failedState)
 		dm.database.SetPhase(
 			deploymentId,
-			"FAILED",
+			constant.PhaseFailed,
 			fmt.Sprintf("device ineligibile, reason : %s", reason),
 		)
 		return
@@ -277,7 +279,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		})
 	}
 
-	dm.database.SetPhase(deploymentId, "DEPLOYING", "Starting deployment")
+	dm.database.SetPhase(deploymentId, constant.PhaseDeploying, "starting deployment")
 
 	profileType := appDeployment.Spec.DeploymentProfile.Type
 
@@ -315,7 +317,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetCurrentState(deploymentId, failedState)
 		dm.database.SetPhase(
 			deploymentId,
-			"FAILED",
+			constant.PhaseFailed,
 			fmt.Sprintf("Unsupported deployment type: %s", profileType),
 		)
 		return
@@ -344,7 +346,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetCurrentState(deploymentId, failedState)
 		dm.database.SetPhase(
 			deploymentId,
-			"FAILED",
+			constant.PhaseFailed,
 			fmt.Sprintf("%s operation failed: %v", profileType, err),
 		)
 		return
@@ -360,8 +362,8 @@ func (dm *DeploymentManager) deployOrUpdate(
 	currentState := desiredState
 	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateInstalled
 	dm.database.SetCurrentState(deploymentId, currentState)
-	dm.database.SetPhase(deploymentId, "RUNNING", "Deployment successful")
-	dm.log.Infow("Deployment successful", "appId", deploymentId)
+	dm.database.SetPhase(deploymentId, constant.PhaseRunning, "deployment successful")
+	dm.log.Infow("deployment successful", "appId", deploymentId)
 }
 
 func (dm *DeploymentManager) deployOrUpdateHelm(
@@ -494,7 +496,7 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 
 		envVars := dm.convertParametersToEnvVars(values, component.Name)
 
-		exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName)
+		exists, err := dm.composeClient.ComposeExists(ctx, composeFilename, projectName, envVars)
 		if err != nil {
 			return fmt.Errorf("failed to check compose project existence: %v", err)
 		}
@@ -532,13 +534,13 @@ func (dm *DeploymentManager) deployOrUpdateCompose(
 func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	record, err := dm.database.GetDeployment(deploymentId)
 	if err != nil {
-		dm.log.Warnw("Deployment not found for removal", "deploymentId", deploymentId)
+		dm.log.Warnw("deployment not found for removal", "deploymentId", deploymentId)
 		return
 	}
 
 	if record.CurrentState == nil {
 		dm.log.Infow(
-			"No current state found, proceeding with complete removal",
+			"no current state found, proceeding with complete removal",
 			"deploymentId",
 			deploymentId,
 		)
@@ -558,7 +560,7 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 			dm.database.SetCurrentState(deploymentId, removedState)
 		}
 
-		dm.database.SetPhase(deploymentId, "REMOVED", "Removal Complete")
+		dm.database.SetPhase(deploymentId, constant.PhaseRemoved, "removal Complete")
 		dm.database.RemoveDeployment(deploymentId)
 		return
 	}
@@ -579,17 +581,17 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	currentState := *record.CurrentState
 	currentState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoving
 	dm.database.SetCurrentState(deploymentId, currentState)
-	dm.database.SetPhase(deploymentId, "REMOVING", "Starting removal")
+	dm.database.SetPhase(deploymentId, constant.PhaseRemoving, "starting removal")
 
 	if len(appDeployment.Spec.DeploymentProfile.Components) == 0 {
-		dm.log.Warnw("No components to remove", "deploymentId", deploymentId)
+		dm.log.Warnw("no components to remove", "deploymentId", deploymentId)
 
 		// Update state to REMOVED
 		removedState := currentState
 		removedState.Status.Status.State = sbi.DeploymentStatusManifestStatusStateRemoved
 		dm.database.SetCurrentState(deploymentId, removedState)
 
-		dm.database.SetPhase(deploymentId, "REMOVED", "No components to remove")
+		dm.database.SetPhase(deploymentId, constant.PhaseRemoved, "no components to remove")
 		dm.database.RemoveDeployment(deploymentId)
 		return
 	}
@@ -643,16 +645,16 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	dm.database.SetCurrentState(deploymentId, removedState)
 
 	if removeErr != nil {
-		dm.log.Errorw("Removal failed but marking as removed",
+		dm.log.Errorw("removal failed but marking as removed",
 			"deploymentId", deploymentId,
 			"error", removeErr)
 		dm.database.SetPhase(
 			deploymentId,
-			"REMOVED",
-			fmt.Sprintf("Removal completed with errors: %v", removeErr),
+			constant.PhaseRemoved,
+			fmt.Sprintf("removal completed with errors: %v", removeErr),
 		)
 	} else {
-		dm.database.SetPhase(deploymentId, "REMOVED", "Removal Complete")
+		dm.database.SetPhase(deploymentId, constant.PhaseRemoved, "removal complete")
 	}
 
 	// Remove from local database (triggers status report via subscriber)

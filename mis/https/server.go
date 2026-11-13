@@ -130,8 +130,11 @@ func (m *MisRestAPI) getDiscoveryDocument(w http.ResponseWriter, r *http.Request
 	)
 
 	av := r.Header.Values("Accept") // Header can have multiple values
-	// if accept header is present, it should be application/json
-	if len(av) != 0 && slices.Contains(av, "application/json") {
+	hav := helpers.GetHeaderValues(av)
+	// if no accept headers are there, or application/json is present OR */* is present, we can proceed
+	present := len(hav) == 0 || slices.Contains(hav, "application/json") ||
+		slices.Contains(hav, "*/*")
+	if !present {
 		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",
@@ -254,8 +257,12 @@ func (m *MisRestAPI) getTrustBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	av := r.Header.Values("Accept") // Header can have multiple values
+	hav := helpers.GetHeaderValues(av)
+	// if no accept headers are there, or application/json is present OR */* is present, we can proceed
+	present := len(hav) == 0 || slices.Contains(hav, "application/json") ||
+		slices.Contains(hav, "*/*")
 	// if accept header is present, it should be application/json
-	if len(av) != 0 && slices.Contains(av, "application/json") {
+	if !present {
 		logger.Error("accept header contains unacceptable value, aborting", "accept_header", av)
 		pd := gc.NewProblemDetail(
 			"https://docs.margo.org/specification/problem-types#server-cannot-generate-response",

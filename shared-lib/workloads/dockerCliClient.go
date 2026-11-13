@@ -641,7 +641,7 @@ func (c *DockerComposeCliClient) DownloadCompose(
 			rawRef, revision, err)
 	}
 
-	// Find the pulled tar.gz and extract compose.yaml from it
+	// Find the pulled tar.gz/.tgz and extract compose file from it
 	entries, err := os.ReadDir(projectDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to read project directory after OCI pull: %w", err)
@@ -658,16 +658,38 @@ func (c *DockerComposeCliClient) DownloadCompose(
 				return "", fmt.Errorf("failed to extract compose file from archive: %w", err)
 			}
 
-			finalPath := filepath.Join(projectDir, filepath.Base(composeFile))
-			if err := os.Rename(composeFile, finalPath); err != nil {
-				if copyErr := c.copyFile(composeFile, finalPath); copyErr != nil {
-					return "", fmt.Errorf("failed to move compose file: %w",
-						multierr.Combine(err, copyErr))
+			// Move all contents of the top-level directory to projectDir
+			// so relative references (env_file, configs) resolve correctly
+			// Works for both root-level and SUP-01 top-level-dir archives
+			topLevelDir := filepath.Dir(composeFile)
+			topLevelEntries, err := os.ReadDir(topLevelDir)
+			if err != nil {
+				return "", fmt.Errorf("failed to read extracted directory: %w", err)
+			}
+			for _, e := range topLevelEntries {
+				src := filepath.Join(topLevelDir, e.Name())
+				dst := filepath.Join(projectDir, e.Name())
+				if err := os.Rename(src, dst); err != nil {
+					// fallback for cross-device moves (e.g. /tmp → /data)
+					if copyErr := c.copyFile(src, dst); copyErr != nil {
+						return "", fmt.Errorf("failed to move %s: %w", e.Name(), copyErr)
+					}
 				}
 			}
 
+			finalPath := filepath.Join(projectDir, filepath.Base(composeFile))
+
 			_ = os.Remove(archivePath)
 			_ = os.RemoveAll(extractDir)
+
+			// Verify compose file exists at final path before returning
+			if _, err := os.Stat(finalPath); err != nil {
+				return "", fmt.Errorf(
+					"compose file missing after extraction at %s: %w",
+					finalPath,
+					err,
+				)
+			}
 
 			return finalPath, nil
 		}

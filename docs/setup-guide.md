@@ -1,6 +1,5 @@
 ##### [Back To Main](../README.md)
 # Setting Up the Code First Sandbox
-
 ## What You'll Need
 
 **Three Virtual Machines:**
@@ -20,7 +19,7 @@
 > Warning: If you are attempting to deploy this on corporate machines or within a corporate network, you will need to address any special networking requirements or access issues to enable internet communication (e.g, proxy configuration, certificates, firewall configuration, etc.). This falls outside the of the scope of this documentation. This warning applies to both the Main and the Device VMs when running the setup scripts('wfm.sh' & 'device-agent.sh').
 ---
 
-
+🔴 **UPGRADE FROM PREVIOUS RELEASE IS NOT SUPPORTED:** When installing new release, upgrade from previous release is not possible. Hence user must cleanup previous release using [Cleanup Steps](#cleaning-up-starting-fresh) and then start from [Step 1](#step-1-get-the-setup-files).
 ## Step 1: Get the Setup Files
 
 You need to download the setup files to all 3 VMs. Follow these steps on **each VM**:
@@ -119,6 +118,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    - A menu will appear
    - Type `1` and press Enter
    - Choose: `Option 1: PreRequisites: Setup`
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
+     run Option 1 again to complete the setup.
 
    This installs everything needed like Docker and other tools. This may take 1-5 minutes.
 
@@ -216,7 +217,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    -r-------- 1 root root 227 Sep 11 07:20 payload-key.pem
    -rw------- 1 root root 607 Sep 11 07:20 payload-cert.pem
    ```
-   >**Note:** `x509svid-wfm`, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
+   >**Note:** Directory `x509svid-wfm` contains SVID + key, where `wfm` is WFM ID provided while running generator script interactively. Furthermore, `x509svid-wfm` is created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM Client. 
 
    **For WFM Client**
    ```
@@ -232,8 +233,7 @@ On each VM, you need to configure environment variables (settings that tell the 
    -r-------- 1 root root 227 Sep 11 07:22 payload-key.pem
    -rw------- 1 root root 631 Sep 11 07:22 payload-cert.pem
    ```
-   >**Note:** `x509svid-wfm-docker-client`, where `docker-client` is WFM client ID for compose-capable device and
-   `x509svid-wfm-helm-client`, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
+   >**Note:** Directory `x509svid-wfm-docker-client` contains SVID + key, where `docker-client` is WFM client ID for compose-capable device and Directory `x509svid-wfm-helm-client` contains SVID + key, where `helm-client` is WFM client ID for helm-capable device, provided while running generator script interactively. Directories containing SVID & key are created in current working directory. Note down the SPIFFE IDs for later use in enabling communication in local authorization policy of WFM. 
 
    To renew or reissue these SVIDs after initial setup, see [Renewal and Reissuance](./identity-lifecycle.md#renewal-and-reissuance) in the Identity Lifecycle guide.
 
@@ -252,6 +252,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    - A menu will appear
    - Type `1` and press Enter
    - Choose: `Option 1: PreRequisites Setup`
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
+     run Option 1 again to complete the setup.
 
    This installs everything needed like Redis, Docker, Helm, and other tools. This may take 10-15 minutes.
 
@@ -259,11 +261,11 @@ On each VM, you need to configure environment variables (settings that tell the 
 
 3. **Copy WFM SVIDs and MIS HTTPS server CA**
    ```bash
-   cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
-   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
-   cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
+   sudo cp $HOME/mis-deployment/certs/https-ca.crt $HOME/symphony/api/mis
+   sudo cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-cert.pem $HOME/symphony/api/certificates
+   sudo cp $HOME/workspace/sandbox/scripts/x509svid-wfm/payload-key.pem $HOME/symphony/api/certificates
    ```
-   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. 
+   > Note: Above commands need to be modified incase different wfm-id is used for generating WFM SVID. Also, if using a non root user, make sure to change ownership using `chown` if required. 
 
 4. **Add WFM Client SPIFFE IDs as authorised clients interactively**
 
@@ -401,6 +403,8 @@ On each VM, you need to configure environment variables (settings that tell the 
    ```
    - Type `1` and press Enter
    - Choose: `Option 1: Install-prerequisites`
+   - ⚠️ If the script says `🚨 User added to group 'docker'! You need to restart the installation from a new bash session.` then you must:
+     run Option 1 again to complete the setup.
 
    This may take 10-15 minutes.
 
@@ -541,7 +545,7 @@ If you want to remove everything and start over:
 
 3. **Stop and clean up mis services**
    ```bash
-   sudo -E bash ./mis.sh  # Type 4 and press Enter - Option 5: Margo Identity Service: Uninstall
+   sudo -E bash ./mis.sh  # Type 5 and press Enter - Option 5: Margo Identity Service: Uninstall
    sudo -E bash ./mis.sh  # Type 2 and press Enter - Option 2: PreRequisites Cleanup
    ```
 

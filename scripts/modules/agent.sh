@@ -44,6 +44,18 @@ set_authz_path_for_pod() {
   fi
 }
 
+set_mis_domain_for_dev_agent() {
+  local file="./config/config.yaml"
+  local final_endpoint="https://${EXPOSED_MIS_HOST}:${EXPOSED_MIS_PORT}"
+  if [[ -f "$file" ]]; then
+    sed -i "s|endpoint:.*|endpoint: \"${final_endpoint}\"|" "$file"
+    echo "config.yaml mis endpoint set to: ${final_endpoint}"
+  else
+    echo "config.yaml not found at $file, skipping mis endpoint update"
+  fi
+}
+ 
+
 set_capabilities_deployment_type() {
   local file="./config/capabilities.json"
 
@@ -58,6 +70,50 @@ set_capabilities_deployment_type() {
     echo "capabilities.json not found at $file, skipping deployment type update"
   fi
 }
+
+set_capabilities_id() {
+  local capability="$1"
+  local file="./config/capabilities.json"
+  local current_id
+  local new_runtime
+  local random_suffix
+  local new_id
+
+  if [[ ! -f "$file" ]]; then
+    echo "capabilities.json not found at $file, skipping id update"
+    return 1
+  fi
+
+  current_id=$(jq -r '.properties.id' "$file")
+
+  if [[ "$current_id" != "northstarida.xtapro.k8s.edge" ]]; then
+    echo "properties.id is '$current_id', expected 'northstarida.xtapro.k8s.edge', skipping id update."
+    echo "Operator is responsible to keep id unique in ecosystem."
+    return 0
+  fi
+
+  case "$capability" in
+    helm)
+      new_runtime="k3s"
+      ;;
+    compose)
+      new_runtime="docker"
+      ;;
+    *)
+      echo "Unknown capability '$capability'. Supported values: helm, compose"
+      return 1
+      ;;
+  esac
+
+  random_suffix=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 5)
+  new_id="northstarida.xtapro.${new_runtime}.edge.${random_suffix}"
+
+  jq --arg id "$new_id" '.properties.id = $id' "$file" > "${file}.tmp" && \
+    mv "${file}.tmp" "$file"
+
+  echo "capabilities.json properties.id updated to: $new_id"
+}
+
 
 enable_kubernetes_runtime() {
   CONFIG_FILE="$HOME/sandbox/helmchart/config/config.yaml"
@@ -185,12 +241,12 @@ start_device_agent_docker_service() {
 
   cp ../poc/device/agent/config/capabilities.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
-
-
   set_capabilities_deployment_type compose
-
+  set_capabilities_id compose
   mkdir -p data
   enable_docker_runtime
+  set_mis_domain_for_dev_agent
+ 
 
   # Export the image reference for docker-compose
   export workload_Fleet_Management_Client_IMAGE_REF="${workload_Fleet_Management_Client_IMAGE_REF}"
@@ -281,7 +337,9 @@ build_start_device_agent_k3s_service() {
     mkdir -p config
     cp -r ../poc/device/agent/config/* ./config
     set_capabilities_deployment_type helm
+    set_capabilities_id helm
     set_authz_path_for_pod
+    set_mis_domain_for_dev_agent
 
     if [ $? -eq 0 ]; then
       echo "✅ Configuration files copied successfully"

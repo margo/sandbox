@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/shared-lib/pointers"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -25,7 +27,7 @@ type DeploymentMonitor struct {
 	database      database.DatabaseIfc
 	capabilities  *sbi.DeviceCapabilitiesManifest
 	helmClient    *workloads.HelmClient
-	composeClient *workloads.DockerComposeCliClient
+	composeClient *operation.DockerComposeClient
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 }
@@ -34,7 +36,7 @@ func NewDeploymentMonitor(
 	db database.DatabaseIfc,
 	capabilities *sbi.DeviceCapabilitiesManifest,
 	helmClient *workloads.HelmClient,
-	composeClient *workloads.DockerComposeCliClient,
+	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,
 ) *DeploymentMonitor {
 	return &DeploymentMonitor{
@@ -73,7 +75,8 @@ func (hm *DeploymentMonitor) checkAllDeployments() {
 	deployments := hm.database.ListDeployments()
 
 	for _, deployment := range deployments {
-		if deployment.Phase == "running" || deployment.Phase == "deploying" {
+		if deployment.Phase == constant.PhaseRunning ||
+			deployment.Phase == constant.PhaseDeploying {
 			go hm.checkDeployment(deployment.AppID)
 		}
 	}

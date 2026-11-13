@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
+	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -17,11 +19,17 @@ type StatusReporterIfc interface {
 	Stop()
 }
 
+type statusReportJob struct {
+	appID  string
+	record *database.DeploymentRecord
+}
+
 type StatusReporter struct {
-	database  database.DatabaseIfc
-	apiClient wfm.SBIAPIClientInterface
-	log       *zap.SugaredLogger
-	stopChan  chan struct{}
+	database   database.DatabaseIfc
+	apiClient  wfm.SBIAPIClientInterface
+	log        *zap.SugaredLogger
+	reportChan chan statusReportJob
+	wg         sync.WaitGroup
 }
 
 func NewStatusReporter(
@@ -30,26 +38,39 @@ func NewStatusReporter(
 	log *zap.SugaredLogger,
 ) *StatusReporter {
 	return &StatusReporter{
-		database:  db,
-		apiClient: client,
-		log:       log,
-		stopChan:  make(chan struct{}),
+		database:   db,
+		apiClient:  client,
+		log:        log,
+		reportChan: make(chan statusReportJob, 1000),
+		wg:         sync.WaitGroup{},
 	}
 }
 
 func (sr *StatusReporter) Start() {
+	sr.wg.Add(1)
+	go sr.processReportQueue()
+
 	// Subscribe to database changes for status updates
 	sr.database.Subscribe(sr.onDeploymentChange)
 }
 
 func (sr *StatusReporter) Stop() {
-	close(sr.stopChan)
+	close(sr.reportChan)
+	sr.wg.Wait()
+}
+
+func (sr *StatusReporter) processReportQueue() {
+	defer sr.wg.Done()
+
+	for job := range sr.reportChan {
+		sr.reportStatus(job.appID, job.record)
+	}
 }
 
 func (sr *StatusReporter) onDeploymentChange(
 	appID string,
 	record *database.DeploymentRecord,
-	changeType database.DeploymentRecordChangeType,
+	changeType constant.DeploymentRecordChangeType,
 ) {
 	// Concise logging with only important fields
 	logFields := []interface{}{
@@ -81,10 +102,11 @@ func (sr *StatusReporter) onDeploymentChange(
 	sr.log.Infow("Deployment change detected", logFields...)
 
 	// Report status when phase changes or current state is updated
-	if changeType == database.DeploymentChangeTypeDesiredStateAdded ||
-		changeType == database.DeploymentChangeTypeComponentPhaseChanged ||
-		changeType == database.DeploymentChangeTypeCurrentStateAdded {
-		go sr.reportStatus(appID, record)
+	if changeType == constant.DeploymentChangeTypeDesiredStateAdded ||
+		changeType == constant.DeploymentChangeTypeComponentPhaseChanged ||
+		changeType == constant.DeploymentChangeTypeCurrentStateAdded {
+
+		sr.reportChan <- statusReportJob{appID: appID, record: record}
 	}
 }
 
@@ -101,8 +123,7 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 	// Allow reporting failures even without current state
 	// If phase is FAILED but no current state, create one from desired state
 	if record.CurrentState == nil {
-
-		if record.Phase == "FAILED" && record.DesiredState != nil {
+		if record.Phase.ToLower() == constant.PhaseFailed && record.DesiredState != nil {
 			sr.log.Infow("Creating current state for failed deployment", "appId", appID)
 			// Create failed current state from desired state
 			failedState := *record.DesiredState
@@ -136,18 +157,18 @@ func (sr *StatusReporter) reportStatus(appID string, record *database.Deployment
 	deploymentState := deriveOverallState(record.ComponentViseStatus)
 	// If no components have been tracked yet, fall back to the internal phase
 	if len(record.ComponentViseStatus) == 0 {
-		switch record.Phase {
-		case "PENDING", "pending":
+		switch record.Phase.ToLower() {
+		case constant.PhasePending:
 			deploymentState = sbi.DeploymentStatusManifestStatusStatePending
-		case "DEPLOYING", "deploying":
+		case constant.PhaseDeploying:
 			deploymentState = sbi.DeploymentStatusManifestStatusStateInstalling
-		case "RUNNING", "running":
+		case constant.PhaseRunning:
 			deploymentState = sbi.DeploymentStatusManifestStatusStateInstalled
-		case "FAILED", "failed":
+		case constant.PhaseFailed:
 			deploymentState = sbi.DeploymentStatusManifestStatusStateFailed
-		case "REMOVING", "removing":
+		case constant.PhaseRemoving:
 			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoving
-		case "REMOVED", "removed":
+		case constant.PhaseRemoved:
 			deploymentState = sbi.DeploymentStatusManifestStatusStateRemoved
 		default:
 			sr.log.Warnw("Unknown deployment phase, defaulting to PENDING",

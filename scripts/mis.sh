@@ -391,6 +391,7 @@ uninstall_mis(){
 show_menu() {
   clear
   load_mis_env || true
+  validate_mis_host 
   echo "Choose an option:"
   echo "1) PreRequisites: Setup"
   echo "2) PreRequisites: Cleanup"
@@ -428,6 +429,7 @@ if [[ -z "$1" ]]; then
   main_loop
 else
   load_mis_env || true
+  validate_mis_host 
   case "$1" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;

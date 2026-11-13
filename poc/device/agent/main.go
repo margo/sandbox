@@ -13,11 +13,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/margo/sandbox/poc/device/agent/database"
+	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
@@ -46,6 +48,9 @@ type Agent struct {
 	afWatcher      AuthFileWatcherIfc
 }
 
+// DeviceId pattern as defined in Margo Spec
+var validDeviceIdPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$`)
+
 func NewAgent(configPath string) (*Agent, error) {
 	logger, _ := zap.NewDevelopment()
 	log := logger.Sugar()
@@ -58,7 +63,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	log.Debugw("printing database location from config", "dbDir", cfg.Database.DataDir)
 
 	// Create database
-	db := database.NewDatabase(cfg.Database.DataDir)
+	db := database.NewDatabase(cfg.Database.DataDir, log)
 
 	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
 	if err != nil {
@@ -68,13 +73,19 @@ func NewAgent(configPath string) (*Agent, error) {
 			err.Error(),
 		)
 		return nil, err
+	}
 
-		// TODO: This should return? is there a case where capabilities are not required?
+	if !validDeviceIdPattern.MatchString(capabilities.Properties.Id) {
+		return nil, fmt.Errorf(
+			"configured deviceId %s does not match the pattern %s defined in spec, please correct it to proceed",
+			capabilities.Properties.Id,
+			validDeviceIdPattern.String(),
+		)
 	}
 
 	opts := []Option{}
 	var helmClient *workloads.HelmClient
-	var composeClient *workloads.DockerComposeCliClient
+	var composeClient *operation.DockerComposeClient
 	for _, runtime := range cfg.Runtimes {
 		if runtime.Kubernetes != nil {
 			// Create Helm client
@@ -87,9 +98,9 @@ func NewAgent(configPath string) (*Agent, error) {
 
 		if runtime.Docker != nil {
 			// Create docker compose client
-			composeClient, err = workloads.NewDockerComposeCliClient(
-				workloads.DockerConnectivityParams{
-					ViaSocket: &workloads.DockerConnectionViaSocket{
+			composeClient, err = operation.NewDockerComposeClient(
+				operation.DockerConnectivityParams{
+					ViaSocket: &operation.DockerSocketParams{
 						SocketPath: runtime.Docker.Url,
 					},
 				},
@@ -189,6 +200,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		db,
 		wfmClient,
 		cfg.StateSeeking.Interval,
+		cfg.Bundle,
 		log,
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, log)
@@ -297,6 +309,8 @@ func (a *Agent) Start() error {
 		"Workload Fleet Management Client started successfully",
 		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
+		"bundleDeploymentThreshold", a.config.Bundle.DeploymentThreshold,
+		"bundleSizeThresholdMB", a.config.Bundle.SizeThresholdMB,
 		"trustBundleRefreshInterval", "", // Enter here --
 		"sbiUrl", a.config.Wfm.SbiURL,
 	)

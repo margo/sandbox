@@ -43,6 +43,13 @@ SYMPHONY_IMAGE_REF="${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TA
 SYMPHONY_IMAGE_REF="${SYMPHONY_IMAGE_REF:-${GHCR_REGISTRY}/${GHCR_ORG}/${SYMPHONY_IMAGE}:${SYMPHONY_TAG}}"
 SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"${HOME}/symphony/api/mis/authorized-clients.json"}"
 
+export REDIS_VERSION="7.0.15"
+export REDIS_CONTAINER_NAME="redis-wfm-db-container"
+
+WFM_COMPOSE_CMD="docker compose -f margo-docker-compose.yaml"
+if [[ "${CI}" == "true" && -n "${RUNNER_IP}" ]]; then
+  WFM_COMPOSE_CMD="$WFM_COMPOSE_CMD -f margo-docker-compose-ci.yaml"
+fi
 
 # Load shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -63,8 +70,71 @@ source "${SCRIPT_DIR}/modules/packages.sh"
 source "${SCRIPT_DIR}/modules/manage-spiffe-ids.sh"
 
 
+confirm_prerequisites_setup() {
+  local warnings=()
+
+  # Check if Harbor is running (docker compose project)
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi "harbor"; then
+    warnings+=("Harbor registry appears to be running")
+  fi
+
+  # Check if Symphony API container is running
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "symphony-api-container"; then
+    warnings+=("Symphony API container is currently running")
+  fi
+
+
+  # If any signs detected, warn the user
+  if [ ${#warnings[@]} -gt 0 ]; then
+    echo ""
+    echo "======================================================================="
+    echo "⚠️  WARNING: Prerequisites Setup Seems Out of Place!"
+    echo "======================================================================="
+    echo ""
+    echo "  The following signs indicate Option 1 may have already been run:"
+    echo ""
+    for w in "${warnings[@]}"; do
+      echo "    ⚡ $w"
+    done
+    echo ""
+    echo "  Running Option 1 again will perform ALL of the following:"
+    echo ""
+    echo "    1.  Install basic utilities (curl, jq, build-essential, gcc, etc.) (If not present)"
+    echo "    2.  Install Go runtime (If not present)"
+    echo "    3.  Install Docker and Docker Compose (If not present)"
+    echo "    4.  Set up k3s (Kubernetes) (If not present)"
+    echo "    5.  Install Redis (If not present)"
+    echo "    6.  Install ORAS CLI"
+    echo "    7.  Clone Symphony and sandbox repositories (may overwrite existing)"
+    echo "    8.  Create Symphony API directories (may overwrite existing)" 
+    echo "    9.  Set up Harbor OCI registry (Generates new harbor CA, fails previously generated)"
+    echo "    10. Trust Harbor TLS certificate (Generates new harbor CA, fails previously generated)"
+    echo "    11. Build custom OpenTelemetry container images"
+    echo "    12. Push Nextcloud, custom OTel, and Nextcloud Compose packages to OCI"
+    echo ""
+    echo "  ⚠️  This may cause conflicts, duplicate installations, or data loss."
+    echo "  👉  Consider running Option 2 (Cleanup) first."
+    echo ""
+    echo "======================================================================="
+    echo ""
+    read -p "  Do you still want to proceed? (yes/no): " confirm
+    echo ""
+    if [[ "$confirm" != "yes" ]]; then
+      echo "  ❌ Aborted. No changes were made."
+      echo ""
+      return 1
+    fi
+    echo "  ✅ Proceeding with prerequisites setup..."
+    echo ""
+  fi
+
+  return 0
+}
+
+
 # Main orchestration
 install_prerequisites() {
+  confirm_prerequisites_setup || return 1 
   echo "Running all pre-req setup tasks..."
   install_basic_utilities
   install_go
@@ -74,7 +144,9 @@ install_prerequisites() {
   install_oras
   clone_symphony_repo
   clone_dev_repo
-  create_symphony_api_dirs                  
+  create_symphony_api_dirs    
+  update_mis_binding "${HOME}/symphony/api/symphony-api-margo.json" "$EXPOSED_MIS_HOST" "$EXPOSED_MIS_PORT"
+              
 
   setup_harbor
   trust_harbor_certificate
@@ -214,6 +286,8 @@ uninstall_prerequisites() {
 
   # Step 7: Remove basic utilities and cleanup
   cleanup_basic_utilities
+  # Step 8: Uninstall Redis
+  uninstall_redis
 
   echo "Complete uninstallation finished"
 }
@@ -295,6 +369,7 @@ uninstall_go() {
 
   # Remove Go installation
   [ -d "/usr/local/go" ] && rm -rf "/usr/local/go" && echo "✅ Removed Go from /usr/local/go"
+  rm -f /usr/local/bin/go /usr/local/bin/gofmt
 
   # Remove Go from PATH in shell profiles
   sed -i '/\/usr\/local\/go\/bin/d' "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null
@@ -353,12 +428,16 @@ start_symphony() {
   validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
   # ────────────────────────────────────────────────────────────────────────
 
-  export PATH="$PATH:/usr/local/go/bin"; # TODO: remove this line as this is being set while installing go
+  # Fallback in case the /usr/local/bin symlink (created by install_go) is missing
+  if ! command -v go >/dev/null 2>&1; then
+    export PATH="$PATH:/usr/local/go/bin"
+  fi
 
   export GOINSECURE='github.com/margo/*'
   export GONOPROXY='github.com/margo/*'
   export GONOSUMDB='github.com/margo/*'
   export GOPRIVATE='github.com/margo/*'
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
 
   if [[ -n "$GITHUB_USER" && -n "$GITHUB_TOKEN" ]]; then
     git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/";
@@ -375,23 +454,17 @@ start_symphony() {
 }
 
 stop_symphony() {
-  # TODO: this piece of code require corrections
+  cd $HOME/symphony/api
   echo "Stopping and removing Symphony API container..."
+  export SYMPHONY_IMAGE_REF=${SYMPHONY_IMAGE_REF}
+# Stop the container if running
+if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
+  $WFM_COMPOSE_CMD down
+  echo "✅ Symphony API container stopped successfully."
+else
+  echo "ℹ️ Symphony API container not found, nothing to stop. Moving on..."
+fi
 
-  # Stop the container if running
-  if docker ps --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker stop symphony-api-container && echo '✅ Symphony API container stopped'
-  fi
-
-  # Remove the container if it exists
-  if docker ps -a --format '{{.Names}}' | grep -q "symphony-api-container"; then
-    docker rm symphony-api-container && echo '✅ Symphony API container removed'
-  else
-    echo 'ℹ️ Symphony API container not found'
-  fi
-
-  echo "proceeding to remove the systemd files..."
-  remove_symphony_api_systemd_service
 
   # Prompt user to delete Redis data
   echo ""
@@ -400,7 +473,7 @@ stop_symphony() {
 
   if [[ "$delete_redis" =~ ^[Yy]$ ]]; then
     echo "Flushing Redis data..."
-    if redis-cli flushall; then
+    if docker exec ${REDIS_CONTAINER_NAME} redis-cli flushall; then
       echo '✅ Redis data deleted successfully'
       echo 'ℹ️ Device re-onboarding will be required'
     else
@@ -409,6 +482,56 @@ stop_symphony() {
   else
     echo 'ℹ️ Redis data preserved'
   fi
+}
+# ── Update MIS binding in JSON config ────────────────────────────────────────
+update_mis_binding() {
+    local filepath="$1"
+    local mis_host="$2"
+    local mis_port="$3"
+
+    if [[ -z "$filepath" || -z "$mis_host" || -z "$mis_port" ]]; then
+        die "update_mis_binding requires <filepath> <mis_host> <mis_port>."
+    fi
+
+    if [[ ! -f "$filepath" ]]; then
+        die "JSON file not found: '${filepath}'"
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        die "jq is not installed. Please install jq to proceed."
+    fi
+
+    local new_value="https://${mis_host}:${mis_port}"
+
+    # Check how many bindings array elements have .config.miaf.mis.endpoint defined
+    local match_count
+    match_count=$(jq '[.bindings[] | select(.config.miaf.mis.endpoint != null)] | length' "$filepath" 2>/dev/null)
+
+    if [[ -z "$match_count" || "$match_count" -eq 0 ]]; then
+        warn "No array elements found with '.bindings[].config.miaf.mis.endpoint' defined in '${filepath}' — skipping."
+        return 0
+    fi
+
+    info "Found ${match_count} array element(s) with '.bindings[].config.miaf.mis.endpoint' defined — updating..."
+
+    local tmp
+    tmp=$(mktemp)
+
+    # Update .bindings[] elements where .config.miaf.mis.endpoint is non-null
+    jq --arg val "$new_value" \
+        '.bindings |= map(
+            if .config.miaf.mis.endpoint != null
+            then .config.miaf.mis.endpoint = $val
+            else .
+            end
+        )' \
+        "$filepath" > "$tmp" \
+        || { rm -f "$tmp"; die "jq failed to update '.bindings[].config.miaf.mis.endpoint' in '${filepath}'."; }
+
+    mv "$tmp" "$filepath" \
+        || die "Failed to overwrite '${filepath}' with updated JSON."
+
+    success "Updated ${match_count} element(s): '.bindings[].config.miaf.mis.endpoint' → \"${new_value}\" in '${filepath}'."
 }
 
 create_symphony_api_dirs() {
@@ -430,6 +553,7 @@ create_symphony_api_dirs() {
 show_menu() {
   clear
   load_wfm_env || true
+  validate_mis_host 
   echo "Choose an option:"
   echo "1) PreRequisites: Setup"
   echo "2) PreRequisites: Cleanup"
@@ -468,6 +592,7 @@ if [[ -z "$1" ]]; then
   main_loop
 else
   load_wfm_env || true
+  validate_mis_host 
   case "$1" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;

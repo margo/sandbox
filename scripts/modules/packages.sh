@@ -246,7 +246,6 @@ push_nextcloud_compose_to_oci() (
       ($layer): {
         "org.margo.component.type": "compose",
         "org.margo.component.version": $ver,
-        "org.opencontainers.image.title": $title,
         "org.opencontainers.image.authors": $authors,
         "org.opencontainers.image.description": $desc,
         "org.opencontainers.image.version": $ver
@@ -266,9 +265,8 @@ push_nextcloud_compose_to_oci() (
   # oras needs a relative file name, so push from the work dir
   (
     cd "$workdir" || exit 1
-    ln -sf "$archive_name" "$component_name"
     
-    oras push --debug "${registry}/${repository}:${compose_revision}" \
+    oras push  "${registry}/${repository}:${compose_revision}" \
       --artifact-type "application/vnd.org.margo.component.compose+json" \
       --annotation-file "$annotations_file" \
       "${archive_name}:application/vnd.org.margo.component.compose.tar+gzip"

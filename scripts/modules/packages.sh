@@ -253,7 +253,8 @@ push_nextcloud_compose_to_oci() (
       "$manifest": {
         "org.margo.component.type": "compose",
         "org.margo.component.version": $ver,
-        "org.opencontainers.image.version": $ver
+        "org.opencontainers.image.version": $ver,
+        "org.opencontainers.image.title": $title,
       }
     }' > "$annotations_file"
 

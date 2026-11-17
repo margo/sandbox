@@ -70,7 +70,7 @@ The repository is divided into three main parts. You can find more details here 
 ### 3rd Party Components
 | Component Type | Component Name | Version |
 |---|---|---|
-| Container Registry | Harbor | v2.13.2 |
+| Container Registry | Harbor | v2.16.0 |
 | Container Runtime | containerd | v1.7.27-1 |
 | OCI Client | ORAS | 1.1.0 |
 | Database | Redis | 7.0.15 |

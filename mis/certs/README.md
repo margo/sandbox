@@ -41,6 +41,7 @@ Used to secure the MIS REST API server with TLS.
 | `https-ca.key` | HTTPS CA private key |
 | `https-server.crt` | HTTPS server certificate (signed by `https-ca.crt`) |
 | `https-server.key` | HTTPS server private key |
+| `https-ca-trust-pin.txt` | SPKI pin of the `https-ca.crt` public key (SHA-256, Base64-encoded) |
 
 ---
 
@@ -50,13 +51,31 @@ This directory serves as a **reference structure** for mounting certificates int
 
 ```
 certs/
-├── ca.crt          # Minter CA certificate
-├── ca.key          # Minter CA private key
-├── https-ca.crt    # HTTPS CA certificate
-├── https-ca.key    # HTTPS CA private key
-├── https-server.crt      # HTTPS server certificate
-└── https-server.key      # HTTPS server private key
+├── ca.crt                  # Minter CA certificate
+├── ca.key                  # Minter CA private key
+├── https-ca.crt            # HTTPS CA certificate
+├── https-ca.key            # HTTPS CA private key
+├── https-server.crt        # HTTPS server certificate
+├── https-server.key        # HTTPS server private key
+└── https-ca-trust-pin.txt  # SPKI pin of https-ca.crt public key
 ```
+
+---
+
+## HTTPS CA Trust Pin
+
+The file `https-ca-trust-pin.txt` contains the **SPKI pin** (Subject Public Key Info) of the `https-ca.crt` public key in the format:
+
+```
+sha256/<base64-encoded-sha256-digest>
+```
+
+This pin can be used by clients to perform **certificate pinning** — verifying that the server's CA public key matches a known trusted value, independent of the certificate chain. This is useful for:
+
+- Bootstrapping trust in environments where the CA certificate cannot be distributed in advance
+- Additional validation layer on top of standard TLS verification
+
+> ⚠️ This pin corresponds to the **development CA only** and must be regenerated alongside the certificates for any real deployment.
 
 ---
 
@@ -86,9 +105,10 @@ The corresponding `configuration.json` should reference the mounted paths:
     "key":  "/certs/ca.key"
   },
   "https": {
-    "ca":   "/certs/https-ca.crt",
-    "cert": "/certs/https-server.crt",
-    "key":  "/certs/https-server.key"
+    "ca":        "/certs/https-ca.crt",
+    "cert":      "/certs/https-server.crt",
+    "key":       "/certs/https-server.key",
+    "trust-pin": "/certs/https-ca-trust-pin.txt"
   }
 }
 ```

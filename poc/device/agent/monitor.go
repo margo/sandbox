@@ -25,7 +25,7 @@ type DeploymentMonitorIfc interface {
 
 type DeploymentMonitor struct {
 	database      database.DatabaseIfc
-	capabilities  *sbi.DeviceCapabilitiesManifest
+	capabilities  *sbi.Profile
 	helmClient    *workloads.HelmClient
 	composeClient *operation.DockerComposeClient
 	log           *zap.SugaredLogger
@@ -34,7 +34,7 @@ type DeploymentMonitor struct {
 
 func NewDeploymentMonitor(
 	db database.DatabaseIfc,
-	capabilities *sbi.DeviceCapabilitiesManifest,
+	capabilities *sbi.Profile,
 	helmClient *workloads.HelmClient,
 	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,

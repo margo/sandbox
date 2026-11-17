@@ -119,7 +119,7 @@ func NewDeviceSettings(
 
 func (da *DeviceClientSettings) ReportCapabilities(
 	ctx context.Context,
-	capabilities sbi.DeviceCapabilitiesManifest,
+	capabilities sbi.Profile,
 ) error {
 	da.log.Infow("Starting capabilities reporting")
 	err := da.apiClient.ReportCapabilities(ctx, capabilities.Properties.Id, capabilities)

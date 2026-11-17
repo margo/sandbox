@@ -32,7 +32,7 @@ type SBIAPIClientInterface interface {
 	ReportCapabilities(
 		ctx context.Context,
 		deviceId string,
-		capabilities sbi.DeviceCapabilitiesManifest,
+		capabilities sbi.Profile,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) error
 	ReportDeploymentStatus(

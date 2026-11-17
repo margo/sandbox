@@ -37,7 +37,7 @@ import (
 type Agent struct {
 	log            *zap.SugaredLogger
 	auth           *DeviceClientSettings
-	capabilities   *sbi.DeviceCapabilitiesManifest
+	capabilities   *sbi.Profile
 	config         types.Config
 	database       database.DatabaseIfc
 	syncer         StateSyncerIfc

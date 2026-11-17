@@ -535,10 +535,10 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 func (sbiClient *SbiHttpClient) ReportCapabilities(
 	ctx context.Context,
 	deviceId string,
-	capabilities sbi.DeviceCapabilitiesManifest,
+	capabilities sbi.Profile,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) error {
-	resp, err := sbiClient.client.PutApiV1CapabilitiesDeviceId(
+	resp, err := sbiClient.client.PutApiV1ProfileWorkloadTargetId(
 		ctx,
 		deviceId,
 		capabilities,
@@ -553,7 +553,7 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 		return nil
 	}
 
-	parsedResp, err := sbi.ParsePutApiV1CapabilitiesDeviceIdResponse(resp)
+	parsedResp, err := sbi.ParsePutApiV1ProfileWorkloadTargetIdResponse(resp)
 	if err != nil {
 		return fmt.Errorf("ReportCapabilities: failed to parse response: %w", err)
 	}

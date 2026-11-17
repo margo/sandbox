@@ -337,8 +337,44 @@ func TestValidateConfig(t *testing.T) {
 			wantErr:     true,
 			errContains: []string{"https.key file does not exist"},
 		},
+		// ── Rule: defaultSVIDTTL ──────────────────────────────────────────────────
+		{
+			name: "zero defaultSVIDTTL gets default value",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.DefaultSVIDTTL = 0
+				return cfg
+			},
+			wantErr: false,
+			assertions: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, int64(604800), cfg.DefaultSVIDTTL)
+			},
+		},
+		{
+			name: "negative defaultSVIDTTL gets default value",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.DefaultSVIDTTL = -1
+				return cfg
+			},
+			wantErr: false,
+			assertions: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, int64(604800), cfg.DefaultSVIDTTL)
+			},
+		},
+		{
+			name: "positive defaultSVIDTTL is preserved",
+			setup: func(t *testing.T) *Config {
+				cfg := validConfig(t)
+				cfg.DefaultSVIDTTL = 3600
+				return cfg
+			},
+			wantErr: false,
+			assertions: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, int64(3600), cfg.DefaultSVIDTTL)
+			},
+		},
 
-		// ── Multiple errors collected ─────────────────────────────────────────
 		// ── Multiple errors collected ─────────────────────────────────────────
 		{
 			name: "multiple violations are all reported",

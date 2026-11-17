@@ -31,17 +31,14 @@ func (v *ValidationError) HasErrors() bool {
 // ValidateMintSVIDRequest validates the incoming request fields
 func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 	ve := &ValidationError{Fields: make(map[string]string)}
-	csr := false
 	if req.CSR != "" {
 		if err := validateCSR(req.CSR); err != nil {
 			ve.Fields["csr"] = err.Error()
-		} else {
-			csr = true
 		}
 	}
 
-	// Validate spiffeID (Required only if CSR is not present)
-	if err := validateSpiffeID(req.SpiffeID); !csr && err != nil {
+	// spiffeID must exist & be validated.
+	if err := validateSpiffeID(req.SpiffeID); err != nil {
 		ve.Fields["spiffeID"] = err.Error()
 	}
 

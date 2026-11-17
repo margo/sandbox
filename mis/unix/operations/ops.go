@@ -1,6 +1,8 @@
 package operations
 
-import "log/slog"
+import (
+	"log/slog"
+)
 
 type MintOperations struct {
 	logger *slog.Logger

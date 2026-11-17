@@ -1,5 +1,8 @@
 # Margo Identity Service (MIS) — Scripts Documentation
 
+Here's the updated `confbuilder.sh` section of the README:
+
+```markdown
 ## 1. `confbuilder.sh` — Configuration Builder
 
 ### Purpose
@@ -24,18 +27,19 @@ Generates a `configuration.json` file for the Margo Identity Service. Supports t
 
 ### Configuration Fields & Defaults
 
-| Field             | Default                              | Description                              |
-|-------------------|--------------------------------------|------------------------------------------|
-| `trustDomain`     | `margo.org`                          | SPIFFE trust domain                      |
-| `refreshHint`     | `500`                                | Bundle refresh interval (seconds)        |
-| `trustBundleURI`  | `.well-known/spiffe/bundle.json`     | URI path for the trust bundle            |
+| Field             | Default                              | Description                                      |
+|-------------------|--------------------------------------|--------------------------------------------------|
+| `trustDomain`     | `margo.org`                          | SPIFFE trust domain                              |
+| `refreshHint`     | `500`                                | Bundle refresh interval (seconds)                |
+| `defaultSVIDTTL`  | `604800`                             | Default SVID lifetime (seconds, 7 days)          |
+| `trustBundleURI`  | `.well-known/spiffe/bundle.json`     | URI path for the trust bundle                    |
 | `log.level`       | `info`                               | Log verbosity (`debug`, `info`, `warn`, `error`) |
-| `ca.cert`         | `./ca.crt`                           | Path to the Minter CA certificate        |
-| `ca.key`          | `./ca.key`                           | Path to the Minter CA private key        |
-| `https.addr`      | `:8443`                              | HTTPS listen address                     |
-| `https.ca`        | `./https-ca.crt`                     | Path to the HTTPS CA certificate         |
-| `https.cert`      | `./https-server.crt`                 | Path to the HTTPS server certificate     |
-| `https.key`       | `./https-server.key`                 | Path to the HTTPS server private key     |
+| `ca.cert`         | `./ca.crt`                           | Path to the Minter CA certificate                |
+| `ca.key`          | `./ca.key`                           | Path to the Minter CA private key                |
+| `https.addr`      | `:8443`                              | HTTPS listen address                             |
+| `https.ca`        | `./https-ca.crt`                     | Path to the HTTPS CA certificate                 |
+| `https.cert`      | `./https-server.crt`                 | Path to the HTTPS server certificate             |
+| `https.key`       | `./https-server.key`                 | Path to the HTTPS server private key             |
 
 ### Output
 
@@ -45,6 +49,7 @@ A `configuration.json` file in the current working directory:
 {
   "trustDomain": "margo.org",
   "refreshHint": 500,
+  "defaultSVIDTTL": 604800,
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"

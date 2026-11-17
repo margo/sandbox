@@ -22,8 +22,8 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
-// DefaultTTL is 24 hours in seconds
-const DefaultTTL = 24 * 60 * 60
+// DefaultTTL is 7 days in seconds
+const DefaultTTL = 7 * 24 * 60 * 60
 
 // ResolvedTTL returns the TTL duration, applying the default if not set
 func (r *MintSVIDRequest) ResolvedTTL() time.Duration {

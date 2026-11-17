@@ -15,6 +15,7 @@ import (
 	"github.com/margo/sandbox/mis/pkg/helpers"
 	"github.com/margo/sandbox/mis/pkg/types"
 	"github.com/margo/sandbox/mis/unix/operations"
+	"github.com/margo/sandbox/shared-lib/pointers"
 	"github.com/pkg/errors"
 )
 
@@ -152,21 +153,18 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	m.logger.Debug("request validation passed")
+	// if TTL is not present in request, use Default TTL.
+	if req.TTL == nil {
+		req.TTL = pointers.Ptr(time.Duration(m.cnf.DefaultSVIDTTL) * (time.Second))
+	}
 
 	op := operations.New(m.logger)
 	var certPEM, keyPEM []byte
 	var err error
 
 	// In case CSR Is provided, use it to generate SVID.
-	if req.CSR != "" {
-		m.logger.Debug("generating X.509 SVID using CSR")
-		certPEM, err = op.GenerateX509SVIDUsingCSR(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
-	} else {
-		// else, Generate X.509 SVID with key.
-		m.logger.Debug("generating X.509 SVID & key")
-		certPEM, keyPEM, err = op.GenerateX509SVID(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
-	}
 
+	result, err := op.GenerateSVID(&req, m.cnf.CA.Cert, m.cnf.CA.Key)
 	if err != nil {
 		m.logger.Error("failed to generate X.509 SVID", "error", err)
 		helpers.WriteError(
@@ -179,10 +177,13 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 	}
 	m.logger.Info("X.509 SVID generated successfully")
 
-	// Base64-encode PEM blocks
+	// Base64-encode PEM blocks, response for Enrolled mode
 	resp := types.MintSVIDResponse{
 		Certificate: base64.StdEncoding.EncodeToString(certPEM),
-		Key:         base64.StdEncoding.EncodeToString(keyPEM),
+	}
+	// For Installed mode
+	if result.GenerationType == operations.SVIDGenerationTypeInstalled {
+		resp.Key = base64.StdEncoding.EncodeToString(keyPEM)
 	}
 
 	m.logger.Debug("sending SVID response to client")

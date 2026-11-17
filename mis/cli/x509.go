@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	// defaultTTL is the default time-to-live for a generated X.509 SVID (24 hours in seconds).
-	defaultTTL = 24 * 60 * 60 // 86400 seconds
+	// defaultTTL is the default time-to-live for a generated X.509 SVID (7 days in seconds).
+	defaultTTL = 7 * 24 * 60 * 60 // 604800 seconds
 
 	// spiffeScheme is the required URI scheme for a valid SPIFFE ID.
 	spiffeScheme = "spiffe"
@@ -77,11 +77,11 @@ Output files (will be overwritten if they already exist):
 Required Flags:
   --spiffeID   The SPIFFE ID to embed in the SVID.
 			   Must follow the format: spiffe://<trust-domain>/<path>.
-			   This is optional only when CSR is provided. 
+			   It is authoritative even when csr is provided. 
   --csrPath    Path on disk of CSR for generating SVID.
-			   Should contain 1 SPIFFE ID in URI SAN
+			   May contain 1 SPIFFE ID in URI SAN
 			   spiffe Id format: spiffe://<trust-domain>/<path>.
-			   If not provided, spiffeID is required, and key is returned as well. 
+			   Spiffe ID present in CSR is informational. 
 				
 
 Optional Flags:
@@ -221,7 +221,7 @@ func init() {
 		"spiffeID",
 		"",
 		`SPIFFE ID to embed in the SVID. Must follow the format: spiffe://<trust-domain>/<path>
-Example: spiffe://example.org/myservice. Required when csrPath is not provided. Else this field is ignored.`,
+		 Example: spiffe://example.org/myservice.`,
 	)
 
 	// --csrPath flag: path on disk where CSR is present (required when SPIFFE ID is not provided)
@@ -237,7 +237,7 @@ Example: spiffe://example.org/myservice. Required when csrPath is not provided. 
 		&flags.TTL,
 		"ttl",
 		defaultTTL,
-		"Time-to-live in seconds for the generated SVID (default: 86400 = 24 hours)",
+		"Time-to-live in seconds for the generated SVID (default: 604800 = 7 days)",
 	)
 
 	// --outputDir flag: directory to save the generated SVID and key

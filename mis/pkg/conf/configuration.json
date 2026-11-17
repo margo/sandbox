@@ -1,6 +1,7 @@
 {
   "trustDomain": "margo.org",
   "refreshHint": 500,
+  "defaultSVIDTTL": 604800,
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"

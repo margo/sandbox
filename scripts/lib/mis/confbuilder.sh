@@ -7,6 +7,7 @@ OUTPUT_FILE="$(pwd)/configuration.json"
 # ── Defaults ────────────────────────────────────────────────────────────────
 DEFAULT_TRUST_DOMAIN="margo.org"
 DEFAULT_REFRESH_HINT=500
+DEFAULT_SVID_TTL=604800
 DEFAULT_TRUST_BUNDLE_URI=".well-known/spiffe/bundle.json"
 DEFAULT_LOG_LEVEL="info"
 DEFAULT_CA_CERT="./ca.crt"
@@ -56,6 +57,7 @@ write_config() {
 {
   "trustDomain": "${TRUST_DOMAIN}",
   "refreshHint": ${REFRESH_HINT},
+  "defaultSVIDTTL": ${SVID_TTL},
   "trustBundleURI": "${TRUST_BUNDLE_URI}",
   "log": {
     "level": "${LOG_LEVEL}"
@@ -96,6 +98,7 @@ case "${MODE}" in
     echo "Running in automated mode — using defaults..."
     TRUST_DOMAIN="${DEFAULT_TRUST_DOMAIN}"
     REFRESH_HINT="${DEFAULT_REFRESH_HINT}"
+    SVID_TTL="${DEFAULT_SVID_TTL}"
     TRUST_BUNDLE_URI="${DEFAULT_TRUST_BUNDLE_URI}"
     LOG_LEVEL="${DEFAULT_LOG_LEVEL}"
     CA_CERT="${DEFAULT_CA_CERT}"
@@ -120,6 +123,11 @@ case "${MODE}" in
       "Refresh Hint (seconds)" \
       "${DEFAULT_REFRESH_HINT}" \
       "300, 500, 3600"
+
+    prompt_int SVID_TTL \
+      "Default SVID TTL (seconds)" \
+      "${DEFAULT_SVID_TTL}" \
+      "86400 (1 day), 604800 (7 days), 2592000 (30 days)"
 
     prompt TRUST_BUNDLE_URI \
       "Trust Bundle URI" \

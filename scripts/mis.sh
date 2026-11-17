@@ -341,16 +341,22 @@ generate_svid() {
     echo "[ERROR] ❌ svid-gen.sh not found at: $svid_script"
     return 1
   fi
-
+  
   echo "[INFO] 🔐 Launching SVID generator..."
-  bash "$svid_script" --interactive
-  local exit_code=$?
+  local exit_code=0
+  bash "$svid_script" --interactive || exit_code=$?
 
-  if [[ $exit_code -eq 0 ]]; then
-    echo "[INFO] ✅ SVID generation completed successfully."
-  else
-    echo "[WARN] ⚠️  SVID generation exited with code: $exit_code"
-  fi
+  case $exit_code in
+    0)
+      echo "[INFO] ✅ SVID generation completed successfully."
+      ;;
+    2)
+      echo "[WARN] ⚠️  SVID generation was aborted by the user. No certificates were generated."
+      ;;
+    *)
+      echo "[ERROR] ❌ SVID generation failed (exit code: $exit_code)."
+      ;;
+  esac
 }
 
 

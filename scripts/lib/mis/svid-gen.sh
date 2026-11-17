@@ -261,8 +261,8 @@ run_interactive() {
   read -rp "  Proceed? [Y/n]: " confirm
   confirm="${confirm:-Y}"
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    log_warn "Aborted by user."
-    exit 0
+    log_warn "Aborted by user. No SVID was generated"
+    exit 2
   fi
 
   # Step 3: Mint SVID

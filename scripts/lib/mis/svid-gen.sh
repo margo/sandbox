@@ -48,27 +48,29 @@ usage() {
   echo -e ""
   echo -e "${BOLD}Automated Mode Flags:${RESET}"
   echo -e "  --principal <wfm|wfm-client>      Required: principal for which to generate"
-  echo -e "  --spiffe-id <spiffeID>            Required (SpiffeID flow): full SPIFFE ID"
+  echo -e "  --spiffe-id <spiffeID>            Required: full SPIFFE ID for the principal"
   echo -e "                                    e.g. spiffe://margo.org/margo/wfm/my-wfm"
   echo -e "                                         spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
-  echo -e "  --csr-path <path>                 Required (CSR flow): path to CSR file on host"
+  echo -e "  --csr-path <path>                 Optional (Enrolled mode): path to CSR file on host."
+  echo -e "                                    When provided, only the certificate is generated (Enrolled mode)."
+  echo -e "                                    When omitted, key + certificate are generated (Installed mode)."
   echo -e "  --dns <name>                      Optional: DNS SAN (can be repeated)"
   echo -e ""
   echo -e "${BOLD}Examples:${RESET}"
   echo -e "  # Interactive mode"
   echo -e "  $(basename "$0") --interactive"
   echo -e ""
-  echo -e "  # Automated mode - WFM (SpiffeID flow)"
+  echo -e "  # Automated mode - WFM (Installed mode)"
   echo -e "  $(basename "$0") --automated --principal wfm --spiffe-id spiffe://margo.org/margo/wfm/my-wfm"
   echo -e ""
-  echo -e "  # Automated mode - WFM Client (SpiffeID flow)"
+  echo -e "  # Automated mode - WFM Client (Installed mode)"
   echo -e "  $(basename "$0") --automated --principal wfm-client --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
   echo -e ""
-  echo -e "  # Automated mode - WFM (CSR flow)"
-  echo -e "  $(basename "$0") --automated --principal wfm --csr-path /path/to/wfm.csr"
+  echo -e "  # Automated mode - WFM (Enrolled mode)"
+  echo -e "  $(basename "$0") --automated --principal wfm --spiffe-id spiffe://margo.org/margo/wfm/my-wfm --csr-path /path/to/wfm.csr"
   echo -e ""
-  echo -e "  # Automated mode - WFM Client (CSR flow)"
-  echo -e "  $(basename "$0") --automated --principal wfm-client --csr-path /path/to/wfm-client.csr"
+  echo -e "  # Automated mode - WFM Client (Enrolled mode)"
+  echo -e "  $(basename "$0") --automated --principal wfm-client --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client --csr-path /path/to/wfm-client.csr"
   echo -e ""
   exit 0
 }
@@ -117,14 +119,14 @@ resolve_host_output_dir() {
   fi
 }
 
-# --- Mint the SVID via SPIFFE ID ---
-mint_svid() {
+# --- Mint the SVID (Installed mode: key + cert generated from SPIFFE ID) ---
+mint_svid_installed() {
   local spiffe_id="$1"
   local ttl="$2"
   local dns_list="$3"
   local mode_label="$4"
 
-  log_step "[${mode_label}] Minting X.509 SVID inside container"
+  log_step "[${mode_label}] Minting X.509 SVID — Installed mode"
   log_info "SPIFFE ID : ${spiffe_id}"
   log_info "TTL       : ${ttl} seconds"
   [[ -n "$dns_list" ]] && log_info "DNS SANs  : ${dns_list}" || log_info "DNS SANs  : (none)"
@@ -149,14 +151,15 @@ mint_svid() {
   log_info "SVID minted successfully. ✓"
 }
 
-# --- Mint the SVID via CSR ---
-mint_svid_csr() {
-  local host_csr_path="$1"
-  local ttl="$2"
-  local dns_list="$3"
-  local mode_label="$4"
+# --- Mint the SVID (Enrolled mode: cert generated from principal-supplied CSR) ---
+mint_svid_enrolled() {
+  local spiffe_id="$1"
+  local host_csr_path="$2"
+  local ttl="$3"
+  local dns_list="$4"
+  local mode_label="$5"
 
-  log_step "[${mode_label}] Minting X.509 SVID via CSR inside container"
+  log_step "[${mode_label}] Minting X.509 SVID — Enrolled mode"
 
   # Validate CSR file exists on host
   if [[ ! -f "$host_csr_path" ]]; then
@@ -168,6 +171,7 @@ mint_svid_csr() {
   csr_filename="$(basename "$host_csr_path")"
   local container_csr_path="${CSR_CONTAINER_PATH}/${csr_filename}"
 
+  log_info "SPIFFE ID          : ${spiffe_id}"
   log_info "Host CSR path      : ${host_csr_path}"
   log_info "Container CSR path : ${container_csr_path}"
   log_info "TTL                : ${ttl} seconds"
@@ -182,8 +186,9 @@ mint_svid_csr() {
   log_info "Creating output directory '${OUTPUT_DIR_IN_CONTAINER}' inside container..."
   docker exec "$CONTAINER_NAME" mkdir -p "$OUTPUT_DIR_IN_CONTAINER"
 
-  # Build mint command with --csrPath
+  # Build mint command with --spiffeID and --csrPath
   local cmd=(docker exec "$CONTAINER_NAME" "$MIS_CLI" mint x509
+    --spiffeID "$spiffe_id"
     --csrPath "$container_csr_path"
     --ttl "$ttl"
     --outputDir "$OUTPUT_DIR_IN_CONTAINER"
@@ -234,28 +239,28 @@ run_interactive() {
   # Step 2: Generation method selection
   log_step "SVID Generation Method"
   echo "  Select how to generate the SVID:"
-  echo "    1) SPIFFE ID — provide a SPIFFE ID; key and certificate will be generated"
-  echo "    2) CSR       — provide a CSR file; only certificate will be generated (key not created)"
+  echo "    1) Installed mode — provide a SPIFFE ID; key and certificate will be generated by MIS"
+  echo "    2) Enrolled mode  — provide a SPIFFE ID and a CSR; only the certificate will be generated (principal holds the key)"
   local GEN_METHOD=""
   while true; do
     read -rp "  Enter choice [1/2]: " method_choice
     case "$method_choice" in
-      1) GEN_METHOD="spiffe-id"; break ;;
-      2) GEN_METHOD="csr";       break ;;
+      1) GEN_METHOD="installed"; break ;;
+      2) GEN_METHOD="enrolled";  break ;;
       *) log_warn "Invalid choice. Please enter 1 or 2." ;;
     esac
   done
   log_info "Generation method: ${GEN_METHOD}"
 
-  if [[ "$GEN_METHOD" == "spiffe-id" ]]; then
-    _run_interactive_spiffe_id
+  if [[ "$GEN_METHOD" == "installed" ]]; then
+    _run_interactive_installed
   else
-    _run_interactive_csr
+    _run_interactive_enrolled
   fi
 }
 
-# --- Interactive: SPIFFE ID flow ---
-_run_interactive_spiffe_id() {
+# --- Interactive: Installed mode ---
+_run_interactive_installed() {
   # Trust Domain
   log_step "Trust Domain"
   read -rp "  Enter Trust Domain [default: ${DEFAULT_TRUST_DOMAIN}]: " TRUST_DOMAIN
@@ -336,7 +341,7 @@ _run_interactive_spiffe_id() {
   resolve_host_output_dir "$MODE"
 
   # Summary
-  log_section "Summary [${MODE_LABEL} — SPIFFE ID]"
+  log_section "Summary [${MODE_LABEL} — Installed mode]"
   echo "  SPIFFE ID  : ${SPIFFE_ID}"
   echo "  TTL        : ${TTL} seconds"
   echo "  DNS SANs   : ${DNS_LIST:-(none)}"
@@ -349,19 +354,69 @@ _run_interactive_spiffe_id() {
     exit 2
   fi
 
-  mint_svid "$SPIFFE_ID" "$TTL" "$DNS_LIST" "$MODE_LABEL"
+  mint_svid_installed "$SPIFFE_ID" "$TTL" "$DNS_LIST" "$MODE_LABEL"
   copy_certs_to_host "$MODE_LABEL"
 
-  log_section "Done [${MODE_LABEL} — SPIFFE ID]"
+  log_section "Done [${MODE_LABEL} — Installed mode]"
   log_info "X.509 SVID certificates are available at: $(pwd)/${HOST_OUTPUT_DIR}"
 }
 
-# --- Interactive: CSR flow ---
-_run_interactive_csr() {
+# --- Interactive: Enrolled mode ---
+_run_interactive_enrolled() {
+  # Trust Domain
+  log_step "Trust Domain"
+  read -rp "  Enter Trust Domain [default: ${DEFAULT_TRUST_DOMAIN}]: " TRUST_DOMAIN
+  TRUST_DOMAIN="${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}"
+  log_info "Trust Domain set to: ${TRUST_DOMAIN}"
+
+  # Principal Selection
+  log_step "Principal Selection"
+  echo "  Select the principal this CSR belongs to:"
+  echo "    1) WFM        — SPIFFE ID: spiffe://<trust-domain>/margo/wfm/<wfm-id>"
+  echo "    2) WFM Client — SPIFFE ID: spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+  while true; do
+    read -rp "  Enter choice [1/2]: " mode_choice
+    case "$mode_choice" in
+      1) MODE="wfm";        MODE_LABEL="WFM";        break ;;
+      2) MODE="wfm-client"; MODE_LABEL="WFM-Client";  break ;;
+      *) log_warn "Invalid choice. Please enter 1 or 2." ;;
+    esac
+  done
+  log_info "Principal selected: ${MODE_LABEL}"
+
+  if [[ "$MODE" == "wfm" ]]; then
+    echo ""
+    printf "  ${BOLD}WFM ID${RESET} uniquely identifies your Workflow Manager instance.\n"
+    read -rp "  Enter WFM ID: " WFM_ID
+    while [[ -z "$WFM_ID" ]]; do
+      log_warn "WFM ID cannot be empty."
+      read -rp "  Enter WFM ID: " WFM_ID
+    done
+    SPIFFE_ID="spiffe://${TRUST_DOMAIN}/margo/wfm/${WFM_ID}"
+    WFM_CLIENT_ID=""
+  else
+    echo ""
+    printf "  ${BOLD}WFM ID${RESET} identifies the Workflow Manager this client belongs to.\n"
+    read -rp "  Enter WFM ID: " WFM_ID
+    while [[ -z "$WFM_ID" ]]; do
+      log_warn "WFM ID cannot be empty."
+      read -rp "  Enter WFM ID: " WFM_ID
+    done
+    echo ""
+    printf "  ${BOLD}WFM Client ID${RESET} uniquely identifies this specific WFM Client within the WFM.\n"
+    read -rp "  Enter WFM Client ID: " WFM_CLIENT_ID
+    while [[ -z "$WFM_CLIENT_ID" ]]; do
+      log_warn "WFM Client ID cannot be empty."
+      read -rp "  Enter WFM Client ID: " WFM_CLIENT_ID
+    done
+    SPIFFE_ID="spiffe://${TRUST_DOMAIN}/margo/wfm/${WFM_ID}/client/${WFM_CLIENT_ID}"
+  fi
+  log_info "SPIFFE ID will be: ${SPIFFE_ID}"
+
   # CSR file path
   log_step "CSR File Path"
-  echo "  Provide the path to the CSR file on this host."
-  echo "  Note: Only the certificate will be generated; the private key will NOT be created."
+  echo "  Provide the path to the CSR (PKCS#10) file on this host."
+  echo "  Note: The principal generated its own key and exported this CSR. Only the certificate will be signed."
   local HOST_CSR_PATH=""
   while true; do
     read -rp "  Enter CSR file path: " HOST_CSR_PATH
@@ -374,21 +429,6 @@ _run_interactive_csr() {
     fi
   done
   log_info "CSR file: ${HOST_CSR_PATH}"
-
-  # Principal Selection (for output dir naming)
-  log_step "Principal Selection"
-  echo "  Select the principal this CSR belongs to:"
-  echo "    1) WFM"
-  echo "    2) WFM Client"
-  while true; do
-    read -rp "  Enter choice [1/2]: " mode_choice
-    case "$mode_choice" in
-      1) MODE="wfm";        MODE_LABEL="WFM";        break ;;
-      2) MODE="wfm-client"; MODE_LABEL="WFM-Client";  break ;;
-      *) log_warn "Invalid choice. Please enter 1 or 2." ;;
-    esac
-  done
-  log_info "Principal selected: ${MODE_LABEL}"
 
   # TTL
   log_step "SVID TTL (Time-To-Live)"
@@ -417,18 +457,16 @@ _run_interactive_csr() {
     log_info "No DNS SANs specified."
   fi
 
-  # Output dir: use CSR filename stem for uniqueness
-  local csr_stem
-  csr_stem="$(basename "${HOST_CSR_PATH%.*}")"
-  HOST_OUTPUT_DIR="x509svid-${csr_stem}"
+  resolve_host_output_dir "$MODE"
 
   # Summary
-  log_section "Summary [${MODE_LABEL} — CSR]"
+  log_section "Summary [${MODE_LABEL} — Enrolled mode]"
+  echo "  SPIFFE ID  : ${SPIFFE_ID}"
   echo "  CSR File   : ${HOST_CSR_PATH}"
   echo "  TTL        : ${TTL} seconds"
   echo "  DNS SANs   : ${DNS_LIST:-(none)}"
   echo "  Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
-  echo "  Note       : Private key will NOT be generated."
+  echo "  Note       : Private key will NOT be generated (principal retains its own key)."
   echo ""
   read -rp "  Proceed? [Y/n]: " confirm
   confirm="${confirm:-Y}"
@@ -437,10 +475,10 @@ _run_interactive_csr() {
     exit 0
   fi
 
-  mint_svid_csr "$HOST_CSR_PATH" "$TTL" "$DNS_LIST" "$MODE_LABEL"
+  mint_svid_enrolled "$SPIFFE_ID" "$HOST_CSR_PATH" "$TTL" "$DNS_LIST" "$MODE_LABEL"
   copy_certs_to_host "$MODE_LABEL"
 
-  log_section "Done [${MODE_LABEL} — CSR]"
+  log_section "Done [${MODE_LABEL} — Enrolled mode]"
   log_info "X.509 SVID certificates are available at: $(pwd)/${HOST_OUTPUT_DIR}"
 }
 
@@ -464,46 +502,36 @@ run_automated() {
       ;;
   esac
 
-  # Determine flow: CSR takes precedence if both are supplied; exactly one must be set
-  if [[ -n "$auto_csr_path" && -n "$auto_spiffe_id" ]]; then
-    log_error "Provide either --spiffe-id or --csr-path, not both."
-    usage
-  fi
-
-  if [[ -z "$auto_csr_path" && -z "$auto_spiffe_id" ]]; then
-    log_error "Automated mode requires either --spiffe-id or --csr-path."
+  # --spiffe-id is always required
+  if [[ -z "$auto_spiffe_id" ]]; then
+    log_error "Automated mode requires --spiffe-id for both Installed and Enrolled modes."
     usage
   fi
 
   log_info "Principal  : ${MODE_LABEL}"
+  log_info "SPIFFE ID  : ${auto_spiffe_id}"
   log_info "TTL        : ${DEFAULT_TTL} seconds (default — 90 days)"
   log_info "DNS SANs   : ${auto_dns_list:-(none)}"
 
   check_container
+  parse_spiffe_id "$auto_spiffe_id" "$auto_mode"
 
-  if [[ -n "$auto_spiffe_id" ]]; then
-    # SPIFFE ID flow
-    log_info "SPIFFE ID  : ${auto_spiffe_id}"
-    parse_spiffe_id "$auto_spiffe_id" "$auto_mode"
-
-    if [[ "$auto_mode" == "wfm" ]]; then
-      HOST_OUTPUT_DIR="x509svid-wfm"
-    else
-      HOST_OUTPUT_DIR="x509svid-wfmclient"
-    fi
-
-    log_info "Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
-    mint_svid "$auto_spiffe_id" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
-
+  if [[ "$auto_mode" == "wfm" ]]; then
+    HOST_OUTPUT_DIR="x509svid-wfm"
   else
-    # CSR flow
-    log_info "CSR Path   : ${auto_csr_path}"
-    local csr_stem
-    csr_stem="$(basename "${auto_csr_path%.*}")"
-    HOST_OUTPUT_DIR="x509svid-${csr_stem}"
+    HOST_OUTPUT_DIR="x509svid-wfmclient"
+  fi
 
-    log_info "Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
-    mint_svid_csr "$auto_csr_path" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
+  log_info "Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
+
+  if [[ -n "$auto_csr_path" ]]; then
+    # Enrolled mode: principal supplies its own CSR; MIS signs and returns certificate only
+    log_info "Mode       : Enrolled (CSR provided — certificate only, principal retains key)"
+    mint_svid_enrolled "$auto_spiffe_id" "$auto_csr_path" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
+  else
+    # Installed mode: MIS generates key + certificate from SPIFFE ID
+    log_info "Mode       : Installed (no CSR — key and certificate generated by MIS)"
+    mint_svid_installed "$auto_spiffe_id" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
   fi
 
   copy_certs_to_host "$MODE_LABEL"

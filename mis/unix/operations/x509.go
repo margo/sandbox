@@ -34,7 +34,9 @@ const (
 
 // loadCA reads and parses the CA certificate and EC private key from disk.
 // Returns the parsed certificate and private key, or an error.
-func (mo *MintOperations) loadCA(caFilePath, caKeyPath string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+func (mo *MintOperations) loadCA(
+	caFilePath, caKeyPath string,
+) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	logger := mo.logger.With("operation", "loadCA")
 
 	// --- Load CA certificate ---
@@ -48,7 +50,10 @@ func (mo *MintOperations) loadCA(caFilePath, caKeyPath string) (*x509.Certificat
 
 	caCertBlock, _ := pem.Decode(caCertPEMBytes)
 	if caCertBlock == nil {
-		return nil, nil, fmt.Errorf("failed to decode PEM block from CA certificate file: %s", caFilePath)
+		return nil, nil, fmt.Errorf(
+			"failed to decode PEM block from CA certificate file: %s",
+			caFilePath,
+		)
 	}
 
 	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
@@ -141,7 +146,13 @@ func (mo *MintOperations) GenerateSVID(
 		logger.Error("failed to parse SPIFFE ID as URI", "spiffe_id", req.SpiffeID, "error", err)
 		return nil, fmt.Errorf("parsing SPIFFE ID: %w", err)
 	}
-	logger.Debug("SPIFFE ID parsed from request", "spiffe_id", req.SpiffeID, "trust_domain", spiffeURI.Host)
+	logger.Debug(
+		"SPIFFE ID parsed from request",
+		"spiffe_id",
+		req.SpiffeID,
+		"trust_domain",
+		spiffeURI.Host,
+	)
 
 	// --- Build certificate template (shared for both modes) ---
 	ttl := req.ResolvedTTL()
@@ -187,8 +198,10 @@ func (mo *MintOperations) GenerateSVID(
 			if csrSpiffeID != req.SpiffeID {
 				logger.Warn(
 					"CSR URI SAN differs from req.SpiffeID; using req.SpiffeID as authoritative value",
-					"req_spiffe_id", req.SpiffeID,
-					"csr_spiffe_id", csrSpiffeID,
+					"req_spiffe_id",
+					req.SpiffeID,
+					"csr_spiffe_id",
+					csrSpiffeID,
 				)
 			} else {
 				logger.Debug(

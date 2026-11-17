@@ -199,21 +199,14 @@ push_nextcloud_compose_to_oci() (
   local_app_dir="${NEXTCLOUD_COMPOSE_DIR:-$HOME/sandbox/poc/tests/artefacts/nextcloud-compose/code/compose}"
   registry="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   repository="${OCI_ORGANIZATION}/nextcloud-compose-archive"
-  compose_revision="${NEXTCLOUD_COMPOSE_REVISION:-1.0.0}"
-  component_name="${NEXTCLOUD_COMPONENT_NAME:-nextcloud-stack}"
-  description="${NEXTCLOUD_DESCRIPTION:-Nextcloud Compose Component}"
-  author="${MAINTAINER_EMAIL:-Margo Community (info@margo.org)}"
+  compose_revision="1.0.0"
+  component_name="nextcloud-stack"
+  description="Nextcloud Compose Component"
+  author="Margo Community (info@margo.org)"
 
   for tool in oras jq tar; do
     command -v "$tool" >/dev/null || { echo "❌ Required tool missing: $tool"; exit 1; }
   done
-
-  # --- Input Validation (SemVer 2.0 without leading 'v') ---------------------
-  semver_re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
-  if [[ ! "$compose_revision" =~ $semver_re ]]; then
-    echo "❌ Revision '$compose_revision' is not valid SemVer 2.0 (no leading 'v', no '+build')"
-    exit 1
-  fi
 
   [ -d "$local_app_dir" ] || { echo "❌ App directory missing: $local_app_dir"; exit 1; }
   [ -f "$local_app_dir/compose.yaml" ] || { echo "❌ compose.yaml not found in $local_app_dir"; exit 1; }

@@ -306,7 +306,7 @@ deploy_instance_non_interactive() {
     local deploy_status=$?
     echo "$deploy_output"
 
-    if [ $deploy_status -eq 0 ] && ! echo "$deploy_output" | grep -qi "Apply failed"; then
+    if [ $deploy_status -eq 0 ] && ! echo "$deploy_output" | grep -Eqi "failed|error"; then
       echo "✅ Instance deployment request sent successfully!"
       echo ""
       echo "📋 Updated deployments:"

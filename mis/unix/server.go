@@ -159,8 +159,6 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	op := operations.New(m.logger)
-	var certPEM, keyPEM []byte
-	var err error
 
 	// In case CSR Is provided, use it to generate SVID.
 
@@ -179,11 +177,11 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 
 	// Base64-encode PEM blocks, response for Enrolled mode
 	resp := types.MintSVIDResponse{
-		Certificate: base64.StdEncoding.EncodeToString(certPEM),
+		Certificate: base64.StdEncoding.EncodeToString(result.Cert),
 	}
 	// For Installed mode
 	if result.GenerationType == operations.SVIDGenerationTypeInstalled {
-		resp.Key = base64.StdEncoding.EncodeToString(keyPEM)
+		resp.Key = base64.StdEncoding.EncodeToString(result.Key)
 	}
 
 	m.logger.Debug("sending SVID response to client")

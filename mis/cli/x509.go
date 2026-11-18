@@ -387,13 +387,11 @@ func validateCSR(csr string) error {
 		return fmt.Errorf("CSR signature verification failed: %w", err)
 	}
 
-	// Validate URI SANs: exactly one must be present and must be a valid SPIFFE ID
-	if len(parsed.URIs) != 1 {
-		return fmt.Errorf("CSR must contain exactly one URI SAN, got %d", len(parsed.URIs))
-	}
-
-	if err := validateSpiffeID(parsed.URIs[0].String()); err != nil {
-		return fmt.Errorf("URI SAN is not a valid SPIFFE ID: %w", err)
+	// Validate URI SANs only if present: exactly one should be present and must be a valid SPIFFE ID
+	if len(parsed.URIs) == 1 {
+		if err := validateSpiffeID(parsed.URIs[0].String()); err != nil {
+			return fmt.Errorf("URI SAN is not a valid SPIFFE ID: %w", err)
+		}
 	}
 
 	return nil

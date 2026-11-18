@@ -444,10 +444,13 @@ type AppDeploymentProfile struct {
 	Characteristics *[]Characteristics `json:"characteristics" yaml:"characteristics"`
 
 	// Components Components in this deployment profile
-	Components *[]AppDeploymentProfile_Components_Item `json:"components" yaml:"components"`
+	Components []AppDeploymentProfile_Components_Item `json:"components" yaml:"components"`
 
 	// Description Description of the deployment profile
 	Description *string `json:"description" yaml:"description"`
+
+	// Key Deployment technology key, e.g. `margo.org/deployment/helm` or `margo.org/deployment/compose`.
+	Key string `json:"key" yaml:"key"`
 }
 
 // AppDeploymentProfile_Components_Item defines model for AppDeploymentProfile.components.Item.

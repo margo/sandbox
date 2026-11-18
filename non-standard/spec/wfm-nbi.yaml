@@ -627,8 +627,18 @@ components:
         - version
 
 
-    AppDeploymentProfile:      
+    AppDeploymentProfile:
+      type: object
+      required: [key, components]
       properties:
+        key:
+          type: string
+          description: >-
+            Deployment technology key, e.g. `margo.org/deployment/helm`
+            or `margo.org/deployment/compose`.
+          x-oapi-codegen-extra-tags:
+            json: "key"
+            yaml: "key"
         components:
           description: Components in this deployment profile
           items:
@@ -643,7 +653,7 @@ components:
           type: string
           x-oapi-codegen-extra-tags:
             json: "description"
-            yaml: "description"        
+            yaml: "description"
         characteristics:
           type: array
           description: Characteristic match expressions required for placement on a workload target.
@@ -652,6 +662,7 @@ components:
           x-oapi-codegen-extra-tags:
             json: "characteristics"
             yaml: "characteristics"
+
 
     AppDescriptionParametersMap:
       additionalProperties:

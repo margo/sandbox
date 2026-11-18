@@ -232,7 +232,6 @@ push_nextcloud_compose_to_oci() (
   jq -n \
     --arg layer "$archive_name" \
     --arg ver "$compose_revision" \
-    --arg title "$component_name" \
     --arg authors "$author" \
     --arg desc "$description" \
     '{
@@ -246,8 +245,7 @@ push_nextcloud_compose_to_oci() (
       "$manifest": {
         "org.margo.component.type": "compose",
         "org.margo.component.version": $ver,
-        "org.opencontainers.image.version": $ver,
-        "org.opencontainers.image.title": $title,
+        "org.opencontainers.image.version": $ver
       }
     }' > "$annotations_file"
 

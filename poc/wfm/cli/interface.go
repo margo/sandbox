@@ -29,10 +29,10 @@ type SBIAPIClientInterface interface {
 		digest string,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) (bundleData []byte, err error)
-	ReportCapabilities(
+	ReportDeviceProfile(
 		ctx context.Context,
 		deviceId string,
-		capabilities sbi.Profile,
+		deviceProfile sbi.Profile,
 		overrideOptions ...HTTPApiClientRequestEditorOptions,
 	) error
 	ReportDeploymentStatus(

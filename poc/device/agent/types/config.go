@@ -48,14 +48,14 @@ const (
 
 // Config struct
 type Config struct {
-	Logging      LoggingConfig               `yaml:"logging"      validate:"required"`
-	Database     DatabaseConfig              `yaml:"database"     validate:"required"`
-	MIAF         MIAFConfig                  `yaml:"miaf"         validate:"required"`
-	Wfm          WFMConfig                   `yaml:"wfm"          validate:"required"`
-	StateSeeking StateSeekingConfig          `yaml:"stateSeeking" validate:"required"`
-	Bundle       BundleConfig                `yaml:"bundle"` // optional; defaults are used when omitted
-	Capabilities CapabilitiesDiscoveryConfig `yaml:"capabilities" validate:"required"`
-	Runtimes     []RuntimeInfo               `yaml:"runtimes"     validate:"required"`
+	Logging       LoggingConfig                `yaml:"logging"      validate:"required"`
+	Database      DatabaseConfig               `yaml:"database"     validate:"required"`
+	MIAF          MIAFConfig                   `yaml:"miaf"         validate:"required"`
+	Wfm           WFMConfig                    `yaml:"wfm"          validate:"required"`
+	StateSeeking  StateSeekingConfig           `yaml:"stateSeeking" validate:"required"`
+	Bundle        BundleConfig                 `yaml:"bundle"` // optional; defaults are used when omitted
+	DeviceProfile DeviceProfileDiscoveryConfig `yaml:"deviceProfile" validate:"required"`
+	Runtimes      []RuntimeInfo                `yaml:"runtimes"     validate:"required"`
 }
 
 type DatabaseConfig struct {
@@ -80,7 +80,7 @@ type WFMConfig struct {
 	SbiURL string `yaml:"sbiUrl" validate:"required"`
 }
 
-type CapabilitiesDiscoveryConfig struct {
+type DeviceProfileDiscoveryConfig struct {
 	ReadFromFile string `yaml:"readFromFile" validate:"required"`
 }
 
@@ -110,6 +110,11 @@ type RuntimeInfo struct {
 	Docker     *DockerConfig     `yaml:"docker,omitempty"`
 }
 
+type DeviceProfile struct {
+	WorkloadTargetId string `json:"workloadTargetId"`
+	sbi.Profile
+}
+
 func LoadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(filepath.Clean(configPath))
 	if err != nil {
@@ -124,18 +129,18 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &config, validateConfig(&config)
 }
 
-func LoadCapabilities(capabilitiesPath string) (*sbi.DeviceCapabilitiesManifest, error) {
-	data, err := os.ReadFile(filepath.Clean(capabilitiesPath))
+func LoadDeviceProfile(deviceProfilePath string) (*DeviceProfile, error) {
+	data, err := os.ReadFile(filepath.Clean(deviceProfilePath))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read capabilities file: %w", err)
+		return nil, fmt.Errorf("failed to read device profile file: %w", err)
 	}
 
-	var capabilities sbi.DeviceCapabilitiesManifest
-	if err := json.Unmarshal(data, &capabilities); err != nil {
-		return nil, fmt.Errorf("failed to parse capabilities: %w", err)
+	var dp DeviceProfile
+	if err := json.Unmarshal(data, &dp); err != nil {
+		return nil, fmt.Errorf("failed to parse device profile: %w", err)
 	}
 
-	return &capabilities, nil
+	return &dp, nil
 }
 
 // validateConfig validates the configuration
@@ -206,8 +211,8 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("there are no runtimes defined in agent configuration")
 	}
 
-	if config.Capabilities.ReadFromFile == "" {
-		return fmt.Errorf("capabilities.readFromFile is required in configuration")
+	if config.DeviceProfile.ReadFromFile == "" {
+		return fmt.Errorf("deviceProfile.readFromFile is required in configuration")
 	}
 
 	if config.MIAF.MIS.CacheInterval == 0 {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -72,8 +71,6 @@ type DeviceSettingsRecord struct {
 	ParsedMIAF  mc.ParsedMIAFConfig      `json:"parsedMiafConfig"`
 	State       types.DeviceOnboardState `json:"state"`
 	// the applications that the device can deploy
-	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
-	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`
 
 	// Added these new fields for sync state management
 	LastSyncedETag            string `json:"lastSyncedETag"`
@@ -660,11 +657,11 @@ func (db *Database) IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error) {
 	return db.deviceSettings, db.deviceSettings.State == types.DeviceOnboardStateOnboarded, nil
 }
 
-func (db *Database) CanDeployAppProfile(profileType string) bool {
-	for _, dt := range db.deviceSettings.SupportedDeploymentTypes {
-		if string(dt) == strings.ToLower(profileType) {
-			return true
-		}
-	}
-	return false
-}
+// func (db *Database) CanDeployAppProfile(profileType string) bool {
+// 	for _, dt := range db.deviceSettings.SupportedDeploymentTypes {
+// 		if string(dt) == strings.ToLower(profileType) {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }

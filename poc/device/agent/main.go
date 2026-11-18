@@ -31,13 +31,13 @@ import (
 )
 
 // 1. Device onboarding on wfm
-// 2. Device capabilities reporting to the wfm
+// 2. Device profile reporting to the wfm
 // 3. State seeking/syncing with wfm
 // 4. Deployment status updates to the wfm
 type Agent struct {
 	log            *zap.SugaredLogger
 	auth           *DeviceClientSettings
-	capabilities   *sbi.Profile
+	deviceProfile  *types.DeviceProfile
 	config         types.Config
 	database       database.DatabaseIfc
 	syncer         StateSyncerIfc
@@ -65,20 +65,20 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create database
 	db := database.NewDatabase(cfg.Database.DataDir, log)
 
-	capabilities, err := types.LoadCapabilities(cfg.Capabilities.ReadFromFile)
+	deviceProfile, err := types.LoadDeviceProfile(cfg.DeviceProfile.ReadFromFile)
 	if err != nil {
 		log.Errorw(
-			"failed to load the capabilities file, cannot proceed",
+			"failed to load the device profile file, cannot proceed",
 			"err",
 			err.Error(),
 		)
 		return nil, err
 	}
 
-	if !validDeviceIdPattern.MatchString(capabilities.Properties.Id) {
+	if !validDeviceIdPattern.MatchString(deviceProfile.WorkloadTargetId) {
 		return nil, fmt.Errorf(
 			"configured deviceId %s does not match the pattern %s defined in spec, please correct it to proceed",
-			capabilities.Properties.Id,
+			deviceProfile.WorkloadTargetId,
 			validDeviceIdPattern.String(),
 		)
 	}
@@ -93,7 +93,6 @@ func NewAgent(configPath string) (*Agent, error) {
 			if err != nil {
 				return nil, err
 			}
-			opts = append(opts, WithEnableHelmDeployment())
 		}
 
 		if runtime.Docker != nil {
@@ -109,7 +108,6 @@ func NewAgent(configPath string) (*Agent, error) {
 			if err != nil {
 				return nil, err
 			}
-			opts = append(opts, WithEnableComposeDeployment())
 		}
 	}
 	if helmClient == nil && composeClient == nil {
@@ -175,7 +173,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		sbi.WithRequestEditorFn(PreflightLogger(100, log)),
 	)
 
-	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, capabilities.Properties.Id, clientOptions...)
+	wfmClient, err := wfm.NewSbiHTTPClient(wfmUrl, deviceProfile.WorkloadTargetId, clientOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WFM client: %w", err)
 	}
@@ -188,14 +186,12 @@ func NewAgent(configPath string) (*Agent, error) {
 
 	log.Infow(
 		"Device details",
-		"deviceId", capabilities.Properties.Id,
-		"supportedDeploymentTypes", deviceSettings.supportedDeploymentTypes,
-		"supportedRuntimes", deviceSettings.supportedRuntimes,
+		"workloadTargetId", deviceProfile.WorkloadTargetId,
 	)
 
 	// Create components
-	deployer := NewDeploymentManager(db, capabilities, helmClient, composeClient, log)
-	monitor := NewDeploymentMonitor(db, capabilities, helmClient, composeClient, log)
+	deployer := NewDeploymentManager(db, deviceProfile, helmClient, composeClient, log)
+	monitor := NewDeploymentMonitor(db, deviceProfile, helmClient, composeClient, log)
 	syncer := NewStateSyncer(
 		db,
 		wfmClient,
@@ -216,7 +212,7 @@ func NewAgent(configPath string) (*Agent, error) {
 		statusReporter: statusReporter,
 		log:            log,
 		config:         *cfg,
-		capabilities:   capabilities,
+		deviceProfile:  deviceProfile,
 		tbCacher:       tbCacher,
 		afWatcher:      afWatcher,
 	}, nil
@@ -282,17 +278,17 @@ func (a *Agent) Start() error {
 		}
 	}
 
-	// 2. Report capabilities until done successfully. Only then start rest of the flows
+	// 2. Report device profiles until done successfully. Only then start rest of the flows
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		err := a.auth.ReportCapabilities(ctx, *a.capabilities)
+		err := a.auth.ReportDeviceProfile(ctx, a.deviceProfile)
 		if err == nil {
-			// capabilities reported successfully. Break from this loop.
+			// device profile reported successfully. Break from this loop.
 			break
 		}
 		a.log.Errorw(
-			"failed to report the capabilities, will try again in 5 seconds",
+			"failed to report the device profile, will try again in 5 seconds",
 			"err",
 			err.Error(),
 		)
@@ -307,7 +303,7 @@ func (a *Agent) Start() error {
 
 	a.log.Infow(
 		"Workload Fleet Management Client started successfully",
-		"capabilitiesFile", a.config.Capabilities.ReadFromFile,
+		"DeviceProfilesFile", a.config.DeviceProfile.ReadFromFile,
 		"stateSeekingInterval", a.config.StateSeeking.Interval,
 		"bundleDeploymentThreshold", a.config.Bundle.DeploymentThreshold,
 		"bundleSizeThresholdMB", a.config.Bundle.SizeThresholdMB,

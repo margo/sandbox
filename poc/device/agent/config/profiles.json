@@ -1,0 +1,74 @@
+{
+    "workloadTargetId": "northstarida.xtapro.k8s.edge",
+    "characteristics": [
+        {
+            "key": "margo.org/nameplate",
+            "properties": {
+                "vendor": "Northstar Industrial Devices",
+                "modelNumber": "332ANZE1-N1",
+                "serialNumber": "PF45343-AA"
+            }
+        },
+        {
+            "key": "margo.org/resource/cpu",
+            "properties": {
+                "cpus": [
+                    {
+                        "cores": 24,
+                        "architecture": "amd64"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "margo.org/resource/memory",
+            "properties": {
+                "available": 59
+            }
+        },
+        {
+            "key": "margo.org/resource/storage",
+            "properties": {
+                "available": 1862
+            }
+        },
+        {
+            "key": "margo.org/peripherals",
+            "properties": {
+                "peripherals": [
+                    {
+                        "type": "gpu",
+                        "manufacturer": "NVIDIA"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "margo.org/interfaces",
+            "properties": {
+                "interfaces": [
+                    {
+                        "type": "ethernet"
+                    },
+                    {
+                        "type": "wifi"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "margo.org/services",
+            "properties": {
+                "otelCollector": true
+            }
+        },
+        {
+            "key": "margo.org/deployment/compose",
+            "properties": {}
+        },
+        {
+            "key": "margo.org/deployment/helm",
+            "properties": {}
+        }
+    ]
+}

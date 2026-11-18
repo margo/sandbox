@@ -12,11 +12,17 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/operation"
+	"github.com/margo/sandbox/poc/device/agent/types"
 	"github.com/margo/sandbox/shared-lib/constraints"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/margo/sandbox/standard/pkg"
 	"go.uber.org/zap"
+)
+
+const (
+	appDeploymentProfileKeyHelm    string = "margo.org/deployment/helm"
+	appDeploymentProfileKeyCompose string = "margo.org/deployment/compose"
 )
 
 type DeploymentManagerIfc interface {
@@ -28,7 +34,7 @@ type DeploymentManager struct {
 	database      database.DatabaseIfc
 	helmClient    *workloads.HelmClient
 	composeClient *operation.DockerComposeClient
-	capabilities  *sbi.DeviceCapabilitiesManifest
+	deviceProfile *types.DeviceProfile
 	log           *zap.SugaredLogger
 	stopChan      chan struct{}
 	//  Mutex to prevent concurrent reconciliation
@@ -37,7 +43,7 @@ type DeploymentManager struct {
 
 func NewDeploymentManager(
 	db database.DatabaseIfc,
-	capabilities *sbi.DeviceCapabilitiesManifest,
+	deviceProfile *types.DeviceProfile,
 	helmClient *workloads.HelmClient,
 	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,
@@ -47,7 +53,7 @@ func NewDeploymentManager(
 		helmClient:     helmClient,
 		composeClient:  composeClient,
 		log:            log,
-		capabilities:   capabilities,
+		deviceProfile:  deviceProfile,
 		stopChan:       make(chan struct{}),
 		reconcileLocks: sync.Map{},
 	}
@@ -207,8 +213,9 @@ func (dm *DeploymentManager) checkDeviceEligibility(
 	desiredState database.AppDeploymentState,
 ) (bool, string, error) {
 	dc := constraints.New()
+
 	ok, reason, err := dc.IsDeviceEligible(
-		dm.capabilities,
+		dm.deviceProfile,
 		desiredState.Spec.DeploymentProfile.DeviceConstraints,
 	)
 	if err != nil {
@@ -281,10 +288,10 @@ func (dm *DeploymentManager) deployOrUpdate(
 
 	dm.database.SetPhase(deploymentId, constant.PhaseDeploying, "starting deployment")
 
-	profileType := appDeployment.Spec.DeploymentProfile.Type
+	profileType := appDeployment.Spec.DeploymentProfile.Key
 
 	switch profileType {
-	case sbi.AppDeploymentProfileTypeHelm:
+	case appDeploymentProfileKeyHelm:
 		//  Check if Helm client is available
 		if dm.helmClient == nil {
 			err = fmt.Errorf(
@@ -294,7 +301,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 			err = dm.deployOrUpdateHelm(ctx, deploymentId, appDeployment)
 		}
 
-	case sbi.AppDeploymentProfileTypeCompose:
+	case appDeploymentProfileKeyCompose:
 		// Check if Compose client is available
 		if dm.composeClient == nil {
 			err = fmt.Errorf(
@@ -337,7 +344,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 				}{
 					Code:    GetAddress("DEPLOYMENT_ERROR"),
 					Message: &errMsg,
-					Source:  &dm.capabilities.Properties.Id,
+					Source:  &dm.deviceProfile.WorkloadTargetId,
 				},
 			})
 		}
@@ -597,13 +604,13 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 	}
 
 	// Route removal based on deployment type
-	profileType := appDeployment.Spec.DeploymentProfile.Type
+	profileType := appDeployment.Spec.DeploymentProfile.Key
 
 	var removeErr error
 	switch profileType {
-	case sbi.AppDeploymentProfileTypeHelm:
+	case appDeploymentProfileKeyHelm:
 		removeErr = dm.removeHelm(ctx, deploymentId, appDeployment)
-	case sbi.AppDeploymentProfileTypeCompose:
+	case appDeploymentProfileKeyCompose:
 		removeErr = dm.removeCompose(ctx, deploymentId, appDeployment)
 	default:
 		dm.log.Warnw(
@@ -628,7 +635,7 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 				}{
 					Code:    GetAddress("REMOVAL_ERROR"),
 					Message: GetAddress(removeErr.Error()),
-					Source:  &dm.capabilities.Properties.Id,
+					Source:  &dm.deviceProfile.WorkloadTargetId,
 				},
 			})
 		} else {

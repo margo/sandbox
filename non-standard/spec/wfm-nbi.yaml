@@ -627,18 +627,8 @@ components:
         - version
 
 
-    AppDeploymentProfile:
-      type: object
-      required: [key, components]
+    AppDeploymentProfile:      
       properties:
-        key:
-          type: string
-          description: >-
-            Deployment technology key, e.g. `margo.org/deployment/helm`
-            or `margo.org/deployment/compose`.
-          x-oapi-codegen-extra-tags:
-            json: "key"
-            yaml: "key"
         components:
           description: Components in this deployment profile
           items:
@@ -653,13 +643,7 @@ components:
           type: string
           x-oapi-codegen-extra-tags:
             json: "description"
-            yaml: "description"
-        deviceConstraints:
-          description: Device capabilities required for this deployment profile
-          $ref: "#/components/schemas/DeviceConstraints"
-          x-oapi-codegen-extra-tags:
-            json: "deviceConstraints"
-            yaml: "deviceConstraints"
+            yaml: "description"        
         characteristics:
           type: array
           description: Characteristic match expressions required for placement on a workload target.
@@ -1257,9 +1241,7 @@ components:
           description: >-
             Deployment technology key, e.g. `margo.org/deployment/helm`
             or `margo.org/deployment/compose`.
-        deviceConstraints:
-          description: Device capabilities required for this deployment
-          $ref: "#/components/schemas/DeviceConstraints"
+ 
         characteristics:
           type: array
           description: >-
@@ -1510,75 +1492,6 @@ components:
       type: string
       enum: [IN-PROGRESS, ONBOARDED, FAILED]
 
-    DeviceConstraints:
-      type: object
-      description: >-
-        Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
-      properties:
-        capacityRequirements:
-          $ref: '#/components/schemas/CapacityRequirements'
-          description: Minimum CPU, memory, and storage requirements for the deployment profile.
-        eligibilityRules:
-          type: array
-          items:
-            $ref: '#/components/schemas/EligibilityRule'
-          description: >-
-            Optional rules used to match the deployment with device properties and supplier-defined labels
-            reported in the device capabilities.
-    CapacityRequirements:
-      type: object
-      description: Minimum device capacity required by the deployment profile.
-      properties:
-        cpu:
-          $ref: '#/components/schemas/DeploymentCpuRequirement'
-          description: CPU element specifying the CPU requirements for the deployment.
-        memory:
-          type: string
-          description: >-
-            The minimum amount of memory required. The value is given in binary units
-            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
-          pattern: ^[0-9]+(Mi|Gi|Ki)$
-        storage:
-          type: string
-          description: >-
-            The minimum amount of storage required. The value is given in binary units
-            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
-          pattern: ^[0-9]+(Mi|Gi|Ki|Ti|Pi|Ei)$
-    DeploymentCpuRequirement:
-      type: object
-      description: CPU element specifying the CPU requirements for the deployment.
-      required: [cores]
-      properties:
-        cores:
-          type: number
-          description: >-
-            The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
-        architectures:
-          type: array
-          items:
-            type: string
-            enum: [amd64, arm64, arm, riscv64, other]
-          description: The CPU architectures supported by the deployment.
-    EligibilityRule:
-      type: object
-      description: A rule matching properties and supplier-defined labels reported through the device capabilities.
-      properties:
-        propertySelector:
-          $ref: '#/components/schemas/Selector'
-          description: Selector evaluated against the properties reported in the device capabilities.
-        labelSelector:
-          $ref: '#/components/schemas/Selector'
-          description: Selector evaluated against the labels reported in the device capabilities.
-    Selector:
-      type: object
-      description: A set of match expressions evaluated with AND semantics.
-      required: [matchExpressions]
-      properties:
-        matchExpressions:
-          type: array
-          items:
-            $ref: '#/components/schemas/MatchExpression'
-          description: Match expressions evaluated against the device's reported capabilities.
 
     MatchExpression:
       type: object
@@ -1593,16 +1506,16 @@ components:
             exact label key.
         operator:
           type: string
-          enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt, ContainsAll, ContainsAny]
+          enum: [In, NotIn, Exists, DoesNotExist, Gt, GtEq, Lt, LtEq, ContainsAll, ContainsAny]
           description: Operator used to evaluate the referenced value.
         values:
           type: array
           items: {}
           description: >-
             Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`,
-            `Gt`, or `Lt` operator.
+            `Gt`, `GtEq`, `Lt`, or `LtEq` operator.
         itemSelector:
-          $ref: '#/components/schemas/Selector'
+          $ref: '#/components/schemas/ItemSelector'
           description: Selector evaluated against array elements. Required for the `ContainsAll` or `ContainsAny` operator.
     
 

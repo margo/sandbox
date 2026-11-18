@@ -182,59 +182,6 @@ COMPONENT
           timeout: 5m
 COMPONENT
   fi
-
-  # Profile-specific parameters
-  if grep -q "parameters:" "$margo_file"; then
-    echo "  parameters:" >> "$output_file"
-
-    if [ "$profile_type" = "helm" ]; then
-      # helm: emit otlp endpoint if otel/otlp present in margo.yaml
-      if grep -qi "otel\|otlp" "$margo_file"; then
-        cat >> "$output_file" <<EOF
-    otlpEndpoint:
-      value: "http://otel-collector-opentelemetry-collector.observability:4318"
-      targets:
-      - pointer: env.OTEL_EXPORTER_OTLP_ENDPOINT
-        components: ["${component_name}"]
-EOF
-      fi
-
-    elif [ "$profile_type" = "compose" ]; then
-      # compose: find parameter name and port value from PORTS.* pointer in margo.yaml
-      local port_param port_value port_number
-
-      port_param=$(awk '
-        /^parameters:/ { in_params=1; next }
-        in_params && /^  [a-zA-Z]/ { current=$1; gsub(/:/, "", current) }
-        in_params && /pointer:.*PORTS\./ { print current; exit }
-      ' "$margo_file")
-
-      port_number=$(awk '
-        /pointer:.*PORTS\./ {
-          match($0, /PORTS\.([0-9]+)/, arr)
-          print arr[1]
-          exit
-        }
-      ' "$margo_file")
-
-      if [ -n "$port_param" ]; then
-        port_value=$(awk "/^  ${port_param}:/,/targets:/ { if (/value:/) print }" "$margo_file" \
-          | head -1 | sed 's/.*value:\s*//' | tr -d '"' | tr -d "'" | xargs)
-      fi
-
-      port_value="${port_value:-${port_number:-80}}"
-      port_number="${port_number:-80}"
-      port_param="${port_param:-servicePort}"
-
-      cat >> "$output_file" <<EOF
-    ${port_param}:
-      value: ${port_value}
-      targets:
-        - pointer: PORTS.${port_number}
-          components: ["${component_name}"]
-EOF
-    fi
-  fi
 }
 
 generate_wfm_package_yaml() {

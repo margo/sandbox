@@ -213,7 +213,8 @@ func (mo *MintOperations) GenerateSVID(
 		} else {
 			logger.Warn(
 				"enrolled mode: CSR should contain exactly one URI SAN, will use SPIFFE ID provided in request",
-				"got", len(csr.URIs),
+				"got",
+				len(csr.URIs),
 				"req_spiffe_id",
 				req.SpiffeID,
 			)

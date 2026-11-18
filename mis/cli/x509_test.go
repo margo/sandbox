@@ -89,6 +89,46 @@ func TestValidateCSR(t *testing.T) {
 				)
 			},
 		},
+		// ── NEW: no URI SANs is now valid (SPIFFE ID is optional) ──
+		{
+			name: "valid PEM CSR with no URI SANs",
+			csr: func(t *testing.T) string {
+				return string(generateTestCSR(t, []string{}))
+			},
+		},
+		{
+			name: "PEM CSR with single non-SPIFFE URI SAN is invalid",
+			csr: func(t *testing.T) string {
+				return string(generateTestCSR(t, []string{"https://example.org/myservice"}))
+			},
+			wantErr: "URI SAN is not a valid SPIFFE ID",
+		},
+		// ── MODIFIED: multiple URIs — only invalid if a SPIFFE URI is present among others ──
+		{
+			name: "PEM CSR with multiple URI SANs is valid (ignored)",
+			csr: func(t *testing.T) string {
+				return string(generateTestCSR(t, []string{
+					"spiffe://example.org/service-a",
+					"spiffe://example.org/service-b",
+				}))
+			},
+		},
+		// ── KEPT: if a SPIFFE URI is present it must be valid ──
+		{
+			name: "PEM CSR with SPIFFE ID missing path is invalid",
+			csr: func(t *testing.T) string {
+				return string(generateTestCSR(t, []string{"spiffe://example.org"}))
+			},
+			wantErr: "URI SAN is not a valid SPIFFE ID",
+		},
+		{
+			name: "PEM CSR with SPIFFE ID root path only is invalid",
+			csr: func(t *testing.T) string {
+				return string(generateTestCSR(t, []string{"spiffe://example.org/"}))
+			},
+			wantErr: "URI SAN is not a valid SPIFFE ID",
+		},
+		// ── KEPT: structural/encoding errors still invalid ──
 		{
 			name: "PEM block with wrong type",
 			csr: func(t *testing.T) string {
@@ -113,44 +153,6 @@ func TestValidateCSR(t *testing.T) {
 				return base64.StdEncoding.EncodeToString([]byte("random garbage bytes"))
 			},
 			wantErr: "invalid CSR",
-		},
-		{
-			name: "PEM CSR with no URI SANs",
-			csr: func(t *testing.T) string {
-				return string(generateTestCSR(t, []string{}))
-			},
-			wantErr: "CSR must contain exactly one URI SAN, got 0",
-		},
-		{
-			name: "PEM CSR with multiple URI SANs",
-			csr: func(t *testing.T) string {
-				return string(generateTestCSR(t, []string{
-					"spiffe://example.org/service-a",
-					"spiffe://example.org/service-b",
-				}))
-			},
-			wantErr: "CSR must contain exactly one URI SAN, got 2",
-		},
-		{
-			name: "PEM CSR with non-SPIFFE URI SAN",
-			csr: func(t *testing.T) string {
-				return string(generateTestCSR(t, []string{"https://example.org/myservice"}))
-			},
-			wantErr: "URI SAN is not a valid SPIFFE ID",
-		},
-		{
-			name: "PEM CSR with SPIFFE ID missing path",
-			csr: func(t *testing.T) string {
-				return string(generateTestCSR(t, []string{"spiffe://example.org"}))
-			},
-			wantErr: "URI SAN is not a valid SPIFFE ID",
-		},
-		{
-			name: "PEM CSR with SPIFFE ID root path only",
-			csr: func(t *testing.T) string {
-				return string(generateTestCSR(t, []string{"spiffe://example.org/"}))
-			},
-			wantErr: "URI SAN is not a valid SPIFFE ID",
 		},
 		{
 			name: "empty string",

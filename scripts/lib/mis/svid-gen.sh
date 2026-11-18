@@ -18,8 +18,8 @@ else
   DEFAULT_TRUST_DOMAIN="${_FALLBACK_TRUST_DOMAIN}"
 fi
 
-DEFAULT_TTL=7776000  # 90 days in seconds
-OUTPUT_DIR_IN_CONTAINER="svidCert"
+DEFAULT_TTL=604800   # 7 days in seconds
+OUTPUT_DIR_IN_CONTAINER="/tmp/svidCert"   # ← Change to absolute path
 CSR_CONTAINER_PATH="/tmp"
 
 # --- Colors & Logging ---
@@ -179,12 +179,12 @@ mint_svid_enrolled() {
 
   # Copy CSR into container
   log_step "[${mode_label}] Copying CSR into container"
-  docker cp "$host_csr_path" "${CONTAINER_NAME}:${container_csr_path}"
+  docker cp "${host_csr_path}" "${CONTAINER_NAME}:${container_csr_path}"
   log_info "CSR copied to container at '${container_csr_path}'. ✓"
 
   # Create output directory inside container
   log_info "Creating output directory '${OUTPUT_DIR_IN_CONTAINER}' inside container..."
-  docker exec "$CONTAINER_NAME" mkdir -p "$OUTPUT_DIR_IN_CONTAINER"
+  docker exec "${CONTAINER_NAME}" mkdir -p "$OUTPUT_DIR_IN_CONTAINER"
 
   # Build mint command with --spiffeID and --csrPath
   local cmd=(docker exec "$CONTAINER_NAME" "$MIS_CLI" mint x509
@@ -215,7 +215,7 @@ copy_certs_to_host() {
   local mode_label="$1"
 
   log_step "[${mode_label}] Copying certificates from container to host"
-  log_info "Container path : ${CONTAINER_NAME}:/${OUTPUT_DIR_IN_CONTAINER}"
+  log_info "Container path : ${CONTAINER_NAME}:${OUTPUT_DIR_IN_CONTAINER}"
   log_info "Host path      : $(pwd)/${HOST_OUTPUT_DIR}"
 
   if [[ -d "${HOST_OUTPUT_DIR}" ]]; then
@@ -223,8 +223,14 @@ copy_certs_to_host() {
     rm -rf "${HOST_OUTPUT_DIR}"
   fi
 
-  docker cp "${CONTAINER_NAME}:/${OUTPUT_DIR_IN_CONTAINER}" "${HOST_OUTPUT_DIR}"
+  mkdir -p "${HOST_OUTPUT_DIR}"
+
+  # Copy contents (not the directory itself) to avoid nesting
+  docker cp "${CONTAINER_NAME}:${OUTPUT_DIR_IN_CONTAINER}/." "${HOST_OUTPUT_DIR}/"
   log_info "Certificates copied to '$(pwd)/${HOST_OUTPUT_DIR}'. ✓"
+
+  # Clean up output dir inside container after copying
+  docker exec "${CONTAINER_NAME}" rm -rf "${OUTPUT_DIR_IN_CONTAINER}"
 }
 
 # =============================================================================
@@ -316,8 +322,9 @@ _run_interactive_installed() {
   echo "  Common values:"
   echo "    15 minutes  →  900"
   echo "    1 day       →  86400"
+  echo "    1 week      →  604800   (default)"
   echo "    1 month     →  2592000"
-  echo "    1 quarter   →  7776000  (default)"
+  echo "    1 quarter   →  7776000"
   echo "    1 year      →  31536000"
   read -rp "  Enter TTL in seconds [default: ${DEFAULT_TTL}]: " TTL
   TTL="${TTL:-$DEFAULT_TTL}"
@@ -435,8 +442,9 @@ _run_interactive_enrolled() {
   echo "  Common values:"
   echo "    15 minutes  →  900"
   echo "    1 day       →  86400"
+  echo "    1 week      →  604800   (default)"
   echo "    1 month     →  2592000"
-  echo "    1 quarter   →  7776000  (default)"
+  echo "    1 quarter   →  7776000"
   echo "    1 year      →  31536000"
   read -rp "  Enter TTL in seconds [default: ${DEFAULT_TTL}]: " TTL
   TTL="${TTL:-$DEFAULT_TTL}"
@@ -510,7 +518,7 @@ run_automated() {
 
   log_info "Principal  : ${MODE_LABEL}"
   log_info "SPIFFE ID  : ${auto_spiffe_id}"
-  log_info "TTL        : ${DEFAULT_TTL} seconds (default — 90 days)"
+  log_info "TTL        : ${DEFAULT_TTL} seconds (default — 7 days)"
   log_info "DNS SANs   : ${auto_dns_list:-(none)}"
 
   check_container

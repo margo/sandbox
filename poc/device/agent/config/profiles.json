@@ -1,5 +1,5 @@
 {
-    "workloadTargetId": "northstarida.xtapro.k8s.edge",
+    "workloadTargetId": ,
     "characteristics": [
         {
             "key": "margo.org/nameplate",

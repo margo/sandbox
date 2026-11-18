@@ -13,7 +13,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/operation"
 	"github.com/margo/sandbox/poc/device/agent/types"
-	"github.com/margo/sandbox/shared-lib/constraints"
+	"github.com/margo/sandbox/shared-lib/matcher"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 	"github.com/margo/sandbox/standard/pkg"
@@ -212,12 +212,13 @@ func (dm *DeploymentManager) reconcileDeployment(deploymentId string) {
 func (dm *DeploymentManager) checkDeviceEligibility(
 	desiredState database.AppDeploymentState,
 ) (bool, string, error) {
-	dc := constraints.New()
-
-	ok, reason, err := dc.IsDeviceEligible(
-		dm.deviceProfile,
-		desiredState.Spec.DeploymentProfile.DeviceConstraints,
+	matcher := matcher.New()
+	ok, reason, err := matcher.IsTargetEligible(
+		&dm.deviceProfile.Profile,
+		dm.deviceProfile.WorkloadTargetId,
+		*desiredState.Spec.DeploymentProfile.Characteristics,
 	)
+
 	if err != nil {
 		return false, "", err
 	}

@@ -27,6 +27,7 @@ type TrustBundleInput struct {
 type MISInput struct {
 	Endpoint    string
 	CAPath      string
+	TrustPins   []string
 	TrustDomain string
 	TrustBundle *TrustBundleInput
 }
@@ -61,6 +62,8 @@ type ParsedMIS struct {
 	Endpoint string
 	// CAPEM is the raw PEM-encoded CA certificate bytes, or nil if CAPath was empty.
 	CAPEM []byte
+	// TrustPins holds SPKI SHA-256 pins (RFC 7469 §2.4) for authenticating the MIS HTTPS server.
+	TrustPins []string
 	// TrustDomain is passed through unchanged from the input.
 	TrustDomain string
 	// TrustBundle holds the resolved trust bundle, or nil if no trust bundle was configured.
@@ -140,8 +143,29 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 		out.X509.KeyPEM = key
 	}
 
+	// Verify leaf certificate against the key
+	if len(out.X509.CertPEM) != 0 && len(out.X509.KeyPEM) != 0 {
+		err := validators.ValidateCertKeyPair(out.X509.CertPEM, out.X509.KeyPEM)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// --- MIS endpoint (pass-through) ---
 	out.MIS.Endpoint = input.MIS.Endpoint
+
+	// Validate Trust Pins
+	if len(input.MIS.TrustPins) != 0 {
+		for _, tp := range input.MIS.TrustPins {
+			if err := validators.ValidateTrustPin(tp); err != nil {
+				return nil, fmt.Errorf(
+					"miaf.mis.trustPins: must be valid SPKI SHA-256 pins (RFC 7469 §2.4)",
+				)
+			}
+		}
+		// If validated, then assign to parsed trust pins
+		out.MIS.TrustPins = input.MIS.TrustPins
+	}
 
 	// --- MIS CA certificate ---
 	if input.MIS.CAPath != "" {

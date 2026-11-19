@@ -14,6 +14,7 @@ import (
 	"net/url"
 
 	"github.com/margo/sandbox/shared-lib/mis/client"
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
 
 // ErrNotModified is returned by GetTrustBundle when the server responds with
@@ -39,46 +40,58 @@ type Getter interface {
 type trustBundleGetterImpl struct {
 	misEndpoint    string
 	misRootCA      []byte
+	misTrustPins   []string
 	trustBundleURI string
 	staticBundle   []byte
 	trustDomain    string
 }
 
+// TrustBundleGetterConfig holds all inputs required to construct a Getter.
+type TrustBundleGetterConfig struct {
+	// MISEndpoint is the base HTTPS URL of the MIS server.
+	// Required unless operating in static bundle-only mode.
+	MISEndpoint string
+
+	// MISRootCA is the PEM-encoded CA certificate used to authenticate the MIS server.
+	// Takes precedence over MISTrustPins when both are provided.
+	MISRootCA []byte
+
+	// MISTrustPins is a list of base64-encoded SHA-256 SPKI pins (RFC 7469 §2.4).
+	// Used when MISRootCA is absent.
+	MISTrustPins []string
+
+	// TrustBundleURI is an optional URI path override for the SPIFFE bundle endpoint.
+	// Used as a fallback when discovery fails.
+	TrustBundleURI string
+
+	// StaticBundle is an operator-supplied SPIFFE trust bundle in JWKS format.
+	// Used as the final fallback when both discovery and URI fallback fail.
+	StaticBundle []byte
+
+	// TrustDomain is required when StaticBundle is configured.
+	TrustDomain string
+}
+
 // New validates the provided configuration and returns a Getter backed by
 // trustBundleGetterImpl.
-func New(
-	misEndpoint string,
-	misRootCA []byte,
-	trustBundleURI string,
-	staticBundle []byte,
-	trustDomain string,
-) (Getter, error) {
-	if err := validateMISEndpoint(misEndpoint); err != nil {
-		return nil, fmt.Errorf("invalid MIS endpoint: %w", err)
+//
+// Valid configurations:
+//   - Endpoint mode:      misEndpoint + trust anchor (misRootCA or misTrustPins)
+//   - Static bundle mode: staticBundle + trustDomain (no endpoint required)
+//   - Both modes can coexist; endpoint mode is attempted first with static as fallback.
+//
+// misRootCA takes precedence over misTrustPins when both are provided.
+func New(cfg TrustBundleGetterConfig) (Getter, error) {
+	if err := validateNewInputs(cfg); err != nil {
+		return nil, err
 	}
-
-	if err := validateRootCA(misRootCA); err != nil {
-		return nil, fmt.Errorf("invalid MIS root CA: %w", err)
-	}
-
-	if trustBundleURI != "" {
-		if err := validateTrustBundleURI(trustBundleURI); err != nil {
-			return nil, fmt.Errorf("invalid trust bundle URI: %w", err)
-		}
-	}
-
-	if len(staticBundle) > 0 {
-		if err := validateSPIFFEBundle(staticBundle); err != nil {
-			return nil, fmt.Errorf("invalid static trust bundle: %w", err)
-		}
-	}
-
 	return &trustBundleGetterImpl{
-		misEndpoint:    misEndpoint,
-		misRootCA:      misRootCA,
-		trustBundleURI: trustBundleURI,
-		staticBundle:   staticBundle,
-		trustDomain:    trustDomain,
+		misEndpoint:    cfg.MISEndpoint,
+		misRootCA:      cfg.MISRootCA,
+		misTrustPins:   cfg.MISTrustPins,
+		trustBundleURI: cfg.TrustBundleURI,
+		staticBundle:   cfg.StaticBundle,
+		trustDomain:    cfg.TrustDomain,
 	}, nil
 }
 
@@ -101,7 +114,13 @@ func New(
 func (t *trustBundleGetterImpl) GetTrustBundle(
 	ctx context.Context, ietag string,
 ) (string, []byte, string, error) {
-	c, err := client.New(t.misEndpoint, t.misRootCA)
+
+	tc := client.TrustConfig{
+		RootCAPEM: t.misRootCA,
+		SPKIPins:  t.misTrustPins,
+	}
+
+	c, err := client.New(t.misEndpoint, tc)
 	if err != nil {
 		return t.fallbackToURIOrStatic(ctx, ietag, fmt.Errorf("building MIS client: %w", err))
 	}
@@ -172,7 +191,12 @@ func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 	if t.trustBundleURI != "" {
 		fullBundleURL := t.misEndpoint + t.trustBundleURI
 
-		c, clientErr := client.New(t.misEndpoint, t.misRootCA)
+		tc := client.TrustConfig{
+			RootCAPEM: t.misRootCA,
+			SPKIPins:  t.misTrustPins,
+		}
+
+		c, clientErr := client.New(t.misEndpoint, tc)
 		if clientErr != nil {
 			return t.staticFallback(fmt.Errorf(
 				"discovery failed (%w); also failed to build MIS client for URI fallback: %v",
@@ -278,6 +302,92 @@ func (t *trustBundleGetterImpl) fetchBundleFromURL(
 }
 
 // ── Validation helpers ────────────────────────────────────────────────────────
+
+// validateNewInputs orchestrates all input validation for New, delegating each
+// concern to a focused helper. Keeping this out of New avoids cluttering the
+// constructor with validation logic.
+func validateNewInputs(cfg TrustBundleGetterConfig) error {
+	if err := validateModeRequirements(cfg); err != nil {
+		return err
+	}
+
+	if cfg.MISEndpoint != "" {
+		if err := validateEndpointInputs(cfg); err != nil {
+			return err
+		}
+	}
+
+	if cfg.TrustBundleURI != "" {
+		if err := validateTrustBundleURI(cfg.TrustBundleURI); err != nil {
+			return fmt.Errorf("invalid trust bundle URI: %w", err)
+		}
+	}
+
+	if len(cfg.StaticBundle) > 0 {
+		if err := validateSPIFFEBundle(cfg.StaticBundle); err != nil {
+			return fmt.Errorf("invalid static trust bundle: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// validateModeRequirements enforces the top-level structural rules that govern
+// which combination of endpoint-mode and static-bundle-mode fields are valid:
+//
+//   - Endpoint and trust anchor must appear together (neither alone is valid).
+//   - At least one source (endpoint mode or static bundle) must be configured.
+//   - Static bundle mode requires trustDomain.
+func validateModeRequirements(cfg TrustBundleGetterConfig) error {
+	hasEndpoint := cfg.MISEndpoint != ""
+	hasTrustAnchor := len(cfg.MISRootCA) > 0 || len(cfg.MISTrustPins) > 0
+	hasStaticBundle := len(cfg.StaticBundle) > 0
+
+	// Endpoint and trust anchor must be paired.
+	if hasEndpoint != hasTrustAnchor {
+		return fmt.Errorf(
+			"MISEndpoint and a trust anchor (MISRootCA or MISTrustPins) must be configured together",
+		)
+	}
+
+	// At least one bundle source must be available.
+	if !hasEndpoint && !hasStaticBundle {
+		return fmt.Errorf(
+			"either MISEndpoint with a trust anchor, or a StaticBundle must be provided",
+		)
+	}
+
+	// Static bundle mode requires TrustDomain to identify the trust domain.
+	if hasStaticBundle && cfg.TrustDomain == "" {
+		return fmt.Errorf(
+			"TrustDomain is required when a StaticBundle is configured",
+		)
+	}
+
+	return nil
+}
+
+// validateEndpointInputs validates the endpoint URL and its associated trust
+// material (root CA and/or trust pins). Called only when MISEndpoint is non-empty.
+func validateEndpointInputs(cfg TrustBundleGetterConfig) error {
+	if err := validateMISEndpoint(cfg.MISEndpoint); err != nil {
+		return fmt.Errorf("invalid MIS endpoint: %w", err)
+	}
+
+	if len(cfg.MISRootCA) > 0 {
+		if err := validateRootCA(cfg.MISRootCA); err != nil {
+			return fmt.Errorf("invalid MIS root CA: %w", err)
+		}
+	}
+
+	for _, tp := range cfg.MISTrustPins {
+		if err := validators.ValidateTrustPin(tp); err != nil {
+			return fmt.Errorf("invalid MIS trust pin: %w", err)
+		}
+	}
+
+	return nil
+}
 
 // validateMISEndpoint ensures the endpoint is a non-empty, parseable HTTPS URL.
 func validateMISEndpoint(endpoint string) error {

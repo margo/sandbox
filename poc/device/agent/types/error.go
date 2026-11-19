@@ -44,7 +44,7 @@ type AgentError struct {
 	Context   map[string]interface{}
 }
 
-func (e AgentError) Error() string {
+func (e *AgentError) Error() string {
 	if len(e.Context) > 0 {
 		return fmt.Sprintf("[%s:%s] %v (context: %v)", e.Component, e.Operation, e.Err, e.Context)
 	}

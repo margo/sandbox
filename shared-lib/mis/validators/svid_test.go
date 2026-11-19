@@ -2,8 +2,10 @@ package validators
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -11,6 +13,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -31,6 +34,102 @@ type certOptions struct {
 	notAfter  time.Time
 	parent    *x509.Certificate
 	parentKey *ecdsa.PrivateKey
+}
+
+// ─────────────────────────────────────────────
+// HELPER
+// ─────────────────────────────────────────────
+
+func writeTempFile(t *testing.T, data []byte) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "test-*")
+	require.NoError(t, err)
+	_, err = f.Write(data)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	return f.Name()
+}
+
+// ─────────────────────────────────────────────
+// TEST HELPERS
+// ─────────────────────────────────────────────
+
+// generateRSACertAndKey generates a self-signed RSA cert + key PEM pair
+func generateRSACertAndKey(t *testing.T) (certPEM, keyPEM []byte) {
+	t.Helper()
+
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test-rsa"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	require.NoError(t, err)
+
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	keyDER, err := x509.MarshalPKCS8PrivateKey(privKey)
+	require.NoError(t, err)
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+
+	return certPEM, keyPEM
+}
+
+// generateECDSACertAndKey generates a self-signed ECDSA cert + key PEM pair
+func generateECDSACertAndKey(t *testing.T) (certPEM, keyPEM []byte) {
+	t.Helper()
+
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "test-ecdsa"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	require.NoError(t, err)
+
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	keyDER, err := x509.MarshalECPrivateKey(privKey)
+	require.NoError(t, err)
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+
+	return certPEM, keyPEM
+}
+
+// generateEd25519CertAndKey generates a self-signed Ed25519 cert + key PEM pair
+func generateEd25519CertAndKey(t *testing.T) (certPEM, keyPEM []byte) {
+	t.Helper()
+
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(3),
+		Subject:      pkix.Name{CommonName: "test-ed25519"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, pubKey, privKey)
+	require.NoError(t, err)
+
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	keyDER, err := x509.MarshalPKCS8PrivateKey(privKey)
+	require.NoError(t, err)
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+
+	return certPEM, keyPEM
 }
 
 // Update generateCert to apply keyUsage when set (update the existing function):
@@ -654,4 +753,241 @@ func TestValidateX509SVIDAgainstTrustBundle_DEREncodedLeaf(t *testing.T) {
 	ok, err := ValidateX509SVIDAgainstTrustBundle(leafDER, bundle) // raw DER, not PEM
 	require.NoError(t, err)
 	assert.True(t, ok)
+}
+
+// ─────────────────────────────────────────────
+// UNIT TESTS
+// ─────────────────────────────────────────────
+
+func TestValidateCertKeyPair(t *testing.T) {
+
+	// ── Generate all key pairs upfront ──
+	rsaCert, rsaKey := generateRSACertAndKey(t)
+	ecdsaCert, ecdsaKey := generateECDSACertAndKey(t)
+	ed25519Cert, ed25519Key := generateEd25519CertAndKey(t)
+
+	// Generate mismatched keys (different key of same type)
+	_, rsaKey2 := generateRSACertAndKey(t)
+	_, ecdsaKey2 := generateECDSACertAndKey(t)
+	_, ed25519Key2 := generateEd25519CertAndKey(t)
+
+	tests := []struct {
+		name        string
+		certPEM     []byte
+		keyPEM      []byte
+		wantErr     bool
+		errContains string
+	}{
+		// ── Happy Path ──
+		{
+			name:    "valid RSA cert-key pair (PKCS8)",
+			certPEM: rsaCert,
+			keyPEM:  rsaKey,
+			wantErr: false,
+		},
+		{
+			name:    "valid ECDSA cert-key pair (SEC1)",
+			certPEM: ecdsaCert,
+			keyPEM:  ecdsaKey,
+			wantErr: false,
+		},
+		{
+			name:    "valid Ed25519 cert-key pair (PKCS8)",
+			certPEM: ed25519Cert,
+			keyPEM:  ed25519Key,
+			wantErr: false,
+		},
+
+		// ── Mismatched Pairs (same key type, different key) ──
+		{
+			name:        "mismatched RSA cert and RSA key",
+			certPEM:     rsaCert,
+			keyPEM:      rsaKey2,
+			wantErr:     true,
+			errContains: "RSA public key mismatch",
+		},
+		{
+			name:        "mismatched ECDSA cert and ECDSA key",
+			certPEM:     ecdsaCert,
+			keyPEM:      ecdsaKey2,
+			wantErr:     true,
+			errContains: "ECDSA public key mismatch",
+		},
+		{
+			name:        "mismatched Ed25519 cert and Ed25519 key",
+			certPEM:     ed25519Cert,
+			keyPEM:      ed25519Key2,
+			wantErr:     true,
+			errContains: "Ed25519 public key mismatch",
+		},
+
+		// ── Cross-Type Mismatches ──
+		{
+			name:        "RSA cert with ECDSA key",
+			certPEM:     rsaCert,
+			keyPEM:      ecdsaKey,
+			wantErr:     true,
+			errContains: "mismatch",
+		},
+		{
+			name:        "ECDSA cert with RSA key",
+			certPEM:     ecdsaCert,
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "mismatch",
+		},
+		{
+			name:        "Ed25519 cert with RSA key",
+			certPEM:     ed25519Cert,
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "mismatch",
+		},
+		{
+			name:        "RSA cert with Ed25519 key",
+			certPEM:     rsaCert,
+			keyPEM:      ed25519Key,
+			wantErr:     true,
+			errContains: "mismatch",
+		},
+
+		// ── Invalid PEM Inputs ──
+		{
+			name:        "empty cert PEM",
+			certPEM:     []byte{},
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "empty key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      []byte{},
+			wantErr:     true,
+			errContains: "failed to decode private key PEM block",
+		},
+		{
+			name:        "nil cert PEM",
+			certPEM:     nil,
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "nil key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      nil,
+			wantErr:     true,
+			errContains: "failed to decode private key PEM block",
+		},
+		{
+			name:        "garbage cert PEM",
+			certPEM:     []byte("not-a-pem-at-all"),
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "garbage key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      []byte("not-a-pem-at-all"),
+			wantErr:     true,
+			errContains: "failed to decode private key PEM block",
+		},
+
+		// ── Malformed PEM (valid header, invalid body) ──
+		{
+			name: "malformed cert body",
+			certPEM: pem.EncodeToMemory(&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: []byte("corrupted-cert-bytes"),
+			}),
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "failed to parse certificate",
+		},
+		{
+			name:    "malformed key body",
+			certPEM: rsaCert,
+			keyPEM: pem.EncodeToMemory(&pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: []byte("corrupted-key-bytes"),
+			}),
+			wantErr:     true,
+			errContains: "failed to parse private key",
+		},
+
+		// ── Unsupported Key Type ──
+		{
+			name:    "unsupported key PEM type",
+			certPEM: rsaCert,
+			keyPEM: pem.EncodeToMemory(&pem.Block{
+				Type:  "UNKNOWN KEY TYPE",
+				Bytes: []byte("some-bytes"),
+			}),
+			wantErr:     true,
+			errContains: "unsupported private key type",
+		},
+
+		// ── Key PEM Contains Cert Instead of Key ──
+		{
+			name:        "cert PEM passed as key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      rsaCert, // cert passed where key expected
+			wantErr:     true,
+			errContains: "unsupported private key type",
+		},
+		{
+			name:        "key PEM passed as cert PEM",
+			certPEM:     rsaKey, // key passed where cert expected
+			keyPEM:      rsaKey,
+			wantErr:     true,
+			errContains: "failed to parse certificate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateCertKeyPair(tt.certPEM, tt.keyPEM)
+
+			if tt.wantErr {
+				require.Error(t, err, "expected error but got nil")
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains,
+						"error message mismatch")
+				}
+			} else {
+				require.NoError(t, err, "expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+// ─────────────────────────────────────────────
+// PKCS1 RSA KEY FORMAT TEST (legacy format)
+// ─────────────────────────────────────────────
+
+func TestValidateCertKeyPair_PKCS1RSAKey(t *testing.T) {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(99),
+		Subject:      pkix.Name{CommonName: "test-pkcs1"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	require.NoError(t, err)
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	// PKCS1 format (legacy RSA PRIVATE KEY)
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
+	})
+
+	err = ValidateCertKeyPair(certPEM, keyPEM)
+	assert.NoError(t, err, "PKCS1 RSA key should be valid")
 }

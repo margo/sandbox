@@ -534,6 +534,122 @@ update_mis_binding() {
     success "Updated ${match_count} element(s): '.bindings[].config.miaf.mis.endpoint' → \"${new_value}\" in '${filepath}'."
 }
 
+generate_private_key_and_csr() {
+  local certs_dir="${HOME}/wfm-identity"
+  local csr_gen_script="${SCRIPT_DIR}/lib/mis/csr_gen.sh"
+
+  # Verify csr_gen.sh exists and is executable
+  if [[ ! -f "${csr_gen_script}" ]]; then
+    echo "❌ csr_gen.sh not found at: ${csr_gen_script}"
+    return 1
+  fi
+  chmod +x "${csr_gen_script}"
+
+  echo ""
+  echo "======================================================================="
+  echo "🔐 Generate Private Key & CSR for WFM"
+  echo "======================================================================="
+  echo ""
+  echo "  The SPIFFE ID is optional at this stage."
+  echo "  Per MIAF2 §3, the SPIFFE ID in the CSR is advisory —"
+  echo "  the MIS (CA) is authoritative and assigns the final identity"
+  echo "  at SVID minting time."
+  echo ""
+  echo "  If provided, the SPIFFE ID must follow this format:"
+  echo "    spiffe://<trust-domain>/margo/wfm/<wfm-id>"
+  echo "  Example:"
+  echo "    spiffe://margo.org/margo/wfm/my-wfm"
+  echo ""
+
+  # ── SPIFFE ID prompt (optional) ───────────────────────────────────────────
+  local spiffe_id=""
+  local spiffe_args=()
+
+  while true; do
+    read -p "  Enter SPIFFE ID (or press Enter to skip): " spiffe_id
+
+    # User skipped — no SPIFFE ID
+    if [[ -z "${spiffe_id// /}" ]]; then
+      echo "  ℹ️  No SPIFFE ID provided. The MIS will prompt for it at the time of identity minting.."
+      spiffe_args=()
+      break
+    fi
+
+    # Validate scheme
+    if [[ "${spiffe_id}" != spiffe://* ]]; then
+      echo "  ⚠️  SPIFFE ID must start with 'spiffe://'. Got: '${spiffe_id}'"
+      continue
+    fi
+
+    # Validate expected path structure: /margo/wfm/<wfm-id>
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+$ ]]; then
+      echo "  ⚠️  SPIFFE ID does not match expected format:"
+      echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>"
+      echo "       Example: spiffe://margo.org/margo/wfm/my-wfm"
+      continue
+    fi
+
+    echo "  ⚠️  Note: This SPIFFE ID is advisory. The MIS may override it at minting."
+    spiffe_args=(--spiffe-id "${spiffe_id}")
+    break
+  done
+
+  # ── Check for existing key (renewal detection) ────────────────────────────
+  local key_path="${certs_dir}/payload-key.pem"
+  if [[ -f "${key_path}" ]]; then
+    echo ""
+    echo "  ℹ️  Existing key found at: ${key_path}"
+    echo "      The existing key will be reused (renewal mode)."
+    echo "      Only a fresh CSR will be generated."
+  fi
+
+  # ── Create output directory if it doesn't exist ───────────────────────────
+  if [[ ! -d "${certs_dir}" ]]; then
+    echo ""
+    echo "🔄 Creating certificates directory: ${certs_dir}"
+    mkdir -p "${certs_dir}" || {
+      echo "❌ Failed to create directory: ${certs_dir}"
+      return 1
+    }
+    echo "✅ Created directory: ${certs_dir}"
+  fi
+
+  echo ""
+  echo "🔄 Generating CSR..."
+  if [[ -n "${spiffe_id}" ]]; then
+    echo "   SPIFFE ID  : ${spiffe_id} (advisory)"
+  else
+    echo "   SPIFFE ID  : not set (CA assigns at minting)"
+  fi
+  echo "   Output Dir : ${certs_dir}"
+  echo ""
+
+  # ── Invoke csr_gen.sh ─────────────────────────────────────────────────────
+  "${csr_gen_script}" \
+    "${spiffe_args[@]}" \
+    --key-out "${certs_dir}/payload-key.pem" \
+    --csr-out "${certs_dir}/payload-req.csr"
+
+  local exit_code=$?
+  if [[ ${exit_code} -ne 0 ]]; then
+    echo ""
+    echo "❌ Failed to generate CSR (exit code: ${exit_code})"
+    return 1
+  fi
+
+  echo ""
+  echo "======================================================================="
+  echo "✅ Generation complete!"
+  echo "   🔑 Private Key : ${certs_dir}/payload-key.pem"
+  echo "   📄 CSR         : ${certs_dir}/payload-req.csr"
+  echo ""
+  echo "  Next steps:"
+  echo "    • Submit ${certs_dir}/payload-req.csr to your MIS to mint an SVID"
+  echo "    • The MIS will prompt & assign the final SPIFFE ID at minting time"
+  echo "    • Place the returned SVID at: ${HOME}/symphony/api/certificates/"
+  echo "======================================================================="
+}
+
 create_symphony_api_dirs() {
     local base_dir="${HOME}/symphony/api"
 
@@ -562,8 +678,9 @@ show_menu() {
   echo "5) ObservabilityStack: Start"
   echo "6) ObservabilityStack: Stop"
   echo "7) Manage SPIFFE ID allowlist"
-  echo "8) Exit"
-  read -p "Enter choice [1-8]: " choice
+  echo "8) Generate Private Key & CSR"
+  echo "9) Exit"
+  read -p "Enter choice [1-9]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
@@ -572,7 +689,8 @@ show_menu() {
     5) observability_stack_install ;;
     6) observability_stack_uninstall ;;
     7) manage_spiffe_ids ;;
-    8) echo "👋 Goodbye!"; exit 0 ;;
+    8) generate_private_key_and_csr ;;
+    9) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
 
@@ -601,6 +719,7 @@ else
     obs-install) observability_stack_install ;;
     obs-uninstall) observability_stack_uninstall ;;
     manage-spiffe-ids) manage_spiffe_ids ;;
+    generate-csr) generate_private_key_and_csr ;;
     *)
       echo "Usage: $0 {install|uninstall|start|stop|obs-install|obs-uninstall|manage-spiffe-ids}"
       exit 1

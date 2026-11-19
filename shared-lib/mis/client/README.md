@@ -1,24 +1,39 @@
-
 # MIS Client Library
 
 ## Purpose
 
 `client` is a Go package that provides a thin, TLS-aware wrapper around the
 auto-generated Margo Identity Service (MIS) HTTP client. It simplifies
-connecting to the MIS endpoint by handling root CA trust configuration and
-exposing clean, context-aware methods for fetching the discovery document and
-SPIFFE trust bundle.
+connecting to the MIS endpoint by handling TLS trust configuration — via root
+CA certificates or SPKI pinning — and exposing clean, context-aware methods
+for fetching the discovery document and SPIFFE trust bundle.
+
+---
+
+## Types
+
+### `TrustConfig`
+
+Holds the trust material used to authenticate the MIS HTTPS server.
+Exactly one of `RootCAPEM` or `SPKIPins` must be non-empty. If both are
+provided, `RootCAPEM` takes precedence.
+
+| Field | Type | Description |
+|---|---|---|
+| `RootCAPEM` | `[]byte` | One or more PEM-encoded CA certificates. Full RFC 5280 path validation and RFC 9525 name checks are performed by the standard TLS stack. |
+| `SPKIPins` | `[]string` | Base64-encoded SHA-256 SPKI digests per RFC 7469 §2.4. At least one certificate in the server's chain must match a pin. RFC 9525 hostname verification is still applied for DNS-addressed endpoints. |
 
 ---
 
 ## Functions
 
-### `New(endpoint string, rootCAPEM []byte) (*MISClient, error)`
+### `New(endpoint string, trust TrustConfig) (*MISClient, error)`
 
-Creates a new `MISClient` configured with mutual TLS trust using the provided
-root CA PEM bytes. The endpoint should be a full base URL
-(e.g. `https://mis.margo.org:8443`). Returns an error if the CA certificate
-cannot be parsed or the underlying client fails to initialize.
+Creates a new `MISClient` configured with the provided endpoint and
+`TrustConfig`. The endpoint should be a full base URL
+(e.g. `https://mis.margo.org:8443`). Returns an error if the trust
+configuration is invalid, the CA certificate cannot be parsed, or the
+underlying client fails to initialize.
 
 ---
 
@@ -51,7 +66,7 @@ import "github.com/margo/sandbox/mis/shared-lib/mis/client"
 
 ---
 
-### Example 1 — Create a client
+### Example 1 — Create a client using a root CA certificate
 
 ```go
 rootCA, err := os.ReadFile("./certs/https-ca.crt")
@@ -59,7 +74,9 @@ if err != nil {
     log.Fatal(err)
 }
 
-misClient, err := client.New("https://mis.margo.org:8443", rootCA)
+misClient, err := client.New("https://mis.margo.org:8443", client.TrustConfig{
+    RootCAPEM: rootCA,
+})
 if err != nil {
     log.Fatal(err)
 }
@@ -67,7 +84,26 @@ if err != nil {
 
 ---
 
-### Example 2 — Fetch the discovery document (with caching)
+### Example 2 — Create a client using SPKI pinning
+
+```go
+misClient, err := client.New("https://mis.margo.org:8443", client.TrustConfig{
+    SPKIPins: []string{
+        "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=",
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+> **Note:** When connecting to a DNS-addressed endpoint with SPKI pins, RFC 9525
+> hostname verification is still performed. For IP-addressed endpoints, the pin
+> alone establishes server identity.
+
+---
+
+### Example 3 — Fetch the discovery document (with caching)
 
 ```go
 var cachedETag string
@@ -88,7 +124,7 @@ if rsp.HTTPResponse.StatusCode == http.StatusNotModified {
 
 ---
 
-### Example 3 — Fetch the SPIFFE trust bundle
+### Example 4 — Fetch the SPIFFE trust bundle
 
 ```go
 // Using default path

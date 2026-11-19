@@ -31,6 +31,7 @@ type TrustBundleConfig struct {
 }
 
 type MISConfig struct {
+	TrustPins     []string           `yaml:"trustPins"`     // optional if caPath is provided, precedence will be given to caPath
 	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
 	CacheInterval uint32             `yaml:"cacheInterval"` // in seconds
 	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
@@ -161,35 +162,42 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("miaf.x509.keyPath is required in configuration")
 	}
 
-	// Rule 1: mis.endpoint and mis.caPath must be present together
-	if (config.MIAF.MIS.Endpoint == "") != (config.MIAF.MIS.CAPath == "") {
-		return fmt.Errorf("miaf.mis.endpoint and miaf.mis.caPath must both be configured together")
+	hasCAPath := config.MIAF.MIS.CAPath != ""
+	hasTrustPins := len(config.MIAF.MIS.TrustPins) > 0
+	hasTrustAnchor := hasCAPath || hasTrustPins
+	hasEndpoint := config.MIAF.MIS.Endpoint != ""
+
+	// Rule 1: mis.endpoint requires a trust anchor (caPath or trustPins), and vice versa.
+	// caPath takes precedence over trustPins when both are present.
+	if hasEndpoint != hasTrustAnchor {
+		return fmt.Errorf(
+			"miaf.mis.endpoint requires a trust anchor: configure miaf.mis.caPath or miaf.mis.trustPins alongside it",
+		)
 	}
 
-	// Rule 2: if trustBundle.uri is present, mis.endpoint & mis.caPath must be present
+	// Rule 2: if trustBundle.uri is present, mis.endpoint & a trust anchor must be present.
 	if config.MIAF.MIS.TrustBundle != nil && config.MIAF.MIS.TrustBundle.URI != "" {
-		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
+		if !hasEndpoint || !hasTrustAnchor {
 			return fmt.Errorf(
-				"miaf.mis.endpoint and miaf.mis.caPath are required when miaf.mis.trustBundle.uri is configured",
+				"miaf.mis.endpoint and a trust anchor (miaf.mis.caPath or miaf.mis.trustPins) are required when miaf.mis.trustBundle.uri is configured",
 			)
 		}
 	}
 
-	// Rule 3: if neither trustBundle.path nor endpoint is configured, fail
-	// (trustBundle.path makes endpoint+caPath optional; without it, endpoint+caPath are required)
+	// Rule 3: if neither trustBundle.path nor endpoint+trustAnchor is configured, fail.
 	if config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "" {
-		if config.MIAF.MIS.Endpoint == "" || config.MIAF.MIS.CAPath == "" {
+		if !hasEndpoint || !hasTrustAnchor {
 			return fmt.Errorf(
-				"either miaf.mis.trustBundle.path must be configured, or both miaf.mis.endpoint and miaf.mis.caPath must be provided",
+				"either miaf.mis.trustBundle.path must be configured, or miaf.mis.endpoint with a trust anchor (miaf.mis.caPath or miaf.mis.trustPins) must be provided",
 			)
 		}
 	}
 
-	// Rule 4: trustDomain is required when endpoint+caPath are absent (static trust bundle mode)
-	if config.MIAF.MIS.Endpoint == "" && config.MIAF.MIS.CAPath == "" {
+	// Rule 4: trustDomain is required when endpoint+trustAnchor are absent (static trust bundle mode).
+	if !hasEndpoint && !hasTrustAnchor {
 		if config.MIAF.MIS.TrustDomain == "" {
 			return fmt.Errorf(
-				"miaf.mis.trustDomain is required when miaf.mis.endpoint and miaf.mis.caPath are not configured",
+				"miaf.mis.trustDomain is required when miaf.mis.endpoint and a trust anchor are not configured",
 			)
 		}
 	}
@@ -240,6 +248,7 @@ func (c *MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
 			Endpoint:    c.MIS.Endpoint,
 			CAPath:      c.MIS.CAPath,
 			TrustDomain: c.MIS.TrustDomain,
+			TrustPins:   c.MIS.TrustPins,
 		},
 		AuthzPath: c.AuthzPath,
 	}

@@ -12,8 +12,8 @@ miaf:
     endpoint: "https://mis.margo.org:9443"          # MIS service URL
     caPath: "./config/mis/https-ca.crt"             # CA certificate
     # Initial Trust Pin Set (SPKI Set): It is optional but either this or CA certificate should be present for initial bootstrapping for contacting MIS, should have atleast 1 entry if defined.
-    trustPins: 
-      - "sha256/6DtZYsyT+9vuAwfAKHCLpjQv2pQHCc9n7nnZsltwEU4=" 
+    trustPins:
+      - "sha256/6DtZYsyT+9vuAwfAKHCLpjQv2pQHCc9n7nnZsltwEU4="
     cacheInterval: 60                               # cache interval in seconds set by operator
     # trustDomain: "margo.org"                        # Operator provided trust domain, uncomment this to provide operator default
     # trustBundle:

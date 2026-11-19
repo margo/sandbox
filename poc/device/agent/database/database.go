@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 type AppDeploymentState struct {
 	sbi.AppDeploymentManifest
 	Status sbi.DeploymentStatusManifest
-
 	// Added these fields for sync state management
 	AppId       string    `json:"appId"`
 	State       string    `json:"state"`
@@ -72,8 +70,6 @@ type DeviceSettingsRecord struct {
 	ParsedMIAF  mc.ParsedMIAFConfig      `json:"parsedMiafConfig"`
 	State       types.DeviceOnboardState `json:"state"`
 	// the applications that the device can deploy
-	SupportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes `json:"supportedDeploymentTypes"`
-	SupportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes        `json:"supportedRuntimes"`
 
 	// Added these new fields for sync state management
 	LastSyncedETag            string `json:"lastSyncedETag"`
@@ -527,7 +523,6 @@ func (db *Database) SetCurrentState(deploymentId string, state AppDeploymentStat
 	record.CurrentState = &state
 	record.LastUpdated = time.Now()
 	db.notify(deploymentId, record, constant.DeploymentChangeTypeCurrentStateAdded)
-
 }
 
 func (db *Database) SetPhase(deploymentId string, phase constant.Phase, message string) {
@@ -658,13 +653,4 @@ func (db *Database) SetDeviceOnboardState(state types.DeviceOnboardState) error 
 
 func (db *Database) IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error) {
 	return db.deviceSettings, db.deviceSettings.State == types.DeviceOnboardStateOnboarded, nil
-}
-
-func (db *Database) CanDeployAppProfile(profileType string) bool {
-	for _, dt := range db.deviceSettings.SupportedDeploymentTypes {
-		if string(dt) == strings.ToLower(profileType) {
-			return true
-		}
-	}
-	return false
 }

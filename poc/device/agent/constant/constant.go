@@ -32,3 +32,8 @@ type AppDeploymentStateState string
 const (
 	AppDeploymentStateStatePending = "PENDING"
 )
+
+const (
+	AppDeploymentProfileKeyHelm    string = "margo.org/deployment/helm"
+	AppDeploymentProfileKeyCompose string = "margo.org/deployment/compose"
+)

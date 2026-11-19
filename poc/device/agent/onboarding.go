@@ -15,31 +15,15 @@ import (
 
 // onboarding.go
 type DeviceClientSettings struct {
-	wfmEndpointsForClient    []string
-	log                      *zap.SugaredLogger
-	apiClient                wfm.SBIAPIClientInterface
-	db                       database.DatabaseIfc
-	supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
-	supportedRuntimes        []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
-	miaf                     types.MIAFConfig
-	parsedMiaf               *parser.ParsedMIAFConfig
+	wfmEndpointsForClient []string
+	log                   *zap.SugaredLogger
+	apiClient             wfm.SBIAPIClientInterface
+	db                    database.DatabaseIfc
+	miaf                  types.MIAFConfig
+	parsedMiaf            *parser.ParsedMIAFConfig
 }
 
 type Option = func(auth *DeviceClientSettings)
-
-func WithEnableComposeDeployment() Option {
-	return func(auth *DeviceClientSettings) {
-		auth.supportedDeploymentTypes = append(
-			auth.supportedDeploymentTypes,
-			sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesCompose,
-		)
-
-		auth.supportedRuntimes = append(
-			auth.supportedRuntimes,
-			sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci,
-		)
-	}
-}
 
 func WithMIAFConfig(cfg types.MIAFConfig) Option {
 	return func(auth *DeviceClientSettings) {
@@ -54,20 +38,6 @@ func WithParsedMIAFConfig(cfg *parser.ParsedMIAFConfig) Option {
 	}
 }
 
-func WithEnableHelmDeployment() Option {
-	return func(auth *DeviceClientSettings) {
-		auth.supportedDeploymentTypes = append(
-			auth.supportedDeploymentTypes,
-			sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypesHelm,
-		)
-
-		auth.supportedRuntimes = append(
-			auth.supportedRuntimes,
-			sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimesOci,
-		)
-	}
-}
-
 func NewDeviceSettings(
 	client wfm.SBIAPIClientInterface,
 	db database.DatabaseIfc,
@@ -79,20 +49,10 @@ func NewDeviceSettings(
 		return nil, fmt.Errorf("failed to get device settings from database, %s", err.Error())
 	}
 
-	var supportedDeploymentTypes []sbi.DeviceCapabilitiesManifestPropertiesSupportedDeploymentTypes
-	var supportedRuntimes []sbi.DeviceCapabilitiesManifestPropertiesSupportedRuntimes
-
-	if existingRecord != nil {
-		supportedDeploymentTypes = existingRecord.SupportedDeploymentTypes
-		supportedRuntimes = existingRecord.SupportedRuntimes
-	}
-
 	settings := &DeviceClientSettings{
-		apiClient:                client,
-		log:                      log,
-		db:                       db,
-		supportedDeploymentTypes: supportedDeploymentTypes,
-		supportedRuntimes:        supportedRuntimes,
+		apiClient: client,
+		log:       log,
+		db:        db,
 	}
 
 	for _, opt := range opts {
@@ -107,8 +67,6 @@ func NewDeviceSettings(
 	if settings.parsedMiaf != nil {
 		newDeviceRecord.ParsedMIAF = *settings.parsedMiaf
 	}
-	newDeviceRecord.SupportedDeploymentTypes = settings.supportedDeploymentTypes
-	newDeviceRecord.SupportedRuntimes = settings.supportedRuntimes
 
 	if err := db.SetDeviceSettings(newDeviceRecord); err != nil {
 		return nil, err
@@ -117,26 +75,42 @@ func NewDeviceSettings(
 	return settings, nil
 }
 
-func (da *DeviceClientSettings) ReportCapabilities(
+func (da *DeviceClientSettings) ReportDeviceProfile(
 	ctx context.Context,
-	capabilities sbi.DeviceCapabilitiesManifest,
+	deviceProfile *types.DeviceProfile,
 ) error {
-	da.log.Infow("Starting capabilities reporting")
-	err := da.apiClient.ReportCapabilities(ctx, capabilities.Properties.Id, capabilities)
+	if deviceProfile == nil {
+		return fmt.Errorf("device profile is nil, cannot report device profile")
+	}
+
+	da.log.Infow(
+		"Starting device profile reporting",
+		"deviceClientId",
+		deviceProfile.WorkloadTargetId,
+	)
+	err := da.apiClient.ReportDeviceProfile(
+		ctx,
+		deviceProfile.WorkloadTargetId,
+		deviceProfile.Profile,
+	)
 	if err != nil {
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			da.log.Errorw(
-				"WFM returned problem detail on capabilities report",
-				"deviceId", capabilities.Properties.Id,
+				"WFM returned problem detail on device profile report",
+				"workloadTargetId", deviceProfile.WorkloadTargetId,
 				"type", pd.Type,
 				"status", pd.Status,
 				"detail", pd.Detail,
 				"retryable", pd.IsRetryable(),
 			)
-			return fmt.Errorf("WFM rejected capabilities [%d] %s: %w", pd.Status, pd.Title, err)
+			return fmt.Errorf("WFM rejected device profile [%d] %s: %w", pd.Status, pd.Title, err)
 		}
-		return fmt.Errorf("failed to report capabilities: %w", err)
+		return fmt.Errorf("failed to report device profile: %w", err)
 	}
-	da.log.Infow("Capabilities reported successfully", "deviceClientId", capabilities.Properties.Id)
+	da.log.Infow(
+		"Device profile reported successfully",
+		"workloadTargetId",
+		deviceProfile.WorkloadTargetId,
+	)
 	return nil
 }

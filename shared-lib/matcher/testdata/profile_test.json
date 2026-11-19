@@ -1,0 +1,60 @@
+{
+  "characteristics": [
+    {
+      "key": "margo.org/deployment/helm",
+      "properties": {}
+    },
+    {
+      "key": "margo.org/resource/cpu",
+      "properties": {
+        "totalCores": 8,
+        "architecture": "amd64",
+        "cpus": [
+          {
+            "cores": 4,
+            "architecture": "amd64",
+            "model": "Intel Xeon"
+          },
+          {
+            "cores": 4,
+            "architecture": "amd64",
+            "model": "Intel Xeon"
+          }
+        ]
+      }
+    },
+    {
+      "key": "margo.org/resource/memory",
+      "properties": {
+        "total": 32,
+        "available": 16,
+        "unit": "Gi"
+      }
+    },
+    {
+      "key": "margo.org/peripherals/gpu",
+      "properties": {
+        "gpus": [
+          {
+            "manufacturer": "NVIDIA",
+            "model": "A100",
+            "vram": 80,
+            "allocatable": true
+          },
+          {
+            "manufacturer": "AMD",
+            "model": "MI250",
+            "vram": 64,
+            "allocatable": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "margo.org/interface/canbus",
+      "properties": {
+        "protocols": ["CAN2.0B", "CANFD"]
+      }
+    }
+  ]
+}

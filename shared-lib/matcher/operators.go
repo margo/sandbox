@@ -83,12 +83,18 @@ func validateValues(operator string, values *[]any) (string, bool) {
 		if _, ok := toFloat64(first); ok {
 			dominantType = "number"
 		} else {
-			return fmt.Sprintf("invalid match expression: unsupported value type %T in values", first), false
+			return fmt.Sprintf(
+				"invalid match expression: unsupported value type %T in values",
+				first,
+			), false
 		}
 	}
 
 	if dominantType == "bool" && len(candidates) != 1 {
-		return fmt.Sprintf("invalid match expression: values MUST contain exactly one boolean for %s", operator), false
+		return fmt.Sprintf(
+			"invalid match expression: values MUST contain exactly one boolean for %s",
+			operator,
+		), false
 	}
 
 	for i, c := range candidates {
@@ -102,13 +108,19 @@ func validateValues(operator string, values *[]any) (string, bool) {
 			if _, ok := toFloat64(c); ok {
 				elemType = "number"
 			} else {
-				return fmt.Sprintf("invalid match expression: unsupported value type %T at values[%d]", c, i), false
+				return fmt.Sprintf(
+					"invalid match expression: unsupported value type %T at values[%d]",
+					c,
+					i,
+				), false
 			}
 		}
 		if elemType != dominantType {
 			return fmt.Sprintf(
 				"invalid match expression: values MUST be the same data type, got %s at values[0] but %s at values[%d]",
-				dominantType, elemType, i,
+				dominantType,
+				elemType,
+				i,
 			), false
 		}
 	}
@@ -120,7 +132,10 @@ func validateValues(operator string, values *[]any) (string, bool) {
 //   - values MUST be present and contain exactly one numeric entry
 func validateNumericValues(operator string, values *[]any) (float64, string, bool) {
 	if values == nil || len(*values) == 0 {
-		return 0, fmt.Sprintf("invalid match expression: values is required for %s", operator), false
+		return 0, fmt.Sprintf(
+			"invalid match expression: values is required for %s",
+			operator,
+		), false
 	}
 
 	candidates := *values
@@ -181,7 +196,11 @@ func evaluateIn(resolved any, exists bool, values *[]any, propertyDesc string) (
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("%s value %q not found in match expression values", propertyDesc, val)
+		return false, fmt.Sprintf(
+			"%s value %q not found in match expression values",
+			propertyDesc,
+			val,
+		)
 
 	case bool:
 		for _, c := range candidates {
@@ -189,14 +208,24 @@ func evaluateIn(resolved any, exists bool, values *[]any, propertyDesc string) (
 				return true, ""
 			}
 		}
-		return false, fmt.Sprintf("%s value %v not found in match expression values", propertyDesc, val)
+		return false, fmt.Sprintf(
+			"%s value %v not found in match expression values",
+			propertyDesc,
+			val,
+		)
 
 	case []any:
 		if len(val) == 0 {
-			return false, fmt.Sprintf("%s is an empty array, nothing to match against", propertyDesc)
+			return false, fmt.Sprintf(
+				"%s is an empty array, nothing to match against",
+				propertyDesc,
+			)
 		}
 		if _, isObj := val[0].(map[string]any); isObj {
-			return false, fmt.Sprintf("%s is an array of objects; use ContainsAll or ContainsAny instead of In", propertyDesc)
+			return false, fmt.Sprintf(
+				"%s is an array of objects; use ContainsAll or ContainsAny instead of In",
+				propertyDesc,
+			)
 		}
 		for _, elem := range val {
 			for _, c := range candidates {
@@ -205,7 +234,10 @@ func evaluateIn(resolved any, exists bool, values *[]any, propertyDesc string) (
 				}
 			}
 		}
-		return false, fmt.Sprintf("no element of %s matched any of the match expression values", propertyDesc)
+		return false, fmt.Sprintf(
+			"no element of %s matched any of the match expression values",
+			propertyDesc,
+		)
 
 	default:
 		if numVal, ok := toFloat64(resolved); ok {
@@ -214,9 +246,17 @@ func evaluateIn(resolved any, exists bool, values *[]any, propertyDesc string) (
 					return true, ""
 				}
 			}
-			return false, fmt.Sprintf("%s value %v not found in match expression values", propertyDesc, numVal)
+			return false, fmt.Sprintf(
+				"%s value %v not found in match expression values",
+				propertyDesc,
+				numVal,
+			)
 		}
-		return false, fmt.Sprintf("%s resolved to an unsupported type (%T); In requires string, number, bool, or array thereof", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to an unsupported type (%T); In requires string, number, bool, or array thereof",
+			propertyDesc,
+			resolved,
+		)
 	}
 }
 
@@ -234,7 +274,11 @@ func evaluateNotIn(resolved any, exists bool, values *[]any, propertyDesc string
 	case string:
 		for _, c := range candidates {
 			if s, ok := c.(string); ok && s == val {
-				return false, fmt.Sprintf("%s value %q is present in match expression values", propertyDesc, val)
+				return false, fmt.Sprintf(
+					"%s value %q is present in match expression values",
+					propertyDesc,
+					val,
+				)
 			}
 		}
 		return true, ""
@@ -242,22 +286,35 @@ func evaluateNotIn(resolved any, exists bool, values *[]any, propertyDesc string
 	case bool:
 		for _, c := range candidates {
 			if b, ok := c.(bool); ok && b == val {
-				return false, fmt.Sprintf("%s value %v is present in match expression values", propertyDesc, val)
+				return false, fmt.Sprintf(
+					"%s value %v is present in match expression values",
+					propertyDesc,
+					val,
+				)
 			}
 		}
 		return true, ""
 
 	case []any:
 		if len(val) == 0 {
-			return false, fmt.Sprintf("%s is an empty array, nothing to match against", propertyDesc)
+			return false, fmt.Sprintf(
+				"%s is an empty array, nothing to match against",
+				propertyDesc,
+			)
 		}
 		if _, isObj := val[0].(map[string]any); isObj {
-			return false, fmt.Sprintf("%s is an array of objects; use ContainsAll or ContainsAny instead of NotIn", propertyDesc)
+			return false, fmt.Sprintf(
+				"%s is an array of objects; use ContainsAll or ContainsAny instead of NotIn",
+				propertyDesc,
+			)
 		}
 		for _, elem := range val {
 			for _, c := range candidates {
 				if scalarEqual(elem, c) {
-					return false, fmt.Sprintf("%s contains a value that is present in match expression values", propertyDesc)
+					return false, fmt.Sprintf(
+						"%s contains a value that is present in match expression values",
+						propertyDesc,
+					)
 				}
 			}
 		}
@@ -267,12 +324,20 @@ func evaluateNotIn(resolved any, exists bool, values *[]any, propertyDesc string
 		if numVal, ok := toFloat64(resolved); ok {
 			for _, c := range candidates {
 				if cNum, cOk := toFloat64(c); cOk && cNum == numVal {
-					return false, fmt.Sprintf("%s value %v is present in match expression values", propertyDesc, numVal)
+					return false, fmt.Sprintf(
+						"%s value %v is present in match expression values",
+						propertyDesc,
+						numVal,
+					)
 				}
 			}
 			return true, ""
 		}
-		return false, fmt.Sprintf("%s resolved to an unsupported type (%T); NotIn requires string, number, bool, or array thereof", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to an unsupported type (%T); NotIn requires string, number, bool, or array thereof",
+			propertyDesc,
+			resolved,
+		)
 	}
 }
 
@@ -288,7 +353,11 @@ func evaluateGt(resolved any, exists bool, values *[]any, propertyDesc string) (
 
 	val, ok := toFloat64(resolved)
 	if !ok {
-		return false, fmt.Sprintf("%s resolved to a non-numeric type (%T); Gt requires a number", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to a non-numeric type (%T); Gt requires a number",
+			propertyDesc,
+			resolved,
+		)
 	}
 
 	if val > threshold {
@@ -309,13 +378,22 @@ func evaluateGtEq(resolved any, exists bool, values *[]any, propertyDesc string)
 
 	val, ok := toFloat64(resolved)
 	if !ok {
-		return false, fmt.Sprintf("%s resolved to a non-numeric type (%T); GtEq requires a number", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to a non-numeric type (%T); GtEq requires a number",
+			propertyDesc,
+			resolved,
+		)
 	}
 
 	if val >= threshold {
 		return true, ""
 	}
-	return false, fmt.Sprintf("%s value %v is not greater than or equal to %v", propertyDesc, val, threshold)
+	return false, fmt.Sprintf(
+		"%s value %v is not greater than or equal to %v",
+		propertyDesc,
+		val,
+		threshold,
+	)
 }
 
 // evaluateLt evaluates the Lt operator.
@@ -330,7 +408,11 @@ func evaluateLt(resolved any, exists bool, values *[]any, propertyDesc string) (
 
 	val, ok := toFloat64(resolved)
 	if !ok {
-		return false, fmt.Sprintf("%s resolved to a non-numeric type (%T); Lt requires a number", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to a non-numeric type (%T); Lt requires a number",
+			propertyDesc,
+			resolved,
+		)
 	}
 
 	if val < threshold {
@@ -351,17 +433,29 @@ func evaluateLtEq(resolved any, exists bool, values *[]any, propertyDesc string)
 
 	val, ok := toFloat64(resolved)
 	if !ok {
-		return false, fmt.Sprintf("%s resolved to a non-numeric type (%T); LtEq requires a number", propertyDesc, resolved)
+		return false, fmt.Sprintf(
+			"%s resolved to a non-numeric type (%T); LtEq requires a number",
+			propertyDesc,
+			resolved,
+		)
 	}
 
 	if val <= threshold {
 		return true, ""
 	}
-	return false, fmt.Sprintf("%s value %v is not less than or equal to %v", propertyDesc, val, threshold)
+	return false, fmt.Sprintf(
+		"%s value %v is not less than or equal to %v",
+		propertyDesc,
+		val,
+		threshold,
+	)
 }
 
 // evaluateItemMatchExpression evaluates an individual ItemMatchExpression against a single array element.
-func evaluateItemMatchExpression(element any, expr clModels.ItemMatchExpression) (bool, string, error) {
+func evaluateItemMatchExpression(
+	element any,
+	expr clModels.ItemMatchExpression,
+) (bool, string, error) {
 	resolved, exists, err := resolvePointer(element, expr.Property)
 	if err != nil {
 		return false, "", err

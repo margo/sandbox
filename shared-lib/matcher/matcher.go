@@ -28,7 +28,10 @@ func (m *deviceMatcher) IsTargetEligible(
 	// 1. Mandatory deployment technology check
 	if deploymentKey != "" {
 		if !hasCharacteristicKey(profile, deploymentKey) {
-			return false, fmt.Sprintf("device does not support deployment technology %q", deploymentKey), nil
+			return false, fmt.Sprintf(
+				"device does not support deployment technology %q",
+				deploymentKey,
+			), nil
 		}
 	}
 
@@ -99,7 +102,11 @@ func (m *deviceMatcher) evaluateSingleMatchExpression(
 			ok, reason := evaluateDoesNotExist(charFound, me.Values, propDesc)
 			return ok, reason, nil
 		default:
-			return false, fmt.Sprintf("property pointer is required for operator %s (key %q)", me.Operator, me.Key), nil
+			return false, fmt.Sprintf(
+				"property pointer is required for operator %s (key %q)",
+				me.Operator,
+				me.Key,
+			), nil
 		}
 	}
 
@@ -114,20 +121,32 @@ func (m *deviceMatcher) evaluateSingleMatchExpression(
 			ok, reason := evaluateDoesNotExist(false, me.Values, propDesc)
 			return ok, reason, nil
 		default:
-			return false, fmt.Sprintf("characteristic key %q not found in device profile", me.Key), nil
+			return false, fmt.Sprintf(
+				"characteristic key %q not found in device profile",
+				me.Key,
+			), nil
 		}
 	}
 
 	// Normalize properties bag for uniform JSON traversal
 	normProps, err := normalizeJSON(char.Properties)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to process properties for characteristic %q: %w", me.Key, err)
+		return false, "", fmt.Errorf(
+			"failed to process properties for characteristic %q: %w",
+			me.Key,
+			err,
+		)
 	}
 
 	// Resolve RFC 6901 JSON Pointer relative to properties
 	resolved, exists, err := resolvePointer(normProps, pointer)
 	if err != nil {
-		return false, "", fmt.Errorf("invalid property pointer %q for characteristic %q: %w", pointer, me.Key, err)
+		return false, "", fmt.Errorf(
+			"invalid property pointer %q for characteristic %q: %w",
+			pointer,
+			me.Key,
+			err,
+		)
 	}
 
 	switch me.Operator {

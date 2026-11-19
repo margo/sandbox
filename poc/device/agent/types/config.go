@@ -48,14 +48,14 @@ const (
 
 // Config struct
 type Config struct {
-	Logging       LoggingConfig                `yaml:"logging"      validate:"required"`
-	Database      DatabaseConfig               `yaml:"database"     validate:"required"`
-	MIAF          MIAFConfig                   `yaml:"miaf"         validate:"required"`
-	Wfm           WFMConfig                    `yaml:"wfm"          validate:"required"`
-	StateSeeking  StateSeekingConfig           `yaml:"stateSeeking" validate:"required"`
+	Logging       LoggingConfig                `yaml:"logging"       validate:"required"`
+	Database      DatabaseConfig               `yaml:"database"      validate:"required"`
+	MIAF          MIAFConfig                   `yaml:"miaf"          validate:"required"`
+	Wfm           WFMConfig                    `yaml:"wfm"           validate:"required"`
+	StateSeeking  StateSeekingConfig           `yaml:"stateSeeking"  validate:"required"`
 	Bundle        BundleConfig                 `yaml:"bundle"` // optional; defaults are used when omitted
 	DeviceProfile DeviceProfileDiscoveryConfig `yaml:"deviceProfile" validate:"required"`
-	Runtimes      []RuntimeInfo                `yaml:"runtimes"     validate:"required"`
+	Runtimes      []RuntimeInfo                `yaml:"runtimes"      validate:"required"`
 }
 
 type DatabaseConfig struct {

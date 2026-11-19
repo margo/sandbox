@@ -79,13 +79,20 @@ func (da *DeviceClientSettings) ReportDeviceProfile(
 	ctx context.Context,
 	deviceProfile *types.DeviceProfile,
 ) error {
-
 	if deviceProfile == nil {
 		return fmt.Errorf("device profile is nil, cannot report device profile")
 	}
 
-	da.log.Infow("Starting device profile reporting", "deviceClientId", deviceProfile.WorkloadTargetId)
-	err := da.apiClient.ReportDeviceProfile(ctx, deviceProfile.WorkloadTargetId, deviceProfile.Profile)
+	da.log.Infow(
+		"Starting device profile reporting",
+		"deviceClientId",
+		deviceProfile.WorkloadTargetId,
+	)
+	err := da.apiClient.ReportDeviceProfile(
+		ctx,
+		deviceProfile.WorkloadTargetId,
+		deviceProfile.Profile,
+	)
 	if err != nil {
 		if pd, ok := sbi.AsProblemDetail(err); ok {
 			da.log.Errorw(
@@ -100,6 +107,10 @@ func (da *DeviceClientSettings) ReportDeviceProfile(
 		}
 		return fmt.Errorf("failed to report device profile: %w", err)
 	}
-	da.log.Infow("Device profile reported successfully", "workloadTargetId", deviceProfile.WorkloadTargetId)
+	da.log.Infow(
+		"Device profile reported successfully",
+		"workloadTargetId",
+		deviceProfile.WorkloadTargetId,
+	)
 	return nil
 }

@@ -441,8 +441,11 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	if cacheErr == nil && cachedDigest == digest {
 		etag := fmt.Sprintf("\"%s\"", digest)
 		params.IfNoneMatch = &etag
-		fmt.Printf("INFO: [Cache] Sending If-None-Match for bundle (workloadTargetID: %s, digest: %s...)\n",
-			sbiClient.workloadTargetID, digest[:16])
+		fmt.Printf(
+			"INFO: [Cache] Sending If-None-Match for bundle (workloadTargetID: %s, digest: %s...)\n",
+			sbiClient.workloadTargetID,
+			digest[:16],
+		)
 	}
 
 	resp, err := sbiClient.client.GetApiV1BundlesDigest(
@@ -560,19 +563,31 @@ func (sbiClient *SbiHttpClient) ReportDeviceProfile(
 	switch resp.StatusCode {
 	case http.StatusBadRequest:
 		if parsedResp.ApplicationproblemJSON400 != nil {
-			return sbi.WrapProblemDetail("ReportDeviceProfile", parsedResp.ApplicationproblemJSON400)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON400,
+			)
 		}
 	case http.StatusForbidden:
 		if parsedResp.ApplicationproblemJSON403 != nil {
-			return sbi.WrapProblemDetail("ReportDeviceProfile", parsedResp.ApplicationproblemJSON403)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON403,
+			)
 		}
 	case http.StatusNotFound:
 		if parsedResp.ApplicationproblemJSON404 != nil {
-			return sbi.WrapProblemDetail("ReportDeviceProfile", parsedResp.ApplicationproblemJSON404)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON404,
+			)
 		}
 	case http.StatusUnprocessableEntity:
 		if parsedResp.ApplicationproblemJSON422 != nil {
-			return sbi.WrapProblemDetail("ReportDeviceProfile", parsedResp.ApplicationproblemJSON422)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON422,
+			)
 		}
 	}
 	if apiErr := sbi.ParseErrorResponseFromBytes(

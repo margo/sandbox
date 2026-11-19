@@ -42,7 +42,10 @@ func evaluateContainsAll(
 	}
 
 	if len(arr) == 0 {
-		return false, fmt.Sprintf("%s is an empty array, nothing to match against", propertyDesc), nil
+		return false, fmt.Sprintf(
+			"%s is an empty array, nothing to match against",
+			propertyDesc,
+		), nil
 	}
 
 	// First element must be an object
@@ -70,7 +73,10 @@ func evaluateContainsAll(
 		}
 	}
 
-	return false, fmt.Sprintf("no element of %s satisfied all itemSelector.matchExpressions", propertyDesc), nil
+	return false, fmt.Sprintf(
+		"no element of %s satisfied all itemSelector.matchExpressions",
+		propertyDesc,
+	), nil
 }
 
 // evaluateContainsAny evaluates the ContainsAny operator on an array property.
@@ -109,7 +115,10 @@ func evaluateContainsAny(
 	}
 
 	if len(arr) == 0 {
-		return false, fmt.Sprintf("%s is an empty array, nothing to match against", propertyDesc), nil
+		return false, fmt.Sprintf(
+			"%s is an empty array, nothing to match against",
+			propertyDesc,
+		), nil
 	}
 
 	// First element must be an object
@@ -132,5 +141,8 @@ func evaluateContainsAny(
 		}
 	}
 
-	return false, fmt.Sprintf("no element of %s satisfied any itemSelector.matchExpression", propertyDesc), nil
+	return false, fmt.Sprintf(
+		"no element of %s satisfied any itemSelector.matchExpression",
+		propertyDesc,
+	), nil
 }

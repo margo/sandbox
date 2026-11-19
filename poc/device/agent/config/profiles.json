@@ -2,14 +2,6 @@
     "workloadTargetId": "northstarida.xtapro.k8s.edge",
     "characteristics": [
         {
-            "key": "margo.org/nameplate",
-            "properties": {
-                "vendor": "Northstar Industrial Devices",
-                "modelNumber": "332ANZE1-N1",
-                "serialNumber": "PF45343-AA"
-            }
-        },
-        {
             "key": "margo.org/resource/cpu",
             "properties": {
                 "cpus": [
@@ -51,24 +43,10 @@
                         "type": "ethernet"
                     },
                     {
-                        "type": "wifi"
+                        "type": "bluetooth"
                     }
                 ]
             }
-        },
-        {
-            "key": "margo.org/services",
-            "properties": {
-                "otelCollector": true
-            }
-        },
-        {
-            "key": "margo.org/deployment/compose",
-            "properties": {}
-        },
-        {
-            "key": "margo.org/deployment/helm",
-            "properties": {}
         }
     ]
 }

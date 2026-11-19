@@ -20,18 +20,18 @@ type (
 
 // SbiHttpClient implementation
 type SbiHttpClient struct {
-	url             string
-	client          sbi.ClientInterface
-	deviceId        string // This is not SPIFFE ID, this is capabilities.properties.id OR gatewayId
-	options         []HTTPApiClientOptions
-	bundleCache     *cache.BundleCache
-	deploymentCache *cache.DeploymentCache
+	url              string
+	client           sbi.ClientInterface
+	workloadTargetID string // This is not SPIFFE ID, this is workloadTargetId from profiles manifest.
+	options          []HTTPApiClientOptions
+	bundleCache      *cache.BundleCache
+	deploymentCache  *cache.DeploymentCache
 }
 
-// Note: deviceId is capabilities.properties.id or gatewayId, not SpiffeId
+// Note: workloadTargetID is workloadTargetId from profiles manifest, not SpiffeId
 func NewSbiHTTPClient(
 	url string,
-	deviceId string,
+	workloadTargetID string,
 	options ...HTTPApiClientOptions,
 ) (*SbiHttpClient, error) {
 	client, err := sbi.NewClient(url)
@@ -433,7 +433,7 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) (bundleData []byte, err error) {
 	// Check if we have this bundle cached
-	cachedDigest, cacheErr := sbiClient.bundleCache.GetLastBundleDigest(sbiClient.deviceId)
+	cachedDigest, cacheErr := sbiClient.bundleCache.GetLastBundleDigest(sbiClient.workloadTargetID)
 
 	params := &sbi.GetApiV1BundlesDigestParams{}
 
@@ -441,8 +441,11 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	if cacheErr == nil && cachedDigest == digest {
 		etag := fmt.Sprintf("\"%s\"", digest)
 		params.IfNoneMatch = &etag
-		fmt.Printf("INFO: [Cache] Sending If-None-Match for bundle (device: %s, digest: %s...)\n",
-			sbiClient.deviceId, digest[:16])
+		fmt.Printf(
+			"INFO: [Cache] Sending If-None-Match for bundle (workloadTargetID: %s, digest: %s...)\n",
+			sbiClient.workloadTargetID,
+			digest[:16],
+		)
 	}
 
 	resp, err := sbiClient.client.GetApiV1BundlesDigest(
@@ -459,11 +462,11 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 	// Handle 304 Not Modified
 	if resp.StatusCode == http.StatusNotModified {
 		fmt.Printf(
-			"INFO: [Cache HIT] Bundle not modified (304) - using cached version (device: %s)\n",
-			sbiClient.deviceId,
+			"INFO: [Cache HIT] Bundle not modified (304) - using cached version (workloadTargetID: %s)\n",
+			sbiClient.workloadTargetID,
 		)
 
-		cachedData, err := sbiClient.bundleCache.GetBundle(sbiClient.deviceId, digest)
+		cachedData, err := sbiClient.bundleCache.GetBundle(sbiClient.workloadTargetID, digest)
 		if err != nil {
 			return nil, fmt.Errorf("304 received but cache read failed: %w", err)
 		}
@@ -504,8 +507,8 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 		return nil, fmt.Errorf("failed to read bundle: %w", err)
 	}
 
-	fmt.Printf("INFO: [Cache MISS] Downloaded bundle for device %s (%d bytes)\n",
-		sbiClient.deviceId, len(bundleData))
+	fmt.Printf("INFO: [Cache MISS] Downloaded bundle for workloadTargetID %s (%d bytes)\n",
+		sbiClient.workloadTargetID, len(bundleData))
 
 	// Verify digest (Exact Bytes Rule)
 	hash := sha256.Sum256(bundleData)
@@ -518,34 +521,34 @@ func (sbiClient *SbiHttpClient) DownloadBundle(
 
 	// Store in cache (digest verification happens inside cache.Store)
 	if err := sbiClient.bundleCache.StoreBundle(
-		sbiClient.deviceId,
+		sbiClient.workloadTargetID,
 		digest,
 		bundleData,
 	); err != nil {
-		fmt.Printf("WARNING: [Cache] Failed to cache bundle for device %s: %v\n",
-			sbiClient.deviceId, err)
+		fmt.Printf("WARNING: [Cache] Failed to cache bundle for workloadTargetID %s: %v\n",
+			sbiClient.workloadTargetID, err)
 	} else {
-		fmt.Printf("INFO: [Cache] Stored bundle for device %s (digest: %s...)\n",
-			sbiClient.deviceId, digest[:16])
+		fmt.Printf("INFO: [Cache] Stored bundle for workloadTargetID %s (digest: %s...)\n",
+			sbiClient.workloadTargetID, digest[:16])
 	}
 
 	return bundleData, nil
 }
 
-func (sbiClient *SbiHttpClient) ReportCapabilities(
+func (sbiClient *SbiHttpClient) ReportDeviceProfile(
 	ctx context.Context,
 	deviceId string,
-	capabilities sbi.DeviceCapabilitiesManifest,
+	deviceProfile sbi.Profile,
 	overrideOptions ...HTTPApiClientRequestEditorOptions,
 ) error {
-	resp, err := sbiClient.client.PutApiV1CapabilitiesDeviceId(
+	resp, err := sbiClient.client.PutApiV1ProfileWorkloadTargetId(
 		ctx,
 		deviceId,
-		capabilities,
+		deviceProfile,
 		overrideOptions...,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to report capabilities: %w", err)
+		return fmt.Errorf("failed to report device profile: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -553,26 +556,38 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 		return nil
 	}
 
-	parsedResp, err := sbi.ParsePutApiV1CapabilitiesDeviceIdResponse(resp)
+	parsedResp, err := sbi.ParsePutApiV1ProfileWorkloadTargetIdResponse(resp)
 	if err != nil {
-		return fmt.Errorf("ReportCapabilities: failed to parse response: %w", err)
+		return fmt.Errorf("ReportDeviceProfile: failed to parse response: %w", err)
 	}
 	switch resp.StatusCode {
 	case http.StatusBadRequest:
 		if parsedResp.ApplicationproblemJSON400 != nil {
-			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON400)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON400,
+			)
 		}
 	case http.StatusForbidden:
 		if parsedResp.ApplicationproblemJSON403 != nil {
-			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON403)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON403,
+			)
 		}
 	case http.StatusNotFound:
 		if parsedResp.ApplicationproblemJSON404 != nil {
-			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON404)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON404,
+			)
 		}
 	case http.StatusUnprocessableEntity:
 		if parsedResp.ApplicationproblemJSON422 != nil {
-			return sbi.WrapProblemDetail("ReportCapabilities", parsedResp.ApplicationproblemJSON422)
+			return sbi.WrapProblemDetail(
+				"ReportDeviceProfile",
+				parsedResp.ApplicationproblemJSON422,
+			)
 		}
 	}
 	if apiErr := sbi.ParseErrorResponseFromBytes(
@@ -580,7 +595,7 @@ func (sbiClient *SbiHttpClient) ReportCapabilities(
 		resp.Header.Get("Content-Type"),
 		parsedResp.Body,
 	); apiErr != nil {
-		return fmt.Errorf("ReportCapabilities: %w", apiErr)
+		return fmt.Errorf("ReportDeviceProfile: %w", apiErr)
 	}
-	return fmt.Errorf("ReportCapabilities: unexpected status code: %d", resp.StatusCode)
+	return fmt.Errorf("ReportDeviceProfile: unexpected status code: %d", resp.StatusCode)
 }

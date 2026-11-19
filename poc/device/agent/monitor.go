@@ -9,6 +9,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/constant"
 	"github.com/margo/sandbox/poc/device/agent/database"
 	"github.com/margo/sandbox/poc/device/agent/operation"
+	"github.com/margo/sandbox/poc/device/agent/types"
 	"github.com/margo/sandbox/shared-lib/pointers"
 	"github.com/margo/sandbox/shared-lib/workloads"
 	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
@@ -25,7 +26,7 @@ type DeploymentMonitorIfc interface {
 
 type DeploymentMonitor struct {
 	database      database.DatabaseIfc
-	capabilities  *sbi.DeviceCapabilitiesManifest
+	deviceProfile *types.DeviceProfile
 	helmClient    *workloads.HelmClient
 	composeClient *operation.DockerComposeClient
 	log           *zap.SugaredLogger
@@ -34,7 +35,7 @@ type DeploymentMonitor struct {
 
 func NewDeploymentMonitor(
 	db database.DatabaseIfc,
-	capabilities *sbi.DeviceCapabilitiesManifest,
+	deviceProfile *types.DeviceProfile,
 	helmClient *workloads.HelmClient,
 	composeClient *operation.DockerComposeClient,
 	log *zap.SugaredLogger,
@@ -43,7 +44,7 @@ func NewDeploymentMonitor(
 		database:      db,
 		helmClient:    helmClient,
 		composeClient: composeClient,
-		capabilities:  capabilities,
+		deviceProfile: deviceProfile,
 		log:           log,
 		stopChan:      make(chan struct{}),
 	}
@@ -95,7 +96,7 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 	}
 
 	// Only monitor Helm deployments
-	if appDeployment.Spec.DeploymentProfile.Type != sbi.AppDeploymentProfileTypeHelm {
+	if appDeployment.Spec.DeploymentProfile.Key != constant.AppDeploymentProfileKeyHelm {
 		return
 	}
 
@@ -118,7 +119,7 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 				}{
 					Code:    GetAddress("HELM_STATUS_ERROR"),
 					Message: &errMsg,
-					Source:  pointers.Ptr(hm.capabilities.Properties.Id),
+					Source:  pointers.Ptr(hm.deviceProfile.WorkloadTargetId),
 				},
 			})
 			continue

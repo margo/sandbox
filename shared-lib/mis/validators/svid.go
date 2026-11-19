@@ -1,6 +1,11 @@
 package validators
 
 import (
+	"bytes"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -270,4 +275,75 @@ func GetTrustBundleFromJWK(jwkBytes []byte) ([]*x509.Certificate, error) {
 	}
 
 	return certs, nil
+}
+
+// ValidateCertKeyPair verifies that the given PEM-encoded certificate and
+// private key are cryptographically paired (i.e., the public key in the
+// certificate matches the private key).
+// Supports RSA, ECDSA, and Ed25519 key types.
+func ValidateCertKeyPair(certPEM, keyPEM []byte) error {
+	// Decode certificate
+	certBlock, _ := pem.Decode(certPEM)
+	if certBlock == nil {
+		return fmt.Errorf("failed to decode certificate PEM block")
+	}
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Decode private key — try PKCS8 first, then SEC1 (EC), then PKCS1 (RSA)
+	keyBlock, _ := pem.Decode(keyPEM)
+	if keyBlock == nil {
+		return fmt.Errorf("failed to decode private key PEM block")
+	}
+
+	var privateKey crypto.PrivateKey
+	switch keyBlock.Type {
+	case "PRIVATE KEY": // PKCS#8
+		privateKey, err = x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	case "EC PRIVATE KEY": // SEC1
+		privateKey, err = x509.ParseECPrivateKey(keyBlock.Bytes)
+	case "RSA PRIVATE KEY": // PKCS#1
+		privateKey, err = x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	default:
+		return fmt.Errorf("unsupported private key type: %q", keyBlock.Type)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	// Extract public key from private key and compare with cert's public key
+	type publicKeyer interface {
+		Public() crypto.PublicKey
+	}
+	keyer, ok := privateKey.(publicKeyer)
+	if !ok {
+		return fmt.Errorf("private key does not expose a public key")
+	}
+
+	certPubKey := cert.PublicKey
+	derivedPub := keyer.Public()
+
+	switch pub := certPubKey.(type) {
+	case *rsa.PublicKey:
+		derived, ok := derivedPub.(*rsa.PublicKey)
+		if !ok || pub.N.Cmp(derived.N) != 0 || pub.E != derived.E {
+			return fmt.Errorf("certificate and private key do not match: RSA public key mismatch")
+		}
+	case *ecdsa.PublicKey:
+		derived, ok := derivedPub.(*ecdsa.PublicKey)
+		if !ok || pub.X.Cmp(derived.X) != 0 || pub.Y.Cmp(derived.Y) != 0 {
+			return fmt.Errorf("certificate and private key do not match: ECDSA public key mismatch")
+		}
+	case ed25519.PublicKey:
+		derived, ok := derivedPub.(ed25519.PublicKey)
+		if !ok || !bytes.Equal(pub, derived) {
+			return fmt.Errorf("certificate and private key do not match: Ed25519 public key mismatch")
+		}
+	default:
+		return fmt.Errorf("unsupported public key type in certificate: %T", certPubKey)
+	}
+
+	return nil
 }

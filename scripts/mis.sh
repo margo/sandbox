@@ -3,6 +3,7 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INVOKE_DIR="$PWD"   # directory the user launched the script from
 
 
 
@@ -341,22 +342,16 @@ generate_svid() {
     echo "[ERROR] ❌ svid-gen.sh not found at: $svid_script"
     return 1
   fi
-  
-  echo "[INFO] 🔐 Launching SVID generator..."
-  local exit_code=0
-  bash "$svid_script" --interactive || exit_code=$?
 
-  case $exit_code in
-    0)
-      echo "[INFO] ✅ SVID generation completed successfully."
-      ;;
-    2)
-      echo "[WARN] ⚠️  SVID generation was aborted by the user. No certificates were generated."
-      ;;
-    *)
-      echo "[ERROR] ❌ SVID generation failed (exit code: $exit_code)."
-      ;;
-  esac
+  echo "[INFO] 🔐 Launching SVID generator..."
+
+  # Pass the launch dir explicitly so output never depends on earlier cd calls
+  if SVID_OUTPUT_ROOT="$INVOKE_DIR" bash "$svid_script" --interactive; then
+    echo "[INFO] ✅ SVID generation completed successfully."
+  else
+    echo "[WARN] ⚠️  SVID generation failed (exit code: $?)"
+    return 1
+  fi
 }
 
 

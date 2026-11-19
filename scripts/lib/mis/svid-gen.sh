@@ -20,6 +20,7 @@ fi
 
 DEFAULT_TTL=7776000  # 90 days in seconds
 OUTPUT_DIR_IN_CONTAINER="svidCert"
+OUTPUT_ROOT="${SVID_OUTPUT_ROOT:-$PWD}"   # absolute base dir for host output
 
 # --- Colors & Logging ---
 RED='\033[0;31m'
@@ -103,9 +104,9 @@ parse_spiffe_id() {
 resolve_host_output_dir() {
   local mode="$1"
   if [[ "$mode" == "wfm" ]]; then
-    HOST_OUTPUT_DIR="x509svid-${WFM_ID}"
+    HOST_OUTPUT_DIR="${OUTPUT_ROOT}/x509svid-${WFM_ID}"
   else
-    HOST_OUTPUT_DIR="x509svid-${WFM_ID}-${WFM_CLIENT_ID}"
+    HOST_OUTPUT_DIR="${OUTPUT_ROOT}/x509svid-${WFM_ID}-${WFM_CLIENT_ID}"
   fi
 }
 
@@ -149,7 +150,7 @@ copy_certs_to_host() {
 
   log_step "[${mode_label}] Copying certificates from container to host"
   log_info "Container path : ${CONTAINER_NAME}:/${OUTPUT_DIR_IN_CONTAINER}"
-  log_info "Host path      : $(pwd)/${HOST_OUTPUT_DIR}"
+  log_info "Host path      : ${HOST_OUTPUT_DIR}"
 
   # Remove existing local dir if present to avoid nested copy issues
   if [[ -d "${HOST_OUTPUT_DIR}" ]]; then
@@ -158,7 +159,7 @@ copy_certs_to_host() {
   fi
 
   docker cp "${CONTAINER_NAME}:/${OUTPUT_DIR_IN_CONTAINER}" "${HOST_OUTPUT_DIR}"
-  log_info "Certificates copied to '$(pwd)/${HOST_OUTPUT_DIR}'. ✓"
+  log_info "Certificates copied to '${HOST_OUTPUT_DIR}'. ✓"
 }
 
 # =============================================================================
@@ -256,13 +257,13 @@ run_interactive() {
   echo "  SPIFFE ID  : ${SPIFFE_ID}"
   echo "  TTL        : ${TTL} seconds"
   echo "  DNS SANs   : ${DNS_LIST:-(none)}"
-  echo "  Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
+  echo "  Output Dir : ${HOST_OUTPUT_DIR}"
   echo ""
   read -rp "  Proceed? [Y/n]: " confirm
   confirm="${confirm:-Y}"
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    log_warn "Aborted by user. No SVID was generated"
-    exit 2
+    log_warn "Aborted by user."
+    exit 0
   fi
 
   # Step 3: Mint SVID
@@ -272,7 +273,7 @@ run_interactive() {
   copy_certs_to_host "$MODE_LABEL"
 
   log_section "Done [${MODE_LABEL}]"
-  log_info "X.509 SVID certificates are available at: $(pwd)/${HOST_OUTPUT_DIR}"
+  log_info "X.509 SVID certificates are available at: ${HOST_OUTPUT_DIR}"
 }
 
 # =============================================================================
@@ -304,18 +305,18 @@ run_automated() {
   parse_spiffe_id "$auto_spiffe_id" "$auto_mode"
 
   if [[ "$auto_mode" == "wfm" ]]; then
-    HOST_OUTPUT_DIR="x509svid-wfm"
+    HOST_OUTPUT_DIR="${OUTPUT_ROOT}/x509svid-wfm"
   else
-    HOST_OUTPUT_DIR="x509svid-wfmclient"
+    HOST_OUTPUT_DIR="${OUTPUT_ROOT}/x509svid-wfmclient"
   fi
 
-  log_info "Output Dir : $(pwd)/${HOST_OUTPUT_DIR}"
+  log_info "Output Dir : ${HOST_OUTPUT_DIR}"
 
   mint_svid "$auto_spiffe_id" "$DEFAULT_TTL" "$auto_dns_list" "$MODE_LABEL"
   copy_certs_to_host "$MODE_LABEL"
 
   log_section "Done [${MODE_LABEL}]"
-  log_info "X.509 SVID certificates are available at: $(pwd)/${HOST_OUTPUT_DIR}"
+  log_info "X.509 SVID certificates are available at: ${HOST_OUTPUT_DIR}"
 }
 
 # =============================================================================

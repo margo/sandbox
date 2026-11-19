@@ -74,7 +74,9 @@ func buildTLSConfig(endpoint string, trust TrustConfig) (*tls.Config, error) {
 	hasPins := len(trust.SPKIPins) > 0
 
 	if !hasPEM && !hasPins {
-		return nil, fmt.Errorf("TrustConfig: at least one of RootCAPEM or SPKIPins must be provided")
+		return nil, fmt.Errorf(
+			"TrustConfig: at least one of RootCAPEM or SPKIPins must be provided",
+		)
 	}
 
 	// Root CA takes precedence over

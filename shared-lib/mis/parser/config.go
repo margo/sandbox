@@ -143,6 +143,14 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 		out.X509.KeyPEM = key
 	}
 
+	// Verify leaf certificate against the key
+	if len(out.X509.CertPEM) != 0 && len(out.X509.KeyPEM) != 0 {
+		err := validators.ValidateCertKeyPair(out.X509.CertPEM, out.X509.KeyPEM)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// --- MIS endpoint (pass-through) ---
 	out.MIS.Endpoint = input.MIS.Endpoint
 

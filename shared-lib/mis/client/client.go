@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/margo/sandbox/mis/pkg/standard/generatedCode"
@@ -102,28 +103,34 @@ func buildTLSConfig(endpoint string, trust TrustConfig) (*tls.Config, error) {
 	serverName := parsedURL.Hostname()
 
 	return &tls.Config{
-		// InsecureSkipVerify disables the default chain validation so our
-		// VerifyPeerCertificate callback takes full control. We still perform
-		// hostname verification manually inside the callback per miaf2.md §5.
-		InsecureSkipVerify: true, //nolint:gosec // pin validation done in VerifyPeerCertificate
-		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-			// Pin match is always required
+		// InsecureSkipVerify disables default chain validation.
+		// All verification (pin + hostname) is enforced in VerifyConnection,
+		// which runs on both full handshakes and resumed sessions per miaf2.md §5.
+		InsecureSkipVerify: true, //nolint:gosec // pin+hostname validation done in VerifyConnection
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return fmt.Errorf("tls: no peer certificates presented")
+			}
+
+			// Collect raw DER bytes from the verified chain for pin matching.
+			rawCerts := make([][]byte, len(cs.PeerCertificates))
+			for i, cert := range cs.PeerCertificates {
+				rawCerts[i] = cert.Raw
+			}
+
+			// Pin match is always required (full handshake and resumed sessions).
 			if err := verifyPins(rawCerts, pins); err != nil {
 				return err
 			}
 
-			// RFC 9525 hostname verification: only when serverName is a DNS name,
-			// not an IP address. Per miaf2.md §5, the pin itself establishes
-			// server identity for IP-addressed MIS endpoints.
+			// RFC 9525 hostname verification: only for DNS names, not IP addresses.
+			// Per miaf2.md §5, the pin establishes identity for IP-addressed endpoints.
 			if net.ParseIP(serverName) == nil {
-				leaf, err := x509.ParseCertificate(rawCerts[0])
-				if err != nil {
-					return fmt.Errorf("hostname verification: parsing leaf cert: %w", err)
-				}
-				if err := leaf.VerifyHostname(serverName); err != nil {
+				if err := cs.PeerCertificates[0].VerifyHostname(serverName); err != nil {
 					return fmt.Errorf("hostname verification: %w", err)
 				}
 			}
+
 			return nil
 		},
 	}, nil
@@ -156,10 +163,8 @@ func verifyPins(rawCerts [][]byte, pins [][32]byte) error {
 		if err != nil {
 			return fmt.Errorf("pin verification: computing SPKI hash: %w", err)
 		}
-		for _, pin := range pins {
-			if pin == spkiHash {
-				return nil // at least one cert in chain matches
-			}
+		if slices.Contains(pins, spkiHash) {
+			return nil // at least one cert in chain matches
 		}
 	}
 	return fmt.Errorf("pin verification: no certificate in chain matched any configured SPKI pin")

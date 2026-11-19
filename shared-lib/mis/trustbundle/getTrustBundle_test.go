@@ -919,7 +919,11 @@ func TestValidateModeRequirements_TrustAnchorWithoutEndpoint_ReturnsError(t *tes
 func TestValidateModeRequirements_NoSourceConfigured_ReturnsError(t *testing.T) {
 	err := validateModeRequirements(TrustBundleGetterConfig{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "either MISEndpoint with a trust anchor, or a StaticBundle must be provided")
+	assert.Contains(
+		t,
+		err.Error(),
+		"either MISEndpoint with a trust anchor, or a StaticBundle must be provided",
+	)
 }
 
 func TestValidateModeRequirements_StaticBundleWithoutTrustDomain_ReturnsError(t *testing.T) {

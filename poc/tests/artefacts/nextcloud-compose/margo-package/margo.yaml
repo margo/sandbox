@@ -20,7 +20,7 @@ metadata:
       - name: Nextcloud GmbH
         site: https://nextcloud.com
 deploymentProfiles:
-  - type: compose
+  - key: margo.org/deployment/compose
     id: nextcloud-mariadb-redis-compose
     components:
       - name: nextcloud-stack
@@ -29,24 +29,46 @@ deploymentProfiles:
           revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
           timeout: 5m0s
-    deviceConstraints:
-      capacityRequirements:
-        cpu:
-          cores: 1
-          architectures: ["amd64"]
-        memory: 4Gi
-        storage: 10Gi
-      eligibilityRules:
-        - propertySelector:
-            matchExpressions:
-              - key: /supportedDeploymentTypes
-                operator: In
-                values:
-                  - "compose"
-              - key: /supportedRuntimes
-                operator: In
-                values:
-                  - "oci"
+    characteristics:
+      - matchExpressions:
+          - key: margo.org/resource/cpu
+            property: /cpus
+            operator: ContainsAny
+            itemSelector:
+              matchExpressions:
+                - property: /cores
+                  operator: GtEq
+                  values: [1.5]
+                - property: /architecture
+                  operator: In
+                  values: ["amd64"]
+          - key: margo.org/resource/memory
+            property: /memory
+            operator: GtEq
+            values: [1]
+          - key: margo.org/resource/storage
+            property: /storage
+            operator: GtEq
+            values: [10]
+          - key: margo.org/peripherals
+            property: /peripherals
+            operator: ContainsAll
+            itemSelector:
+              matchExpressions:
+                - property: /type
+                  operator: In
+                  values: ["gpu"]
+                - property: /manufacturer
+                  operator: In
+                  values: ["NVIDIA"]
+          - key: margo.org/interfaces
+            property: /interfaces
+            operator: ContainsAll
+            itemSelector:
+              matchExpressions:
+                - property: /type
+                  operator: In
+                  values: ["ethernet", "bluetooth"]
 parameters:
   mysqlDatabase:
     value: nextcloud

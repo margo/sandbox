@@ -17,7 +17,7 @@ metadata:
       - name: OpenTelemetry Lab
         site: https://opentelemetry.io
 deploymentProfiles:
-  - type: helm
+  - key: margo.org/deployment/helm
     id: otel-demo
     description: Deploys the go-otel-service using Helm v3. Requires network connectivity to the OTEL collector and basic compute resources.
     components:
@@ -27,24 +27,46 @@ deploymentProfiles:
           revision: {{HELM_REVISION}} # e.g., 0.1.0
           wait: true
           timeout: 5m0s
-    deviceConstraints:
-      capacityRequirements:
-        cpu:
-          cores: 1
-          architectures: ["amd64"]
-        memory: 4Gi
-        storage: 10Gi
-      eligibilityRules:
-        - propertySelector:
-            matchExpressions:
-              - key: /supportedDeploymentTypes
-                operator: In
-                values:
-                  - "helm"
-              - key: /supportedRuntimes
-                operator: In
-                values:
-                  - "oci"
+    characteristics:
+      - matchExpressions:
+          - key: margo.org/resource/cpu
+            property: /cpus
+            operator: ContainsAny
+            itemSelector:
+              matchExpressions:
+                - property: /cores
+                  operator: GtEq
+                  values: [1.5]
+                - property: /architecture
+                  operator: In
+                  values: ["amd64"]
+          - key: margo.org/resource/memory
+            property: /memory
+            operator: GtEq
+            values: [1]
+          - key: margo.org/resource/storage
+            property: /storage
+            operator: GtEq
+            values: [10]
+          - key: margo.org/peripherals
+            property: /peripherals
+            operator: ContainsAll
+            itemSelector:
+              matchExpressions:
+                - property: /type
+                  operator: In
+                  values: ["gpu"]
+                - property: /manufacturer
+                  operator: In
+                  values: ["NVIDIA"]
+          - key: margo.org/interfaces
+            property: /interfaces
+            operator: ContainsAll
+            itemSelector:
+              matchExpressions:
+                - property: /type
+                  operator: In
+                  values: ["ethernet", "bluetooth"]    
 parameters:
   # Frontend service configuration
   otlpEndpoint:

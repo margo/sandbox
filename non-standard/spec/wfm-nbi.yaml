@@ -217,11 +217,11 @@ paths:
                     appPackageRef:
                       id: my-web-app-pkg
                     deviceRef:
-                      lable:
+                      labels:
                         key: arch
                         value: x86
                     deploymentProfile:
-                      type: helm
+                      key: margo.org/deployment/helm
                       components:
                         - name: digitron-orchestrator
                           properties:
@@ -628,49 +628,41 @@ components:
 
 
     AppDeploymentProfile:
+      type: object
+      required: [key, components]
       properties:
-        components:
-          # x-go-field-tags: 'json:"components" yaml:"components"'
+        key:
+          type: string
+          description: >-
+            Deployment technology key, e.g. `margo.org/deployment/helm`
+            or `margo.org/deployment/compose`.
           x-oapi-codegen-extra-tags:
-            json: "components"
-            yaml: "components"
+            json: "key"
+            yaml: "key"
+        components:
           description: Components in this deployment profile
           items:
             oneOf:
             - $ref: '#/components/schemas/ApplicationDeploymentProfileComponent'
           type: array
+          x-oapi-codegen-extra-tags:
+            json: "components"
+            yaml: "components"
         description:
-          # x-go-field-tags: 'json:"description" yaml:"description"'
+          description: Description of the deployment profile
+          type: string
           x-oapi-codegen-extra-tags:
             json: "description"
             yaml: "description"
-          description: Description of the deployment profile
-          type: string
-        deviceConstraints:
+        characteristics:
+          type: array
+          description: Characteristic match expressions required for placement on a workload target.
+          items:
+            $ref: '#/components/schemas/Characteristics'
           x-oapi-codegen-extra-tags:
-            json: "deviceConstraints"
-            yaml: "deviceConstraints"
-          description: Description of the device capabilties required for this particular application
-          $ref: "#/components/schemas/DeviceConstraints"
-        # id:
-        #   description: Unique identifier for the deployment profile
-        #   type: string
-        type:
-          # x-go-field-tags: 'json:"type" yaml:"type"'
-          x-oapi-codegen-extra-tags:
-            json: "type"
-            yaml: "type"
-          description: Type of deployment profile
-          enum:
-          - helm
-          - compose
-          - custom
-          type: string
-      required:
-      - type
-      # - id
-      - components
-      type: object
+            json: "characteristics"
+            yaml: "characteristics"
+
 
     AppDescriptionParametersMap:
       additionalProperties:
@@ -724,56 +716,147 @@ components:
 
     ApplicationDeploymentProfileComponent:
       description: Application Deployment Profile Component
+      type: object
+      required: [name, properties]
       properties:
         name:
-          # x-go-field-tags: 'json:"name" yaml:"name"'
           x-oapi-codegen-extra-tags:
             json: "name"
             yaml: "name"
           description: Name of the component
           type: string
         properties:
-          # x-go-field-tags: 'json:"properties" yaml:"properties"'
           x-oapi-codegen-extra-tags:
             json: "properties"
             yaml: "properties"
+          type: object
+          required: [repository, revision]
           properties:
             repository:
-              # x-go-field-tags: 'json:"repository" yaml:"repository"'
               x-oapi-codegen-extra-tags:
                 json: "repository"
                 yaml: "repository"
-              description: Repository of the component
+              description: OCI repository URI. MUST use the oci:// scheme.
               type: string
+              pattern: '^oci://.+'
             revision:
-              # x-go-field-tags: 'json:"revision" yaml:"revision"'
               x-oapi-codegen-extra-tags:
                 json: "revision"
                 yaml: "revision"
-              description: Revision of the component
+              description: SemVer 2.0 version string without leading v.
               type: string
+              pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:_([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
             timeout:
-              # x-go-field-tags: 'json:"timeout" yaml:"timeout"'
               x-oapi-codegen-extra-tags:
                 json: "timeout"
                 yaml: "timeout"
-              description: Timeout for the component
+              description: Maximum wait time. Format is ##m##s (e.g., 5m0s, 8m30s).
               type: string
+              pattern: '^\d+m\d+s$'
             wait:
-              # x-go-field-tags: 'json:"wait" yaml:"wait"'
               x-oapi-codegen-extra-tags:
                 json: "wait"
                 yaml: "wait"
               description: Wait for the component to be ready
               type: boolean
-          required:
-          - repository
-          - revision
-          type: object
-      required:
-      - name
-      - properties
+
+    Characteristics:
       type: object
+      description: Characteristic match expressions required for placement on a workload target.
+      required: [matchExpressions]
+      properties:
+        matchExpressions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharacteristicMatchExpression'
+          description: Match expressions evaluated against the workload target's characteristics.              
+
+    CharacteristicMatchExpression:
+      type: object
+      description: An expression used to match a workload target characteristic or one of its properties.
+      required: [key, operator]
+      properties:
+        key:
+          type: string
+          description: The characteristic key to match.
+        property:
+          type: string
+          description: >-
+            An RFC 6901 JSON Pointer evaluated relative to the characteristic's properties object.
+            When omitted, the expression tests whether the characteristic identified by key exists.
+        operator:
+          type: string
+          enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt, GtEq, LtEq, ContainsAll, ContainsAny]
+          description: Operator used to evaluate the referenced value.
+        values:
+          type: array
+          items: {}
+          description: >-
+            Values required for In, NotIn, Gt, GtEq, Lt, LtEq operators.
+        itemSelector:
+          $ref: '#/components/schemas/ItemSelector'
+          description: Selector evaluated against array elements. Required for ContainsAll or ContainsAny.
+
+
+    ItemSelector:
+      type: object
+      description: A set of item match expressions evaluated against array elements.
+      required: [matchExpressions]
+      properties:
+        matchExpressions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemMatchExpression'
+          description: Match expressions evaluated against an array element.
+
+    ItemMatchExpression:
+      type: object
+      description: An expression used to match a property within an array element.
+      required: [property, operator]
+      properties:
+        property:
+          type: string
+          description: An RFC 6901 JSON Pointer evaluated relative to the array element.
+        operator:
+          type: string
+          enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt, GtEq, LtEq, ContainsAll, ContainsAny]
+          description: Operator used to evaluate the referenced value.
+        values:
+          type: array
+          items: {}
+          description: >-
+            Values required for In, NotIn, Gt, GtEq, Lt, LtEq operators.          
+
+    DeviceSpec:
+      type: object
+      description: Device specification reflecting the workload target profile
+      required: [profile]
+      properties:
+        profile:
+          $ref: '#/components/schemas/DeviceProfile'
+          description: Workload target profile reported by the device
+
+    DeviceProfile:
+      type: object
+      required: [characteristics]
+      properties:
+        characteristics:
+          type: array
+          description: List of characteristic entries composing the workload target's profile.
+          items:
+            $ref: '#/components/schemas/DeviceCharacteristic'      
+
+    DeviceCharacteristic:
+      type: object
+      required: [key, properties]
+      properties:
+        key:
+          type: string
+          description: Unique key assigned to the characteristic.
+        properties:
+          description: >-
+            JSON property bag containing the characteristic's properties.
+            May be any valid JSON value including nested objects and arrays.                            
 
     AppConfigurationSchema:
       properties:
@@ -1162,22 +1245,28 @@ components:
     DeploymentExecutionProfile:
       type: object
       description: Application Deployment Profile
-      required: [type, components]
+      required: [key, components]
       properties:
-        type:
+        key:
           type: string
-          enum: ["helm", "compose", "custom"]
-          description: Type of deployment profile
-        deviceConstraints:
-          description: Description of the device capabilties required for this particular application
-          $ref: "#/components/schemas/DeviceConstraints"
-
+          description: >-
+            Deployment technology key, e.g. `margo.org/deployment/helm`
+            or `margo.org/deployment/compose`.
+ 
+        characteristics:
+          type: array
+          description: >-
+            Characteristic match expressions copied from the selected application
+            description deployment profile, required for placement on a workload target.
+          items:
+            $ref: '#/components/schemas/Characteristics'
         components:
           type: array
           items:
             oneOf:
               - $ref: '#/components/schemas/DeploymentProfileComponent'
           description: Components of the deployment profile
+
 
     DeploymentProfileComponent:
       type: object
@@ -1193,16 +1282,24 @@ components:
           properties:
             repository:
               type: string
-              description: Repository of the component
+              pattern: '^oci://.+'
+              description: >-
+                OCI repository URI (e.g., oci://registry.example.com/org/component-name).
+                MUST use the oci:// scheme.
             revision:
               type: string
-              description: Revision of the component
+              pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:_([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+              description: >-
+                SemVer 2.0 version string without leading v.
+                Build metadata uses _ as separator instead of +.
             timeout:
               type: string
-              description: Timeout for the component
+              pattern: '^\d+m\d+s$'
+              description: >-
+                Maximum wait time. Format is ##m##s (e.g., 5m0s, 8m30s).
             wait:
               type: boolean
-              description: Wait for the component to be ready
+              description: Wait for the component to be ready before proceeding.
 
 
     DeploymentParameterTarget:
@@ -1395,16 +1492,6 @@ components:
           $ref: '#/components/schemas/DeviceState'
           description: State of the device
 
-    DeviceSpec:
-      type: object
-      required: [capabilities]
-      properties:
-        capabilities:
-          # type: object
-          x-go-type: interface{}
-          type: object
-          additionalProperties: true
-
     DeviceState:
       type: object
       required: [onboard]
@@ -1416,75 +1503,7 @@ components:
       type: string
       enum: [IN-PROGRESS, ONBOARDED, FAILED]
 
-    DeviceConstraints:
-      type: object
-      description: >-
-        Device constraints specifying the minimum device capabilities and eligibility rules required for the deployment.
-      properties:
-        capacityRequirements:
-          $ref: '#/components/schemas/CapacityRequirements'
-          description: Minimum CPU, memory, and storage requirements for the deployment profile.
-        eligibilityRules:
-          type: array
-          items:
-            $ref: '#/components/schemas/EligibilityRule'
-          description: >-
-            Optional rules used to match the deployment with device properties and supplier-defined labels
-            reported in the device capabilities.
-    CapacityRequirements:
-      type: object
-      description: Minimum device capacity required by the deployment profile.
-      properties:
-        cpu:
-          $ref: '#/components/schemas/DeploymentCpuRequirement'
-          description: CPU element specifying the CPU requirements for the deployment.
-        memory:
-          type: string
-          description: >-
-            The minimum amount of memory required. The value is given in binary units
-            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes).
-          pattern: ^[0-9]+(Mi|Gi|Ki)$
-        storage:
-          type: string
-          description: >-
-            The minimum amount of storage required. The value is given in binary units
-            (`Ki` = Kibibytes, `Mi` = Mebibytes, `Gi` = Gibibytes, `Ti` = Tebibytes, `Pi` = Pebibytes, `Ei` = Exbibytes).
-          pattern: ^[0-9]+(Mi|Gi|Ki|Ti|Pi|Ei)$
-    DeploymentCpuRequirement:
-      type: object
-      description: CPU element specifying the CPU requirements for the deployment.
-      required: [cores]
-      properties:
-        cores:
-          type: number
-          description: >-
-            The required amount of CPU cores. Specified as decimal units of CPU cores (e.g., `0.5` is half a core).
-        architectures:
-          type: array
-          items:
-            type: string
-            enum: [amd64, arm64, arm, riscv64, other]
-          description: The CPU architectures supported by the deployment.
-    EligibilityRule:
-      type: object
-      description: A rule matching properties and supplier-defined labels reported through the device capabilities.
-      properties:
-        propertySelector:
-          $ref: '#/components/schemas/Selector'
-          description: Selector evaluated against the properties reported in the device capabilities.
-        labelSelector:
-          $ref: '#/components/schemas/Selector'
-          description: Selector evaluated against the labels reported in the device capabilities.
-    Selector:
-      type: object
-      description: A set of match expressions evaluated with AND semantics.
-      required: [matchExpressions]
-      properties:
-        matchExpressions:
-          type: array
-          items:
-            $ref: '#/components/schemas/MatchExpression'
-          description: Match expressions evaluated against the device's reported capabilities.
+
     MatchExpression:
       type: object
       description: An expression used to match a device's reported capabilities properties or labels.
@@ -1498,16 +1517,16 @@ components:
             exact label key.
         operator:
           type: string
-          enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt, ContainsAll, ContainsAny]
+          enum: [In, NotIn, Exists, DoesNotExist, Gt, GtEq, Lt, LtEq, ContainsAll, ContainsAny]
           description: Operator used to evaluate the referenced value.
         values:
           type: array
           items: {}
           description: >-
             Values used by the operator when required for matching expressions. Required for the `In`, `NotIn`,
-            `Gt`, or `Lt` operator.
+            `Gt`, `GtEq`, `Lt`, or `LtEq` operator.
         itemSelector:
-          $ref: '#/components/schemas/Selector'
+          $ref: '#/components/schemas/ItemSelector'
           description: Selector evaluated against array elements. Required for the `ContainsAll` or `ContainsAny` operator.
     
 

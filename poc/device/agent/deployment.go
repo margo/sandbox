@@ -20,11 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	appDeploymentProfileKeyHelm    string = "margo.org/deployment/helm"
-	appDeploymentProfileKeyCompose string = "margo.org/deployment/compose"
-)
-
 type DeploymentManagerIfc interface {
 	Start()
 	Stop()
@@ -292,7 +287,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 	profileType := appDeployment.Spec.DeploymentProfile.Key
 
 	switch profileType {
-	case appDeploymentProfileKeyHelm:
+	case constant.AppDeploymentProfileKeyHelm:
 		//  Check if Helm client is available
 		if dm.helmClient == nil {
 			err = fmt.Errorf(
@@ -302,7 +297,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 			err = dm.deployOrUpdateHelm(ctx, deploymentId, appDeployment)
 		}
 
-	case appDeploymentProfileKeyCompose:
+	case constant.AppDeploymentProfileKeyCompose:
 		// Check if Compose client is available
 		if dm.composeClient == nil {
 			err = fmt.Errorf(
@@ -609,9 +604,9 @@ func (dm *DeploymentManager) remove(ctx context.Context, deploymentId string) {
 
 	var removeErr error
 	switch profileType {
-	case appDeploymentProfileKeyHelm:
+	case constant.AppDeploymentProfileKeyHelm:
 		removeErr = dm.removeHelm(ctx, deploymentId, appDeployment)
-	case appDeploymentProfileKeyCompose:
+	case constant.AppDeploymentProfileKeyCompose:
 		removeErr = dm.removeCompose(ctx, deploymentId, appDeployment)
 	default:
 		dm.log.Warnw(

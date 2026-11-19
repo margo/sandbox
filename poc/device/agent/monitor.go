@@ -96,7 +96,7 @@ func (hm *DeploymentMonitor) checkDeployment(appID string) {
 	}
 
 	// Only monitor Helm deployments
-	if appDeployment.Spec.DeploymentProfile.Key != appDeploymentProfileKeyHelm {
+	if appDeployment.Spec.DeploymentProfile.Key != constant.AppDeploymentProfileKeyHelm {
 		return
 	}
 

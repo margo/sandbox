@@ -19,7 +19,6 @@ import (
 type AppDeploymentState struct {
 	sbi.AppDeploymentManifest
 	Status sbi.DeploymentStatusManifest
-
 	// Added these fields for sync state management
 	AppId       string    `json:"appId"`
 	State       string    `json:"state"`
@@ -656,12 +655,3 @@ func (db *Database) SetDeviceOnboardState(state types.DeviceOnboardState) error 
 func (db *Database) IsDeviceOnboarded() (*DeviceSettingsRecord, bool, error) {
 	return db.deviceSettings, db.deviceSettings.State == types.DeviceOnboardStateOnboarded, nil
 }
-
-// func (db *Database) CanDeployAppProfile(profileType string) bool {
-// 	for _, dt := range db.deviceSettings.SupportedDeploymentTypes {
-// 		if string(dt) == strings.ToLower(profileType) {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }

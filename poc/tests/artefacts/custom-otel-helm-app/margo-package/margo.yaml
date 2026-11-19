@@ -66,7 +66,7 @@ deploymentProfiles:
               matchExpressions:
                 - property: /type
                   operator: In
-                  values: ["ethernet", "bluetooth"]    
+                  values: ["ethernet", "bluetooth"]
 parameters:
   # Frontend service configuration
   otlpEndpoint:

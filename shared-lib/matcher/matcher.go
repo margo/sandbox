@@ -3,7 +3,8 @@ package matcher
 import (
 	"fmt"
 
-	clModels "github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
+	"github.com/margo/sandbox/poc/device/agent/constant"
+	"github.com/margo/sandbox/standard/generatedCode/wfm/sbi"
 )
 
 // New creates and returns a new MatcherIface instance.
@@ -15,34 +16,29 @@ type deviceMatcher struct{}
 
 // IsTargetEligible evaluates a single device profile against:
 // 1. Mandatory deployment technology key (e.g., "margo.org/deployment/helm")
-// 2. Application characteristics groups (OR across groups, AND within each group's matchExpressions).
+// 2. Application placement constraints groups (OR across groups, AND within each group's matchExpressions).
 func (m *deviceMatcher) IsTargetEligible(
-	profile *clModels.Profile,
-	deploymentKey string,
-	characteristics []clModels.Characteristics,
+	profile *sbi.Profile,
+	placementConstraints []sbi.PlacementConstraints,
 ) (bool, string, error) {
 	if profile == nil {
 		return false, "device profile is nil", nil
 	}
 
 	// 1. Mandatory deployment technology check
-	if deploymentKey != "" {
-		if !hasCharacteristicKey(profile, deploymentKey) {
-			return false, fmt.Sprintf(
-				"device does not support deployment technology %q",
-				deploymentKey,
-			), nil
-		}
+
+	if !hasCharacteristicsKey(profile) {
+		return false, "device does not support required deployment technology", nil
 	}
 
-	// 2. If no characteristics expressions defined, device is eligible
-	if len(characteristics) == 0 {
+	// 2. If no placement constraints defined, device is eligible
+	if len(placementConstraints) == 0 {
 		return true, "", nil
 	}
 
-	// 3. Evaluate characteristics groups (OR logic across groups, AND logic within each group)
+	// 3. Evaluate placement constraints groups (OR logic across groups, AND logic within each group)
 	var lastReason string
-	for _, group := range characteristics {
+	for _, group := range placementConstraints {
 		allPassed := true
 		for _, expr := range group.MatchExpressions {
 			ok, reason, err := m.evaluateSingleMatchExpression(profile, &expr)
@@ -63,10 +59,10 @@ func (m *deviceMatcher) IsTargetEligible(
 	return false, lastReason, nil
 }
 
-// hasCharacteristicKey checks if the profile contains a characteristic with the given key.
-func hasCharacteristicKey(profile *clModels.Profile, key string) bool {
+// hasCharacteristicsKey checks if the profile contains a characteristic with the given key.
+func hasCharacteristicsKey(profile *sbi.Profile) bool {
 	for _, c := range profile.Characteristics {
-		if c.Key == key {
+		if c.Key == constant.AppDeploymentProfileKeyCompose || c.Key == constant.AppDeploymentProfileKeyHelm {
 			return true
 		}
 	}
@@ -74,7 +70,7 @@ func hasCharacteristicKey(profile *clModels.Profile, key string) bool {
 }
 
 // findCharacteristic returns the characteristic with the given key, or nil if not found.
-func findCharacteristic(profile *clModels.Profile, key string) *clModels.Characteristic {
+func findCharacteristic(profile *sbi.Profile, key string) *sbi.Characteristic {
 	for i := range profile.Characteristics {
 		if profile.Characteristics[i].Key == key {
 			return &profile.Characteristics[i]
@@ -85,8 +81,8 @@ func findCharacteristic(profile *clModels.Profile, key string) *clModels.Charact
 
 // evaluateSingleMatchExpression evaluates one MatchExpression against a device profile.
 func (m *deviceMatcher) evaluateSingleMatchExpression(
-	profile *clModels.Profile,
-	me *clModels.MatchExpression,
+	profile *sbi.Profile,
+	me *sbi.MatchExpression,
 ) (bool, string, error) {
 	char := findCharacteristic(profile, me.Key)
 	charFound := (char != nil)
@@ -95,10 +91,10 @@ func (m *deviceMatcher) evaluateSingleMatchExpression(
 	if me.Property == nil || *me.Property == "" {
 		propDesc := fmt.Sprintf("characteristic key %q", me.Key)
 		switch me.Operator {
-		case clModels.MatchExpressionOperatorExists:
+		case sbi.MatchExpressionOperatorExists:
 			ok, reason := evaluateExists(charFound, me.Values, propDesc)
 			return ok, reason, nil
-		case clModels.MatchExpressionOperatorDoesNotExist:
+		case sbi.MatchExpressionOperatorDoesNotExist:
 			ok, reason := evaluateDoesNotExist(charFound, me.Values, propDesc)
 			return ok, reason, nil
 		default:
@@ -116,7 +112,7 @@ func (m *deviceMatcher) evaluateSingleMatchExpression(
 	// If characteristic key is absent from the profile
 	if !charFound {
 		switch me.Operator {
-		case clModels.MatchExpressionOperatorDoesNotExist:
+		case sbi.MatchExpressionOperatorDoesNotExist:
 			// Characteristic key is absent, so property is also absent
 			ok, reason := evaluateDoesNotExist(false, me.Values, propDesc)
 			return ok, reason, nil
@@ -150,33 +146,33 @@ func (m *deviceMatcher) evaluateSingleMatchExpression(
 	}
 
 	switch me.Operator {
-	case clModels.MatchExpressionOperatorExists:
+	case sbi.MatchExpressionOperatorExists:
 		ok, reason := evaluateExists(exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorDoesNotExist:
+	case sbi.MatchExpressionOperatorDoesNotExist:
 		ok, reason := evaluateDoesNotExist(exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorIn:
+	case sbi.MatchExpressionOperatorIn:
 		ok, reason := evaluateIn(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorNotIn:
+	case sbi.MatchExpressionOperatorNotIn:
 		ok, reason := evaluateNotIn(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorGt:
+	case sbi.MatchExpressionOperatorGt:
 		ok, reason := evaluateGt(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorGtEq:
+	case sbi.MatchExpressionOperatorGtEq:
 		ok, reason := evaluateGtEq(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorLt:
+	case sbi.MatchExpressionOperatorLt:
 		ok, reason := evaluateLt(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorLtEq:
+	case sbi.MatchExpressionOperatorLtEq:
 		ok, reason := evaluateLtEq(resolved, exists, me.Values, propDesc)
 		return ok, reason, nil
-	case clModels.MatchExpressionOperatorContainsAll:
+	case sbi.MatchExpressionOperatorContainsAll:
 		return evaluateContainsAll(resolved, exists, me, propDesc)
-	case clModels.MatchExpressionOperatorContainsAny:
+	case sbi.MatchExpressionOperatorContainsAny:
 		return evaluateContainsAny(resolved, exists, me, propDesc)
 	default:
 		return false, "", fmt.Errorf("unknown or unsupported operator %s", me.Operator)

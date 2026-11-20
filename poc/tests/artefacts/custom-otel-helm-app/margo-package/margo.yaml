@@ -27,7 +27,7 @@ deploymentProfiles:
           revision: {{HELM_REVISION}} # e.g., 0.1.0
           wait: true
           timeout: 5m0s
-    characteristics:
+    placementConstraints:
       - matchExpressions:
           - key: margo.org/resource/cpu
             property: /cpus

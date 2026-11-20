@@ -242,12 +242,6 @@ type Characteristic struct {
 	Properties interface{} `json:"properties"`
 }
 
-// Characteristics Characteristic match expressions required for the application to be placed on a workload target.
-type Characteristics struct {
-	// MatchExpressions Match expressions evaluated against the workload target's reported characteristics.
-	MatchExpressions []MatchExpression `json:"matchExpressions"`
-}
-
 // ComponentStatus defines model for ComponentStatus.
 type ComponentStatus struct {
 	Error *struct {
@@ -381,6 +375,12 @@ type MatchExpression struct {
 // MatchExpressionOperator Operator used to evaluate the referenced value.
 type MatchExpressionOperator string
 
+// PlacementConstraints Placement constraint match expressions required for the application to be placed on a workload target.
+type PlacementConstraints struct {
+	// MatchExpressions Match expressions evaluated against the workload target's reported characteristics.
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
+
 // ProblemDetail RFC 9457 Problem Details for HTTP APIs. Returned with Content-Type: application/problem+json. See https://www.rfc-editor.org/rfc/rfc9457. Extension members (RFC 9457 §3.2) are permitted via additionalProperties. Vendors MAY add custom fields alongside standard margo fields. Vendor-specific problem types MUST use their own URI namespace. The https://docs.margo.org/specification/problem-types namespace is reserved for Margo.
 type ProblemDetail struct {
 	// BackoffStrategy Recommended backoff strategy for retrying. none: do not retry. fixed: retry after retryAfterSeconds. exponential: use exponential backoff starting at retryAfterSeconds.
@@ -469,14 +469,14 @@ type AppDeploymentParams map[string]AppParameterValue
 
 // AppDeploymentProfile Application Deployment Profile
 type AppDeploymentProfile struct {
-	// Characteristics Characteristic match expressions, copied unchanged from the selected application description deployment profile, required for the application to be placed on a workload target.
-	Characteristics *[]Characteristics `json:"characteristics,omitempty"`
-
 	// Components Components of the deployment profile
 	Components []ApplicationDeploymentProfileComponent `json:"components"`
 
 	// Key Defines the deployment technology key for this deployment profile, e.g. `margo.org/deployment/helm` or `margo.org/deployment/compose`.
 	Key string `json:"key"`
+
+	// PlacementConstraints Placement constraint match expressions, copied unchanged from the selected application description deployment profile, required for the application to be placed on a workload target.
+	PlacementConstraints *[]PlacementConstraints `json:"placementConstraints,omitempty"`
 }
 
 // AppDeploymentSpec Application Deployment specification

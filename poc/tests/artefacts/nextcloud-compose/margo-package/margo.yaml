@@ -29,7 +29,7 @@ deploymentProfiles:
           revision: {{NEXTCLOUD_COMPOSE_REVISION}}
           wait: true
           timeout: 5m0s
-    characteristics:
+    placementConstraints:
       - matchExpressions:
           - key: margo.org/resource/cpu
             property: /cpus

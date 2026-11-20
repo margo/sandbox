@@ -654,14 +654,14 @@ components:
           x-oapi-codegen-extra-tags:
             json: "description"
             yaml: "description"
-        characteristics:
+        placementConstraints:
           type: array
-          description: Characteristic match expressions required for placement on a workload target.
+          description: PlacementConstraints match expressions required for placement on a workload target.
           items:
-            $ref: '#/components/schemas/Characteristics'
+            $ref: '#/components/schemas/PlacementConstraints'
           x-oapi-codegen-extra-tags:
-            json: "characteristics"
-            yaml: "characteristics"
+            json: "placementConstraints"
+            yaml: "placementConstraints"
 
 
     AppDescriptionParametersMap:
@@ -760,9 +760,9 @@ components:
               description: Wait for the component to be ready
               type: boolean
 
-    Characteristics:
+    PlacementConstraints:
       type: object
-      description: Characteristic match expressions required for placement on a workload target.
+      description: PlacementConstraints match expressions required for placement on a workload target.
       required: [matchExpressions]
       properties:
         matchExpressions:
@@ -1253,13 +1253,13 @@ components:
             Deployment technology key, e.g. `margo.org/deployment/helm`
             or `margo.org/deployment/compose`.
  
-        characteristics:
+        placementConstraints:
           type: array
           description: >-
-            Characteristic match expressions copied from the selected application
+            PlacementConstraints match expressions copied from the selected application
             description deployment profile, required for placement on a workload target.
           items:
-            $ref: '#/components/schemas/Characteristics'
+            $ref: '#/components/schemas/PlacementConstraints'
         components:
           type: array
           items:

@@ -62,7 +62,8 @@ func (m *deviceMatcher) IsTargetEligible(
 // hasCharacteristicsKey checks if the profile contains a characteristic with the given key.
 func hasCharacteristicsKey(profile *sbi.Profile) bool {
 	for _, c := range profile.Characteristics {
-		if c.Key == constant.AppDeploymentProfileKeyCompose || c.Key == constant.AppDeploymentProfileKeyHelm {
+		if c.Key == constant.AppDeploymentProfileKeyCompose ||
+			c.Key == constant.AppDeploymentProfileKeyHelm {
 			return true
 		}
 	}

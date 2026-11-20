@@ -210,8 +210,7 @@ func (dm *DeploymentManager) checkDeviceEligibility(
 	matcher := matcher.New()
 	ok, reason, err := matcher.IsTargetEligible(
 		&dm.deviceProfile.Profile,
-		dm.deviceProfile.WorkloadTargetId,
-		*desiredState.Spec.DeploymentProfile.Characteristics,
+		*desiredState.Spec.DeploymentProfile.PlacementConstraints,
 	)
 
 	if err != nil {

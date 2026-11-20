@@ -22,7 +22,7 @@ stateSeeking: {interval: 15}
 runtimes:
   - type: KUBERNETES
     kubernetes: {kubeconfigPath: /tmp/kc}
-capabilities: {readFromFile: caps.json}
+deviceProfile: {readFromFile: caps.json}
 `
 
 // newTestSyncer loads a config (base + bundleYAML) via types.LoadConfig so

@@ -339,7 +339,9 @@ func ValidateCertKeyPair(certPEM, keyPEM []byte) error {
 	case ed25519.PublicKey:
 		derived, ok := derivedPub.(ed25519.PublicKey)
 		if !ok || !bytes.Equal(pub, derived) {
-			return fmt.Errorf("certificate and private key do not match: Ed25519 public key mismatch")
+			return fmt.Errorf(
+				"certificate and private key do not match: Ed25519 public key mismatch",
+			)
 		}
 	default:
 		return fmt.Errorf("unsupported public key type in certificate: %T", certPubKey)

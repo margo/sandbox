@@ -68,7 +68,13 @@ func generateRSACertAndKey(t *testing.T) (certPEM, keyPEM []byte) {
 		NotAfter:     time.Now().Add(time.Hour),
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		template,
+		&privKey.PublicKey,
+		privKey,
+	)
 	require.NoError(t, err)
 
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
@@ -94,7 +100,13 @@ func generateECDSACertAndKey(t *testing.T) (certPEM, keyPEM []byte) {
 		NotAfter:     time.Now().Add(time.Hour),
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		template,
+		&privKey.PublicKey,
+		privKey,
+	)
 	require.NoError(t, err)
 
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
@@ -978,7 +990,13 @@ func TestValidateCertKeyPair_PKCS1RSAKey(t *testing.T) {
 		NotAfter:     time.Now().Add(time.Hour),
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		template,
+		&privKey.PublicKey,
+		privKey,
+	)
 	require.NoError(t, err)
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 

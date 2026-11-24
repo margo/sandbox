@@ -321,7 +321,14 @@ When run interactively, the script guides you through the following steps:
 
 ### Purpose
 
-Generates an ECDSA P-256 private key and a Certificate Signing Request (CSR) with a SPIFFE ID embedded as a URI Subject Alternative Name (URI SAN). The resulting CSR can be submitted to a Margo Identity Service (MIS) to mint an X.509 SVID without the MIS ever handling the private key.
+Generates an ECDSA P-256 private key and a Certificate Signing Request (CSR) suitable for minting X.509 SVIDs for Margo principals. The CSR can be submitted to a Margo Identity Service (MIS) to mint an SVID without the MIS ever handling the private key.
+
+Supports two modes automatically:
+
+| Mode | Trigger | Behaviour |
+|---|---|---|
+| **Fresh Issuance** | No key exists at `--key-out` path | Generates a new ECDSA P-256 key and CSR |
+| **Renewal** | Valid ECDSA key already exists at `--key-out` path | Reuses the existing key; generates only a fresh CSR |
 
 ### Prerequisites
 
@@ -331,66 +338,95 @@ Generates an ECDSA P-256 private key and a Certificate Signing Request (CSR) wit
 ### Usage
 
 ```bash
-./csr_gen.sh --spiffe-id <SPIFFE_ID> [OPTIONS]
+./csr_gen.sh [OPTIONS]
 ```
 
-| Flag                  | Description                                              |
-|-----------------------|----------------------------------------------------------|
-| `--spiffe-id <id>`    | **(Required)** SPIFFE ID URI for the principal           |
-| `--cn <common_name>`  | Common Name for the certificate (default: `mis.margo.org`) |
-| `--org <organization>`| Organization name (default: `Margo`)                     |
-| `--ou <org_unit>`     | Organizational Unit (default: `Margo Sandbox`)           |
-| `--country <code>`    | 2-letter country code (default: `IN`)                    |
-| `--state <state>`     | State or province (default: `Haryana`)                   |
-| `--locality <city>`   | Locality / city (default: `Gurugram`)                    |
-| `--email <email>`     | Email address (default: `operator@margo.org`)            |
-| `--key-out <file>`    | Output path for private key (default: `payload-key.pem`) |
-| `--csr-out <file>`    | Output path for CSR (default: `payload-req.csr`)         |
-| `--help`              | Show usage information and exit                          |
+| Flag | Description |
+|---|---|
+| `--spiffe-id <id>` | *(Optional)* SPIFFE ID URI — advisory; MIS may override at minting |
+| `--cn <common_name>` | Common Name for the certificate (default: `mis.margo.org`) |
+| `--org <organization>` | Organization name (default: `Margo`) |
+| `--ou <org_unit>` | Organizational Unit (default: `Margo Sandbox`) |
+| `--country <code>` | 2-letter country code (default: `IN`) |
+| `--state <state>` | State or province (default: `Haryana`) |
+| `--locality <city>` | Locality / city (default: `Gurugram`) |
+| `--email <email>` | Email address (default: `operator@margo.org`) |
+| `--key-out <file>` | Output path for private key (default: `payload-key.pem`) |
+| `--csr-out <file>` | Output path for CSR (default: `payload-req.csr`) |
+| `--help` | Show usage information and exit |
 
 ### Default Values
 
-| Field          | Default               |
-|----------------|-----------------------|
-| Common Name    | `mis.margo.org`       |
-| Country        | `IN`                  |
-| State          | `Haryana`             |
-| Locality       | `Gurugram`            |
-| Organization   | `Margo`               |
-| Org Unit       | `Margo Sandbox`       |
-| Email          | `operator@margo.org`  |
-| Key Output     | `payload-key.pem`     |
-| CSR Output     | `payload-req.csr`     |
+| Field | Default |
+|---|---|
+| Common Name | `mis.margo.org` |
+| Country | `IN` |
+| State | `Haryana` |
+| Locality | `Gurugram` |
+| Organization | `Margo` |
+| Org Unit | `Margo Sandbox` |
+| Email | `operator@margo.org` |
+| Key Output | `payload-key.pem` |
+| CSR Output | `payload-req.csr` |
 
 ### Generated Files
 
 ```
 ./
-├── payload-key.pem    # ECDSA P-256 private key
-└── payload-req.csr    # Certificate Signing Request with URI SAN (SPIFFE ID)
+├── payload-key.pem    # ECDSA P-256 private key (fresh issuance only; reused on renewal)
+└── payload-req.csr    # Certificate Signing Request with optional URI SAN (SPIFFE ID)
 ```
 
 ### Certificate Properties
 
 The generated CSR includes the following extensions:
 
-| Extension           | Value                          |
-|---------------------|--------------------------------|
-| Subject Alt Name    | `URI:<SPIFFE_ID>`              |
-| Basic Constraints   | `CA:FALSE`                     |
-| Key Usage           | `critical, digitalSignature`   |
-| Extended Key Usage  | `clientAuth, serverAuth`       |
-| Digest Algorithm    | `sha256`                       |
-| Key Algorithm       | `ECDSA P-256 (prime256v1)`     |
+| Extension | Value |
+|---|---|
+| Subject Alt Name | `URI:<SPIFFE_ID>` *(only if `--spiffe-id` is provided)* |
+| Basic Constraints | `CA:FALSE` |
+| Key Usage | `critical, digitalSignature` |
+| Extended Key Usage | `clientAuth, serverAuth` |
+| Digest Algorithm | `sha256` |
+| Key Algorithm | `ECDSA P-256 (prime256v1)` |
+
+### SPIFFE ID — Advisory
+
+Per MIAF2 §3, the SPIFFE ID embedded in the CSR is **advisory**. The issuing CA (MIS) is authoritative and may override it at SVID minting time. If omitted, no URI SAN is embedded and the MIS assigns the identity at minting.
+
+### Renewal Behaviour
+
+If a valid ECDSA key already exists at the `--key-out` path, the script automatically enters **renewal mode**:
+- The existing key is **reused** — it is not regenerated.
+- Only a fresh CSR is generated against the existing key.
+- This allows SVID renewal without changing the key pair.
+
+If the file at `--key-out` exists but is not a valid ECDSA key, the script aborts with an error.
 
 ### Examples
 
 ```bash
-# Minimal — only SPIFFE ID required
+# Fresh issuance — no SPIFFE ID (CA assigns identity at minting)
+./csr_gen.sh
+
+# Fresh issuance — advisory SPIFFE ID (WFM principal)
 ./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
 
-# WFM Client SPIFFE ID
+# Fresh issuance — advisory SPIFFE ID (WFM Client principal)
 ./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+
+# Renewal — reuses existing key, generates fresh CSR (no SPIFFE ID)
+./csr_gen.sh --key-out ./config/identity/payload-key.pem
+
+# Renewal — reuses existing key, WFM principal hint
+./csr_gen.sh \
+    --key-out ./config/identity/payload-key.pem \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+# Renewal — reuses existing key, WFM Client principal hint
+./csr_gen.sh \
+    --key-out ./config/identity/payload-key.pem \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
 
 # Custom output paths
 ./csr_gen.sh \
@@ -413,9 +449,14 @@ The generated CSR includes the following extensions:
 
 ### Notes
 
-- The SPIFFE ID must start with `spiffe://`
-- The private key is generated locally and never leaves the host
-- The CSR can be submitted to MIS using `svid-gen.sh --csr-path`
+- `--spiffe-id` is optional; if omitted, no URI SAN is embedded and the MIS assigns the SPIFFE ID at minting.
+- If provided, the SPIFFE ID must match one of:
+  - `spiffe://<trust-domain>/margo/wfm/<wfm-id>`
+  - `spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>`
+- The SPIFFE ID in the CSR is advisory — the MIS overrides it at minting.
+- The private key is generated locally and never leaves the host.
+- Renewal does not change the key pair; only the CSR (and resulting SVID) is refreshed.
+- The CSR can be submitted to MIS using `svid-gen.sh --csr-path`.
 
 ---
 
@@ -431,17 +472,31 @@ The generated CSR includes the following extensions:
 # Step 3: Start the margo-identity-service container
 # (using the generated certs and configuration.json)
 
-# Step 4a: Mint SVIDs using SPIFFE ID flow
+# Step 4a: Mint SVIDs using SPIFFE ID flow (CA assigns identity)
 ./svid-gen.sh --automated \
   --principal wfm \
   --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
 
 # Step 4b: (Alternative) Mint SVIDs using CSR flow
-# Generate key and CSR locally
+
+# Generate key and CSR locally — SPIFFE ID is optional (advisory)
 ./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+# or without a SPIFFE ID hint:
+./csr_gen.sh
 
 # Submit CSR to MIS for signing
 ./svid-gen.sh --automated \
   --principal wfm \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+  --csr-path ./payload-req.csr
+
+# Step 5 (Renewal): Renew an existing SVID without changing the key pair
+./csr_gen.sh \
+  --key-out ./payload-key.pem \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+./svid-gen.sh --automated \
+  --principal wfm \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
   --csr-path ./payload-req.csr
 ```

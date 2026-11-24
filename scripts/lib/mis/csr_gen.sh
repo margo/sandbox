@@ -61,7 +61,10 @@ SPIFFE ID (optional):
 
 Optional:
   --spiffe-id <id>       SPIFFE ID URI for the principal (advisory)
-                         e.g. spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+                         WFM principal:
+                           spiffe://margo.org/margo/wfm/my-wfm
+                         WFM Client principal:
+                           spiffe://margo.org/margo/wfm/my-wfm/client/my-client
   --cn <common_name>     Common Name for the certificate  (default: ${COMMON_NAME})
   --org <organization>   Organization name                (default: ${ORGANIZATION})
   --ou <org_unit>        Organizational Unit              (default: ${ORG_UNIT})
@@ -77,19 +80,28 @@ Examples:
   # Fresh issuance — no SPIFFE ID (CA assigns identity at minting)
   $(basename "$0")
 
-  # Fresh issuance — advisory SPIFFE ID
-  $(basename "$0") --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
-
   # Renewal — reuses existing key at default path, generates fresh CSR
   $(basename "$0") --key-out ./config/identity/payload-key.pem
 
-  # Renewal — reuses existing key, carries current SPIFFE ID as advisory hint
+  # Fresh issuance — advisory SPIFFE ID (WFM principal)
+  $(basename "$0") --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+  # Fresh issuance — advisory SPIFFE ID (WFM Client principal)
+  $(basename "$0") --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+
+  # Renewal — reuses existing key, WFM principal hint
+  $(basename "$0") \
+      --key-out ./config/identity/payload-key.pem \
+      --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+  # Renewal — reuses existing key, WFM Client principal hint
   $(basename "$0") \
       --key-out ./config/identity/payload-key.pem \
       --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
 
 Notes:
-  • SPIFFE ID, if provided, must match:
+  • SPIFFE ID, if provided, must match one of:
+      spiffe://<trust-domain>/margo/wfm/<wfm-id>
       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
   • The SPIFFE ID in the CSR is advisory — the MIS overrides it at minting.
   • Renewal does not change the key pair; only the CSR (and resulting SVID) is refreshed.
@@ -157,14 +169,17 @@ parse_args() {
         [[ "${SPIFFE_ID}" == spiffe://* ]] \
             || err "SPIFFE ID must start with 'spiffe://'. Got: '${SPIFFE_ID}'"
 
-        [[ "${SPIFFE_ID}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$ ]] \
+        # ✅ Accepts both WFM principal and WFM Client principal formats
+        [[ "${SPIFFE_ID}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+(/client/[^/]+)?$ ]] \
             || err "SPIFFE ID does not match required format:
-       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
-       Example: spiffe://margo.org/margo/wfm/my-wfm/client/my-client
-       Got: '${SPIFFE_ID}'"
+   Format 1 (WFM principal)        : spiffe://<trust-domain>/margo/wfm/<wfm-id>
+   Format 2 (WFM Client principal) : spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
+   Examples:
+     spiffe://margo.org/margo/wfm/my-wfm
+     spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+   Got: '${SPIFFE_ID}'"
     fi
 }
-
 # -----------------------------------------------------------------------------
 # Key handling — generate new or reuse existing
 # Returns 0 (reuse) or 1 (generated fresh) via RENEWAL flag
@@ -193,7 +208,9 @@ handle_key() {
     fi
 
     # Always confirm the key in use is ECDSA P-256
-    openssl pkey -in "${KEY_OUT}" -noout -text 2>/dev/null | grep "NIST CURVE"
+    openssl pkey -in "${KEY_OUT}" -noout -text 2>/dev/null \
+        | grep "NIST CURVE" \
+        || err "Key at '${KEY_OUT}' is not ECDSA P-256. Aborting."
 }
 
 # -----------------------------------------------------------------------------
@@ -229,9 +246,9 @@ main() {
     OPENSSL_CNF=$(mktemp /tmp/openssl_csr_XXXXXX.cnf)
     trap 'rm -f "${OPENSSL_CNF}"' EXIT
 
-    # Build the req_extensions block conditionally
+    REQ_EXT_BLOCK="req_extensions      = req_ext"
+    # Both branches always set REQ_EXT_BLOCK
     if [[ -n "${SAN_STRING}" ]]; then
-        REQ_EXT_BLOCK="req_extensions      = req_ext"
         ALT_NAMES_SECTION="
 [ req_ext ]
 subjectAltName      = @alt_names
@@ -242,7 +259,6 @@ extendedKeyUsage    = clientAuth, serverAuth
 [ alt_names ]
 ${SAN_STRING}"
     else
-        REQ_EXT_BLOCK=""
         ALT_NAMES_SECTION="
 [ req_ext ]
 basicConstraints    = CA:FALSE

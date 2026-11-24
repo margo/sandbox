@@ -92,14 +92,14 @@ func buildVerifyConnection(
 		leaf := cs.PeerCertificates[0]
 
 		// ----------------------------------------------------------------
-		// Rule 1 — Trust Domain check.
+		// Rule 1 — Trust Domain check. & Rule 3 — Validity period.
 		// ----------------------------------------------------------------
-		spiffeID, err := parser.ParseSpiffeIdFromX509Svid(leaf.Raw)
-		if err != nil {
-			return fmt.Errorf("rule 1: failed to extract SPIFFE ID from peer SVID: %w", err)
-		}
 
-		peerTrustDomain, err := parser.ParseTrustDomainFromSpiffeID(spiffeID)
+		spiffeID, err := validators.ValidateX509SVID(leaf.Raw, peerPrincipal)
+		if err != nil {
+			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
+		}
+		peerTrustDomain, err := parser.ParseTrustDomain(spiffeID)
 		if err != nil {
 			return fmt.Errorf("rule 1: %w", err)
 		}
@@ -126,13 +126,6 @@ func buildVerifyConnection(
 			cfg.GetTrustBundleBytes(),
 		); err != nil {
 			return fmt.Errorf("rule 2: %w", err)
-		}
-
-		// ----------------------------------------------------------------
-		// Rule 3 — Validity period.
-		// ----------------------------------------------------------------
-		if ok, err := validators.ValidateX509SVID(leaf.Raw, peerPrincipal); !ok {
-			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
 		}
 
 		// ----------------------------------------------------------------

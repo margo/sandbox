@@ -582,7 +582,7 @@ generate_private_key_and_csr() {
     fi
 
     # Validate expected path structure: /margo/wfm/<wfm-id>
-    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+$ ]]; then
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+$ ]]; then
       echo "  ⚠️  SPIFFE ID does not match expected format:"
       echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>"
       echo "       Example: spiffe://margo.org/margo/wfm/my-wfm"

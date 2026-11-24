@@ -23,6 +23,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
+	"github.com/margo/sandbox/shared-lib/mis/parser"
 	mp "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
@@ -45,7 +46,6 @@ type Agent struct {
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
 	tbCacher       TrustBundleCacherIfc
-	afWatcher      AuthFileWatcherIfc
 }
 
 // DeviceId pattern as defined in Margo Spec
@@ -132,21 +132,18 @@ func NewAgent(configPath string) (*Agent, error) {
 		return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
 	}
 
-	// Validate Authorized spiffe Ids here
-	for _, spid := range pmc.AuthorizedSPIFFEIDs {
-		// Authorization list for device-agent will contain SPIFFE IDs of WFMs, hence using principal WFM here.
-		err := validators.ValidateSpiffeID(spid, validators.PrincipalWFM)
-		if err != nil {
-			log.Errorw(
-				"spiffe id is invalid ",
-				"spiffeId",
-				spid,
-				"err",
-				err.Error(),
-			)
-			return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
-		}
+	// Assign Authorized SpiffeIDs Here:
+	pairedWFMId, err := parser.ExtractWFMSpiffeID(pmc.X509.SpiffeID)
+	if err != nil {
+		log.Errorw(
+			"failed to parse paired wfm spiffeId",
+			"err",
+			err.Error(),
+		)
+		return nil, fmt.Errorf("failed to parse paired wfm spiffeId, err : %w", err)
 	}
+	// No need to validate further, as SVID's own SPIFFE ID is validated
+	pmc.AuthorizedSPIFFEIDs = []string{pairedWFMId}
 
 	// parsed & validated MIAF Configuration (with certificates etc) added to database
 	opts = append(opts, WithParsedMIAFConfig(pmc))
@@ -205,7 +202,6 @@ func NewAgent(configPath string) (*Agent, error) {
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, log)
 	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
-	afWatcher := NewAuthFileWatcher(cfg.MIAF.AuthzPath, db, log)
 
 	return &Agent{
 		database:       db,
@@ -218,7 +214,6 @@ func NewAgent(configPath string) (*Agent, error) {
 		config:         *cfg,
 		capabilities:   capabilities,
 		tbCacher:       tbCacher,
-		afWatcher:      afWatcher,
 	}, nil
 }
 
@@ -226,11 +221,6 @@ func (a *Agent) Start() error {
 	a.log.Info("Starting Workload Fleet Management Client")
 
 	err := a.tbCacher.Start()
-	if err != nil {
-		return err
-	}
-
-	err = a.afWatcher.Start()
 	if err != nil {
 		return err
 	}
@@ -324,7 +314,6 @@ func (a *Agent) Stop() error {
 	a.deployer.Stop()
 	a.monitor.Stop()
 	a.statusReporter.Stop()
-	a.afWatcher.Stop()
 	a.database.TriggerDataPersist()
 
 	a.log.Info("Workload Fleet Management Client stopped")

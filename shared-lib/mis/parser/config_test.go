@@ -19,7 +19,7 @@ func writeTempFile(t *testing.T, dir, name string, content []byte) string {
 	return path
 }
 
-// Fixtures – replace with real PEM bytes that pass your validators.
+// Fixtures replace with real PEM bytes that pass your validators.
 // These are intentionally kept as constants so tests are self-contained.
 var (
 	validCertPEM = []byte(`-----BEGIN CERTIFICATE-----
@@ -40,6 +40,14 @@ AwEHoUQDQgAEjpdv5m8So5K0PHbJmoV+HLftyeuGu2hKIKATAxsJuhiK1Ds8DBdQ
 kz+xF6mowrBOH6tLmEA0SvO7wrSimKEOlQ==
 -----END EC PRIVATE KEY-----
 `)
+
+	differentValidKeyPEM = []byte(`-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIO9NkIq6IeLrX2tMDZxinoe+NvDLDGnXPWe4D+6YCvSeoAoGCCqGSM49
+AwEHoUQDQgAEu4eBlhXLhq+2Xmw0OH175YxdJMqakYPkSmBKUttSpc9gwi1Zh5PQ
+8yK+WtckfPAk5uEbpawTTXqv78R4a4CyRA==
+-----END EC PRIVATE KEY-----
+`)
+
 	validCAPEM = []byte(`-----BEGIN CERTIFICATE-----
 MIIGKTCCBBGgAwIBAgIUbWUeu5ORZV7nWDURJSdbXdCUXiUwDQYJKoZIhvcNAQEL
 BQAwgZsxCzAJBgNVBAYTAklOMRAwDgYDVQQIDAdIYXJ5YW5hMREwDwYDVQQHDAhH
@@ -99,9 +107,8 @@ func buildValidInput(t *testing.T, dir string) MIAFInput {
 			KeyPath:  writeTempFile(t, dir, "key.pem", validKeyPEM),
 		},
 		MIS: MISInput{
-			Endpoint:    "https://mis.example.org",
-			CAPath:      writeTempFile(t, dir, "ca.pem", validCAPEM),
-			TrustDomain: "example.org",
+			Endpoint: "https://mis.example.org",
+			CAPath:   writeTempFile(t, dir, "ca.pem", validCAPEM),
 			TrustBundle: &TrustBundleInput{
 				URI:  "https://mis.example.org/bundle",
 				Path: writeTempFile(t, dir, "bundle.json", validTrustBundle),
@@ -124,7 +131,7 @@ func TestParseMIAFConfig_ValidInput_ReturnsPopulatedConfig(t *testing.T) {
 	assert.Equal(t, validKeyPEM, got.X509.KeyPEM)
 	assert.Equal(t, "https://mis.example.org", got.MIS.Endpoint)
 	assert.Equal(t, validCAPEM, got.MIS.CAPEM)
-	assert.Equal(t, "example.org", got.MIS.TrustDomain)
+	assert.Equal(t, "margo.org", got.MIS.TrustDomain) // adjust to match cert fixture
 	require.NotNil(t, got.MIS.TrustBundle)
 	assert.Equal(t, "https://mis.example.org/bundle", got.MIS.TrustBundle.URI)
 	assert.Equal(t, validTrustBundle, got.MIS.TrustBundle.BundleJSON)
@@ -309,20 +316,6 @@ func TestParseMIAFConfig_CAFileInvalidPEM_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "must be a valid ca certificate")
 }
 
-// ── trust domain errors ───────────────────────────────────────────────────────
-
-func TestParseMIAFConfig_InvalidTrustDomain_ReturnsError(t *testing.T) {
-	dir := t.TempDir()
-	input := buildValidInput(t, dir)
-	input.MIS.TrustDomain = "INVALID DOMAIN!"
-
-	_, err := ParseMIAFConfig(input, "wfm")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "miaf.mis.trustDomain")
-	assert.Contains(t, err.Error(), "must be valid")
-}
-
 // ── trust bundle errors ───────────────────────────────────────────────────────
 
 func TestParseMIAFConfig_TrustBundlePathNotFound_ReturnsError(t *testing.T) {
@@ -435,7 +428,6 @@ func TestParseMIAFConfig_PrincipalVariants(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			// Use cert matching the principal under test; adjust fixture as needed.
 			input := buildValidInput(t, dir)
 
 			_, err := ParseMIAFConfig(input, tc.principal)
@@ -447,4 +439,73 @@ func TestParseMIAFConfig_PrincipalVariants(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseMIAFConfig_TrustDomainDerivedFromCert(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+
+	got, err := ParseMIAFConfig(input, "wfm")
+
+	require.NoError(t, err)
+	// Trust domain must come from the SPIFFE URI in the cert, not from any input field
+	assert.NotEmpty(t, got.MIS.TrustDomain)
+	assert.Equal(t, "margo.org", got.MIS.TrustDomain) // adjust to match cert fixture
+}
+
+func TestParseMIAFConfig_NoCertPath_TrustDomainEmpty(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.X509.CertPath = ""
+	input.X509.KeyPath = ""
+
+	got, err := ParseMIAFConfig(input, "wfm")
+
+	require.NoError(t, err)
+	assert.Empty(t, got.MIS.TrustDomain)
+}
+
+func TestParseMIAFConfig_ValidTrustPins_Accepted(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	// A valid base64-encoded SHA-256 SPKI pin (32 bytes base64)
+	input.MIS.TrustPins = []string{"sha256/cjiyqSPwiwq80fHGSYRouCcY0p9EI5I9uO2670/wmwI="}
+
+	got, err := ParseMIAFConfig(input, "wfm")
+
+	require.NoError(t, err)
+	assert.Equal(t, input.MIS.TrustPins, got.MIS.TrustPins)
+}
+
+func TestParseMIAFConfig_InvalidTrustPin_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.MIS.TrustPins = []string{"not-a-valid-pin!!"}
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "miaf.mis.trustPins")
+}
+
+func TestParseMIAFConfig_CertKeyMismatch_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	// Write a different valid key that doesn't match the cert
+	input.X509.KeyPath = writeTempFile(t, dir, "mismatch_key.pem", differentValidKeyPEM)
+
+	_, err := ParseMIAFConfig(input, "wfm")
+
+	require.Error(t, err)
+}
+
+func TestParseMIAFConfig_NonWFMPrincipal_AuthzPathIgnored(t *testing.T) {
+	dir := t.TempDir()
+	input := buildValidInput(t, dir)
+	input.AuthzPath = ""     // would fail for wfm, but not for wfm-client
+	input.X509.CertPath = "" // To skip checking of SVID in certificate
+	got, err := ParseMIAFConfig(input, "wfm-client")
+
+	require.NoError(t, err)
+	assert.Empty(t, got.AuthorizedSPIFFEIDs)
 }

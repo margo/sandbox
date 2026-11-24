@@ -2,6 +2,7 @@ package validators
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,8 +19,7 @@ type SpiffeTrustBundle struct {
 }
 
 // ValidateSpiffeTrustBundle validates a SPIFFE Trust Bundle in JWKS format using the go-spiffe library.
-// trustDomain should be the SPIFFE trust domain, e.g. "example.org"
-func ValidateSpiffeTrustBundle(data []byte, trustDomain string) error {
+func ValidateSpiffeTrustBundle(data []byte) error {
 	if len(data) == 0 {
 		return errors.New("trust bundle is empty")
 	}
@@ -29,19 +29,15 @@ func ValidateSpiffeTrustBundle(data []byte, trustDomain string) error {
 		return fmt.Errorf("invalid trust bundle structure: %w", err)
 	}
 
-	// Parse the trust domain
-	td, err := spiffeid.TrustDomainFromString(trustDomain)
-	if err != nil {
-		return fmt.Errorf("invalid trust domain %q: %w", trustDomain, err)
-	}
-
 	// Use the SPIFFE library to parse and validate the bundle.
 	// spiffebundle.Read validates:
 	//   - JWKS format correctness
 	//   - x5c certificate chain parsing and validity
 	//   - Key type support (EC, RSA)
 	//   - SPIFFE-specific fields (spiffe_sequence, spiffe_refresh_hint)
-	bundle, err := spiffebundle.Read(td, bytes.NewReader(data))
+	// Here, we do not need trust domain, hence passing empty object
+
+	bundle, err := spiffebundle.Read(spiffeid.TrustDomain{}, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("invalid SPIFFE trust bundle: %w", err)
 	}
@@ -49,6 +45,27 @@ func ValidateSpiffeTrustBundle(data []byte, trustDomain string) error {
 	// Ensure the bundle contains at least one X.509 authority
 	if len(bundle.X509Authorities()) == 0 {
 		return errors.New("trust bundle must contain at least one X.509 authority")
+	}
+
+	// At least one authority must be a valid CA cert:
+	// - BasicConstraints must be present with cA=true
+	// - KeyUsage, if present (non-zero), must include KeyCertSign
+	hasValidAuthority := false
+	for _, cert := range bundle.X509Authorities() {
+		if !cert.IsCA {
+			continue // ignore: cA not set in BasicConstraints
+		}
+		if cert.KeyUsage != 0 && cert.KeyUsage&x509.KeyUsageCertSign == 0 {
+			continue // ignore: KeyUsage present but KeyCertSign not set
+		}
+		hasValidAuthority = true
+		break
+	}
+
+	if !hasValidAuthority {
+		return errors.New(
+			"trust bundle contains no valid CA authority: at least one X.509 authority must have cA=true and, if key usage is present, must include keyCertSign",
+		)
 	}
 
 	return nil

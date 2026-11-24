@@ -16,9 +16,8 @@ import (
 // MIAFConfig holds the Margo Identity and Authorization Framework configuration.
 // X509 contains the device's X.509-SVID paths issued by the Margo Identity Service (MIS).
 type MIAFConfig struct {
-	X509      MIAFX509Config `yaml:"x509"      validate:"required"`
-	MIS       MISConfig      `yaml:"mis"       validate:"required"`
-	AuthzPath string         `yaml:"authzPath" validate:"required"`
+	X509 MIAFX509Config `yaml:"x509" validate:"required"`
+	MIS  MISConfig      `yaml:"mis"  validate:"required"`
 }
 
 type MIAFX509Config struct {
@@ -35,7 +34,6 @@ type MISConfig struct {
 	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
 	CacheInterval uint32             `yaml:"cacheInterval"` // in seconds
 	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
-	TrustDomain   string             `yaml:"trustDomain"`   // required when endpoint+caPath are absent
 	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format
 }
 
@@ -193,19 +191,6 @@ func validateConfig(config *Config) error {
 		}
 	}
 
-	// Rule 4: trustDomain is required when endpoint+trustAnchor are absent (static trust bundle mode).
-	if !hasEndpoint && !hasTrustAnchor {
-		if config.MIAF.MIS.TrustDomain == "" {
-			return fmt.Errorf(
-				"miaf.mis.trustDomain is required when miaf.mis.endpoint and a trust anchor are not configured",
-			)
-		}
-	}
-
-	if config.MIAF.AuthzPath == "" {
-		return fmt.Errorf("miaf.authzPath is required in configuration")
-	}
-
 	if config.Wfm.SbiURL == "" {
 		return fmt.Errorf("wfm.sbiUrl is required in configuration")
 	}
@@ -245,12 +230,10 @@ func (c *MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
 			KeyPath:  c.X509.KeyPath,
 		},
 		MIS: miafParser.MISInput{
-			Endpoint:    c.MIS.Endpoint,
-			CAPath:      c.MIS.CAPath,
-			TrustDomain: c.MIS.TrustDomain,
-			TrustPins:   c.MIS.TrustPins,
+			Endpoint:  c.MIS.Endpoint,
+			CAPath:    c.MIS.CAPath,
+			TrustPins: c.MIS.TrustPins,
 		},
-		AuthzPath: c.AuthzPath,
 	}
 
 	if c.MIS.TrustBundle != nil {

@@ -214,7 +214,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 	}
 
 	// Validate trust bundle.
-	err = validators.ValidateSpiffeTrustBundle(bundle, trustDomain)
+	err = validators.ValidateSpiffeTrustBundle(bundle)
 	if err != nil {
 		tbc.log.Errorw("Invalid Margo SPIFFE Trust Bundle; will retry on next tick",
 			"error", err)

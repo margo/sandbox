@@ -355,10 +355,6 @@ pause() {
   read -rp "Press Enter to continue..." _
 }
 
-manage_spiffe_ids() {
-  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
-}
-
 generate_private_key_and_csr() {
 
   identity_dir="compose-identity"
@@ -413,7 +409,7 @@ generate_private_key_and_csr() {
     fi
 
     # Validate expected path structure
-    if [[ ! "${spiffe_id}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$ ]]; then
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+/client/[a-zA-Z0-9._-]+$ ]]; then
       echo "  ⚠️  SPIFFE ID does not match expected format:"
       echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
       echo "       Example: spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
@@ -499,10 +495,9 @@ show_menu() {
   echo "8) OTEL-collector-promtail-installation"
   echo "9) OTEL-collector-promtail-uninstallation"
   echo "10) cleanup-residual"
-  echo "11) Manage SPIFFE ID allowlist"
-  echo "12) Generate Private Key & CSR"
-  echo "13) Exit"
-  read -rp "Enter choice [1-13]: " choice
+  echo "11) Generate Private Key & CSR"
+  echo "12) Exit"
+  read -rp "Enter choice [1-12]: " choice
   case $choice in
     1) install_prerequisites;;
     2) uninstall_prerequisites;;
@@ -514,9 +509,8 @@ show_menu() {
     8) install_otel_collector_promtail_wrapper ;;
     9) uninstall_otel_collector_promtail_wrapper ;;
     10) cleanup_residual ;;
-    11) manage_spiffe_ids ;;
-    12) generate_private_key_and_csr ;;
-    13) echo "👋 Goodbye!"; exit 0 ;;
+    11) generate_private_key_and_csr ;;
+    12) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
 
@@ -569,11 +563,10 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     otel-install) install_otel_collector_promtail_wrapper ;;
     otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
     cleanup) cleanup_residual ;;
-    manage-spiffe-ids) manage_spiffe_ids ;;
     generate-csr) generate_private_key_and_csr ;;
     *)
       echo "[ERROR] Unknown command: $2"
-      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, manage-spiffe-ids"
+      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, generate-csr"
       exit 1
       ;;
   esac

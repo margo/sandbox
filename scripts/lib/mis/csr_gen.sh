@@ -170,7 +170,7 @@ parse_args() {
             || err "SPIFFE ID must start with 'spiffe://'. Got: '${SPIFFE_ID}'"
 
         # ✅ Accepts both WFM principal and WFM Client principal formats
-        [[ "${SPIFFE_ID}" =~ ^spiffe://[^/]+/margo/wfm/[^/]+(/client/[^/]+)?$ ]] \
+        [[ "${SPIFFE_ID}" =~ ^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+(/client/[a-zA-Z0-9._-]+)?$ ]] \
             || err "SPIFFE ID does not match required format:
    Format 1 (WFM principal)        : spiffe://<trust-domain>/margo/wfm/<wfm-id>
    Format 2 (WFM Client principal) : spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>

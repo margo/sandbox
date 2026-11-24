@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -285,57 +286,6 @@ func TestValidateSVIDLeafConstraints_MultipleURISANs(t *testing.T) {
 	assert.Contains(t, err.Error(), "exactly one URI SAN")
 }
 
-// ── ValidateX509SVID: new leaf constraint cases ───────────────────────────────
-
-func TestValidateX509SVID_RejectsCACert(t *testing.T) {
-	der, _ := generateCert(t, certOptions{
-		spiffeID: "spiffe://example.org/margo/wfm/w1",
-		isCA:     true,
-	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must not be a CA")
-}
-
-func TestValidateX509SVID_RejectsKeyCertSign(t *testing.T) {
-	der, _ := generateCert(t, certOptions{
-		spiffeID: "spiffe://example.org/margo/wfm/w1",
-		keyUsage: x509.KeyUsageCertSign,
-	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "keyCertSign")
-}
-
-func TestValidateX509SVID_RejectsCRLSign(t *testing.T) {
-	der, _ := generateCert(t, certOptions{
-		spiffeID: "spiffe://example.org/margo/wfm/w1",
-		keyUsage: x509.KeyUsageCRLSign,
-	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cRLSign")
-}
-
-func TestValidateX509SVID_RejectsRootPath(t *testing.T) {
-	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/"})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "spiffe ID path must not contain empty segments")
-}
-
-func TestValidateX509SVID_RejectsEmptyPath(t *testing.T) {
-	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org"})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "spiffe ID must contain a path after the trust domain")
-}
-
 // toPEM wraps DER bytes in a CERTIFICATE PEM block.
 func toPEM(der []byte) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
@@ -478,47 +428,46 @@ func TestValidateSPIFFEID_ValidWFMClient(t *testing.T) {
 
 func TestValidateX509SVID_ValidWFM(t *testing.T) {
 	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/margo/wfm/w1"})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
 	require.NoError(t, err)
-	assert.True(t, ok)
+	assert.Equal(t, "spiffe://example.org/margo/wfm/w1", spiffeID)
 }
 
 func TestValidateX509SVID_ValidWFMClient(t *testing.T) {
 	der, _ := generateCert(t, certOptions{
 		spiffeID: "spiffe://example.org/margo/wfm/w1/client/c1",
 	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFMClient)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFMClient)
 	require.NoError(t, err)
-	assert.True(t, ok)
+	assert.Equal(t, "spiffe://example.org/margo/wfm/w1/client/c1", spiffeID)
 }
 
 func TestValidateX509SVID_ValidDEREncoding(t *testing.T) {
 	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/margo/wfm/w1"})
-	ok, err := ValidateX509SVID(der, PrincipalWFM)
+	spiffeID, err := ValidateX509SVID(der, PrincipalWFM)
 	require.NoError(t, err)
-	assert.True(t, ok)
+	assert.Equal(t, "spiffe://example.org/margo/wfm/w1", spiffeID)
 }
 
 func TestValidateX509SVID_InvalidCertBytes(t *testing.T) {
-	ok, err := ValidateX509SVID([]byte("garbage"), PrincipalWFM)
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID([]byte("garbage"), PrincipalWFM)
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid x.509 certificate")
 }
 
 func TestValidateX509SVID_NoURISAN(t *testing.T) {
 	der, _ := generateCert(t, certOptions{})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no URI SANs")
 }
 
 func TestValidateX509SVID_WrongPrincipal(t *testing.T) {
-	// WFM cert validated as WFMClient should fail
 	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/margo/wfm/w1"})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFMClient)
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFMClient)
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 }
 
@@ -526,10 +475,10 @@ func TestValidateX509SVID_ExpiredCertificate(t *testing.T) {
 	der, _ := generateCert(t, certOptions{
 		spiffeID:  "spiffe://example.org/margo/wfm/w1",
 		notBefore: time.Now().Add(-2 * time.Hour),
-		notAfter:  time.Now().Add(-time.Hour), // already expired
+		notAfter:  time.Now().Add(-time.Hour),
 	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "certificate has expired")
 }
@@ -537,21 +486,70 @@ func TestValidateX509SVID_ExpiredCertificate(t *testing.T) {
 func TestValidateX509SVID_NotYetValidCertificate(t *testing.T) {
 	der, _ := generateCert(t, certOptions{
 		spiffeID:  "spiffe://example.org/margo/wfm/w1",
-		notBefore: time.Now().Add(time.Hour), // future
+		notBefore: time.Now().Add(time.Hour),
 		notAfter:  time.Now().Add(2 * time.Hour),
 	})
-	ok, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not yet valid")
 }
 
 func TestValidateX509SVID_UnknownPrincipal(t *testing.T) {
 	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/margo/wfm/w1"})
-	ok, err := ValidateX509SVID(toPEM(der), "unknown-principal")
-	assert.False(t, ok)
+	spiffeID, err := ValidateX509SVID(toPEM(der), "unknown-principal")
+	assert.Empty(t, spiffeID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown principal")
+}
+
+func TestValidateX509SVID_RejectsCACert(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		isCA:     true,
+	})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be a CA")
+}
+
+func TestValidateX509SVID_RejectsKeyCertSign(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCertSign,
+	})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "keyCertSign")
+}
+
+func TestValidateX509SVID_RejectsCRLSign(t *testing.T) {
+	der, _ := generateCert(t, certOptions{
+		spiffeID: "spiffe://example.org/margo/wfm/w1",
+		keyUsage: x509.KeyUsageCRLSign,
+	})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cRLSign")
+}
+
+func TestValidateX509SVID_RejectsRootPath(t *testing.T) {
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org/"})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "spiffe ID path must not contain empty segments")
+}
+
+func TestValidateX509SVID_RejectsEmptyPath(t *testing.T) {
+	der, _ := generateCert(t, certOptions{spiffeID: "spiffe://example.org"})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	assert.Empty(t, spiffeID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "spiffe ID must contain a path after the trust domain")
 }
 
 // ── getTrustBundleFromJWK ─────────────────────────────────────────────────────
@@ -675,6 +673,52 @@ func TestValidateAgainstTrustBundle_UntrustedLeaf(t *testing.T) {
 	err = validateAgainstTrustBundle(leafCert, bundle)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not chain to a trusted SPIFFE bundle")
+}
+
+// Verifies the returned string is the canonical SPIFFE ID from the certificate URI SAN
+func TestValidateX509SVID_ReturnsSpiffeIDString(t *testing.T) {
+	const expected = "spiffe://example.org/margo/wfm/w1"
+	der, _ := generateCert(t, certOptions{spiffeID: expected})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFM)
+	require.NoError(t, err)
+	assert.Equal(t, expected, spiffeID)
+	assert.True(t, strings.HasPrefix(spiffeID, "spiffe://"))
+}
+
+// Verifies DER-encoded input also returns the correct SPIFFE ID string
+func TestValidateX509SVID_DERReturnsSpiffeIDString(t *testing.T) {
+	const expected = "spiffe://example.org/margo/wfm/w1"
+	der, _ := generateCert(t, certOptions{spiffeID: expected})
+	spiffeID, err := ValidateX509SVID(der, PrincipalWFM)
+	require.NoError(t, err)
+	assert.Equal(t, expected, spiffeID)
+}
+
+// Verifies error cases always return an empty string (never a partial ID)
+func TestValidateX509SVID_ErrorAlwaysReturnsEmptyString(t *testing.T) {
+	cases := []struct {
+		name  string
+		bytes []byte
+	}{
+		{"garbage input", []byte("garbage")},
+		{"empty input", []byte{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spiffeID, err := ValidateX509SVID(tc.bytes, PrincipalWFM)
+			require.Error(t, err)
+			assert.Equal(t, "", spiffeID, "error path must return empty string, not partial ID")
+		})
+	}
+}
+
+// Verifies WFMClient path returns the full nested SPIFFE ID
+func TestValidateX509SVID_ReturnsFullNestedSpiffeID(t *testing.T) {
+	const expected = "spiffe://example.org/margo/wfm/w1/client/c1"
+	der, _ := generateCert(t, certOptions{spiffeID: expected})
+	spiffeID, err := ValidateX509SVID(toPEM(der), PrincipalWFMClient)
+	require.NoError(t, err)
+	assert.Equal(t, expected, spiffeID)
 }
 
 func TestValidateAgainstTrustBundle_EmptyBundle(t *testing.T) {

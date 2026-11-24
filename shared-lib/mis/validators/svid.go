@@ -29,36 +29,38 @@ type jwkKey struct {
 }
 
 // ValidateX509SVID validates an x509 SVID provided as a PEM or DER encoded []byte.
-// Returns (true, nil) if valid, or (false, error) describing the reason for invalidity.
+// Returns the SPIFFE ID string if valid, or an error describing the reason for invalidity.
 //
 // Note: This function only checks the validity of SVID, does not check the validity of SVID against any trust bundle.
-func ValidateX509SVID(svidBytes []byte, principal string) (bool, error) {
+func ValidateX509SVID(svidBytes []byte, principal string) (string, error) {
 	// 1. Parse the certificate — try PEM first, then DER
 	cert, err := parseCertificate(svidBytes)
 	if err != nil {
-		return false, fmt.Errorf("invalid x.509 certificate: %w", err)
+		return "", fmt.Errorf("invalid x.509 certificate: %w", err)
 	}
 
 	// 2. Validate SPIFFE ID: must contain exactly one URI SAN that is a valid SPIFFE ID
 	if err := validateSPIFFEID(cert, principal); err != nil {
-		return false, err
+		return "", err
 	}
 
 	// 3. Enforce SPIFFE X.509-SVID leaf constraints
 	if err := ValidateSVIDLeafConstraints(cert); err != nil {
-		return false, err
+		return "", err
 	}
 
 	// 4. Validate certificate time validity
 	now := time.Now()
 	if now.Before(cert.NotBefore) {
-		return false, fmt.Errorf("certificate is not yet valid: NotBefore is %s", cert.NotBefore)
+		return "", fmt.Errorf("certificate is not yet valid: NotBefore is %s", cert.NotBefore)
 	}
 	if now.After(cert.NotAfter) {
-		return false, fmt.Errorf("certificate has expired: NotAfter was %s", cert.NotAfter)
+		return "", fmt.Errorf("certificate has expired: NotAfter was %s", cert.NotAfter)
 	}
 
-	return true, nil
+	// 5. Extract and return the SPIFFE ID from the URI SAN
+	// At this point validateSPIFFEID has already guaranteed exactly one valid SPIFFE URI SAN exists
+	return cert.URIs[0].String(), nil
 }
 
 // ValidateSVIDLeafConstraints enforces SPIFFE X.509-SVID leaf certificate requirements:

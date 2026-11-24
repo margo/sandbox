@@ -149,11 +149,10 @@ deploy_instance() {
   
   # Generate instance.yaml dynamically from OCI metadata
   local temp_instance_file=$(mktemp --suffix=.yaml)
-  
   if ! generate_instance_yaml_from_oci "$package_name" "$package_id" "$device_id" "$temp_instance_file" 2>/dev/null; then
     # Fallback to template discovery
     deploy_file=$(get_instance_file_path "$package_name")
-    
+
     if [ $? -ne 0 ] || [ -z "$deploy_file" ] || [ ! -f "$deploy_file" ]; then
       echo "❌ No template found and dynamic generation failed"
       return 1
@@ -164,14 +163,19 @@ deploy_instance() {
     sed -i "s|{{DEVICE_ID}}|$device_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{PACKAGE_ID}}|$package_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{REPOSITORY}}|$repository|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|type:[[:space:]]*helm|key: ${DEPLOYMENT_KEY_HELM}|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|type:[[:space:]]*compose|key: ${DEPLOYMENT_KEY_COMPOSE}|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|timeout:[[:space:]]*5m$|timeout: ${DEFAULT_TIMEOUT:-5m0s}|g" "$deploy_file" 2>/dev/null || true
   else
     deploy_file="$temp_instance_file"
   fi
+
+  cat $deploy_file
   
   # SECURITY: Make file read-only and calculate checksum
   chmod 444 "$deploy_file"
   local file_checksum=$(calculate_checksum "$deploy_file")
-  
+
   # SECURITY: Verify file integrity before deployment
   if ! verify_file_integrity "$deploy_file" "$file_checksum"; then
     rm -f "$temp_instance_file"
@@ -188,7 +192,7 @@ deploy_instance() {
   
   echo ""
   echo "🚀 Deploying '$package_id' to device '$device_id'..."
- 
+  cat $deploy_file
   if check_maestro_cli; then
     if ${MAESTRO_CLI_PATH}/maestro wfm --host "$EXPOSED_SYMPHONY_HOST" --port "$EXPOSED_SYMPHONY_PORT" apply -f "$deploy_file"; then
       echo "✅ Instance deployment request sent successfully!"
@@ -275,6 +279,9 @@ deploy_instance_non_interactive() {
     sed -i "s|{{DEVICE_ID}}|$device_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{PACKAGE_ID}}|$package_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{REPOSITORY}}|$repository|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|type:[[:space:]]*helm|key: ${DEPLOYMENT_KEY_HELM}|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|type:[[:space:]]*compose|key: ${DEPLOYMENT_KEY_COMPOSE}|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|timeout:[[:space:]]*5m$|timeout: ${DEFAULT_TIMEOUT:-5m0s}|g" "$deploy_file" 2>/dev/null || true
   else
     deploy_file="$temp_instance_file"
   fi

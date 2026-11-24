@@ -23,6 +23,6 @@ type MatcherIface interface {
 	//   - err: non-nil only on fatal evaluation errors (e.g., malformed JSON Pointer)
 	IsTargetEligible(
 		profile *sbi.Profile,
-		placementConstraints []sbi.PlacementConstraints,
+		placementConstraints *[]sbi.PlacementConstraints,
 	) (bool, string, error)
 }

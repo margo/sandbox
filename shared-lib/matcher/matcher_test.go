@@ -19,8 +19,8 @@ func vals(v ...any) *[]any {
 	return &v
 }
 
-func toPlacementConstraints(exprs []sbi.MatchExpression) []sbi.PlacementConstraints {
-	return []sbi.PlacementConstraints{
+func toPlacementConstraints(exprs []sbi.MatchExpression) *[]sbi.PlacementConstraints {
+	return &[]sbi.PlacementConstraints{
 		{
 			MatchExpressions: exprs,
 		},
@@ -50,7 +50,7 @@ func TestDeploymentKeyMatching(t *testing.T) {
 		ok, reason, err := m.IsTargetEligible(&p, nil)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.Empty(t, reason)
+		assert.Equal(t, " no placement constraints defined, device is eligible", reason)
 	})
 
 	t.Run("Unsupported deployment technology fails", func(t *testing.T) {
@@ -643,7 +643,7 @@ func TestCharacteristicsGroups(t *testing.T) {
 	p := sampleProfile(t)
 
 	t.Run("OR logic: first group fails, second group passes", func(t *testing.T) {
-		groups := []sbi.PlacementConstraints{
+		groups := &[]sbi.PlacementConstraints{
 			// Group 1: requires TPU (absent)
 			{
 				MatchExpressions: []sbi.MatchExpression{
@@ -670,7 +670,7 @@ func TestCharacteristicsGroups(t *testing.T) {
 	})
 
 	t.Run("OR logic: all groups fail", func(t *testing.T) {
-		groups := []sbi.PlacementConstraints{
+		groups := &[]sbi.PlacementConstraints{
 			{
 				MatchExpressions: []sbi.MatchExpression{
 					{

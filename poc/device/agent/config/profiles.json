@@ -15,13 +15,13 @@
         {
             "key": "margo.org/resource/memory",
             "properties": {
-                "available": 59
+                "memory": 59
             }
         },
         {
             "key": "margo.org/resource/storage",
             "properties": {
-                "available": 1862
+                "storage": 1862
             }
         },
         {
@@ -47,6 +47,10 @@
                     }
                 ]
             }
+        },
+        {
+            "key": "margo.org/deployment/compose",
+            "properties": {}
         }
     ]
 }

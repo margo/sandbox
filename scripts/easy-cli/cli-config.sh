@@ -34,4 +34,8 @@ export REGISTRY_PASS="${REGISTRY_PASS:-Harbor12345}"
 export OCI_ORGANIZATION="${OCI_ORGANIZATION:-library}"
 
 # CLI path
-export MAESTRO_CLI_PATH="${MAESTRO_CLI_PATH:-$HOME/symphony/cli}"
+export MAESTRO_CLI_PATH="${MAESTRO_CLI_PATH:-$HOME/margo/symphony/cli}"
+
+# Deployment profile technology keys (per standard/snapshot.spec.yaml appDeploymentProfile)
+export DEPLOYMENT_KEY_COMPOSE="${DEPLOYMENT_KEY_COMPOSE:-margo.org/deployment/compose}"
+export DEPLOYMENT_KEY_HELM="${DEPLOYMENT_KEY_HELM:-margo.org/deployment/helm}"

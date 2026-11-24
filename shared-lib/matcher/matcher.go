@@ -19,7 +19,7 @@ type deviceMatcher struct{}
 // 2. Application placement constraints groups (OR across groups, AND within each group's matchExpressions).
 func (m *deviceMatcher) IsTargetEligible(
 	profile *sbi.Profile,
-	placementConstraints []sbi.PlacementConstraints,
+	placementConstraints *[]sbi.PlacementConstraints,
 ) (bool, string, error) {
 	if profile == nil {
 		return false, "device profile is nil", nil
@@ -32,13 +32,13 @@ func (m *deviceMatcher) IsTargetEligible(
 	}
 
 	// 2. If no placement constraints defined, device is eligible
-	if len(placementConstraints) == 0 {
-		return true, "", nil
+	if placementConstraints == nil {
+		return true, " no placement constraints defined, device is eligible", nil
 	}
 
 	// 3. Evaluate placement constraints groups (OR logic across groups, AND logic within each group)
 	var lastReason string
-	for _, group := range placementConstraints {
+	for _, group := range *placementConstraints {
 		allPassed := true
 		for _, expr := range group.MatchExpressions {
 			ok, reason, err := m.evaluateSingleMatchExpression(profile, &expr)

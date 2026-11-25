@@ -163,9 +163,6 @@ deploy_instance() {
     sed -i "s|{{DEVICE_ID}}|$device_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{PACKAGE_ID}}|$package_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{REPOSITORY}}|$repository|g" "$deploy_file" 2>/dev/null || true
-    sed -i "s|type:[[:space:]]*helm|key: ${DEPLOYMENT_KEY_HELM}|g" "$deploy_file" 2>/dev/null || true
-    sed -i "s|type:[[:space:]]*compose|key: ${DEPLOYMENT_KEY_COMPOSE}|g" "$deploy_file" 2>/dev/null || true
-    sed -i "s|timeout:[[:space:]]*5m$|timeout: ${DEFAULT_TIMEOUT:-5m0s}|g" "$deploy_file" 2>/dev/null || true
   else
     deploy_file="$temp_instance_file"
   fi

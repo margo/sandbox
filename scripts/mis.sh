@@ -361,6 +361,160 @@ generate_svid() {
 
 
 # ----------------------------
+# Static Trust Bundle Download
+# ----------------------------
+download_trust_bundle() {
+  local host="$EXPOSED_MIS_HOST"
+  local port="$EXPOSED_MIS_PORT"
+  local ca_cert="$certs_dir/https-ca.crt"
+  local output_file="$certs_dir/trust-bundle.json"
+  local discovery_url="https://${host}:${port}/.well-known/margo"
+  local max_retries=10
+  local retry_delay=5
+
+  # --- Pre-flight checks ---
+  if ! command -v curl &>/dev/null; then
+    echo "[ERROR] ❌ 'curl' is required but not found in PATH. Please install curl and retry."
+    return 1
+  fi
+
+  if ! command -v jq &>/dev/null; then
+    echo "[ERROR] ❌ 'jq' is required but not found in PATH. Please install jq and retry."
+    return 1
+  fi
+
+  if [[ -z "$host" || -z "$port" ]]; then
+    echo "[ERROR] ❌ EXPOSED_MIS_HOST and EXPOSED_MIS_PORT must be set. Check mis.env."
+    return 1
+  fi
+
+  if [[ ! -d "$certs_dir" ]]; then
+    echo "[ERROR] ❌ Certs directory not found at '$certs_dir'. Run 'Factory Bootstrap' and 'MIS Install' first."
+    return 1
+  fi
+
+  # Determine curl TLS option: prefer CA cert, fall back to -k
+  local curl_tls_opt
+  if [[ -f "$ca_cert" ]]; then
+    echo "[INFO] 🔒 Using CA certificate for TLS verification: $ca_cert"
+    curl_tls_opt="--cacert $ca_cert"
+  else
+    echo "[WARN] ⚠️  https-ca.crt not found at '$ca_cert'. Falling back to -k (insecure)."
+    curl_tls_opt="-k"
+  fi
+
+  # Warn if trust-bundle.json already exists
+  if [[ -f "$output_file" ]]; then
+    echo "[WARN] ⚠️  Existing trust-bundle.json found at '$output_file'. It will be overwritten."
+  fi
+
+  # --- Step 1: Fetch discovery document with retry ---
+  echo "[INFO] 🌐 Fetching MIS discovery document from: $discovery_url"
+  local discovery_response
+  local attempt=1
+
+  while true; do
+    local http_code
+    local body
+    body=$(curl -s -o /tmp/mis_discovery_body.json -w "%{http_code}" \
+      $curl_tls_opt \
+      --connect-timeout 5 \
+      "$discovery_url" 2>/dev/null) || true
+    http_code="$body"
+
+    if [[ "$http_code" == "200" ]]; then
+      discovery_response=$(cat /tmp/mis_discovery_body.json)
+      echo "[INFO] ✅ Discovery document received (HTTP 200)."
+      break
+    fi
+
+    if [[ "$attempt" -ge "$max_retries" ]]; then
+      echo "[ERROR] ❌ Failed to reach '$discovery_url' after $max_retries attempts (last HTTP status: $http_code). Aborting."
+      rm -f /tmp/mis_discovery_body.json
+      return 1
+    fi
+
+    echo "[WARN] ⏳ Attempt $attempt/$max_retries failed (HTTP status: $http_code). Retrying in ${retry_delay}s..."
+    sleep "$retry_delay"
+    (( attempt++ ))
+  done
+
+  rm -f /tmp/mis_discovery_body.json
+
+  # --- Step 2: Parse trustBundleUri from discovery response ---
+  local trust_bundle_uri
+  trust_bundle_uri=$(echo "$discovery_response" | jq -r '.trustBundleUri // empty')
+
+  if [[ -z "$trust_bundle_uri" ]]; then
+    echo "[ERROR] ❌ 'trustBundleUri' not found in discovery response. Response was:"
+    echo "$discovery_response"
+    return 1
+  fi
+
+  echo "[INFO] 🔗 Trust Bundle URI: $trust_bundle_uri"
+
+  # --- Step 3: Fetch trust bundle with retry ---
+  echo "[INFO] 📥 Fetching trust bundle from: $trust_bundle_uri"
+  attempt=1
+
+  while true; do
+    local http_code
+    http_code=$(curl -s -o /tmp/mis_trust_bundle.json -w "%{http_code}" \
+      $curl_tls_opt \
+      --connect-timeout 5 \
+      "$trust_bundle_uri" 2>/dev/null) || true
+
+    if [[ "$http_code" == "200" ]]; then
+      echo "[INFO] ✅ Trust bundle received (HTTP 200)."
+      break
+    fi
+
+    if [[ "$attempt" -ge "$max_retries" ]]; then
+      echo "[ERROR] ❌ Failed to fetch trust bundle from '$trust_bundle_uri' after $max_retries attempts (last HTTP status: $http_code). Aborting."
+      rm -f /tmp/mis_trust_bundle.json
+      return 1
+    fi
+
+    echo "[WARN] ⏳ Attempt $attempt/$max_retries failed (HTTP status: $http_code). Retrying in ${retry_delay}s..."
+    sleep "$retry_delay"
+    (( attempt++ ))
+  done
+
+  # --- Step 4: Validate it is a JWK Set (must contain "keys" array) ---
+  if ! jq -e '.keys | arrays' /tmp/mis_trust_bundle.json >/dev/null 2>&1; then
+    echo "[ERROR] ❌ Response from '$trust_bundle_uri' does not appear to be a valid JWK Set (missing 'keys' array). Aborting."
+    echo "[ERROR]    Response body:"
+    cat /tmp/mis_trust_bundle.json
+    rm -f /tmp/mis_trust_bundle.json
+    return 1
+  fi
+
+  # --- Step 5: Save to certs directory ---
+  mv /tmp/mis_trust_bundle.json "$output_file"
+  echo "[INFO] 💾 Trust bundle saved to: $output_file"
+
+  # --- Step 6: User notice ---
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════════════════╗"
+  echo "║                        📋  DEPLOYMENT NOTICE                           ║"
+  echo "╠══════════════════════════════════════════════════════════════════════════╣"
+  echo "║  The following files in '$certs_dir'"
+  echo "║  are required when deploying a WFM or WFM Client:                      ║"
+  echo "║                                                                          ║"
+  echo "║   • https-ca.crt        — HTTPS CA certificate for MIS TLS trust       ║"
+  echo "║   • https-ca-trust-pin.txt — CA trust pin for certificate pinning       ║"
+  echo "║   • trust-bundle.json   — SPIFFE/SVID trust bundle (JWK Set) used      ║"
+  echo "║                           as a fallback trust source                    ║"
+  echo "║                                                                          ║"
+  echo "║  Provide these to your WFM / WFM Client configuration so they can:     ║"
+  echo "║   ✔ Contact MIS over HTTPS with proper TLS verification                ║"
+  echo "║   ✔ Bootstrap trust using the static trust bundle as a fallback        ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════╝"
+  echo ""
+} 
+
+
+# ----------------------------
 # MIS Uninstallation 
 # ----------------------------
 
@@ -405,8 +559,9 @@ show_menu() {
   echo "4) Margo Identity Service: Install"
   echo "5) Margo Identity Service: Uninstall"
   echo "6) Generate SVID"
-  echo "7) Exit"
-  read -p "Enter choice [1-7]: " choice
+  echo "7) Obtain Static Trust Bundle"
+  echo "8) Exit"
+  read -p "Enter choice [1-8]: " choice
   case $choice in
     1) install_prerequisites ;;
     2) uninstall_prerequisites ;;
@@ -414,7 +569,8 @@ show_menu() {
     4) install_mis ;;
     5) uninstall_mis ;;
     6) generate_svid ;;
-    7) echo "👋 Goodbye!"; exit 0 ;;
+    7) download_trust_bundle ;;
+    8) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "⚠️ Invalid choice"; sleep 2 ;;
   esac
 
@@ -443,11 +599,10 @@ else
     mis-install) install_mis ;;
     mis-uninstall) uninstall_mis ;;
     generate-svid) generate_svid ;;
+    download-trust-bundle) download_trust_bundle ;;
     *)
-      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall|generate-svid}"
+      echo "Usage: $0 {install|uninstall|setup-factory|mis-install|mis-uninstall|generate-svid|download-trust-bundle}"
       exit 1
       ;;
   esac
 fi
-
- 

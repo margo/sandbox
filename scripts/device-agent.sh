@@ -94,9 +94,9 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 
 if [[ "$DEVICE_TYPE" == "docker" ]]; then
-  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/docker-compose/config/authorized.json"}"
+  WFMCLIENT_TRUST_BUNDLE_DIR="${WFMCLIENT_TRUST_BUNDLE_DIR:-"$HOME/sandbox/docker-compose/config/mis"}"
 else
-  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/helmchart/authorized/authorized.json"}"
+  WFMCLIENT_TRUST_BUNDLE_DIR="${WFMCLIENT_TRUST_BUNDLE_DIR:-"$HOME/sandbox/helmchart/config/mis"}"
 fi
 # ----------------------------
 # GHCR Image References
@@ -163,7 +163,7 @@ validate_and_copy_certs() {
     return 1
   fi
 
-  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/https-ca.crt"; do
+  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/https-ca.crt" "$certs_dir/trust-bundle.json"; do
     if [[ ! -f "$cert_file" ]]; then
       echo "[ERROR] Required certificate file not found: $cert_file"
       return 1
@@ -211,7 +211,7 @@ validate_and_copy_certs() {
   cp "$identity_src_dir/payload-key.pem"  "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-key.pem";  return 1; }
   cp "$identity_src_dir/payload-cert.pem" "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-cert.pem"; return 1; }
 
-  # ── Step 5: Copy https-ca.crt to mis directory ────────────────────────────
+  # ── Step 5: Copy https-ca.crt and trust-bundle.json to mis directory ──────
   local mis_dst_dir="$agent_config_dir/mis"
   echo "[INFO] Creating MIS directory: $mis_dst_dir"
   mkdir -p "$mis_dst_dir" || {
@@ -225,11 +225,16 @@ validate_and_copy_certs() {
     return 1
   }
 
+  echo "[INFO] Copying trust-bundle.json to $mis_dst_dir"
+  cp "$certs_dir/trust-bundle.json" "$mis_dst_dir/" || {
+    echo "[ERROR] Failed to copy trust-bundle.json"
+    return 1
+  }
+
   mkdir -p "$HOME/sandbox/helmchart/authorized"
 
   echo "[INFO] Certificate validation and copy completed successfully. ✓"
 }
-
 # ----------------------------
 # Go Installation Functions
 # ----------------------------
@@ -279,9 +284,6 @@ install_prerequisites() {
 start_device_agent_docker() {
   echo "Building and starting workload-fleet-management-client ..."
   validate_start_required_vars
-  # ── SPIFFE allowlist validation ──────────────────────────────────────────
-  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
-  # ────────────────────────────────────────────────────────────────────────
   update_agent_sbi_url
   build_device_agent_docker
   start_device_agent_docker_service
@@ -291,9 +293,6 @@ start_device_agent_docker() {
 start_device_agent_kubernetes() {
   echo "Building and starting workload-fleet-management-client with ServiceAccount authentication..."
   validate_start_required_vars
-  # ── SPIFFE allowlist validation ──────────────────────────────────────────
-  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
-  # ────────────────────────────────────────────────────────────────────────
   build_start_device_agent_k3s_service
   echo '✅ workload-fleet-management-client-pod started with ServiceAccount authentication'
 }
@@ -478,7 +477,6 @@ generate_private_key_and_csr() {
 }
 
 
-
 # ----------------------------
 # Menu Functions
 # ----------------------------
@@ -516,7 +514,6 @@ show_menu() {
 
   pause
 }
-
 # ----------------------------
 # Main Script Execution
 # ----------------------------
@@ -551,7 +548,7 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     echo "[ERROR] Failed to load device agent environment"
     exit 1
   fi
-  validate_mis_host 
+  validate_mis_host
   case "$2" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;

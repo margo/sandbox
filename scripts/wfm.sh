@@ -418,12 +418,57 @@ cleanup_docker_resources() {
 
     echo "Docker cleanup completed."
 }
- 
+
+
+# ── Validate required certificate files ──────────────────────────────────────
+validate_certificate_files() {
+  local cert_dir="${HOME}/symphony/api/certificates"
+  local required_files=("trust-bundle.json" "payload-cert.pem" "payload-key.pem")
+  local missing=()
+  local empty=()
+
+  for file in "${required_files[@]}"; do
+    local filepath="${cert_dir}/${file}"
+    if [[ ! -f "${filepath}" ]]; then
+      missing+=("${file}")
+    elif [[ ! -s "${filepath}" ]]; then
+      empty+=("${file}")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 || ${#empty[@]} -gt 0 ]]; then
+    echo ""
+    echo "======================================================================="
+    echo "❌ Certificate Validation Failed"
+    echo "======================================================================="
+    echo "  Expected location: ${cert_dir}"
+    echo ""
+    for f in "${missing[@]}"; do
+      echo "  🔴 Missing : ${f}"
+    done
+    for f in "${empty[@]}"; do
+      echo "  🟡 Empty   : ${f}"
+    done
+    echo ""
+    echo "  Ensure all three files are present and non-empty before starting Symphony installation."
+    echo "  → Use menu option 8) Generate Private Key & CSR to generate payload-key.pem"
+    echo "  → Obtain payload-cert.pem (SVID) and trust-bundle.json from your MIS."
+    echo "======================================================================="
+    return 1
+  fi
+
+  echo "✅ Certificate files validated successfully."
+  return 0
+}
 
 
 start_symphony() {
   echo "Starting Symphony API server. NBI Serving on port $EXPOSED_SYMPHONY_PORT, Margo Management Interface serving on port 8084 ..."
- 
+
+  # ── Certificate files validation ─────────────────────────────────────────
+  validate_certificate_files || return 1
+  # ────────────────────────────────────────────────────────────────────────
+
   # ── SPIFFE allowlist validation ──────────────────────────────────────────
   validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
   # ────────────────────────────────────────────────────────────────────────
@@ -448,7 +493,6 @@ start_symphony() {
 
   # Build phase
   build_maestro_cli
-  # verify_symphony_api
   enable_tls_in_symphony_api
   start_symphony_api_container
 }

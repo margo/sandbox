@@ -11,12 +11,12 @@ miaf:
   mis:
     endpoint: "https://mis.margo.org:9443"          # MIS service URL
     caPath: "./config/mis/https-ca.crt"             # CA certificate
+    trustPins:
+      - "sha256/6DtZYsyT+9vuAwfAKHCLpjQv2pQHCc9n7nnZsltwEU4="
     cacheInterval: 60                               # cache interval in seconds set by operator
-    # trustDomain: "margo.org"                        # Operator provided trust domain, uncomment this to provide operator default
-    # trustBundle:
+    trustBundle:
       # uri: "/.well-known/spiffe/bundle.json"        # URI provided by operator in case discovery is unavailable, uncomment this to provide operator default
-      # path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
-  authzPath: "./config/authorized.json"             # Authorized clients
+      path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
 
 wfm:
   sbiUrl: https://symphony.machine:8084/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1

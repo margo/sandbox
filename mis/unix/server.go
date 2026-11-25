@@ -147,7 +147,7 @@ func (m *MintRestAPI) MintX509SVIDHandler(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("request body decoded successfully")
 
 	// Validate request
-	if ve := validateMintSVIDRequest(&req); ve != nil {
+	if ve := m.validateMintSVIDRequest(&req); ve != nil {
 		m.logger.Warn("request validation failed", "error", ve)
 		helpers.WriteError(w, http.StatusUnprocessableEntity, "validation failed", ve.Error())
 		return

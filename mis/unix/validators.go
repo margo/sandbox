@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/margo/sandbox/mis/pkg/types"
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
 
 // ValidationError holds a list of field-level validation errors
@@ -29,7 +29,7 @@ func (v *ValidationError) HasErrors() bool {
 }
 
 // ValidateMintSVIDRequest validates the incoming request fields
-func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
+func (m *MintRestAPI) validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 	ve := &ValidationError{Fields: make(map[string]string)}
 	if req.CSR != "" {
 		if err := validateCSR(req.CSR); err != nil {
@@ -38,7 +38,7 @@ func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 	}
 
 	// spiffeID must exist & be validated.
-	if err := validateSpiffeID(req.SpiffeID); err != nil {
+	if err := validateSpiffeID(req.SpiffeID, m.cnf.TrustDomain); err != nil {
 		ve.Fields["spiffeID"] = err.Error()
 	}
 
@@ -61,41 +61,26 @@ func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 }
 
 // validateSpiffeID ensures the spiffeID follows the "spiffe://<trust-domain>/<path>" format
-func validateSpiffeID(id string) error {
+func validateSpiffeID(id, td string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("spiffeID is required")
 	}
 
-	parsed, err := url.Parse(id)
-	if err != nil {
-		return fmt.Errorf("invalid URI: %w", err)
+	principals := []string{validators.PrincipalWFM, validators.PrincipalWFMClient}
+
+	for _, principal := range principals {
+		if err := validators.ValidateSpiffeIDWithTrustDomain(id, td, principal); err == nil {
+			return nil
+		}
 	}
 
-	if parsed.Scheme != "spiffe" {
-		return fmt.Errorf("scheme must be 'spiffe', got '%s'", parsed.Scheme)
-	}
+	return fmt.Errorf(
+		"invalid spiffe ID %q: must match either WFM format spiffe://<trust-domain>/margo/wfm/<wfm-id> "+
+			"or WFM-Client format spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"+
+			"or does not belong to configured trust domain",
+		id,
+	)
 
-	if parsed.Host == "" {
-		return fmt.Errorf("trust domain (host) must not be empty")
-	}
-
-	if strings.Contains(parsed.Host, ":") {
-		return fmt.Errorf("trust domain must not contain a port")
-	}
-
-	if parsed.User != nil {
-		return fmt.Errorf("spiffeID must not contain user info")
-	}
-
-	if parsed.Fragment != "" {
-		return fmt.Errorf("spiffeID must not contain a fragment")
-	}
-
-	if parsed.RawQuery != "" {
-		return fmt.Errorf("spiffeID must not contain a query string")
-	}
-
-	return nil
 }
 
 // validateCSR parses and verifies the signature of a PEM or base64-encoded DER CSR.
@@ -123,13 +108,6 @@ func validateCSR(csr string) error {
 
 	if err := parsed.CheckSignature(); err != nil {
 		return fmt.Errorf("CSR signature verification failed: %w", err)
-	}
-
-	// Validate URI SANs only if 1 is present, as it is optional
-	if len(parsed.URIs) == 1 {
-		if err := validateSpiffeID(parsed.URIs[0].String()); err != nil {
-			return fmt.Errorf("URI SAN is not a valid SPIFFE ID: %w", err)
-		}
 	}
 
 	return nil

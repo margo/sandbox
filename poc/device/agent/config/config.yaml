@@ -6,22 +6,111 @@ database:
 
 miaf:
   x509:
-    certPath: "./config/identity/payload-cert.pem"  # SVID certificate
-    keyPath: "./config/identity/payload-key.pem"    # Private key
+    # [MIAF Provisioning Input: X.509-SVID + intermediate chain]
+    # Maps to the "X.509-SVID + intermediate chain" input in the provisioning input contract (§4).
+    # This is required for ALL principals regardless of acquisition mode.
+    # The file at this path must contain the principal's own SVID and any intermediate CA certificates,
+    # PEM-encoded per RFC 7468. The SPIFFE ID is read from the URI SAN of the leaf certificate —
+    # the principal never needs to be told its own identity separately (§4, identifiers note).
+    certPath: "./config/identity/payload-cert.pem"
+
+    # [MIAF Provisioning Input: Private key]
+    # Maps to the "Private key" input in the provisioning input contract (§4).
+    # This field is always present: it points to where the WFM Client software reads its private key,
+    # regardless of how the key was provisioned at the platform level.
+    #
+    # The acquisition mode (§3) determines how the key arrived at this path — but that is a
+    # platform-level concern, outside the scope of this configuration:
+    #   - Installed mode: the operator generated the key and placed it here via the provisioning channel.
+    #   - Enrolled mode:  the key was generated on-device and never left it; the platform arranged
+    #                     it at this path before the WFM Client software started.
+    #
+    # In both cases, this software reads the key from this path in unencrypted PKCS#8 PEM format
+    # (RFC 5958). The platform is responsible for ensuring the key is present and access-controlled
+    # before the WFM Client starts. This arrangement is conformant with §4 and §3.
+    keyPath: "./config/identity/payload-key.pem"
+
   mis:
-    endpoint: "https://mis.margo.org:9443"          # MIS service URL
-    caPath: "./config/mis/https-ca.crt"             # CA certificate
-    # Initial Trust Pin Set (SPKI Set): It is optional but either this or CA certificate should be present for initial bootstrapping for contacting MIS, should have atleast 1 entry if defined.
+    # [MIAF Provisioning Input: Initial trust anchors]
+    # Maps to the "Initial trust anchors" input in the provisioning input contract (§4).
+    # This CA certificate is the initial bootstrap anchor (§5): the trust material the principal
+    # uses to authenticate its FIRST connection to the MIS, before it holds any MIAF-issued material.
+    # It cannot itself be fetched over the channel it authenticates — hence it must be statically
+    # provisioned out of band. Interchanges as PEM-encoded X.509 certificate(s) per RFC 7468.
+    # The principal validates the MIS server certificate chain to this anchor, with RFC 9525
+    # name checks against the MIS endpoint. Either this field OR trustPins below MUST be present
+    # for initial bootstrapping; both MAY be present simultaneously, in that case, this field takes precedence.
+    caPath: "./config/mis/https-ca.crt"
+
+    # [MIAF Provisioning Input: Initial trust pins]
+    # Maps to the "Initial trust pins" input in the provisioning input contract (§4).
+    # An alternative (or complement) to caPath above for authenticating the first MIS connection (§5).
+    # Each entry is an SPKI SHA-256 pin in the form fixed by RFC 7469 §2.4 ("sha256/<base64>").
+    # Pins are useful where the MIS is reached by IP address (no DNS name required for matching),
+    # or where distributing a full CA certificate is impractical.
+    # Per §5: pins SHOULD be scoped to a CA rather than a leaf certificate, as a leaf pin breaks
+    # on routine MIS certificate renewal. RFC 9525 name validation SHOULD still be performed
+    # even when a pin matches. At least 1 entry is required if this block is defined.
+    # Either this OR caPath MUST be present for initial bootstrapping.
     trustPins:
       - "sha256/6DtZYsyT+9vuAwfAKHCLpjQv2pQHCc9n7nnZsltwEU4="
-    cacheInterval: 60                               # cache interval in seconds set by operator
+
     trustBundle:
-      # uri: "/.well-known/spiffe/bundle.json"        # URI provided by operator in case discovery is unavailable, uncomment this to provide operator default
-      path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
+      # [MIAF Provisioning Input: Trust Bundle, static]
+      # Maps to the "Trust Bundle, static" input in the provisioning input contract (§4).
+      # This is the BUNDLE FLOOR (§3): every principal MUST accept a statically supplied Trust Bundle.
+      # The file must be a SPIFFE bundle — a JWK Set per RFC 7517 — containing the Trust Domain's
+      # X.509 trust anchors. This is what the principal validates peer SVIDs against during mTLS.
+      # Used as the authoritative trust bundle when the MIS endpoint is not configured or unreachable.
+      # The principal treats the anchors in this bundle as its own Trust Domain's authoritative anchors (§4).
+      path: "./config/mis/trust-bundle.json"
+
+      # [MIAF Provisioning Input: trustBundleUri, direct]
+      # Maps to the "trustBundleUri, direct" input in the provisioning input contract (§4).
+      # Required when the principal implements Trust Bundle refresh (§3, bundle floor).
+      # This URI is the endpoint from which the principal periodically refreshes its Trust Bundle,
+      # per the specification's Trust Bundle API and retrieval rules. Each successful retrieval
+      # replaces the bundle currently held by the principal.
+      # Providing this enables trust-anchor rotations to propagate automatically without
+      # re-provisioning the fleet — mitigating the "missed trust-anchor rotation" threat (§8).
+      # This field is the directly supplied trustBundleUri; it is distinct from the discovery
+      # document URL (mis.endpoint below), which resolves trustBundleUri dynamically.
+      uri: "/.well-known/spiffe/bundle.json"
+
+    # [MIAF Provisioning Input: MIS endpoint URL / Discovery document URL]
+    # Maps to the "Discovery document URL" input in the provisioning input contract (§4),
+    # which requires principals that fetch MIS-hosted material to accept a discovery document URL.
+    # Conformance note: the discovery path (e.g. /.well-known/margo) is
+    # standardized in the specification and does not change across deployments. This implementation
+    # uses an auto-generated client that appends the standard discovery path to this base URL,
+    # so only the MIS service base URL needs to be configured here. This is fully conformant:
+    # the contract requires accepting the URL that resolves MIS-hosted material, and this field
+    # fulfills that role — the standard discovery path is implicit rather than repeated in config.
+    # The principal validates the MIS server certificate using caPath and/or trustPins above (§5).
+    endpoint: "https://mis.margo.org:9443"
+
+    # [MIAF Provisioning Input: Trust Bundle refresh interval]
+    # Maps to the Trust Bundle refresh behaviour required by the bundle floor (§3).
+    # Per §3: every principal SHOULD refresh its Trust Bundle from trustBundleUri; each accepted
+    # retrieval replaces the bundle currently held. This field controls how frequently that
+    # refresh is performed, in seconds, as configured by the operator.
+    # Keeping this interval reasonably short ensures trust-anchor rotations propagate promptly,
+    # and that an offline principal refreshes quickly on reconnection (§3, bundle floor) —
+    # mitigating the "missed trust-anchor rotation on a static-only bundle" threat (§8).
+    # This is an operational parameter: it is not identity or trust material itself, but it
+    # directly governs the timeliness of Trust Bundle acquisition, which is a §4 contract input.
+    cacheInterval: 60  # seconds, set by operator
 
 wfm:
-  sbiUrl: https://symphony.machine:8084/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
-
+  # [MIAF Provisioning Input: WFM endpoint URL — WFM Client only]
+  # Maps to the "WFM endpoint URL" input in the provisioning input contract (§4, WFM Client only).
+  # This is REQUIRED for all WFM Clients: a WFM Client cannot reach its WFM without it.
+  # Per §4: this is routing information only. The client's own identity and its target WFM identity
+  # are both derived from the URI SAN of its issued SVID (the WFM Identity Profile names the client
+  # under its target WFM: .../wfm/<wfm-id>/client/<wfm-client-id>). No separate identity
+  # configuration is needed — the SVID is the authoritative source (§4, identifiers note).
+  # Must be an absolute HTTPS URL per the §4 interchange formats table.
+  sbiUrl: https://symphony.machine:8084/v1alpha2/margo
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm
   # in seconds

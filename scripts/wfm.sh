@@ -461,6 +461,78 @@ validate_certificate_files() {
   return 0
 }
 
+# ── Sync trust pins from file into symphony-api-margo.json ───────────────────
+sync_trust_pins() {
+  local trust_pin_file="${HOME}/symphony/api/certificates/https-ca-trust-pin.txt"
+  local json_file="${HOME}/symphony/api/symphony-api-margo.json"
+
+  # If file doesn't exist or is empty — strip any pre-existing trustPins from JSON
+  if [[ ! -f "${trust_pin_file}" ]] || [[ ! -s "${trust_pin_file}" ]]; then
+    if [[ -f "${json_file}" ]]; then
+      echo "[INFO] Trust pin file absent or empty. Removing trustPins from '${json_file}' if present..."
+      local tmp
+      tmp=$(mktemp)
+      jq 'del(.bindings[].config.miaf.mis.trustPins)' "${json_file}" > "${tmp}" \
+        || { rm -f "${tmp}"; echo "[ERROR] jq failed to remove trustPins from '${json_file}'"; return 1; }
+      mv "${tmp}" "${json_file}" \
+        || { rm -f "${tmp}"; echo "[ERROR] Failed to overwrite '${json_file}'"; return 1; }
+      echo "[INFO] trustPins key removed (or was already absent)."
+    fi
+    return 0
+  fi
+
+  echo "[INFO] Trust pin file found. Syncing trust pins into symphony-api-margo.json..."
+
+  if [[ ! -f "${json_file}" ]]; then
+    echo "[ERROR] JSON config file not found: ${json_file}"
+    return 1
+  fi
+
+  # Read non-empty lines into a JSON array — safe for sha256/...= format
+  local trust_pins_json
+  trust_pins_json=$(grep -v '^\s*$' "${trust_pin_file}" | jq -R . | jq -s .)
+
+  if [[ -z "${trust_pins_json}" || "${trust_pins_json}" == "[]" ]]; then
+    echo "[INFO] No valid trust pins found after parsing. Removing trustPins key if present..."
+    local tmp
+    tmp=$(mktemp)
+    jq 'del(.bindings[].config.miaf.mis.trustPins)' "${json_file}" > "${tmp}" \
+      || { rm -f "${tmp}"; echo "[ERROR] jq failed to remove trustPins from '${json_file}'"; return 1; }
+    mv "${tmp}" "${json_file}" \
+      || { rm -f "${tmp}"; echo "[ERROR] Failed to overwrite '${json_file}'"; return 1; }
+    echo "[INFO] trustPins key removed (or was already absent)."
+    return 0
+  fi
+
+  local match_count
+  match_count=$(jq '[.bindings[] | select(.config.miaf != null)] | length' "${json_file}" 2>/dev/null)
+
+  if [[ -z "${match_count}" || "${match_count}" -eq 0 ]]; then
+    echo "[WARN] No bindings with '.config.miaf' found in '${json_file}'. Trust pins NOT applied."
+    return 0
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+
+  jq --argjson pins "${trust_pins_json}" \
+    '.bindings |= map(
+      if .config.miaf != null
+      then .config.miaf.mis.trustPins = $pins
+      else .
+      end
+    )' \
+    "${json_file}" > "${tmp}" \
+    || { rm -f "${tmp}"; echo "[ERROR] jq failed to update trustPins in '${json_file}'"; return 1; }
+
+  mv "${tmp}" "${json_file}" \
+    || { rm -f "${tmp}"; echo "[ERROR] Failed to overwrite '${json_file}'"; return 1; }
+
+  local pin_count
+  pin_count=$(echo "${trust_pins_json}" | jq 'length')
+  echo "[INFO] ✅ Synced ${pin_count} trust pin(s) into '.bindings[].config.miaf.mis.trustPins'."
+}
+
 
 start_symphony() {
   echo "Starting Symphony API server. NBI Serving on port $EXPOSED_SYMPHONY_PORT, Margo Management Interface serving on port 8084 ..."
@@ -494,6 +566,7 @@ start_symphony() {
   # Build phase
   build_maestro_cli
   enable_tls_in_symphony_api
+  sync_trust_pins
   start_symphony_api_container
 }
 

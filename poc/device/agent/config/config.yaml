@@ -17,7 +17,7 @@ miaf:
     cacheInterval: 60                               # cache interval in seconds set by operator
     trustBundle:
       # uri: "/.well-known/spiffe/bundle.json"        # URI provided by operator in case discovery is unavailable, uncomment this to provide operator default
-      # path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
+      path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
 
 wfm:
   sbiUrl: https://symphony.machine:8084/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1

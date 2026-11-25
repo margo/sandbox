@@ -149,6 +149,65 @@ validate_start_required_vars() {
 }
 
 # ----------------------------
+# Trust Pin Configuration Function
+# ----------------------------
+apply_trust_pins_if_present() {
+  local trust_pin_file="$1"
+  local config_yaml="$2"
+
+  # If file doesn't exist or is empty — strip any pre-existing trustPins from YAML
+  if [[ ! -f "$trust_pin_file" ]] || [[ ! -s "$trust_pin_file" ]]; then
+    if [[ -f "$config_yaml" ]]; then
+      echo "[INFO] Trust pin file absent or empty. Removing trustPins from '$config_yaml' if present..."
+      yq -i 'del(.miaf.mis.trustPins)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove trustPins from '$config_yaml'"; return 1; }
+      echo "[INFO] trustPins key removed (or was already absent)."
+    fi
+    return 0
+  fi
+
+  echo "[INFO] Trust pin file found: $trust_pin_file"
+
+  # Read non-empty lines into an array
+  local trust_pins=()
+  while IFS= read -r line; do
+    [[ -z "${line// /}" ]] && continue
+    trust_pins+=("$line")
+  done < "$trust_pin_file"
+
+  # Nothing useful after filtering blanks — remove key defensively
+  if [[ ${#trust_pins[@]} -eq 0 ]]; then
+    echo "[INFO] Trust pin file contains only blank lines. Removing trustPins key if present..."
+    if [[ -f "$config_yaml" ]]; then
+      yq -i 'del(.miaf.mis.trustPins)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove trustPins from '$config_yaml'"; return 1; }
+      echo "[INFO] trustPins key removed (or was already absent)."
+    fi
+    return 0
+  fi
+
+  if [[ ! -f "$config_yaml" ]]; then
+    echo "[ERROR] config.yaml not found at: $config_yaml"
+    return 1
+  fi
+
+  echo "[INFO] Applying ${#trust_pins[@]} trust pin(s) to $config_yaml"
+
+  # Wipe existing key (handles both absent and pre-configured cases)
+  yq -i 'del(.miaf.mis.trustPins)' "$config_yaml"
+
+  # Initialise as empty array first
+  yq -i '.miaf.mis.trustPins = []' "$config_yaml"
+
+  # Append each pin safely via env() — handles '/', '=', and other special chars
+  for pin in "${trust_pins[@]}"; do
+    TRUST_PIN="$pin" yq -i '.miaf.mis.trustPins += [env(TRUST_PIN)]' "$config_yaml"
+  done
+
+  echo "[INFO] Trust pins written to miaf.mis.trustPins in $config_yaml ✓"
+}
+
+# ----------------------------
 # Certificate Validation & Copy Function
 # ----------------------------
 validate_and_copy_certs() {
@@ -232,6 +291,11 @@ validate_and_copy_certs() {
   }
 
   mkdir -p "$HOME/sandbox/helmchart/authorized"
+
+  # ── Step 6: Apply trust pins if present ───────────────────────────────────
+  local trust_pin_file="$certs_dir/https-ca-trust-pin.txt"
+  local config_yaml="$agent_config_dir/config.yaml"
+  apply_trust_pins_if_present "$trust_pin_file" "$config_yaml" || return 1
 
   echo "[INFO] Certificate validation and copy completed successfully. ✓"
 }

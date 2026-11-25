@@ -15,7 +15,7 @@ logging: {level: DEBUG}
 database: {dataDir: /tmp/agent}
 miaf:
   x509: {certPath: c.pem, keyPath: k.pem}
-  mis: {endpoint: "https://mis", caPath: ca.crt}
+  mis: {endpoint: "https://mis", caPath: ca.crt, trustBundle: {path: dummypath}}
   authzPath: authz.json
 wfm: {sbiUrl: "https://wfm"}
 stateSeeking: {interval: 15}

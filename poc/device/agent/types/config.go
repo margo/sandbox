@@ -182,13 +182,11 @@ func validateConfig(config *Config) error {
 		}
 	}
 
-	// Rule 3: if neither trustBundle.path nor endpoint+trustAnchor is configured, fail.
+	// Rule 3: trustBundle.path is always required.
 	if config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "" {
-		if !hasEndpoint || !hasTrustAnchor {
-			return fmt.Errorf(
-				"either miaf.mis.trustBundle.path must be configured, or miaf.mis.endpoint with a trust anchor (miaf.mis.caPath or miaf.mis.trustPins) must be provided",
-			)
-		}
+		return fmt.Errorf(
+			"miaf.mis.trustBundle.path must always be configured",
+		)
 	}
 
 	if config.Wfm.SbiURL == "" {

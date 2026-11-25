@@ -23,7 +23,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
-	"github.com/margo/sandbox/shared-lib/mis/parser"
+
 	mp "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
@@ -133,7 +133,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	}
 
 	// Assign Authorized SpiffeIDs Here:
-	pairedWFMId, err := parser.ExtractWFMSpiffeID(pmc.X509.SpiffeID)
+	pairedWFMId, err := mp.ExtractWFMSpiffeID(pmc.X509.SpiffeID)
 	if err != nil {
 		log.Errorw(
 			"failed to parse paired wfm spiffeId",

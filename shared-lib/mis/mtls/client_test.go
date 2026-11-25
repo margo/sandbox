@@ -423,7 +423,7 @@ func TestVerifyPeerCertificate_NoSpiffeURISAN_ReturnsRule1Error(t *testing.T) {
 	err = verify(buildConnectionState(cert))
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rule 1")
+	assert.Contains(t, err.Error(), "rule 3/4")
 }
 
 func TestVerifyPeerCertificate_TrustDomainMismatch_ReturnsRule1Error(t *testing.T) {

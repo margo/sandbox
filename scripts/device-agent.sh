@@ -270,7 +270,6 @@ install_prerequisites() {
     sleep 5
     configure_coredns_hosts
   fi
-  update_capabilities_labels
 
   echo 'prerequisites installation completed.'
 }

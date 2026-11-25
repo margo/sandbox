@@ -6,5 +6,5 @@ metadata:
 data:
   config.yaml: |
 {{- .Files.Get "config/config.yaml" | nindent 4 }}
-  capabilities.json: |
-{{- .Files.Get "config/capabilities.json" | nindent 4 }}
+  profiles.json: |
+{{- .Files.Get "config/profiles.json" | nindent 4 }}

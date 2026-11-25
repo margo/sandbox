@@ -49,4 +49,4 @@ runtimes:
 # in the file.
 # Path to the profiles file (required).
 deviceProfile:
-  readFromFile: ./config/capabilities.json
+  readFromFile: ./config/profiles.json

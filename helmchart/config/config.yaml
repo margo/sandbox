@@ -44,9 +44,9 @@ runtimes:
   #       certPath: null
   #       keyPath: null
 
-# Note: Auto-discovery of device capabilities is not defined and hence not implemented yet,
+# Note: Auto-discovery of device profiles is not defined and hence not implemented yet,
 # hence you are supposed to provide the details
 # in the file.
-# Path to the capabilities file (required).
-capabilities:
-  readFromFile: ./config/capabilities.json
+# Path to the device profile file (required).
+deviceProfile:
+  readFromFile: ./config/profiles.json

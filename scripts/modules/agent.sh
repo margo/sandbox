@@ -20,17 +20,7 @@ update_agent_sbi_url() {
   sed -i "s|sbiUrl:.*|sbiUrl: https://$WFM_HOST:$WFM_PORT/v1alpha2/margo|" "$HOME/sandbox/poc/device/agent/config/config.yaml"
 }
 
-set_capabilities_roles() {
-  local role="$1"
-  local file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
 
-  if [[ -f "$file" ]]; then
-    sed -i -E "s|\"roles\"[[:space:]]*:[[:space:]]*\[[^]]*\]|\"roles\": [\"$role\"]|g" "$file"
-    echo "capabilities.json roles set to [$role]"
-  else
-    echo "capabilities.json not found at $file, skipping role update"
-  fi
-}
 
 set_authz_path_for_pod() {
   local file="./config/config.yaml"
@@ -54,44 +44,42 @@ set_mis_domain_for_dev_agent() {
     echo "config.yaml not found at $file, skipping mis endpoint update"
   fi
 }
- 
 
-set_capabilities_deployment_type() {
-  local file="./config/capabilities.json"
+set_profile_deployment_technology_key() {
+  local file="./config/profiles.json"
 
   if [[ -f "$file" ]]; then
-        jq '.properties.supportedDeploymentTypes = $ARGS.positional' \
-       "$file" \
-       --args "$@" > "${file}.tmp" &&
+    jq '.characteristics = (
+      [(.characteristics // [])[] | select(.key | startswith("margo.org/deployment/") | not)] +
+      [$ARGS.positional[] | { key: (if startswith("margo.org/deployment/") then . else "margo.org/deployment/\(.)" end), properties: {} }]
+    )' "$file" --args "$@" > "${file}.tmp" &&
     mv "${file}.tmp" "$file"
-    echo "capabilities.json deployment type set to"
-    jq -c '.properties.supportedDeploymentTypes' "$file"
+    echo "profiles.json deployment type set to"
+    jq -c '[.characteristics[] | select(.key | startswith("margo.org/deployment/")) | .key]' "$file"
   else
-    echo "capabilities.json not found at $file, skipping deployment type update"
+    echo "profiles.json not found at $file, skipping deployment type update"
   fi
 }
 
-set_capabilities_id() {
+set_profile_workload_target_id() {
   local capability="$1"
-  local file="./config/capabilities.json"
-  local current_id
-  local new_runtime
-  local random_suffix
-  local new_id
+  local file="./config/profiles.json"
 
   if [[ ! -f "$file" ]]; then
-    echo "capabilities.json not found at $file, skipping id update"
+    echo "profiles.json not found at $file, skipping id update"
     return 1
   fi
 
-  current_id=$(jq -r '.properties.id' "$file")
+  local current_id
+  current_id=$(jq -r '.workloadTargetId' "$file")
 
   if [[ "$current_id" != "northstarida.xtapro.k8s.edge" ]]; then
-    echo "properties.id is '$current_id', expected 'northstarida.xtapro.k8s.edge', skipping id update."
+    echo "workloadTargetId is '$current_id', expected 'northstarida.xtapro.k8s.edge', skipping id update."
     echo "Operator is responsible to keep id unique in ecosystem."
     return 0
   fi
 
+  local new_runtime
   case "$capability" in
     helm)
       new_runtime="k3s"
@@ -105,17 +93,18 @@ set_capabilities_id() {
       ;;
   esac
 
+  local random_suffix
   random_suffix=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 5)
-  new_id="northstarida.xtapro.${new_runtime}.edge.${random_suffix}"
+  local new_id="northstarida.xtapro.${new_runtime}.edge.${random_suffix}"
 
-  if ! jq --arg id "$new_id" '.properties.id = $id' "$file" > "${file}.tmp"; then
+  if ! jq --arg id "$new_id" '.workloadTargetId = $id' "$file" > "${file}.tmp"; then
     rm -f "${file}.tmp"
-    echo "Failed to update capabilities.json"
+    echo "Failed to update profiles.json workloadTargetId"
     return 1
   fi
-  mv "${file}.tmp" "$file" || { echo "Failed to replace capabilities.json"; return 1; }
+  mv "${file}.tmp" "$file" || { echo "Failed to replace profiles.json"; return 1; }
 
-  echo "capabilities.json properties.id updated to: $new_id"
+  echo "profiles.json workloadTargetId updated to: $new_id"
 }
 
 
@@ -243,10 +232,10 @@ start_device_agent_docker_service() {
   fi
 
 
-  cp ../poc/device/agent/config/capabilities.json ./config/
+  cp ../poc/device/agent/config/profiles.json ./config/
   cp ../poc/device/agent/config/config.yaml ./config/
-  set_capabilities_deployment_type compose
-  set_capabilities_id compose
+  set_profile_deployment_technology_key compose
+  set_profile_workload_target_id compose
   mkdir -p data
   enable_docker_runtime
   set_mis_domain_for_dev_agent
@@ -340,8 +329,8 @@ build_start_device_agent_k3s_service() {
     echo "Copying configuration files..."
     mkdir -p config
     cp -r ../poc/device/agent/config/* ./config
-    set_capabilities_deployment_type helm
-    set_capabilities_id helm
+    set_profile_deployment_technology_key helm
+    set_profile_workload_target_id helm
     set_authz_path_for_pod
     set_mis_domain_for_dev_agent
 

@@ -96,7 +96,7 @@ Press Enter to continue...
 
 Select this option to display the devices that have onboarded to the sandbox WFM.
 
-> Note: Below is a example snippet showing the expected output of the selection. IDs displayed here are device id defined in `capabilities.json` for every device.
+> Note: Below is an example snippet showing the expected output of the selection. IDs displayed here are the workload target IDs (`workloadTargetId`) defined in `profiles.json` for each device.
 ```
 Enter choice [1-9]: 2
 🖥️  Listing all devices from WFM...
@@ -108,10 +108,10 @@ Enter choice [1-9]: 2
 │ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
-| ID                                    | CLIENT SPIFFEID    | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        |
+| ID                                    | CLIENT SPIFFEID    | Characteristics                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
-| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-10-28 07:25 |
-| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-10-28 07:25 |
+| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"characteristics":[{"...    | helm            | ONBOARDED | 2026-10-28 07:25 |
+| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"characteristics":[{"...    | compose         | ONBOARDED | 2026-10-28 07:25 |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
 |                                       |                    |                              | PAGE 1/1        | TOTAL: 1  |                  |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+
@@ -289,10 +289,10 @@ Enter the package name/ID to deploy: ff243803-dc91-4fa8-8c56-52ab2417a519
 │ Basepath:  v1alpha2/margo/nbi/v1        │
 └─────────────────────────────────────────┘
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
-| ID                                    | CLIENT SPIFFEID    | CAPABILITIES                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        | ELIGIBLE |
+| ID                                    | CLIENT SPIFFEID    | Characteristics                 | DEPLOYMENT TYPE | STATE     | CREATEDAT        | ELIGIBLE |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
-| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"properties":{"cpus":[{"... | helm            | ONBOARDED | 2026-10-28 07:25 | true     |
-| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"properties":{"cpus":[{"... | compose         | ONBOARDED | 2026-10-28 07:25 | false    |
+| northstarida.xtapro.k3s.edge.tlqpr    | .../k3sdevice-1    | {"characteristics":[{"...    | helm            | ONBOARDED | 2026-10-28 07:25 | true     |
+| northstarida.xtapro.docker.edge.6xmen | .../dockerdevice-1 | {"characteristics":[{"...    | compose         | ONBOARDED | 2026-10-28 07:25 | false    |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+
 |                                       |                    |                              | PAGE 1/1        | TOTAL: 1  |                  |          |
 +---------------------------------------+--------------------+------------------------------+-----------------+-----------+------------------+----------+

@@ -154,7 +154,7 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create WFM client using configured URL
 	wfmUrl := cfg.Wfm.SbiURL
 
-	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
+	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.ChainPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
 		GetOwnTrustDomain: func() string {
 			v, _ := db.GetTrustDomain()
 			return v
@@ -230,7 +230,7 @@ func (a *Agent) Start() error {
 		return fmt.Errorf("trustdomain not found, cannot proceed. err: %w", err)
 	}
 	// * Extract SPIFFE ID from Certificate & Validate it against trust domain
-	c, _, err := a.database.GetSVID()
+	c, ch, _, err := a.database.GetSVID()
 	if err != nil {
 		return fmt.Errorf("SVID not found, cannot proceed. err: %w", err)
 	}
@@ -254,7 +254,7 @@ func (a *Agent) Start() error {
 	if err != nil {
 		return fmt.Errorf("trustbundle not found, cannot proceed. err: %w", err)
 	}
-	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, tb); !ok {
+	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, ch, tb); !ok {
 		return fmt.Errorf("svid validation failed against trustbundle, err: %w", err)
 	}
 
@@ -498,7 +498,7 @@ func PreflightLogger(
 	}
 }
 
-func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
+func mTLSVerifier(cert []byte, chain []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
 	return func(client *sbi.Client) error {
 		// Validate client
 		if client == nil {
@@ -506,7 +506,7 @@ func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTP
 		}
 
 		// Get certificates from DB and apply here
-		pc, err := mp.CertificateFromBytes(cert, key)
+		pc, err := mp.CertificateFromBytes(cert, key, chain)
 		if err != nil {
 			return fmt.Errorf("failed to parse certificate from bytes, err: %w", err)
 		}

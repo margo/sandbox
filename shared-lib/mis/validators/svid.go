@@ -109,25 +109,71 @@ func ValidateSVIDLeafConstraints(cert *x509.Certificate) error {
 // chains to a trusted CA in the provided SPIFFE trust bundle (in JWK Set format).
 //
 // Parameters:
-//   - svidBytes:        PEM or DER encoded X.509 SVID certificate.
+//   - svidBytes:        PEM or DER encoded X.509 SVID leaf certificate.
+//   - chainPEM:         Optional PEM bundle of intermediate CA certificates ordered
+//     from the issuing intermediate up to the topmost intermediate.
+//     Pass nil or empty if no intermediates are present.
 //   - trustBundleBytes: SPIFFE trust bundle in JWK Set (JSON) format.
 //
 // Returns:
-//   - (true, nil)   if the certificate chains to the trust bundle successfully.
+//   - (true, nil)    if the certificate chains to the trust bundle successfully.
 //   - (false, error) describing why validation failed.
-func ValidateX509SVIDAgainstTrustBundle(svidBytes []byte, trustBundleBytes []byte) (bool, error) {
-	// 1. Parse the certificate — supports both PEM and DER encoding
+func ValidateX509SVIDAgainstTrustBundle(svidBytes []byte, chainPEM []byte, trustBundleBytes []byte) (bool, error) {
 	cert, err := parseCertificate(svidBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse SVID certificate: %w", err)
 	}
 
-	// 2. Verify the certificate chains to the SPIFFE trust bundle
-	if err := validateAgainstTrustBundle(cert, trustBundleBytes); err != nil {
+	if err := validateAgainstTrustBundle(cert, trustBundleBytes, chainPEM); err != nil {
 		return false, err
 	}
 
 	return true, nil
+}
+
+// validateAgainstTrustBundle verifies the certificate chains to the SPIFFE trust bundle.
+// chainPEM is optional; pass nil when no intermediates are available.
+func validateAgainstTrustBundle(cert *x509.Certificate, trustBundle []byte, chainPEM []byte) error {
+	if cert.IsCA {
+		return fmt.Errorf("certificate is a CA certificate; SVID must be a leaf certificate")
+	}
+
+	trustBundleCerts, err := GetTrustBundleFromJWK(trustBundle)
+	if err != nil {
+		return fmt.Errorf("failed to obtain trust bundle: %w", err)
+	}
+	if len(trustBundleCerts) == 0 {
+		return fmt.Errorf("trust bundle is empty; cannot validate certificate chain")
+	}
+
+	roots := x509.NewCertPool()
+	for _, ca := range trustBundleCerts {
+		roots.AddCert(ca)
+	}
+
+	interPool := x509.NewCertPool()
+	if len(chainPEM) > 0 {
+		intermediates, err := parseCertificateChain(chainPEM)
+		if err != nil {
+			return fmt.Errorf("failed to parse intermediate chain: %w", err)
+		}
+		for _, c := range intermediates {
+			interPool.AddCert(c)
+		}
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: interPool,
+		CurrentTime:   cert.NotBefore.Add(time.Second),
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}
+
+	if _, err := cert.Verify(opts); err != nil {
+		return fmt.Errorf("certificate does not chain to a trusted SPIFFE bundle: %w", err)
+	}
+
+	return nil
 }
 
 // parseCertificate attempts to decode the input as PEM, falling back to raw DER.
@@ -195,42 +241,6 @@ func validateSPIFFEIDFormat(u *url.URL) error {
 	if u.RawQuery != "" {
 		return fmt.Errorf("SPIFFE ID must not contain a query string")
 	}
-	return nil
-}
-
-// validateAgainstTrustBundle verifies the certificate chains to the SPIFFE trust bundle
-// and is a valid leaf (non-CA) certificate.
-func validateAgainstTrustBundle(cert *x509.Certificate, trustBundle []byte) error {
-	// Leaf certificate must not be a CA
-	if cert.IsCA {
-		return fmt.Errorf("certificate is a CA certificate; SVID must be a leaf certificate")
-	}
-
-	trustBundleCerts, err := GetTrustBundleFromJWK(trustBundle)
-	if err != nil {
-		return fmt.Errorf("failed to obtain trust bundle: %w", err)
-	}
-	if len(trustBundleCerts) == 0 {
-		return fmt.Errorf("trust bundle is empty; cannot validate certificate chain")
-	}
-
-	roots := x509.NewCertPool()
-	for _, ca := range trustBundleCerts {
-		roots.AddCert(ca)
-	}
-
-	opts := x509.VerifyOptions{
-		Roots: roots,
-		// Disable time check here since we already validated it explicitly above
-		CurrentTime: cert.NotBefore.Add(time.Second),
-		// SVID leaf certificates should not be used as CAs
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-
-	if _, err := cert.Verify(opts); err != nil {
-		return fmt.Errorf("certificate does not chain to a trusted SPIFFE bundle: %w", err)
-	}
-
 	return nil
 }
 
@@ -350,4 +360,94 @@ func ValidateCertKeyPair(certPEM, keyPEM []byte) error {
 	}
 
 	return nil
+}
+
+// ValidateX509SVIDChain verifies that the given X.509 SVID leaf certificate
+// forms a valid chain with the provided intermediate CA certificates.
+//
+// This validates the path from the leaf up to the topmost intermediate — it does
+// NOT require or check a trust anchor (root CA). Use ValidateX509SVIDAgainstTrustBundle
+// to perform full chain validation including the trust anchor.
+//
+// Parameters:
+//   - svidBytes: PEM or DER encoded X.509 SVID leaf certificate.
+//   - chainPEM:  PEM bundle containing one or more intermediate CA certificates,
+//     ordered from the issuing intermediate (closest to the leaf) up to
+//     the topmost intermediate. Must not be empty.
+//
+// Returns an error if:
+//   - The leaf or any intermediate certificate cannot be parsed.
+//   - The leaf does not chain to the provided intermediates.
+//   - chainPEM is empty or contains no valid PEM blocks.
+func ValidateX509SVIDChain(svidBytes []byte, chainPEM []byte) error {
+	leaf, err := parseCertificate(svidBytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse SVID leaf certificate: %w", err)
+	}
+
+	if leaf.IsCA {
+		return fmt.Errorf("svidBytes must be a leaf certificate, not a CA")
+	}
+
+	intermediates, err := parseCertificateChain(chainPEM)
+	if err != nil {
+		return fmt.Errorf("failed to parse intermediate chain: %w", err)
+	}
+	if len(intermediates) == 0 {
+		return fmt.Errorf("intermediate chain must contain at least one certificate")
+	}
+
+	// Build an intermediates pool from all but the topmost cert.
+	// The topmost intermediate acts as a temporary root so that
+	// x509.Certificate.Verify can walk the path without a real trust anchor.
+	topmostIntermediate := intermediates[len(intermediates)-1]
+
+	roots := x509.NewCertPool()
+	roots.AddCert(topmostIntermediate)
+
+	interPool := x509.NewCertPool()
+	for _, c := range intermediates[:len(intermediates)-1] {
+		interPool.AddCert(c)
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: interPool,
+		// Anchor time to the leaf's own validity window to avoid spurious
+		// expiry failures during chain-only validation.
+		CurrentTime: leaf.NotBefore.Add(time.Second),
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}
+
+	if _, err := leaf.Verify(opts); err != nil {
+		return fmt.Errorf("SVID does not chain to the provided intermediates: %w", err)
+	}
+
+	return nil
+}
+
+// parseCertificateChain decodes all PEM blocks in pemData and parses each as
+// an X.509 certificate. Returns an error if any block fails to parse.
+// The returned slice preserves the order of the input PEM blocks.
+func parseCertificateChain(pemData []byte) ([]*x509.Certificate, error) {
+	var certs []*x509.Certificate
+	rest := pemData
+	i := 0
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			return nil, fmt.Errorf("block %d: expected CERTIFICATE, got %q", i+1, block.Type)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("block %d: failed to parse certificate: %w", i+1, err)
+		}
+		certs = append(certs, cert)
+		i++
+	}
+	return certs, nil
 }

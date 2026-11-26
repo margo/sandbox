@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,8 +42,11 @@ type MIAFInput struct {
 
 // ParsedMIAFx509 holds the loaded X.509 certificate and private key bytes.
 type ParsedMIAFx509 struct {
-	// CertPEM is the raw PEM-encoded X.509-SVID certificate, or nil if CertPath was empty.
+	// CertPEM is the raw PEM-encoded leaf X.509-SVID certificate, or nil if CertPath was empty.
 	CertPEM []byte
+	// ChainPEM is the raw PEM-encoded intermediate CA certificate(s) that follow the leaf
+	// in the input file, or nil if no intermediates were present.
+	ChainPEM []byte
 	// KeyPEM is the raw PEM-encoded private key, or nil if KeyPath was empty.
 	KeyPEM []byte
 	// SpiffeID extracted & validated from certificate provided.
@@ -90,6 +94,33 @@ func readFile(fieldName, path string) ([]byte, error) {
 		return nil, fmt.Errorf("%s: failed to read file %q: %w", fieldName, path, err)
 	}
 	return data, nil
+}
+
+// splitLeafAndChain splits a PEM bundle into the first PEM block (leaf) and
+// all remaining blocks (intermediate chain). Either part may be nil.
+func splitLeafAndChain(pemData []byte) (leaf []byte, chain []byte) {
+	var block *pem.Block
+	var rest []byte
+
+	block, rest = pem.Decode(pemData)
+	if block == nil {
+		return nil, nil
+	}
+
+	leaf = pem.EncodeToMemory(block)
+
+	// Collect remaining blocks as the chain
+	remaining := rest
+	for {
+		var b *pem.Block
+		b, remaining = pem.Decode(remaining)
+		if b == nil {
+			break
+		}
+		chain = append(chain, pem.EncodeToMemory(b)...)
+	}
+
+	return leaf, chain
 }
 
 // ParseMIAFConfig resolves a MIAFInput into a fully populated ParsedMIAFConfig.
@@ -180,27 +211,39 @@ func readFile(fieldName, path string) ([]byte, error) {
 func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, error) {
 	out := &ParsedMIAFConfig{}
 
-	// --- X.509 certificate ---
+	// --- X.509 certificate with optional intermediate chain ---
 	if input.X509.CertPath != "" {
-		cert, err := readFile("miaf.x509.certPath", input.X509.CertPath)
+		raw, err := readFile("miaf.x509.certPath", input.X509.CertPath)
 		if err != nil {
 			return nil, err
 		}
-		if len(bytes.TrimSpace(cert)) == 0 {
+		if len(bytes.TrimSpace(raw)) == 0 {
 			return nil, fmt.Errorf(
 				"miaf.x509.certPath: file %q must not be empty",
 				input.X509.CertPath,
 			)
 		}
-		spiffeId, err := validators.ValidateX509SVID(cert, principal)
+
+		leafPEM, chainPEM := splitLeafAndChain(raw)
+		if leafPEM == nil {
+			return nil, fmt.Errorf(
+				"miaf.x509.certPath: file %q contains no valid PEM block",
+				input.X509.CertPath,
+			)
+		}
+
+		// Validate the leaf as an X.509 SVID for the given principal.
+		spiffeID, err := validators.ValidateX509SVID(leafPEM, principal)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"miaf.x509.certPath: file %q not a valid x509 SVID certificate, err: %s",
 				input.X509.CertPath, err.Error(),
 			)
 		}
-		out.X509.CertPEM = cert
-		td, err := ParseTrustDomain(spiffeId)
+		out.X509.CertPEM = leafPEM
+		out.X509.SpiffeID = spiffeID
+
+		td, err := ParseTrustDomain(spiffeID)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"failed to extract trust domain from spiffeId, err: %s",
@@ -208,9 +251,18 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 			)
 		}
 		out.MIS.TrustDomain = td
-		out.X509.SpiffeID = spiffeId
-	}
 
+		// Validate and store the intermediate chain if present.
+		if len(chainPEM) > 0 {
+			if err := validators.ValidateIntermediateCACertificates(chainPEM); err != nil {
+				return nil, fmt.Errorf(
+					"miaf.x509.certPath: file %q contains an invalid intermediate CA chain, err: %s",
+					input.X509.CertPath, err.Error(),
+				)
+			}
+			out.X509.ChainPEM = chainPEM
+		}
+	}
 	// --- X.509 private key ---
 	if input.X509.KeyPath != "" {
 		key, err := readFile("miaf.x509.keyPath", input.X509.KeyPath)

@@ -222,12 +222,26 @@ validate_and_copy_certs() {
     return 1
   fi
 
-  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/https-ca.crt" "$certs_dir/trust-bundle.json"; do
+  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/trust-bundle.json"; do
     if [[ ! -f "$cert_file" ]]; then
       echo "[ERROR] Required certificate file not found: $cert_file"
       return 1
     fi
   done
+
+  # ── https-ca.crt: optional ───────────────────────────────────────────────
+  local https_ca_crt="$certs_dir/https-ca.crt"
+  if [[ ! -f "$https_ca_crt" ]]; then
+    echo "[INFO] https-ca.crt not found. Removing miaf.x509.certPath from config.yaml if present..."
+    local config_yaml="$agent_config_dir/config.yaml"
+    if [[ -f "$config_yaml" ]]; then
+      yq -i 'del(.miaf.x509.certPath)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove miaf.x509.certPath from '$config_yaml'"; return 1; }
+      echo "[INFO] miaf.x509.certPath removed (or was already absent)."
+    else
+      echo "[INFO] config.yaml not found at '$config_yaml', skipping key removal."
+    fi
+  fi
 
   # ── Step 2: Device-type-specific checks ──────────────────────────────────
   local identity_src_dir
@@ -270,7 +284,7 @@ validate_and_copy_certs() {
   cp "$identity_src_dir/payload-key.pem"  "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-key.pem";  return 1; }
   cp "$identity_src_dir/payload-cert.pem" "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-cert.pem"; return 1; }
 
-  # ── Step 5: Copy https-ca.crt and trust-bundle.json to mis directory ──────
+  # ── Step 5: Copy https-ca.crt (if present) and trust-bundle.json to mis directory ──────
   local mis_dst_dir="$agent_config_dir/mis"
   echo "[INFO] Creating MIS directory: $mis_dst_dir"
   mkdir -p "$mis_dst_dir" || {
@@ -278,11 +292,15 @@ validate_and_copy_certs() {
     return 1
   }
 
-  echo "[INFO] Copying https-ca.crt to $mis_dst_dir"
-  cp "$certs_dir/https-ca.crt" "$mis_dst_dir/" || {
-    echo "[ERROR] Failed to copy https-ca.crt"
-    return 1
-  }
+  if [[ -f "$https_ca_crt" ]]; then
+    echo "[INFO] Copying https-ca.crt to $mis_dst_dir"
+    cp "$https_ca_crt" "$mis_dst_dir/" || {
+      echo "[ERROR] Failed to copy https-ca.crt"
+      return 1
+    }
+  else
+    echo "[INFO] Skipping https-ca.crt copy (file not present)."
+  fi
 
   echo "[INFO] Copying trust-bundle.json to $mis_dst_dir"
   cp "$certs_dir/trust-bundle.json" "$mis_dst_dir/" || {

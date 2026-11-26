@@ -419,6 +419,51 @@ cleanup_docker_resources() {
     echo "Docker cleanup completed."
 }
 
+# ── Sync caPath presence into symphony-api-margo.json ────────────────────────
+# If https-ca.crt is absent, removes bindings[].config.miaf.mis.caPath from
+# the JSON config. No-op for bindings where config.miaf or caPath is absent.
+sync_ca_path() {
+  local ca_cert="${HOME}/symphony/api/certificates/https-ca.crt"
+  local json_file="${HOME}/symphony/api/symphony-api-margo.json"
+
+  if [[ ! -f "${json_file}" ]]; then
+    echo "[ERROR] JSON config file not found: ${json_file}"
+    return 1
+  fi
+
+  # If CA cert is present — nothing to do
+  if [[ -f "${ca_cert}" && -s "${ca_cert}" ]]; then
+    echo "[INFO] https-ca.crt is present. caPath retained in config."
+    return 0
+  fi
+
+  echo "[INFO] https-ca.crt absent. Removing caPath from bindings where present..."
+
+  local match_count
+  match_count=$(jq '[.bindings[] | select(.config.miaf.mis.caPath != null)] | length' "${json_file}" 2>/dev/null)
+
+  if [[ -z "${match_count}" || "${match_count}" -eq 0 ]]; then
+    echo "[INFO] No bindings with '.config.miaf.mis.caPath' found. Nothing to remove."
+    return 0
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+
+  jq '.bindings |= map(
+    if (.config.miaf != null and .config.miaf.mis != null and .config.miaf.mis.caPath != null)
+    then del(.config.miaf.mis.caPath)
+    else .
+    end
+  )' "${json_file}" > "${tmp}" \
+    || { rm -f "${tmp}"; echo "[ERROR] jq failed to remove caPath from '${json_file}'"; return 1; }
+
+  mv "${tmp}" "${json_file}" \
+    || { rm -f "${tmp}"; echo "[ERROR] Failed to overwrite '${json_file}'"; return 1; }
+
+  echo "[INFO] ✅ Removed caPath from ${match_count} binding(s)."
+}
+
 
 # ── Validate required certificate files ──────────────────────────────────────
 validate_certificate_files() {
@@ -539,6 +584,10 @@ start_symphony() {
 
   # ── Certificate files validation ─────────────────────────────────────────
   validate_certificate_files || return 1
+  # ────────────────────────────────────────────────────────────────────────
+
+  # ── Sync caPath into JSON config ─────────────────────────────────────────
+  sync_ca_path || return 1
   # ────────────────────────────────────────────────────────────────────────
 
   # ── SPIFFE allowlist validation ──────────────────────────────────────────

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spiffe/go-spiffe/v2/bundle/spiffebundle"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,22 +70,30 @@ func buildBundle(
 func validECKey(t *testing.T) map[string]interface{} {
 	t.Helper()
 
-	certBase64, key := generateSelfSignedCert(t)
+	certBase64, _ := generateSelfSignedCert(t)
+	certDER, err := base64.StdEncoding.DecodeString(certBase64)
+	require.NoError(t, err)
 
-	return map[string]interface{}{
-		"kty": "EC",
-		"crv": "P-256",
-		"x": base64.RawURLEncoding.EncodeToString(
-			//nolint:staticcheck // ignore QF1008 embedding is by standard package
-			key.PublicKey.X.Bytes(),
-		),
-		"y": base64.RawURLEncoding.EncodeToString(
-			//nolint:staticcheck // ignore QF1008 embedding is by standard package
-			key.PublicKey.Y.Bytes(),
-		),
-		"use": "x509-svid",
-		"x5c": []string{certBase64},
-	}
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	bundle := spiffebundle.New(spiffeid.TrustDomain{})
+	bundle.AddX509Authority(cert)
+
+	bundleJSON, err := bundle.Marshal()
+	require.NoError(t, err)
+
+	var trustBundle map[string]interface{}
+	require.NoError(t, json.Unmarshal(bundleJSON, &trustBundle))
+
+	keys, ok := trustBundle["keys"].([]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, keys)
+
+	jwk, ok := keys[0].(map[string]interface{})
+	require.True(t, ok)
+
+	return jwk
 }
 
 // generateCertWithOptions allows fine-grained cert generation for negative test cases.
@@ -113,23 +123,26 @@ func generateCertWithOptions(
 	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	require.NoError(t, err)
 
-	certB64 := base64.StdEncoding.EncodeToString(certDER)
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
 
-	return map[string]interface{}{
-		"kty": "EC",
-		"crv": "P-256",
-		"x":   encodeP256Coordinate(key.PublicKey.X),
-		"y":   encodeP256Coordinate(key.PublicKey.Y),
-		"use": "x509-svid",
-		"x5c": []string{certB64},
-	}
-}
+	bundle := spiffebundle.New(spiffeid.TrustDomain{})
+	bundle.AddX509Authority(cert)
 
-// encodeP256Coordinate encodes an EC coordinate as a 32-byte, base64url value.
-func encodeP256Coordinate(value *big.Int) string {
-	padded := make([]byte, 32)
-	value.FillBytes(padded)
-	return base64.RawURLEncoding.EncodeToString(padded)
+	bundleJSON, err := bundle.Marshal()
+	require.NoError(t, err)
+
+	var trustBundle map[string]interface{}
+	require.NoError(t, json.Unmarshal(bundleJSON, &trustBundle))
+
+	keys, ok := trustBundle["keys"].([]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, keys)
+
+	jwk, ok := keys[0].(map[string]interface{})
+	require.True(t, ok)
+
+	return jwk
 }
 
 // --- Tests for validateRawStructure ---

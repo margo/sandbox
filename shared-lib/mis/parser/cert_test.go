@@ -83,7 +83,7 @@ func newMismatchedKeyMaterial(t *testing.T) keyMaterial {
 func TestCertificateFromBytes_PEMCertAndPEMKey_ReturnsCertificate(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certPEM, km.keyPEM)
+	cert, err := CertificateFromBytes(km.certPEM, km.keyPEM, nil)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cert.PrivateKey, "private key must be populated")
@@ -93,7 +93,7 @@ func TestCertificateFromBytes_PEMCertAndPEMKey_ReturnsCertificate(t *testing.T) 
 func TestCertificateFromBytes_DERCertAndDERKey_ReturnsCertificate(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certDER, km.keyDER)
+	cert, err := CertificateFromBytes(km.certDER, km.keyDER, nil)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cert.PrivateKey)
@@ -103,7 +103,7 @@ func TestCertificateFromBytes_DERCertAndDERKey_ReturnsCertificate(t *testing.T) 
 func TestCertificateFromBytes_PEMCertAndDERKey_ReturnsCertificate(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certPEM, km.keyDER)
+	cert, err := CertificateFromBytes(km.certPEM, km.keyDER, nil)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cert.PrivateKey)
@@ -112,27 +112,147 @@ func TestCertificateFromBytes_PEMCertAndDERKey_ReturnsCertificate(t *testing.T) 
 func TestCertificateFromBytes_DERCertAndPEMKey_ReturnsCertificate(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certDER, km.keyPEM)
+	cert, err := CertificateFromBytes(km.certDER, km.keyPEM, nil)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cert.PrivateKey)
 }
 
-// TestCertificateFromBytes_PEMChain_PreservesIntermediates verifies that a
-// PEM input containing multiple CERTIFICATE blocks (leaf + intermediate) is
-// passed through intact so tls.X509KeyPair can build the full chain.
+// TestCertificateFromBytes_PEMChain_PreservesIntermediates verifies that PEM
+// intermediate certificates are appended after the leaf certificate.
 func TestCertificateFromBytes_PEMChain_PreservesIntermediates(t *testing.T) {
 	leaf := newKeyMaterial(t)
-	intermediate := newKeyMaterial(t) // acts as a fake intermediate
+	intermediate := newKeyMaterial(t)
 
-	// Concatenate leaf + intermediate PEM blocks into a single chain PEM.
-	chainPEM := append(leaf.certPEM, intermediate.certPEM...)
-
-	cert, err := CertificateFromBytes(chainPEM, leaf.keyPEM)
+	cert, err := CertificateFromBytes(
+		leaf.certPEM,
+		leaf.keyPEM,
+		intermediate.certPEM,
+	)
 
 	require.NoError(t, err)
-	// tls.X509KeyPair stores all DER blocks from the PEM chain.
-	assert.Len(t, cert.Certificate, 2, "chain must contain leaf + intermediate")
+	assert.Len(t, cert.Certificate, 2,
+		"chain must contain the leaf followed by the intermediate")
+}
+
+func TestCertificateFromBytes_DERChain_PreservesIntermediate(t *testing.T) {
+	leaf := newKeyMaterial(t)
+	intermediate := newKeyMaterial(t)
+
+	cert, err := CertificateFromBytes(
+		leaf.certDER,
+		leaf.keyDER,
+		intermediate.certDER,
+	)
+
+	require.NoError(t, err)
+	assert.Len(t, cert.Certificate, 2,
+		"DER chain must contain the leaf followed by the intermediate")
+	assert.Equal(t, leaf.certDER, cert.Certificate[0])
+	assert.Equal(t, intermediate.certDER, cert.Certificate[1])
+}
+
+func TestCertificateFromBytes_InvalidChainPEM_ReturnsError(t *testing.T) {
+	leaf := newKeyMaterial(t)
+	badChain := []byte(
+		"-----BEGIN CERTIFICATE-----\nnot-valid-base64!!!\n-----END CERTIFICATE-----\n",
+	)
+
+	cert, err := CertificateFromBytes(
+		leaf.certPEM,
+		leaf.keyPEM,
+		badChain,
+	)
+
+	assert.Equal(t, tls.Certificate{}, cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "intermediate chain")
+}
+
+func TestCertificateFromBytes_InvalidChainDER_ReturnsError(t *testing.T) {
+	leaf := newKeyMaterial(t)
+	badDER := []byte{0x00, 0x01, 0x02, 0x03}
+
+	cert, err := CertificateFromBytes(
+		leaf.certDER,
+		leaf.keyDER,
+		badDER,
+	)
+
+	assert.Equal(t, tls.Certificate{}, cert)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "intermediate chain")
+}
+
+func TestNormaliseToPEM_PEMCertificate_ReturnsInput(t *testing.T) {
+	km := newKeyMaterial(t)
+
+	result, err := normaliseToPEM(km.certPEM, "CERTIFICATE")
+
+	require.NoError(t, err)
+	assert.Equal(t, km.certPEM, result)
+}
+
+func TestNormaliseToPEM_DERCertificate_ReturnsPEM(t *testing.T) {
+	km := newKeyMaterial(t)
+
+	result, err := normaliseToPEM(km.certDER, "CERTIFICATE")
+
+	require.NoError(t, err)
+
+	block, rest := pem.Decode(result)
+	require.NotNil(t, block)
+	assert.Empty(t, rest)
+	assert.Equal(t, "CERTIFICATE", block.Type)
+	assert.Equal(t, km.certDER, block.Bytes)
+}
+
+func TestNormaliseToPEM_EmptyCertificate_ReturnsError(t *testing.T) {
+	result, err := normaliseToPEM(nil, "CERTIFICATE")
+
+	assert.Nil(t, result)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty")
+}
+
+func TestNormaliseKeyToPEM_DERFormats_ReturnsPEM(t *testing.T) {
+	tests := []struct {
+		name     string
+		keyBytes []byte
+		pemType  string
+	}{
+		{name: "PKCS8", pemType: "PRIVATE KEY"},
+		{name: "SEC1", pemType: "EC PRIVATE KEY"},
+	}
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	tests[0].keyBytes, err = x509.MarshalPKCS8PrivateKey(priv)
+	require.NoError(t, err)
+
+	tests[1].keyBytes, err = x509.MarshalECPrivateKey(priv)
+	require.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := normaliseKeyToPEM(tt.keyBytes)
+
+			require.NoError(t, err)
+			block, rest := pem.Decode(result)
+			require.NotNil(t, block)
+			assert.Empty(t, rest)
+			assert.Equal(t, tt.pemType, block.Type)
+			assert.Equal(t, tt.keyBytes, block.Bytes)
+		})
+	}
+}
+
+func TestNormaliseKeyToPEM_InvalidDER_ReturnsError(t *testing.T) {
+	result, err := normaliseKeyToPEM([]byte{0x00, 0x01, 0x02, 0x03})
+
+	assert.Nil(t, result)
+	require.Error(t, err)
 }
 
 // TestCertificateFromBytes_ReturnedCertMatchesInput verifies that the leaf DER
@@ -140,7 +260,7 @@ func TestCertificateFromBytes_PEMChain_PreservesIntermediates(t *testing.T) {
 func TestCertificateFromBytes_ReturnedCertMatchesInput(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certPEM, km.keyPEM)
+	cert, err := CertificateFromBytes(km.certPEM, km.keyPEM, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, km.certDER, cert.Certificate[0],
@@ -166,7 +286,7 @@ func TestCertificateFromBytes_ECKeyDERSEC1Format_ReturnsCertificate(t *testing.T
 	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
 	require.NoError(t, err)
 
-	cert, err := CertificateFromBytes(certDER, sec1DER)
+	cert, err := CertificateFromBytes(certDER, sec1DER, nil)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cert.PrivateKey)
@@ -179,7 +299,7 @@ func TestCertificateFromBytes_ECKeyDERSEC1Format_ReturnsCertificate(t *testing.T
 func TestCertificateFromBytes_EmptyCertBytes_ReturnsError(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes([]byte{}, km.keyPEM)
+	cert, err := CertificateFromBytes([]byte{}, km.keyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -189,7 +309,7 @@ func TestCertificateFromBytes_EmptyCertBytes_ReturnsError(t *testing.T) {
 func TestCertificateFromBytes_NilCertBytes_ReturnsError(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(nil, km.keyPEM)
+	cert, err := CertificateFromBytes(nil, km.keyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -199,7 +319,7 @@ func TestCertificateFromBytes_NilCertBytes_ReturnsError(t *testing.T) {
 func TestCertificateFromBytes_EmptyKeyBytes_ReturnsError(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certPEM, []byte{})
+	cert, err := CertificateFromBytes(km.certPEM, []byte{}, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -209,7 +329,7 @@ func TestCertificateFromBytes_EmptyKeyBytes_ReturnsError(t *testing.T) {
 func TestCertificateFromBytes_NilKeyBytes_ReturnsError(t *testing.T) {
 	km := newKeyMaterial(t)
 
-	cert, err := CertificateFromBytes(km.certPEM, nil)
+	cert, err := CertificateFromBytes(km.certPEM, nil, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -223,7 +343,7 @@ func TestCertificateFromBytes_InvalidCertPEM_ReturnsError(t *testing.T) {
 		"-----BEGIN CERTIFICATE-----\nnot-valid-base64!!!\n-----END CERTIFICATE-----\n",
 	)
 
-	cert, err := CertificateFromBytes(badCertPEM, km.keyPEM)
+	cert, err := CertificateFromBytes(badCertPEM, km.keyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -236,7 +356,7 @@ func TestCertificateFromBytes_InvalidKeyPEM_ReturnsError(t *testing.T) {
 		"-----BEGIN PRIVATE KEY-----\nnot-valid-base64!!!\n-----END PRIVATE KEY-----\n",
 	)
 
-	cert, err := CertificateFromBytes(km.certPEM, badKeyPEM)
+	cert, err := CertificateFromBytes(km.certPEM, badKeyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -248,7 +368,7 @@ func TestCertificateFromBytes_InvalidCertDER_ReturnsError(t *testing.T) {
 	// Raw bytes that are not PEM and not valid DER.
 	badDER := []byte{0x00, 0x01, 0x02, 0x03}
 
-	cert, err := CertificateFromBytes(badDER, km.keyPEM)
+	cert, err := CertificateFromBytes(badDER, km.keyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -259,7 +379,7 @@ func TestCertificateFromBytes_InvalidKeyDER_ReturnsError(t *testing.T) {
 	km := newKeyMaterial(t)
 	badDER := []byte{0x00, 0x01, 0x02, 0x03}
 
-	cert, err := CertificateFromBytes(km.certPEM, badDER)
+	cert, err := CertificateFromBytes(km.certPEM, badDER, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -273,7 +393,7 @@ func TestCertificateFromBytes_MismatchedCertAndKey_ReturnsError(t *testing.T) {
 	km2 := newMismatchedKeyMaterial(t)
 
 	// km1 cert paired with km2 key — must fail.
-	cert, err := CertificateFromBytes(km1.certPEM, km2.keyPEM)
+	cert, err := CertificateFromBytes(km1.certPEM, km2.keyPEM, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
@@ -287,7 +407,7 @@ func TestCertificateFromBytes_RandomGarbageBytes_ReturnsError(t *testing.T) {
 	_, err := rand.Read(garbage)
 	require.NoError(t, err)
 
-	cert, err := CertificateFromBytes(garbage, garbage)
+	cert, err := CertificateFromBytes(garbage, garbage, nil)
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)

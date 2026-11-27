@@ -141,3 +141,30 @@ func isPEM(data []byte) bool {
 	trimmed := bytes.TrimSpace(data)
 	return bytes.HasPrefix(trimmed, []byte("-----"))
 }
+
+// splitLeafAndChain splits a PEM bundle into the first PEM block (leaf) and
+// all remaining blocks (intermediate chain). Either part may be nil.
+func SplitLeafAndChain(pemData []byte) (leaf []byte, chain []byte) {
+	var block *pem.Block
+	var rest []byte
+
+	block, rest = pem.Decode(pemData)
+	if block == nil {
+		return nil, nil
+	}
+
+	leaf = pem.EncodeToMemory(block)
+
+	// Collect remaining blocks as the chain
+	remaining := rest
+	for {
+		var b *pem.Block
+		b, remaining = pem.Decode(remaining)
+		if b == nil {
+			break
+		}
+		chain = append(chain, pem.EncodeToMemory(b)...)
+	}
+
+	return leaf, chain
+}

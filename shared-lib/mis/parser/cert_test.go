@@ -77,6 +77,37 @@ func newMismatchedKeyMaterial(t *testing.T) keyMaterial {
 }
 
 // ---------------------------------------------------------------------------
+// SplitLeafAndChain helpers
+// ---------------------------------------------------------------------------
+
+// decodePEMBlocks decodes every PEM block in data and fails the test if any
+// trailing non-PEM content remains.
+func decodePEMBlocks(t *testing.T, data []byte) []*pem.Block {
+	t.Helper()
+
+	var blocks []*pem.Block
+	remaining := data
+	for {
+		var b *pem.Block
+		b, remaining = pem.Decode(remaining)
+		if b == nil {
+			break
+		}
+		blocks = append(blocks, b)
+	}
+	return blocks
+}
+
+// newPEMBundle concatenates the given PEM byte slices into a single bundle.
+func newPEMBundle(parts ...[]byte) []byte {
+	var bundle []byte
+	for _, p := range parts {
+		bundle = append(bundle, p...)
+	}
+	return bundle
+}
+
+// ---------------------------------------------------------------------------
 // CertificateFromBytes — happy-path tests
 // ---------------------------------------------------------------------------
 
@@ -411,4 +442,120 @@ func TestCertificateFromBytes_RandomGarbageBytes_ReturnsError(t *testing.T) {
 
 	assert.Equal(t, tls.Certificate{}, cert)
 	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// SplitLeafAndChain tests
+// ---------------------------------------------------------------------------
+
+func TestSplitLeafAndChain_SingleCertificate_ReturnsLeafOnly(t *testing.T) {
+	km := newKeyMaterial(t)
+
+	leaf, chain := SplitLeafAndChain(km.certPEM)
+
+	assert.Equal(t, km.certPEM, leaf)
+	assert.Nil(t, chain, "chain must be nil when no intermediates are present")
+}
+
+func TestSplitLeafAndChain_LeafAndOneIntermediate_SplitsCorrectly(t *testing.T) {
+	leafKM := newKeyMaterial(t)
+	interKM := newKeyMaterial(t)
+	bundle := newPEMBundle(leafKM.certPEM, interKM.certPEM)
+
+	leaf, chain := SplitLeafAndChain(bundle)
+
+	assert.Equal(t, leafKM.certPEM, leaf)
+	require.NotNil(t, chain)
+
+	blocks := decodePEMBlocks(t, chain)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "CERTIFICATE", blocks[0].Type)
+	assert.Equal(t, interKM.certDER, blocks[0].Bytes)
+}
+
+func TestSplitLeafAndChain_LeafAndMultipleIntermediates_PreservesOrder(t *testing.T) {
+	leafKM := newKeyMaterial(t)
+	inter1 := newKeyMaterial(t)
+	inter2 := newKeyMaterial(t)
+	bundle := newPEMBundle(leafKM.certPEM, inter1.certPEM, inter2.certPEM)
+
+	leaf, chain := SplitLeafAndChain(bundle)
+
+	assert.Equal(t, leafKM.certPEM, leaf)
+
+	blocks := decodePEMBlocks(t, chain)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, inter1.certDER, blocks[0].Bytes, "first intermediate must come first")
+	assert.Equal(t, inter2.certDER, blocks[1].Bytes, "second intermediate must come second")
+}
+
+func TestSplitLeafAndChain_LeafDecodesToOriginalDER(t *testing.T) {
+	km := newKeyMaterial(t)
+	bundle := newPEMBundle(km.certPEM, newKeyMaterial(t).certPEM)
+
+	leaf, _ := SplitLeafAndChain(bundle)
+
+	blocks := decodePEMBlocks(t, leaf)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "CERTIFICATE", blocks[0].Type)
+	assert.Equal(t, km.certDER, blocks[0].Bytes)
+}
+
+func TestSplitLeafAndChain_LeadingPreambleIsIgnored(t *testing.T) {
+	km := newKeyMaterial(t)
+	inter := newKeyMaterial(t)
+	bundle := newPEMBundle([]byte("some leading text\n"), km.certPEM, inter.certPEM)
+
+	leaf, chain := SplitLeafAndChain(bundle)
+
+	assert.Equal(t, km.certPEM, leaf)
+	require.NotNil(t, chain)
+	assert.Len(t, decodePEMBlocks(t, chain), 1)
+}
+
+func TestSplitLeafAndChain_TrailingGarbageStopsChain(t *testing.T) {
+	leafKM := newKeyMaterial(t)
+	interKM := newKeyMaterial(t)
+	bundle := newPEMBundle(
+		leafKM.certPEM,
+		interKM.certPEM,
+		[]byte("trailing non-pem text\n"),
+	)
+
+	leaf, chain := SplitLeafAndChain(bundle)
+
+	assert.Equal(t, leafKM.certPEM, leaf)
+	blocks := decodePEMBlocks(t, chain)
+	require.Len(t, blocks, 1, "only the intermediate before the garbage should be collected")
+	assert.Equal(t, interKM.certDER, blocks[0].Bytes)
+}
+
+func TestSplitLeafAndChain_NilInput_ReturnsNilNil(t *testing.T) {
+	leaf, chain := SplitLeafAndChain(nil)
+
+	assert.Nil(t, leaf)
+	assert.Nil(t, chain)
+}
+
+func TestSplitLeafAndChain_EmptyInput_ReturnsNilNil(t *testing.T) {
+	leaf, chain := SplitLeafAndChain([]byte{})
+
+	assert.Nil(t, leaf)
+	assert.Nil(t, chain)
+}
+
+func TestSplitLeafAndChain_NonPEMInput_ReturnsNilNil(t *testing.T) {
+	leaf, chain := SplitLeafAndChain([]byte("this is not pem data"))
+
+	assert.Nil(t, leaf)
+	assert.Nil(t, chain)
+}
+
+func TestSplitLeafAndChain_DERInput_ReturnsNilNil(t *testing.T) {
+	km := newKeyMaterial(t)
+
+	leaf, chain := SplitLeafAndChain(km.certDER)
+
+	assert.Nil(t, leaf, "DER input is not PEM and must not be split")
+	assert.Nil(t, chain)
 }

@@ -3,7 +3,6 @@ package parser
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,33 +93,6 @@ func readFile(fieldName, path string) ([]byte, error) {
 		return nil, fmt.Errorf("%s: failed to read file %q: %w", fieldName, path, err)
 	}
 	return data, nil
-}
-
-// splitLeafAndChain splits a PEM bundle into the first PEM block (leaf) and
-// all remaining blocks (intermediate chain). Either part may be nil.
-func splitLeafAndChain(pemData []byte) (leaf []byte, chain []byte) {
-	var block *pem.Block
-	var rest []byte
-
-	block, rest = pem.Decode(pemData)
-	if block == nil {
-		return nil, nil
-	}
-
-	leaf = pem.EncodeToMemory(block)
-
-	// Collect remaining blocks as the chain
-	remaining := rest
-	for {
-		var b *pem.Block
-		b, remaining = pem.Decode(remaining)
-		if b == nil {
-			break
-		}
-		chain = append(chain, pem.EncodeToMemory(b)...)
-	}
-
-	return leaf, chain
 }
 
 // ParseMIAFConfig resolves a MIAFInput into a fully populated ParsedMIAFConfig.
@@ -224,7 +196,7 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 			)
 		}
 
-		leafPEM, chainPEM := splitLeafAndChain(raw)
+		leafPEM, chainPEM := SplitLeafAndChain(raw)
 		if leafPEM == nil {
 			return nil, fmt.Errorf(
 				"miaf.x509.certPath: file %q contains no valid PEM block",

@@ -154,17 +154,22 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create WFM client using configured URL
 	wfmUrl := cfg.Wfm.SbiURL
 
-	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.ChainPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
-		GetOwnTrustDomain: func() string {
-			v, _ := db.GetTrustDomain()
-			return v
+	mTlsVerifierOpt := mTLSVerifier(
+		pmc.X509.CertPEM,
+		pmc.X509.ChainPEM,
+		pmc.X509.KeyPEM,
+		&mtls.VerifierConfig{
+			GetOwnTrustDomain: func() string {
+				v, _ := db.GetTrustDomain()
+				return v
+			},
+			GetTrustBundleBytes: func() []byte {
+				v, _ := db.GetTrustBundle()
+				return v
+			},
+			GetClientAllowList: db.GetAuthorizedWFMs,
 		},
-		GetTrustBundleBytes: func() []byte {
-			v, _ := db.GetTrustBundle()
-			return v
-		},
-		GetClientAllowList: db.GetAuthorizedWFMs,
-	})
+	)
 
 	clientOptions = append(
 		clientOptions,
@@ -498,7 +503,12 @@ func PreflightLogger(
 	}
 }
 
-func mTLSVerifier(cert []byte, chain []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
+func mTLSVerifier(
+	cert []byte,
+	chain []byte,
+	key []byte,
+	config *mtls.VerifierConfig,
+) wfm.HTTPApiClientOptions {
 	return func(client *sbi.Client) error {
 		// Validate client
 		if client == nil {

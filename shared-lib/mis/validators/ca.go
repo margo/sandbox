@@ -124,7 +124,8 @@ func ValidateIntermediateCACertificates(pemData []byte) error {
 	if len(pemData) > maxChainBytes {
 		return fmt.Errorf(
 			"intermediate chain encoded size (%d bytes) exceeds the maximum allowed %d bytes (64 KiB)",
-			len(pemData), maxChainBytes,
+			len(pemData),
+			maxChainBytes,
 		)
 	}
 

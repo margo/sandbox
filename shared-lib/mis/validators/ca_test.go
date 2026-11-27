@@ -21,7 +21,12 @@ import (
 
 // generateIntermediateCACert creates a PEM-encoded intermediate CA cert signed by a root.
 // The intermediate has a different Subject/Issuer by design.
-func generateIntermediateCACert(t *testing.T, rootCert *x509.Certificate, rootKey *rsa.PrivateKey, opts ...func(*x509.Certificate)) []byte {
+func generateIntermediateCACert(
+	t *testing.T,
+	rootCert *x509.Certificate,
+	rootKey *rsa.PrivateKey,
+	opts ...func(*x509.Certificate),
+) []byte {
 	t.Helper()
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)

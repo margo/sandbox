@@ -257,7 +257,8 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 			if err := validators.ValidateIntermediateCACertificates(chainPEM); err != nil {
 				return nil, fmt.Errorf(
 					"miaf.x509.certPath: file %q contains an invalid intermediate CA chain, err: %s",
-					input.X509.CertPath, err.Error(),
+					input.X509.CertPath,
+					err.Error(),
 				)
 			}
 			out.X509.ChainPEM = chainPEM

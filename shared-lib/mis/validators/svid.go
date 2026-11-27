@@ -118,7 +118,11 @@ func ValidateSVIDLeafConstraints(cert *x509.Certificate) error {
 // Returns:
 //   - (true, nil)    if the certificate chains to the trust bundle successfully.
 //   - (false, error) describing why validation failed.
-func ValidateX509SVIDAgainstTrustBundle(svidBytes []byte, chainPEM []byte, trustBundleBytes []byte) (bool, error) {
+func ValidateX509SVIDAgainstTrustBundle(
+	svidBytes []byte,
+	chainPEM []byte,
+	trustBundleBytes []byte,
+) (bool, error) {
 	cert, err := parseCertificate(svidBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse SVID certificate: %w", err)

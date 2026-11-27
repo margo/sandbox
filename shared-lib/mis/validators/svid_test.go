@@ -328,11 +328,31 @@ func TestValidateSPIFFEIDFormat(t *testing.T) {
 		errContains string
 	}{
 		{name: "valid", uri: testWFMID},
-		{name: "wrong scheme", uri: "https://example.org/margo/wfm/w1", errContains: "scheme must be 'spiffe'"},
-		{name: "host with port", uri: "spiffe://example.org:8080/margo/wfm/w1", errContains: "must not contain a port"},
-		{name: "user info", uri: "spiffe://user@example.org/margo/wfm/w1", errContains: "must not contain user info"},
-		{name: "fragment", uri: "spiffe://example.org/margo/wfm/w1#frag", errContains: "must not contain a fragment"},
-		{name: "query", uri: "spiffe://example.org/margo/wfm/w1?foo=bar", errContains: "must not contain a query string"},
+		{
+			name:        "wrong scheme",
+			uri:         "https://example.org/margo/wfm/w1",
+			errContains: "scheme must be 'spiffe'",
+		},
+		{
+			name:        "host with port",
+			uri:         "spiffe://example.org:8080/margo/wfm/w1",
+			errContains: "must not contain a port",
+		},
+		{
+			name:        "user info",
+			uri:         "spiffe://user@example.org/margo/wfm/w1",
+			errContains: "must not contain user info",
+		},
+		{
+			name:        "fragment",
+			uri:         "spiffe://example.org/margo/wfm/w1#frag",
+			errContains: "must not contain a fragment",
+		},
+		{
+			name:        "query",
+			uri:         "spiffe://example.org/margo/wfm/w1?foo=bar",
+			errContains: "must not contain a query string",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -367,8 +387,17 @@ func TestValidateSPIFFEID(t *testing.T) {
 		errContains string
 	}{
 		{name: "valid WFM", opts: certOptions{spiffeID: testWFMID}, principal: PrincipalWFM},
-		{name: "valid WFM client", opts: certOptions{spiffeID: testWFMClientID}, principal: PrincipalWFMClient},
-		{name: "no URI SAN", opts: certOptions{}, principal: PrincipalWFM, errContains: "no URI SANs"},
+		{
+			name:      "valid WFM client",
+			opts:      certOptions{spiffeID: testWFMClientID},
+			principal: PrincipalWFMClient,
+		},
+		{
+			name:        "no URI SAN",
+			opts:        certOptions{},
+			principal:   PrincipalWFM,
+			errContains: "no URI SANs",
+		},
 		{
 			name: "multiple URI SANs",
 			opts: certOptions{
@@ -441,7 +470,12 @@ func TestValidateX509SVID_Invalid(t *testing.T) {
 		principal   string
 		errContains string
 	}{
-		{name: "no URI SAN", opts: certOptions{}, principal: PrincipalWFM, errContains: "no URI SANs"},
+		{
+			name:        "no URI SAN",
+			opts:        certOptions{},
+			principal:   PrincipalWFM,
+			errContains: "no URI SANs",
+		},
 		{
 			name:        "wrong principal",
 			opts:        certOptions{spiffeID: testWFMID},
@@ -818,7 +852,11 @@ func TestValidateX509SVIDAgainstTrustBundle_InvalidChainPEM(t *testing.T) {
 
 func TestValidateX509SVIDAgainstTrustBundle_InvalidCertBytes(t *testing.T) {
 	caDER, _ := generateCert(t, certOptions{isCA: true})
-	ok, err := ValidateX509SVIDAgainstTrustBundle([]byte("garbage"), nil, buildTrustBundle(t, caDER))
+	ok, err := ValidateX509SVIDAgainstTrustBundle(
+		[]byte("garbage"),
+		nil,
+		buildTrustBundle(t, caDER),
+	)
 	assert.False(t, ok)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse SVID certificate")
@@ -916,8 +954,12 @@ func TestValidateX509SVIDChain_EmptyChain(t *testing.T) {
 func TestValidateX509SVIDChain_InvalidChainPEM(t *testing.T) {
 	pki := newTestPKI(t)
 	tests := map[string][]byte{
-		"wrong block type": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("junk")}),
-		"malformed cert":   pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("corrupted")}),
+		"wrong block type": pem.EncodeToMemory(
+			&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("junk")},
+		),
+		"malformed cert": pem.EncodeToMemory(
+			&pem.Block{Type: "CERTIFICATE", Bytes: []byte("corrupted")},
+		),
 	}
 	for name, chain := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -967,59 +1009,144 @@ func TestValidateCertKeyPair(t *testing.T) {
 		{name: "valid Ed25519 (PKCS8)", certPEM: ed25519Cert, keyPEM: ed25519Key},
 
 		// Same type, different key
-		{name: "mismatched RSA", certPEM: rsaCert, keyPEM: rsaKey2, errContains: "RSA public key mismatch"},
-		{name: "mismatched ECDSA", certPEM: ecdsaCert, keyPEM: ecdsaKey2, errContains: "ECDSA public key mismatch"},
-		{name: "mismatched Ed25519", certPEM: ed25519Cert, keyPEM: ed25519Key2, errContains: "Ed25519 public key mismatch"},
+		{
+			name:        "mismatched RSA",
+			certPEM:     rsaCert,
+			keyPEM:      rsaKey2,
+			errContains: "RSA public key mismatch",
+		},
+		{
+			name:        "mismatched ECDSA",
+			certPEM:     ecdsaCert,
+			keyPEM:      ecdsaKey2,
+			errContains: "ECDSA public key mismatch",
+		},
+		{
+			name:        "mismatched Ed25519",
+			certPEM:     ed25519Cert,
+			keyPEM:      ed25519Key2,
+			errContains: "Ed25519 public key mismatch",
+		},
 
 		// Cross-type mismatches
-		{name: "RSA cert with ECDSA key", certPEM: rsaCert, keyPEM: ecdsaKey, errContains: "mismatch"},
-		{name: "ECDSA cert with RSA key", certPEM: ecdsaCert, keyPEM: rsaKey, errContains: "mismatch"},
-		{name: "Ed25519 cert with RSA key", certPEM: ed25519Cert, keyPEM: rsaKey, errContains: "mismatch"},
-		{name: "RSA cert with Ed25519 key", certPEM: rsaCert, keyPEM: ed25519Key, errContains: "mismatch"},
+		{
+			name:        "RSA cert with ECDSA key",
+			certPEM:     rsaCert,
+			keyPEM:      ecdsaKey,
+			errContains: "mismatch",
+		},
+		{
+			name:        "ECDSA cert with RSA key",
+			certPEM:     ecdsaCert,
+			keyPEM:      rsaKey,
+			errContains: "mismatch",
+		},
+		{
+			name:        "Ed25519 cert with RSA key",
+			certPEM:     ed25519Cert,
+			keyPEM:      rsaKey,
+			errContains: "mismatch",
+		},
+		{
+			name:        "RSA cert with Ed25519 key",
+			certPEM:     rsaCert,
+			keyPEM:      ed25519Key,
+			errContains: "mismatch",
+		},
 
 		// Invalid PEM input
-		{name: "empty cert PEM", certPEM: []byte{}, keyPEM: rsaKey, errContains: "failed to decode certificate PEM block"},
-		{name: "nil cert PEM", certPEM: nil, keyPEM: rsaKey, errContains: "failed to decode certificate PEM block"},
-		{name: "garbage cert PEM", certPEM: []byte("not-a-pem-at-all"), keyPEM: rsaKey, errContains: "failed to decode certificate PEM block"},
-		{name: "empty key PEM", certPEM: rsaCert, keyPEM: []byte{}, errContains: "failed to decode private key PEM block"},
-		{name: "nil key PEM", certPEM: rsaCert, keyPEM: nil, errContains: "failed to decode private key PEM block"},
-		{name: "garbage key PEM", certPEM: rsaCert, keyPEM: []byte("not-a-pem-at-all"), errContains: "failed to decode private key PEM block"},
+		{
+			name:        "empty cert PEM",
+			certPEM:     []byte{},
+			keyPEM:      rsaKey,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "nil cert PEM",
+			certPEM:     nil,
+			keyPEM:      rsaKey,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "garbage cert PEM",
+			certPEM:     []byte("not-a-pem-at-all"),
+			keyPEM:      rsaKey,
+			errContains: "failed to decode certificate PEM block",
+		},
+		{
+			name:        "empty key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      []byte{},
+			errContains: "failed to decode private key PEM block",
+		},
+		{
+			name:        "nil key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      nil,
+			errContains: "failed to decode private key PEM block",
+		},
+		{
+			name:        "garbage key PEM",
+			certPEM:     rsaCert,
+			keyPEM:      []byte("not-a-pem-at-all"),
+			errContains: "failed to decode private key PEM block",
+		},
 
 		// Valid PEM header, invalid body
 		{
-			name:        "malformed cert body",
-			certPEM:     pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("corrupted-cert-bytes")}),
+			name: "malformed cert body",
+			certPEM: pem.EncodeToMemory(
+				&pem.Block{Type: "CERTIFICATE", Bytes: []byte("corrupted-cert-bytes")},
+			),
 			keyPEM:      rsaKey,
 			errContains: "failed to parse certificate",
 		},
 		{
-			name:        "malformed PKCS8 key body",
-			certPEM:     rsaCert,
-			keyPEM:      pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")}),
+			name:    "malformed PKCS8 key body",
+			certPEM: rsaCert,
+			keyPEM: pem.EncodeToMemory(
+				&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")},
+			),
 			errContains: "failed to parse private key",
 		},
 		{
-			name:        "malformed SEC1 key body",
-			certPEM:     ecdsaCert,
-			keyPEM:      pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")}),
+			name:    "malformed SEC1 key body",
+			certPEM: ecdsaCert,
+			keyPEM: pem.EncodeToMemory(
+				&pem.Block{Type: "EC PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")},
+			),
 			errContains: "failed to parse private key",
 		},
 		{
-			name:        "malformed PKCS1 key body",
-			certPEM:     rsaCert,
-			keyPEM:      pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")}),
+			name:    "malformed PKCS1 key body",
+			certPEM: rsaCert,
+			keyPEM: pem.EncodeToMemory(
+				&pem.Block{Type: "RSA PRIVATE KEY", Bytes: []byte("corrupted-key-bytes")},
+			),
 			errContains: "failed to parse private key",
 		},
 
 		// Wrong PEM types
 		{
-			name:        "unsupported key PEM type",
-			certPEM:     rsaCert,
-			keyPEM:      pem.EncodeToMemory(&pem.Block{Type: "UNKNOWN KEY TYPE", Bytes: []byte("some-bytes")}),
+			name:    "unsupported key PEM type",
+			certPEM: rsaCert,
+			keyPEM: pem.EncodeToMemory(
+				&pem.Block{Type: "UNKNOWN KEY TYPE", Bytes: []byte("some-bytes")},
+			),
 			errContains: "unsupported private key type",
 		},
-		{name: "cert PEM passed as key", certPEM: rsaCert, keyPEM: rsaCert, errContains: "unsupported private key type"},
-		{name: "key PEM passed as cert", certPEM: rsaKey, keyPEM: rsaKey, errContains: "failed to parse certificate"},
+		{
+			name:        "cert PEM passed as key",
+			certPEM:     rsaCert,
+			keyPEM:      rsaCert,
+			errContains: "unsupported private key type",
+		},
+		{
+			name:        "key PEM passed as cert",
+			certPEM:     rsaKey,
+			keyPEM:      rsaKey,
+			errContains: "failed to parse certificate",
+		},
 	}
 
 	for _, tt := range tests {

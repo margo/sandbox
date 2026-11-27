@@ -135,6 +135,12 @@ deploy_instance() {
       select(.id == $pkg_id or .metadata.name == $pkg_id) |
       .metadata.name
     ')
+
+  local package_version=$(echo "$app_packages" | jq -r --arg pkg_id "$package_id" '
+    .Data[0].items[] |
+    select(.id == $pkg_id or .metadata.name == $pkg_id) |
+    .version // "0.1.0"
+  ')
     
     if [ -z "$package_name" ] || [ "$package_name" = "null" ]; then
       echo "❌ Package '$package_id' not found in the package list"
@@ -164,6 +170,9 @@ deploy_instance() {
     sed -i "s|{{DEVICE_ID}}|$device_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{PACKAGE_ID}}|$package_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{REPOSITORY}}|$repository|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|{{REVISION}}|$package_version|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|revision: 0.1.0|revision: $package_version|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|{{REVISION}}|$package_version|g" "$deploy_file" 2>/dev/null || true
   else
     deploy_file="$temp_instance_file"
   fi
@@ -245,6 +254,12 @@ deploy_instance_non_interactive() {
       select(.id == $pkg_id or .metadata.name == $pkg_id) |
       .metadata.name
     ')
+
+  local package_version=$(echo "$app_packages" | jq -r --arg pkg_id "$package_id" '
+    .Data[0].items[] |
+    select(.id == $pkg_id or .metadata.name == $pkg_id) |
+    .version // "0.1.0"
+  ')
     
     if [ -z "$package_name" ] || [ "$package_name" = "null" ]; then
       echo "❌ Package '$package_id' not found in the package list"
@@ -275,6 +290,9 @@ deploy_instance_non_interactive() {
     sed -i "s|{{DEVICE_ID}}|$device_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{PACKAGE_ID}}|$package_id|g" "$deploy_file" 2>/dev/null || true
     sed -i "s|{{REPOSITORY}}|$repository|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|{{REVISION}}|$package_version|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|revision: 0.1.0|revision: $package_version|g" "$deploy_file" 2>/dev/null || true
+    sed -i "s|{{REVISION}}|$package_version|g" "$deploy_file" 2>/dev/null || true
   else
     deploy_file="$temp_instance_file"
   fi

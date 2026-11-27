@@ -29,15 +29,39 @@ discover_app_packages_from_harbor() {
   echo "$app_packages"
 }
 
+discover_package_tags_from_harbor() {
+  local package_repo="$1"
+  local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+  local org="${OCI_ORGANIZATION}"
+
+  local tags=$(curl -s -k -u "${REGISTRY_USER}:${REGISTRY_PASS}"     "https://${harbor_url}/api/v2.0/projects/${org}/repositories/${package_repo}/artifacts" 2>/dev/null |     jq -r '.[].tags[]?.name' 2>/dev/null)
+
+  if [ -z "$tags" ]; then
+    tags=$(curl -s -k -u "${REGISTRY_USER}:${REGISTRY_PASS}"       "https://${harbor_url}/v2/${org}/${package_repo}/tags/list" 2>/dev/null |       jq -r '.tags[]?' 2>/dev/null)
+  fi
+
+  if [ -z "$tags" ] && command -v oras >/dev/null 2>&1; then
+    tags=$(oras repo tags --insecure "${harbor_url}/${org}/${package_repo}" 2>/dev/null)
+  fi
+
+  if [ -n "$tags" ]; then
+    echo "$tags" | grep -v '^null$' | grep -v '^$' | sort -V
+  else
+    echo "latest"
+  fi
+}
+
+
 get_package_metadata_from_oci() {
   local package_repo="$1"
+  local tag="${2:-latest}"
   local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
   local full_repo="${OCI_ORGANIZATION}/${package_repo}"
 
   local temp_dir=$(mktemp -d)
   cd "$temp_dir"
 
-  oras pull "${harbor_url}/${full_repo}:latest" \
+  oras pull "${harbor_url}/${full_repo}:${tag}" \
     -u "${REGISTRY_USER}:${REGISTRY_PASS}" \
     margo.yaml 2>/dev/null
 
@@ -56,36 +80,25 @@ get_oci_repository_path() {
   local package_name="$1"
   local margo_file="$2"
   local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
+  local org="${OCI_ORGANIZATION:-library}"
 
-  # Hardcoded mappings for backward compatibility
   case $package_name in
-    "custom-otel-helm-app-package"|"custom-otel-helm-app"|"custom-otel"|"otel-demo-pkg")
-      echo "oci://${harbor_url}/library/custom-otel-helm"
+    *custom-otel*|*otel-demo*)
+      echo "oci://${harbor_url}/${org}/custom-otel-helm"
       return 0
       ;;
-    "nextcloud-compose-app-package"|"nextcloud-compose-app"|"nextcloud"|"nextcloud-pkg")
+    *nextcloud*)
       echo "https://raw.githubusercontent.com/docker/awesome-compose/refs/heads/master/nextcloud-redis-mariadb/compose.yaml"
       return 0
       ;;
+    *)
+      local base="${package_name%-app-package}"
+      base="${base%-v[0-9]*}"
+      base="${base%:[0-9]*}"
+      echo "oci://${harbor_url}/${org}/${base}"
+      return 0
+      ;;
   esac
-
-  # Dynamic discovery from margo.yaml
-  if [ -f "$margo_file" ]; then
-    local compose_location=$(grep "repository:" "$margo_file" | grep -v "registryUrl" | head -1 | sed 's/.*repository:\s*//' | tr -d '"' | tr -d "'" | xargs)
-    local helm_repo=$(grep "repository:" "$margo_file" | grep -v "registryUrl" | head -1 | sed 's/.*repository:\s*//' | tr -d '"' | tr -d "'" | xargs)
-
-    if [ -n "$compose_location" ]; then
-      echo "$compose_location"
-    elif [ -n "$helm_repo" ]; then
-      echo "$helm_repo"
-    else
-      local chart_name="${package_name%-app-package}"
-      echo "oci://${harbor_url}/library/${chart_name}"
-    fi
-  else
-    local chart_name="${package_name%-app-package}"
-    echo "oci://${harbor_url}/library/${chart_name}"
-  fi
 }
 
 # Backward compatibility function

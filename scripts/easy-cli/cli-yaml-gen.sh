@@ -187,6 +187,11 @@ COMPONENT
 generate_wfm_package_yaml() {
   local package_repo="$1"
   local output_file="$2"
+  local package_tag="${3:-latest}"
+  local pkg_name="${package_repo}"
+  if [ "$package_tag" != "latest" ] && [ -n "$package_tag" ]; then
+    pkg_name="${package_repo%-app-package}-v${package_tag}"
+  fi
   local harbor_url="${EXPOSED_HARBOR_HOST}:${EXPOSED_HARBOR_PORT}"
 
   cat > "$output_file" <<EOF
@@ -194,7 +199,7 @@ generate_wfm_package_yaml() {
 # This file is not MARGO specified, however these parameters will be used to create the MARGO ApplicationDeployment
 apiVersion: non-margo.org
 metadata:
-  name: ${package_repo}
+  name: ${pkg_name}
   labels:
     env: dev
   annotations:
@@ -204,7 +209,7 @@ spec:
   source:
     registryUrl: "https://${harbor_url}"
     repository: "${OCI_ORGANIZATION}/${package_repo}"
-    tag: "latest"
+    tag: "${package_tag}"
     authentication:
       type: "basic"
       username: "${REGISTRY_USER}"
@@ -216,43 +221,34 @@ EOF
 # Legacy template-based functions (for backward compatibility)
 get_instance_file_path() {
   local package_name="$1"
-
-  if [ -z "$HOME" ]; then
-    echo "❌ HOME environment variable not set" >&2
-    return 1
-  fi
-
   local template_base="$HOME/symphony/cli/templates/margo"
+  local original_file_path=""
 
   case $package_name in
-    "custom-otel-helm-app-package"|"custom-otel-helm-app"|"custom-otel"|"otel-demo-pkg")
+    *custom-otel*|*otel-demo*)
       original_file_path="$template_base/custom-otel-helm/instance.yaml"
-      file_path="$template_base/custom-otel-helm/instance.yaml.copy"
       ;;
-    "nextcloud-compose-app-package"|"nextcloud-compose-app"|"nextcloud"|"nextcloud-pkg")
+    *nextcloud*)
       original_file_path="$template_base/nextcloud-compose/instance.yaml"
-      file_path="$template_base/nextcloud-compose/instance.yaml.copy"
       ;;
     *)
-      local search_name="${package_name%-app-package}"
+      local normalized="${package_name%-v[0-9]*}"
+      normalized="${normalized%:[0-9]*}"
+      local search_name="${normalized%-app-package}"
       local template_dir=$(find "$template_base" -maxdepth 1 -type d -iname "*${search_name}*" 2>/dev/null | head -1)
-
       if [ -n "$template_dir" ] && [ -f "$template_dir/instance.yaml" ]; then
         original_file_path="$template_dir/instance.yaml"
-        file_path="$template_dir/instance.yaml.copy"
-      else
-        echo "❌ No instance template found for package '$package_name'" >&2
-        echo "ℹ️  Searched in: $template_base" >&2
-        return 1
       fi
       ;;
   esac
 
   if [ -f "$original_file_path" ]; then
-    cp -f "$original_file_path" "$file_path"
-    echo "$file_path"
+    # Create a disposable temporary file in /tmp instead of dirtying the template directory
+    local temp_file=$(mktemp /tmp/wfm_deploy_XXXXXX.yaml)
+    cp -f "$original_file_path" "$temp_file"
+    echo "$temp_file"
   else
-    echo "❌ Deployment file not found: $original_file_path" >&2
+    echo "❌ Deployment template not found for: $package_name" >&2
     return 1
   fi
 }

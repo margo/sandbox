@@ -63,8 +63,49 @@ upload_app_package() {
   local package_name=$(get_package_metadata_from_oci "$selected_pkg")
   
   # Generate package.yaml for WFM
+    # --- Tag Selection Submenu ---
+  echo ""
+  echo "🔍 Discovering available versions for '$selected_pkg' from Harbor..."
+  local tags_output=$(discover_package_tags_from_harbor "$selected_pkg")
+  local -a tag_array=()
+  local tag_index=1
+
+  while IFS= read -r t; do
+    [ -n "$t" ] && tag_array+=("$t")
+  done <<< "$tags_output"
+
+  local selected_tag="latest"
+  if [ ${#tag_array[@]} -eq 0 ]; then
+    echo "ℹ️ No tags found, defaulting to 'latest'"
+  elif [ ${#tag_array[@]} -eq 1 ]; then
+    selected_tag="${tag_array[0]}"
+    echo "🏷️ Using single available version: $selected_tag"
+  else
+    echo "🏷️ Select version to onboard:"
+    for t in "${tag_array[@]}"; do
+      echo "$tag_index) $t"
+      ((tag_index++))
+    done
+    echo "$tag_index) Exit"
+    read -p "Enter version choice [1-$tag_index]: " tag_choice
+
+    if [ "$tag_choice" = "$tag_index" ]; then
+      echo "Returning to main menu..."
+      return 0
+    fi
+
+    if validate_choice "$tag_choice" $((tag_index - 1)); then
+      selected_tag="${tag_array[$((tag_choice - 1))]}"
+    else
+      echo "❌ Invalid tag choice, aborting."
+      return 1
+    fi
+  fi
+
+  echo "🏷️ Selected version: $selected_tag"
+
   local temp_pkg_file=$(mktemp)
-  generate_wfm_package_yaml "$selected_pkg" "$temp_pkg_file"
+  generate_wfm_package_yaml "$selected_pkg" "$temp_pkg_file" "$selected_tag" 
   
   if [ ! -f "$temp_pkg_file" ]; then
     echo "❌ Failed to generate package file"
@@ -131,8 +172,49 @@ upload_app_package_non_interactive() {
   echo "✅ Found package: $found_package_name"
   
   # Generate package.yaml for WFM
+    # --- Tag Selection Submenu ---
+  echo ""
+  echo "🔍 Discovering available versions for '$selected_pkg' from Harbor..."
+  local tags_output=$(discover_package_tags_from_harbor "$selected_pkg")
+  local -a tag_array=()
+  local tag_index=1
+
+  while IFS= read -r t; do
+    [ -n "$t" ] && tag_array+=("$t")
+  done <<< "$tags_output"
+
+  local selected_tag="latest"
+  if [ ${#tag_array[@]} -eq 0 ]; then
+    echo "ℹ️ No tags found, defaulting to 'latest'"
+  elif [ ${#tag_array[@]} -eq 1 ]; then
+    selected_tag="${tag_array[0]}"
+    echo "🏷️ Using single available version: $selected_tag"
+  else
+    echo "🏷️ Select version to onboard:"
+    for t in "${tag_array[@]}"; do
+      echo "$tag_index) $t"
+      ((tag_index++))
+    done
+    echo "$tag_index) Exit"
+    read -p "Enter version choice [1-$tag_index]: " tag_choice
+
+    if [ "$tag_choice" = "$tag_index" ]; then
+      echo "Returning to main menu..."
+      return 0
+    fi
+
+    if validate_choice "$tag_choice" $((tag_index - 1)); then
+      selected_tag="${tag_array[$((tag_choice - 1))]}"
+    else
+      echo "❌ Invalid tag choice, aborting."
+      return 1
+    fi
+  fi
+
+  echo "🏷️ Selected version: $selected_tag"
+
   local temp_pkg_file=$(mktemp)
-  generate_wfm_package_yaml "$selected_pkg" "$temp_pkg_file"
+  generate_wfm_package_yaml "$selected_pkg" "$temp_pkg_file" "$selected_tag" 
   
   if [ ! -f "$temp_pkg_file" ]; then
     echo "❌ Failed to generate package file"

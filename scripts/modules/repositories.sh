@@ -39,46 +39,6 @@ clone_dev_repo() {
   echo "✅ sandbox repo checkout to branch ${SANDBOX_REPO_BRANCH} done"
 }
 
-update_capabilities_labels() {
-    local labels_file="${SCRIPT_DIR}/labels.json"
-    local capabilities_file="$HOME/sandbox/poc/device/agent/config/capabilities.json"
-
-    # Check labels.json exists, if not, clean up the labels from configuration.json as well
-    if [[ ! -f "$labels_file" ]]; then
-        echo "File '$labels_file' not found, skipping label copying to capabilties"
-        remove_json_key $capabilities_file
-        return 0
-    fi
-
-    # Check labels.json is not empty, if not, clean up the labels from configuration.json as well
-    if [[ ! -s "$labels_file" ]]; then
-        echo "File '$labels_file' is empty. skipping label copying to capabilties"
-        remove_json_key $capabilities_file
-        return 0
-    fi
-
-    # Validate JSON files
-    jq empty "$labels_file" >/dev/null 2>&1 || {
-        echo "'$labels_file' contains invalid JSON."
-        return 1
-    }
-
-    jq empty "$capabilities_file" >/dev/null 2>&1 || {
-        echo "'$capabilities_file' contains invalid JSON."
-        return 1
-    }
-
-    # Replace .labels completely with contents of labels.json
-    tmp_file=$(mktemp)
-
-    jq --slurpfile labels "$labels_file" \
-       '.labels = $labels[0]' \
-       "$capabilities_file" > "$tmp_file" \
-    && mv "$tmp_file" "$capabilities_file"
-
-    echo "Successfully updated .labels in $capabilities_file"
-}
-
 # This will simply remove labels key from configuration.json
 remove_json_key() {
     local file="$1"

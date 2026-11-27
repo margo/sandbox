@@ -80,7 +80,7 @@ spec:
           projected:
             sources:
 
-              # config.yaml and capabilities.json
+              # config.yaml and profiles.json
               - configMap:
                   name: {{ include "agentchart.configmapname" . }}
 

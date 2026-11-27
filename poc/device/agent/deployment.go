@@ -210,19 +210,18 @@ func (dm *DeploymentManager) checkDeviceEligibility(
 	matcher := matcher.New()
 	ok, reason, err := matcher.IsTargetEligible(
 		&dm.deviceProfile.Profile,
-		dm.deviceProfile.WorkloadTargetId,
-		*desiredState.Spec.DeploymentProfile.Characteristics,
+		desiredState.Spec.DeploymentProfile.PlacementConstraints,
 	)
 
 	if err != nil {
-		return false, "", err
+		return false, reason, fmt.Errorf("failed to check workload target eligibility: %w", err)
 	}
 
 	if !ok {
 		return false, reason, nil
 	}
 
-	return true, "", nil
+	return true, reason, nil
 }
 
 func (dm *DeploymentManager) deployOrUpdate(
@@ -243,6 +242,7 @@ func (dm *DeploymentManager) deployOrUpdate(
 		return
 	}
 
+	dm.log.Infow("initiating workload target eligibility", "appId", desiredState.Spec.ApplicationId)
 	ok, reason, err := dm.checkDeviceEligibility(desiredState)
 	if err != nil {
 		// Set current state even on failure
@@ -252,8 +252,9 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetPhase(
 			deploymentId,
 			constant.PhaseFailed,
-			fmt.Sprintf("failed to check for device eligibility, err : %s", err.Error()),
+			fmt.Sprintf("failed to check for workload target eligibility, err : %s", err.Error()),
 		)
+		dm.log.Errorw("failed to check workload target eligibility", "err: ", err)
 		return
 	}
 
@@ -265,12 +266,16 @@ func (dm *DeploymentManager) deployOrUpdate(
 		dm.database.SetPhase(
 			deploymentId,
 			constant.PhaseFailed,
-			fmt.Sprintf("device ineligibile, reason : %s", reason),
+			fmt.Sprintf("workload target ineligibile reason: %s", reason),
+		)
+		dm.log.Errorw("workload target is not eligible",
+			"deploymentID: ", deploymentId,
+			"reason", reason,
 		)
 		return
 	}
 
-	dm.log.Infow("device eligible for deployment", "appId", deploymentId)
+	dm.log.Infow("workload target is eligible for deployment", "deploymentID: ", deploymentId)
 
 	// Initialize per-component status for ALL components before starting deployment.
 	// This ensures the status report always contains one entry per component (spec requirement).

@@ -1,7 +1,7 @@
 ##### [Back To Main](../../../README.md)
 # Device's Workload Fleet Management Client
 
-An edge device's Workload Fleet Management Client used by the Margo platform to manage application workloads, report device capabilities, and synchronize desired vs actual state with the WFM.
+An edge device's Workload Fleet Management Client used by the Margo platform to manage application workloads, report workload target profile characteristics, and synchronize desired vs actual state with the WFM.
 
 This repository contains a code-first-sandbox implementation that supports multiple runtimes (Helm for Kubernetes and Docker Compose) and is designed for easy extension (for example, adding other runtimes).
 
@@ -21,11 +21,11 @@ This repository contains a code-first-sandbox implementation that supports multi
 The Device Workload Fleet Management Client runs on edge devices and provides these core responsibilities:
 
 - Establishing MIAF identity and authorization with the Margo compliant WFM
-- Reporting device capabilities (hardware, interfaces, labels and supported deployment types)
+- Reporting workload target profile characteristics (resources, peripherals, interfaces, and supported deployment technologies)
 - Managing application workloads (Helm charts for Kubernetes runtime, Docker Compose for Docker runtime)
 - Monitoring deployed workloads and reporting status changes in the deployments
 - Periodic desired-state synchronization and event-driven deployment reconciliation
-- Checking application device constraints before a workload is deployed
+- Checking application placement constraints before a workload is deployed
 
 Design goals: small footprint, modular runtime adapters, event-driven reconciliation, and clear observability.
 
@@ -35,14 +35,14 @@ Key components (see source):
 
 - `main.go` — application bootstrap, component wiring and lifecycle management
 - `database/database.go` — in-memory state store with on-disk persistence, subscriptions, MIAF state and sync metadata
-- `onboarding.go` — capability reporting and device-client settings
+- `onboarding.go` — workload target profile reporting and device-client settings
 - `stateSync.go` — polls desired state, validates manifest versions, and fetches deployment bundles or individual deployments
-- `deployment.go` — evaluates device constraints and deploys, updates or removes workloads through runtime clients
+- `deployment.go` — evaluates placement constraints and deploys, updates or removes workloads through runtime clients
 - `monitor.go` — polls Helm release state and emits component status updates
 - `status.go` — deployment status reporting API calls to the WFM
 - `trustbundle.go` — retrieves, validates, caches and refreshes the MIAF SPIFFE trust bundle
 - `watcher.go` — watches and validates changes to the authorized-WFM SPIFFE ID list
-- `types/config.go` — YAML configuration and device-capability loading/validation
+- `types/config.go` — YAML configuration and workload target profile loading/validation
 
 Runtimes supported out of the box:
 
@@ -95,7 +95,7 @@ vim config/config.yaml
 - `wfm.sbiUrl` — the WFM SBI endpoint.
 - `stateSeeking.interval` — desired-state polling interval in seconds.
 - `runtimes` — enabled runtime clients. The checked-in example enables Kubernetes/Helm; Docker Compose can be enabled by adding a `DOCKER` entry with its Docker socket URL.
-- `capabilities.readFromFile` — path to the device capabilities JSON document.
+- `deviceProfile.readFromFile` — path to the workload target profiles JSON document.
 
 Paths are resolved by the process, so use paths valid from the directory where the agent is started. The MIAF certificate, private key, CA certificate and trust bundle are sensitive trust material and must be readable only by the agent account.
 
@@ -123,8 +123,8 @@ runtimes:
   - type: KUBERNETES
     kubernetes:
       kubeconfigPath: /root/.kube/config
-capabilities:
-  readFromFile: ./config/capabilities.json
+deviceProfile:
+  readFromFile: ./config/profiles.json
 ```
 
 ### Authorized WFM identities
@@ -137,13 +137,20 @@ capabilities:
 
 An operator can minimally update this file by adding or removing an authorized WFM SPIFFE ID. The agent watches the file, validates every ID as a Margo WFM identity, and keeps the previous list if an update is invalid. Each ID must belong to the configured MIAF trust domain.
 
-### Device capabilities
+### Workload profile characteristics
 
-`config/capabilities.json` is the device capabilities manifest reported to the WFM. It contains `properties` describing resources and supported workload processing, and optional supplier-defined `labels` used for application eligibility matching. The current file reports the device `id`, vendor and model identity, CPU architecture and cores, memory, storage, peripherals, interfaces, OTEL collector availability, supported runtimes and supported deployment types.
+`config/profiles.json` contains the workload target profile document reported to the WFM via the `PUT /api/v1/profile/{workloadTargetId}` endpoint. It contains a unique `workloadTargetId` and an array of `characteristics` describing delegated compute resources, peripherals, network interfaces, and supported deployment technologies.
 
-Only update values that describe resources actually delegated to Margo workloads. The minimal operator-editable fields are the device identity (`properties.id`, `vendor`, `modelNumber`, `serialNumber`), available capacity (`cpus`, `memory`, `storage`), available hardware and interfaces (`peripherals`, `interfaces`), and supported processing (`supportedRuntimes`, `supportedDeploymentTypes`). `labels` may contain stable, supplier-defined string, number, boolean, or homogeneous primitive-array values; prefix label keys with an organization domain to avoid collisions. Validate the JSON before restarting the agent.
+Only update values that describe resources actually delegated to Margo workloads. The minimal operator-editable fields are:
+- `workloadTargetId` — unique identifier for the workload target
+- `margo.org/resource/cpu` — CPU cores and architecture
+- `margo.org/resource/memory` — available memory in GiB
+- `margo.org/resource/storage` — available storage in GiB
+- `margo.org/peripherals` — available hardware peripherals (e.g., GPU)
+- `margo.org/interfaces` — network interfaces (e.g., ethernet, wifi, bluetooth)
+- `margo.org/deployment/<type>` — supported deployment technologies (e.g., `margo.org/deployment/compose` or `margo.org/deployment/helm`) with an empty properties object `{}`
 
-The Margo device-capabilities model uses `oci` for an OCI runtime and `helm` or `compose` for deployment types. The agent also adds the deployment types implied by the configured runtime clients when it initializes. See the [Margo Device Capabilities specification](https://docs.margo.org/specification/margo-management-interface/device-capabilities) for the complete schema and allowed values.
+See the [Margo Profiles specification](https://github.com/margo/specification/blob/4137e6a6cd0b34f0eb4e7bb3382c1248cf71b3d5/system-design/specification/margo-management-interface/profiles.md) for the complete schema and allowed values.
 
 ## Runtimes & features
 
@@ -160,11 +167,51 @@ Operational features:
 - Persistence: in-memory DB with optional on-disk persistence for state
 - Error handling: structured errors and retry classification
 
-### Device capability matching
+### Profile placement constraint matching
 
-Before deploying an application, the agent evaluates the deployment profile's optional `deviceConstraints` against its loaded capabilities. Capacity requirements are checked for CPU cores and architecture, memory, and storage. Eligibility rules can match device `properties` with JSON Pointer property selectors and supplier-defined `labels` with label selectors; selector expressions follow the Margo application-description rules. If the device is not eligible, the deployment is failed locally with the matching reason and no runtime deployment is attempted.
+Before deploying an application, the agent evaluates the deployment profile's optional `placementConstraints` against its reported profile characteristics in `config/profiles.json`. In the schema-agnostic matching model introduced in PR #233, `placementConstraints` unifies both resource capacities (CPU, memory, storage) and hardware eligibility rules into a list of generic `matchExpressions`.
 
-This check complements WFM placement. The WFM may use the same constraints to select a target, but the device remains responsible for determining whether the workload can run on its actual capabilities. See the [Margo Application Description device constraints](https://docs.margo.org/specification/applications/application-description#deviceconstraints-attributes) documentation for the constraint schema and matching operators.
+Each match expression targets a specific characteristic and specifies how its properties must be matched:
+- `key` (required): Identifies the profile characteristic to evaluate (e.g., `margo.org/resource/cpu`, `margo.org/resource/memory`, `margo.org/peripherals`, `margo.org/interfaces`). If `property` is omitted, the expression tests solely for the existence of the characteristic (e.g., verifying support for `margo.org/deployment/compose` or `margo.org/deployment/helm`).
+- `property` (optional): An RFC 6901 JSON Pointer evaluated relative to the characteristic's `properties` object (e.g., `/memory`, `/storage`, `/cpus`, `/peripherals`, `/interfaces`).
+- `operator` (required): Evaluation operator:
+  - Scalar comparisons: `GtEq`, `LtEq`, `Gt`, `Lt`, `In`, `NotIn` evaluated against `values`.
+  - Array containment: `ContainsAll` or `ContainsAny` evaluated using an `itemSelector` with nested match expressions against array elements (e.g., matching peripheral or interface types).
+- `values` / `itemSelector`: Comparison operands used by the operator.
+
+Example constraint structure from an `ApplicationDescription`:
+
+```yaml
+placementConstraints:
+  - matchExpressions:
+      - key: margo.org/resource/cpu
+        property: /cpus
+        operator: ContainsAny
+        itemSelector:
+          matchExpressions:
+            - property: /cores
+              operator: GtEq
+              values: [1.5]
+            - property: /architecture
+              operator: In
+              values: ["amd64"]
+      - key: margo.org/resource/memory
+        property: /memory
+        operator: GtEq
+        values: [1]
+      - key: margo.org/peripherals
+        property: /peripherals
+        operator: ContainsAll
+        itemSelector:
+          matchExpressions:
+            - property: /type
+              operator: In
+              values: ["gpu"]
+```
+
+All expressions within `placementConstraints` must evaluate to `true` (logical AND). If the workload target does not satisfy the placement constraints, the deployment fails locally with the matching failure reason, reports the failure status back to the WFM, and skips runtime deployment.
+
+This check complements WFM placement. While the WFM uses placement constraints to schedule workloads to eligible workload targets across the fleet, the device agent retains local responsibility for validating that the workload can safely run on its currently available characteristics.
 
 ## Development & tests
 
@@ -183,7 +230,7 @@ poc/device/agent/
 ├─ config/
 │  ├─ authorized.json
 │  ├─ config.yaml
-│  └─ capabilities.json
+│  └─ profiles.json
 ├─ database/
 │  └─ database.go
 └─ types/
@@ -268,7 +315,7 @@ Quick checks
 - WFM unreachable: verify `wfm.sbiUrl` and that the network path is accessible. Try telnet to the WFM IP and Port. If it works, then try `curl` to the endpoints.
 - Docker socket permissions: ensure the container or user has access to `/var/run/docker.sock` or run the workload-fleet-management-client as a user in the `docker` group
 - Kubernetes issues: verify `kubeconfig` and that `kubectl` can access the cluster
-- Capabilities file: validate JSON with `jq` before use
+- Profiles file: validate `config/profiles.json` with `jq` before use
 
 Logging
 

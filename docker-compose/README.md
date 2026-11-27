@@ -25,7 +25,7 @@ docker-compose/
 |-- config/
 |   |-- config.yaml
 |   |-- authorized.json
-|   |-- capabilities.json
+|   |-- profiles.json
 |   |-- identity/
 |   |   |-- payload-cert.pem
 |   |   `-- payload-key.pem
@@ -39,14 +39,14 @@ The MIAF-related entries in `config/config.yaml` require the following:
 - `config/identity/payload-key.pem` is the private key for the SVID certificate. Protect this file appropriately.
 - `config/mis/https-ca.crt` is the CA certificate used to verify the MIS endpoint.
 - `config/authorized.json` contains the authorized clients.
-- `config/capabilities.json` contains the device capabilities referenced by `capabilities.readFromFile`.
+- `config/profiles.json` contains the workload target profile characteristics array referenced by `deviceProfile.readFromFile`.
 - `data/` is the persistent database directory and is mounted at `/var/lib/margo/device-agent/data`.
 
 If MIS trust-bundle discovery is unavailable and the corresponding settings are enabled in `config/config.yaml`, also provide `config/mis/trust-bundle.json` and configure the `trustDomain` and trust-bundle path. The configured MIS endpoint must be reachable from the container.
 
 3. Set the runtime and service parameters in `config/config.yaml`. The supplied configuration selects Kubernetes; to manage Kubernetes, uncomment the kubeconfig volume mount in `docker-compose.yaml` and ensure the host kubeconfig exists at `/root/.kube/config`. To manage Docker instead, select the `DOCKER` runtime in `config.yaml`; the Compose file already mounts `/var/run/docker.sock`.
 
-4. Update `config/config.yaml` and `config/capabilities.json` for your environment, including the MIS endpoint, WFM SBI URL, runtime, and state-seeking interval.
+4. Update `config/config.yaml` and `config/profiles.json` for your environment, including the MIS endpoint, WFM SBI URL, runtime, and state-seeking interval.
 
 5. Start the device's Workload Fleet Management Client using Docker Compose:
 ```bash
@@ -65,7 +65,7 @@ docker compose down
 
 # Notes:
 - The Workload Fleet Management Client has Docker socket access to manage Docker runtimes when the Docker runtime is selected
-- Configuration, MIAF identity, MIS trust, authorization, and capability files are mounted from the local `config/` directory
+- Configuration, MIAF identity, MIS trust, authorization, and profile files are mounted from the local `config/` directory
 - Data persistence is handled through the `data/` directory mount
 - Container logs use the `json-file` driver with 10 MB files and three rotated files
 - The container will restart automatically unless stopped manually

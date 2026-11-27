@@ -440,9 +440,6 @@ type AppConfigurationSchema struct {
 
 // AppDeploymentProfile defines model for AppDeploymentProfile.
 type AppDeploymentProfile struct {
-	// Characteristics Characteristic match expressions required for placement on a workload target.
-	Characteristics *[]Characteristics `json:"characteristics" yaml:"characteristics"`
-
 	// Components Components in this deployment profile
 	Components []AppDeploymentProfile_Components_Item `json:"components" yaml:"components"`
 
@@ -451,6 +448,9 @@ type AppDeploymentProfile struct {
 
 	// Key Deployment technology key, e.g. `margo.org/deployment/helm` or `margo.org/deployment/compose`.
 	Key string `json:"key" yaml:"key"`
+
+	// PlacementConstraints PlacementConstraints match expressions required for placement on a workload target.
+	PlacementConstraints *[]PlacementConstraints `json:"placementConstraints" yaml:"placementConstraints"`
 }
 
 // AppDeploymentProfile_Components_Item defines model for AppDeploymentProfile.components.Item.
@@ -801,12 +801,6 @@ type CharacteristicMatchExpression struct {
 // CharacteristicMatchExpressionOperator Operator used to evaluate the referenced value.
 type CharacteristicMatchExpressionOperator string
 
-// Characteristics Characteristic match expressions required for placement on a workload target.
-type Characteristics struct {
-	// MatchExpressions Match expressions evaluated against the workload target's characteristics.
-	MatchExpressions []CharacteristicMatchExpression `json:"matchExpressions"`
-}
-
 // ConfigurationSchema defines model for ConfigurationSchema.
 type ConfigurationSchema struct {
 	// AllowEmpty Whether empty values are allowed
@@ -878,14 +872,14 @@ type ContextualInfo struct {
 
 // DeploymentExecutionProfile Application Deployment Profile
 type DeploymentExecutionProfile struct {
-	// Characteristics Characteristic match expressions copied from the selected application description deployment profile, required for placement on a workload target.
-	Characteristics *[]Characteristics `json:"characteristics,omitempty"`
-
 	// Components Components of the deployment profile
 	Components []DeploymentExecutionProfile_Components_Item `json:"components"`
 
 	// Key Deployment technology key, e.g. `margo.org/deployment/helm` or `margo.org/deployment/compose`.
 	Key string `json:"key"`
+
+	// PlacementConstraints PlacementConstraints match expressions copied from the selected application description deployment profile, required for placement on a workload target.
+	PlacementConstraints *[]PlacementConstraints `json:"placementConstraints,omitempty"`
 }
 
 // DeploymentExecutionProfile_Components_Item defines model for DeploymentExecutionProfile.components.Item.
@@ -1106,6 +1100,12 @@ type PaginationMetadata struct {
 
 	// RemainingItemCount Number of items remaining
 	RemainingItemCount *int `json:"remainingItemCount,omitempty"`
+}
+
+// PlacementConstraints PlacementConstraints match expressions required for placement on a workload target.
+type PlacementConstraints struct {
+	// MatchExpressions Match expressions evaluated against the workload target's characteristics.
+	MatchExpressions []CharacteristicMatchExpression `json:"matchExpressions"`
 }
 
 // ValidationError defines model for ValidationError.

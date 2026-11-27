@@ -108,6 +108,8 @@ get_package_id_by_name() {
   fi
 }
 
+
+# TODO: Revisit this function and adjust it based on the WFM `list devices` response.
 # Get device ID by role
 get_device_id_by_role() {
   local role="$1"

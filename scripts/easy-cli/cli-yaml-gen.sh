@@ -1,6 +1,15 @@
 #!/bin/bash
 # YAML generation functions for WFM CLI
 
+# Deployment profile technology keys (per standard/snapshot.spec.yaml appDeploymentProfile)
+DEPLOYMENT_KEY_COMPOSE="${DEPLOYMENT_KEY_COMPOSE:-margo.org/deployment/compose}"
+DEPLOYMENT_KEY_HELM="${DEPLOYMENT_KEY_HELM:-margo.org/deployment/helm}"
+
+# Default component properties
+DEFAULT_TIMEOUT="${DEFAULT_TIMEOUT:-5m0s}"
+DEFAULT_HELM_REVISION="${DEFAULT_HELM_REVISION:-0.1.0}"
+DEFAULT_COMPOSE_REVISION="${DEFAULT_COMPOSE_REVISION:-1.0.0}"
+
 generate_instance_yaml_from_oci() {
   local package_name="$1"
   local package_id="$2"
@@ -34,44 +43,29 @@ generate_instance_yaml_from_oci() {
   local app_identifier="${app_id:-$(echo "${app_name}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -d '_.,' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')}"
   app_identifier=$(echo "$app_identifier" | cut -c1-40)
 
-  # Determine deployment type
-  local deployment_type=$(awk '/deploymentProfiles:/,0 {if (/^[[:space:]]{2}-[[:space:]]*type:/) print}' margo.yaml | sed 's/.*type:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs | head -1)
+  # Determine deployment technology key
+  local raw_key=$(awk '/deploymentProfiles:/,0 {if (/^[[:space:]]*-[[:space:]]*key:/) print}' margo.yaml | head -1 | sed 's/.*key:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs)
 
-  if [ -z "$deployment_type" ]; then
-    if [[ "$package_name" =~ compose ]]; then
-      deployment_type="compose"
-    elif [[ "$package_name" =~ helm ]]; then
-      deployment_type="helm"
-    fi
-  fi
-
-  local profile_type=""
-  case "$deployment_type" in
-    helm) profile_type="helm" ;;
-    compose|docker-compose) profile_type="compose" ;;
-    *)
-      if [[ "$package_name" =~ compose ]]; then
-        profile_type="compose"
-      else
-        profile_type="helm"
-      fi
-      ;;
-  esac
-
-  local repository=$(get_oci_repository_path "$package_name" "$temp_dir/margo.yaml")
-
-  if [ "$profile_type" = "helm" ] || [ "$profile_type" = "compose" ]; then
-    generate_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml" "$profile_type"
+  local profile_key=""
+  if [ "$raw_key" = "$DEPLOYMENT_KEY_COMPOSE" ]; then
+    profile_key="$DEPLOYMENT_KEY_COMPOSE"
+  elif [ "$raw_key" = "$DEPLOYMENT_KEY_HELM" ]; then
+    profile_key="$DEPLOYMENT_KEY_HELM"
   else
-    echo "❌ Unsupported deployment type: $profile_type" >&2
+    echo "❌ Unsupported or missing deployment key in margo.yaml: '$raw_key'" >&2
     cd - >/dev/null
     rm -rf "$temp_dir"
     return 1
   fi
 
+  local repository=$(get_oci_repository_path "$package_name" "$temp_dir/margo.yaml")
+
+  generate_instance "$app_identifier" "$package_id" "$device_id" "$repository" "$output_file" "$temp_dir/margo.yaml" "$profile_key"
+  local gen_status=$?
+
   cd - >/dev/null
   rm -rf "$temp_dir"
-  return 0
+  return $gen_status
 }
 
 generate_instance() {
@@ -81,15 +75,15 @@ generate_instance() {
   local repository="$4"
   local output_file="$5"
   local margo_file="$6"
-  local profile_type="$7"  # "helm" or "compose"
+  local profile_key="$7"  # "margo.org/deployment/helm" or "margo.org/deployment/compose"
 
   local instance_name=$(echo "${app_identifier}-instance" | cut -c1-53)
   local component_name=$(echo "${app_identifier}" | cut -c1-40)
   local default_rev
-  if [ "$profile_type" = "helm" ]; then
-    default_rev="0.1.0"
+  if [[ "$profile_key" == *"helm"* ]]; then
+    default_rev="$DEFAULT_HELM_REVISION"
   else
-    default_rev="1.0.0"
+    default_rev="$DEFAULT_COMPOSE_REVISION"
   fi
 
   cat > "$output_file" <<EOF
@@ -105,7 +99,7 @@ spec:
   deviceRef:
     id: ${device_id}
   deploymentProfile:
-    type: ${profile_type}
+    key: ${profile_key}
     components:
 EOF
 
@@ -121,6 +115,7 @@ EOF
       if (/repository:/ && !/registryUrl/) {
         repo = $0
         sub(/.*repository:/, "", repo)
+        sub(/#.*$/, "", repo)
         gsub(/^[ \t]+|[ \t]+$/, "", repo)
         gsub(/"/, "", repo)
         print "REPOSITORY:" repo
@@ -128,18 +123,67 @@ EOF
       if (/revision:/) {
         rev = $0
         sub(/.*revision:/, "", rev)
+        sub(/#.*$/, "", rev)
         gsub(/^[ \t]+|[ \t]+$/, "", rev)
         gsub(/"/, "", rev)
         print "REVISION:" rev
+      }
+      if (/timeout:/) {
+        tout = $0
+        sub(/.*timeout:/, "", tout)
+        sub(/#.*$/, "", tout)
+        gsub(/^[ \t]+|[ \t]+$/, "", tout)
+        gsub(/"/, "", tout)
+        print "TIMEOUT:" tout
+      }
+      if (/wait:/) {
+        w = $0
+        sub(/.*wait:/, "", w)
+        sub(/#.*$/, "", w)
+        gsub(/^[ \t]+|[ \t]+$/, "", w)
+        gsub(/"/, "", w)
+        print "WAIT:" w
       }
     }' "$margo_file" | {
       local current_name=""
       local current_repo=""
       local current_rev="$default_rev"
+      local current_wait="true"
+      local current_timeout="$DEFAULT_TIMEOUT"
+
+      flush_component() {
+        if [ -n "$current_name" ]; then
+          if [[ "$current_repo" == *"{{"* ]] || [ -z "$current_repo" ]; then
+            current_repo="$repository"
+          fi
+          if [[ "$current_rev" == *"{{"* ]] || [ -z "$current_rev" ]; then
+            current_rev="$default_rev"
+          fi
+          if [[ "$current_timeout" =~ ^[0-9]+m$ ]]; then
+            current_timeout="${current_timeout}0s"
+          elif [[ ! "$current_timeout" =~ ^[0-9]+m[0-9]+s$ ]]; then
+            current_timeout="$DEFAULT_TIMEOUT"
+          fi
+          cat >> "$output_file" <<COMPONENT
+      - name: ${current_name}
+        properties:
+          repository: ${current_repo}
+          revision: ${current_rev}
+          wait: ${current_wait}
+          timeout: ${current_timeout}
+COMPONENT
+          current_name=""
+          current_repo=""
+          current_rev="$default_rev"
+          current_wait="true"
+          current_timeout="$DEFAULT_TIMEOUT"
+        fi
+      }
 
       while IFS=: read -r key value; do
         case "$key" in
           COMPONENT_NAME)
+            flush_component
             current_name="$value"
             ;;
           REPOSITORY)
@@ -147,26 +191,20 @@ EOF
             ;;
           REVISION)
             current_rev="$value"
-            if [ -n "$current_name" ] && [ -n "$current_repo" ]; then
-              cat >> "$output_file" <<COMPONENT
-      - name: ${current_name}
-        properties:
-          repository: ${current_repo}
-          revision: ${current_rev}
-          wait: true
-          timeout: 5m
-COMPONENT
-              current_name=""
-              current_repo=""
-              current_rev="$default_rev"
-            fi
+            ;;
+          TIMEOUT)
+            current_timeout="$value"
+            ;;
+          WAIT)
+            current_wait="$value"
             ;;
         esac
       done
+      flush_component
     }
   else
     local fallback_rev="$default_rev"
-    if [ "$profile_type" = "helm" ]; then
+    if [[ "$profile_key" == *"helm"* ]]; then
       local version_field
       version_field=$(grep -E "^\s*version:" "$margo_file" | head -1 \
         | sed 's/.*version:\s*//' | tr -d '"' | tr -d "'" | xargs)
@@ -179,7 +217,7 @@ COMPONENT
           repository: ${repository}
           revision: ${fallback_rev}
           wait: true
-          timeout: 5m
+          timeout: ${DEFAULT_TIMEOUT}
 COMPONENT
   fi
 }

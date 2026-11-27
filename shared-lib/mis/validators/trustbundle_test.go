@@ -114,20 +114,22 @@ func generateCertWithOptions(
 	require.NoError(t, err)
 
 	certB64 := base64.StdEncoding.EncodeToString(certDER)
+
 	return map[string]interface{}{
 		"kty": "EC",
 		"crv": "P-256",
-		"x": base64.RawURLEncoding.EncodeToString(
-			//nolint:staticcheck // ignore QF1008 embedding is by standard package
-			key.PublicKey.X.Bytes(),
-		),
-		"y": base64.RawURLEncoding.EncodeToString(
-			//nolint:staticcheck // ignore QF1008 embedding is by standard package
-			key.PublicKey.Y.Bytes(),
-		),
+		"x":   encodeP256Coordinate(key.PublicKey.X),
+		"y":   encodeP256Coordinate(key.PublicKey.Y),
 		"use": "x509-svid",
 		"x5c": []string{certB64},
 	}
+}
+
+// encodeP256Coordinate encodes an EC coordinate as a 32-byte, base64url value.
+func encodeP256Coordinate(value *big.Int) string {
+	padded := make([]byte, 32)
+	value.FillBytes(padded)
+	return base64.RawURLEncoding.EncodeToString(padded)
 }
 
 // --- Tests for validateRawStructure ---

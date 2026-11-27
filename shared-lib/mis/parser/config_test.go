@@ -239,7 +239,7 @@ func TestParseMIAFConfig_CertFileInvalidPEM_ReturnsError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "miaf.x509.certPath")
-	assert.Contains(t, err.Error(), "not a valid x509 SVID certificate")
+	assert.Contains(t, err.Error(), "contains no valid PEM block")
 }
 
 // ── X.509 private key errors ──────────────────────────────────────────────────

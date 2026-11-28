@@ -1,16 +1,13 @@
 // Package trustbundle provides functionality for retrieving SPIFFE trust bundles
-// from a Margo Infrastructure Service (MIS) endpoint, with fallback mechanisms
-// for resilience.
+// from a Margo Identity Service (MIS), with fallback mechanisms for resilience.
 package trustbundle
 
 import (
 	"context"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/margo/sandbox/shared-lib/mis/client"
@@ -23,7 +20,9 @@ var ErrNotModified = errors.New("trust bundle not modified")
 
 // Getter defines the interface for retrieving a SPIFFE trust bundle.
 // Returns:
-//   - trustDomain: the trust domain string (e.g. "margo.org")
+//   - trustDomain: the trust domain from the discovery document when discovery
+//     succeeds. In every other case, the TrustDomain configured in
+//     TrustBundleGetterConfig is returned.
 //   - bundle:      the raw SPIFFE bundle in JWKS JSON format
 //   - etag:        the ETag value from the MIS server response, or "" if not present
 //   - err:         non-nil if the bundle could not be retrieved from any source.
@@ -38,7 +37,7 @@ type Getter interface {
 
 // trustBundleGetterImpl is the unexported implementation of Getter.
 type trustBundleGetterImpl struct {
-	misEndpoint    string
+	discoveryURL   string
 	misRootCA      []byte
 	misTrustPins   []string
 	trustBundleURI string
@@ -48,45 +47,57 @@ type trustBundleGetterImpl struct {
 
 // TrustBundleGetterConfig holds all inputs required to construct a Getter.
 type TrustBundleGetterConfig struct {
-	// MISEndpoint is the base HTTPS URL of the MIS server.
-	// Required unless operating in static bundle-only mode.
-	MISEndpoint string
+	// DiscoveryURL is the full absolute HTTPS URL of the MIS discovery document,
+	// for example "https://192.0.2.10/.well-known/margo".
+	// Optional. When empty, discovery is skipped.
+	DiscoveryURL string
 
-	// MISRootCA is the PEM-encoded CA certificate used to authenticate the MIS server.
-	// Takes precedence over MISTrustPins when both are provided.
+	// MISRootCA is the PEM-encoded CA certificate passed to the MIS client.
+	// The MIS client uses it for DNS-named MIS URLs.
 	MISRootCA []byte
 
 	// MISTrustPins is a list of base64-encoded SHA-256 SPKI pins (RFC 7469 §2.4).
-	// Used when MISRootCA is absent.
+	// Passed to the MIS client, which uses them for IP-addressed MIS URLs.
 	MISTrustPins []string
 
-	// TrustBundleURI is an optional URI path override for the SPIFFE bundle endpoint.
-	// Used as a fallback when discovery fails.
+	// TrustBundleURI is the full absolute HTTPS URL of the SPIFFE bundle.
+	// Used as a fallback when discovery fails or DiscoveryURL is not configured.
 	TrustBundleURI string
 
 	// StaticBundle is an operator-supplied SPIFFE trust bundle in JWKS format.
-	// Used as the final fallback when both discovery and URI fallback fail.
+	// Used as the final fallback.
 	StaticBundle []byte
 
-	// TrustDomain is required when StaticBundle is configured.
+	// TrustDomain is the trust domain returned to the caller whenever the
+	// bundle does not come from discovery (URI fallback, static fallback, or
+	// a 304 from those sources). When discovery succeeds, the trust domain from
+	// the discovery document is returned instead.
+	// Required when StaticBundle is configured.
 	TrustDomain string
 }
 
 // New validates the provided configuration and returns a Getter backed by
 // trustBundleGetterImpl.
 //
-// Valid configurations:
-//   - Endpoint mode:      misEndpoint + trust anchor (misRootCA or misTrustPins)
-//   - Static bundle mode: staticBundle + trustDomain (no endpoint required)
-//   - Both modes can coexist; endpoint mode is attempted first with static as fallback.
+// StaticBundle and TrustDomain are always required. A network source
+// (DiscoveryURL and/or TrustBundleURI) is optional, but when one is set a
+// trust anchor (MISRootCA or MISTrustPins) is also required.
 //
-// misRootCA takes precedence over misTrustPins when both are provided.
+// Valid configurations:
+//   - Discovery mode:     DiscoveryURL + trust anchor + StaticBundle + TrustDomain
+//   - URI mode:           TrustBundleURI + trust anchor + StaticBundle + TrustDomain
+//   - Discovery and URI:  DiscoveryURL + TrustBundleURI + trust anchor + StaticBundle + TrustDomain
+//   - Static bundle mode: StaticBundle + TrustDomain (no network configuration)
+//
+// Network sources (DiscoveryURL and/or TrustBundleURI) are tried first, with
+// StaticBundle as the final fallback. Both MISRootCA and MISTrustPins are passed
+// to the MIS client unchanged, which selects the trust mode per URL.
 func New(cfg TrustBundleGetterConfig) (Getter, error) {
 	if err := validateNewInputs(cfg); err != nil {
 		return nil, err
 	}
 	return &trustBundleGetterImpl{
-		misEndpoint:    cfg.MISEndpoint,
+		discoveryURL:   cfg.DiscoveryURL,
 		misRootCA:      cfg.MISRootCA,
 		misTrustPins:   cfg.MISTrustPins,
 		trustBundleURI: cfg.TrustBundleURI,
@@ -97,46 +108,54 @@ func New(cfg TrustBundleGetterConfig) (Getter, error) {
 
 // GetTrustBundle retrieves the SPIFFE trust bundle using the following strategy:
 //
-//  1. Discovery: calls GET /.well-known/margo on the MIS endpoint to obtain the
-//     canonical trust bundle URL and trust domain from the discovery document.
-//     On success, fetches the bundle from the discovered URL and returns it.
+//  1. Discovery: if DiscoveryURL is configured, fetches the discovery document
+//     and then fetches the bundle from its trustBundleUri. On success, returns
+//     the trust domain from the discovery document together with the bundle.
 //
-//  2. URI Fallback: if discovery fails and a trustBundleURI is configured,
-//     constructs the full bundle URL (misEndpoint + trustBundleURI) and fetches
-//     the bundle directly.
+//  2. URI Fallback: if discovery fails, or DiscoveryURL is not configured, and
+//     TrustBundleURI is configured, fetches the bundle directly from
+//     TrustBundleURI. The configured TrustDomain is returned.
 //
-//  3. Static Fallback: returns the operator-supplied static bundle and trust domain.
+//  3. Static Fallback: if the previous steps failed or could not be performed
+//     (no DiscoveryURL and no TrustBundleURI, or a fetch/validation failure),
+//     returns the operator-supplied static bundle. The configured TrustDomain
+//     is returned.
 //
 // When the server returns HTTP 304 (ETag match), GetTrustBundle returns
-// (trustDomain, nil, "", ErrNotModified). The caller should continue using its
-// cached bundle. The static fallback is NOT attempted on 304, since the cached
+// (trustDomain, nil, "", ErrNotModified). The trust domain is the discovered
+// one when the 304 came from the discovered bundle, and the configured one
+// otherwise. The static fallback is NOT attempted on 304, since the cached
 // network bundle is authoritative.
 func (t *trustBundleGetterImpl) GetTrustBundle(
 	ctx context.Context, ietag string,
 ) (string, []byte, string, error) {
-
-	tc := client.TrustConfig{
-		RootCAPEM: t.misRootCA,
-		SPKIPins:  t.misTrustPins,
-	}
-
-	c, err := client.New(t.misEndpoint, tc)
+	c, err := t.newClient()
 	if err != nil {
-		return t.fallbackToURIOrStatic(ctx, ietag, fmt.Errorf("building MIS client: %w", err))
+		return t.staticFallback(fmt.Errorf("building MIS client: %w", err))
 	}
 
 	// ── Step 1: Discovery ────────────────────────────────────────────────────
-	discoveryResp, err := c.GetDiscoveryDocument(ctx, "")
+	if t.discoveryURL == "" {
+		return t.fallbackToURIOrStatic(
+			ctx, c, ietag,
+			errors.New("discovery skipped: no DiscoveryURL configured"),
+		)
+	}
+
+	discoveryResp, err := c.GetDiscoveryDocument(ctx, t.discoveryURL, "")
 	if err != nil {
-		return t.fallbackToURIOrStatic(ctx, ietag, fmt.Errorf("discovery request failed: %w", err))
+		return t.fallbackToURIOrStatic(
+			ctx, c, ietag,
+			fmt.Errorf("discovery request to %q failed: %w", t.discoveryURL, err),
+		)
 	}
 
 	if discoveryResp.JSON200 == nil {
 		return t.fallbackToURIOrStatic(
-			ctx,
-			ietag,
+			ctx, c, ietag,
 			fmt.Errorf(
-				"discovery returned non-200 status %d",
+				"discovery at %q returned non-200 status %d",
+				t.discoveryURL,
 				discoveryResp.HTTPResponse.StatusCode,
 			),
 		)
@@ -147,108 +166,87 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 	discoveredBundleURL := discoveryDoc.TrustBundleUri
 	if discoveredBundleURL == "" {
 		return t.fallbackToURIOrStatic(
-			ctx, ietag,
+			ctx, c, ietag,
 			errors.New("discovery document contains no trustBundleUri"),
 		)
 	}
 
-	discoveredTrustDomain := discoveryDoc.TrustDomain
-
-	// ── Step 2: Fetch bundle from discovered URL ──────────────────────────────
+	// ── Step 2: Fetch bundle from discovered URL ─────────────────────────────
 	bundleBytes, etag, err := t.fetchBundleFromURL(ctx, c, ietag, discoveredBundleURL)
 	if err != nil {
-		// 304: the cached bundle is still valid — surface ErrNotModified directly.
-		// Do NOT fall back to static, as the network source is authoritative.
+		// 304: the cached bundle is still valid. Surface ErrNotModified directly
+		// and do NOT fall back to static, as the network source is authoritative.
 		if errors.Is(err, ErrNotModified) {
-			return discoveredTrustDomain, nil, "", ErrNotModified
+			return discoveryDoc.TrustDomain, nil, "", ErrNotModified
 		}
-		return t.staticFallback(
+		return t.fallbackToURIOrStatic(
+			ctx, c, ietag,
 			fmt.Errorf("fetching bundle from discovered URL %q: %w", discoveredBundleURL, err),
 		)
 	}
 
-	// Validate the fetched bundle before returning it to the caller.
-	if err := validateSPIFFEBundle(bundleBytes); err != nil {
-		return t.staticFallback(
-			fmt.Errorf(
-				"fetched bundle from discovered URL %q failed validation: %w",
-				discoveredBundleURL,
-				err,
-			),
+	if err := validators.ValidateSpiffeTrustBundle(bundleBytes); err != nil {
+		return t.fallbackToURIOrStatic(
+			ctx, c, ietag,
+			fmt.Errorf("bundle from discovered URL %q failed validation: %w", discoveredBundleURL, err),
 		)
 	}
 
-	return discoveredTrustDomain, bundleBytes, etag, nil
+	return discoveryDoc.TrustDomain, bundleBytes, etag, nil
 }
 
-// fallbackToURIOrStatic implements steps 2 and 3 of the retrieval strategy.
+// newClient builds an MIS client from the configured trust material.
+// Both RootCAPEM and SPKIPins are passed through unchanged. The MIS client
+// selects the trust mode per URL and returns any resulting error.
+func (t *trustBundleGetterImpl) newClient() (*client.MISClient, error) {
+	return client.New(client.TrustConfig{
+		RootCAPEM: t.misRootCA,
+		SPKIPins:  t.misTrustPins,
+	})
+}
+
+// fallbackToURIOrStatic implements step 2 and step 3 of the retrieval strategy.
+// precedingErr describes why the discovery step did not produce a bundle.
+// The configured TrustDomain is returned on every path.
 func (t *trustBundleGetterImpl) fallbackToURIOrStatic(
 	ctx context.Context,
+	c *client.MISClient,
 	ietag string,
-	discoveryErr error,
+	precedingErr error,
 ) (string, []byte, string, error) {
 	// ── Step 2: URI Fallback ─────────────────────────────────────────────────
-	if t.trustBundleURI != "" {
-		fullBundleURL := t.misEndpoint + t.trustBundleURI
-
-		tc := client.TrustConfig{
-			RootCAPEM: t.misRootCA,
-			SPKIPins:  t.misTrustPins,
-		}
-
-		c, clientErr := client.New(t.misEndpoint, tc)
-		if clientErr != nil {
-			return t.staticFallback(fmt.Errorf(
-				"discovery failed (%w); also failed to build MIS client for URI fallback: %v",
-				discoveryErr, clientErr,
-			))
-		}
-
-		bundleBytes, etag, fetchErr := t.fetchBundleFromURL(ctx, c, ietag, fullBundleURL)
-		if fetchErr != nil {
-			// 304 from the URI fallback: cached bundle is still valid.
-			if errors.Is(fetchErr, ErrNotModified) {
-				return t.trustDomain, nil, "", ErrNotModified
-			}
-			return t.staticFallback(fmt.Errorf(
-				"discovery failed (%w); URI fallback to %q also failed: %v",
-				discoveryErr, fullBundleURL, fetchErr,
-			))
-		}
-
-		// Validate the fetched bundle before returning it to the caller.
-		if err := validateSPIFFEBundle(bundleBytes); err != nil {
-			return t.staticFallback(fmt.Errorf(
-				"discovery failed (%w); URI fallback bundle from %q failed validation: %v",
-				discoveryErr, fullBundleURL, err,
-			))
-		}
-
-		return t.trustDomain, bundleBytes, etag, nil
+	if t.trustBundleURI == "" {
+		return t.staticFallback(precedingErr)
 	}
 
-	return t.staticFallback(discoveryErr)
+	bundleBytes, etag, err := t.fetchBundleFromURL(ctx, c, ietag, t.trustBundleURI)
+	if err != nil {
+		// 304 from the URI fallback: cached bundle is still valid.
+		if errors.Is(err, ErrNotModified) {
+			return t.trustDomain, nil, "", ErrNotModified
+		}
+		return t.staticFallback(fmt.Errorf(
+			"%w; URI fallback to %q failed: %v",
+			precedingErr, t.trustBundleURI, err,
+		))
+	}
+
+	if err := validators.ValidateSpiffeTrustBundle(bundleBytes); err != nil {
+		return t.staticFallback(fmt.Errorf(
+			"%w; URI fallback bundle from %q failed validation: %v",
+			precedingErr, t.trustBundleURI, err,
+		))
+	}
+
+	return t.trustDomain, bundleBytes, etag, nil
 }
 
-// staticFallback implements step 3: return the operator-supplied static bundle.
+// staticFallback implements step 3: return the operator-supplied static bundle
+// together with the configured TrustDomain.
 func (t *trustBundleGetterImpl) staticFallback(precedingErr error) (string, []byte, string, error) {
-	if len(t.staticBundle) == 0 && t.trustDomain == "" {
-		return "", nil, "", fmt.Errorf(
-			"%w; no static trust bundle or trust domain configured as fallback",
-			precedingErr,
-		)
-	}
-
 	if len(t.staticBundle) == 0 {
 		return "", nil, "", fmt.Errorf(
-			"%w; static fallback failed: static trust bundle is empty",
-			precedingErr,
-		)
-	}
-
-	if t.trustDomain == "" {
-		return "", nil, "", fmt.Errorf(
-			"%w; static fallback failed: trust domain is empty",
+			"%w; no static trust bundle configured as fallback",
 			precedingErr,
 		)
 	}
@@ -278,9 +276,9 @@ func (t *trustBundleGetterImpl) fetchBundleFromURL(
 	}
 
 	switch resp.HTTPResponse.StatusCode {
-	case 200:
+	case http.StatusOK:
 		// handled below
-	case 304:
+	case http.StatusNotModified:
 		// ETag matched: the cached bundle is still valid.
 		return nil, "", ErrNotModified
 	default:
@@ -304,78 +302,79 @@ func (t *trustBundleGetterImpl) fetchBundleFromURL(
 // ── Validation helpers ────────────────────────────────────────────────────────
 
 // validateNewInputs orchestrates all input validation for New, delegating each
-// concern to a focused helper. Keeping this out of New avoids cluttering the
-// constructor with validation logic.
+// concern to a focused helper. Per-URL trust material checks are left to the
+// MIS client, which returns the error at request time.
 func validateNewInputs(cfg TrustBundleGetterConfig) error {
 	if err := validateModeRequirements(cfg); err != nil {
 		return err
 	}
 
-	if cfg.MISEndpoint != "" {
-		if err := validateEndpointInputs(cfg); err != nil {
-			return err
+	if err := validateTrustAnchors(cfg); err != nil {
+		return err
+	}
+
+	if cfg.DiscoveryURL != "" {
+		if err := validateHTTPSURL(cfg.DiscoveryURL); err != nil {
+			return fmt.Errorf("invalid DiscoveryURL: %w", err)
 		}
 	}
 
 	if cfg.TrustBundleURI != "" {
-		if err := validateTrustBundleURI(cfg.TrustBundleURI); err != nil {
-			return fmt.Errorf("invalid trust bundle URI: %w", err)
+		if err := validateHTTPSURL(cfg.TrustBundleURI); err != nil {
+			return fmt.Errorf("invalid TrustBundleURI: %w", err)
 		}
 	}
+	if len(cfg.StaticBundle) == 0 {
+		return errors.New("static trust bundle is required")
+	}
 
-	if len(cfg.StaticBundle) > 0 {
-		if err := validateSPIFFEBundle(cfg.StaticBundle); err != nil {
-			return fmt.Errorf("invalid static trust bundle: %w", err)
-		}
+	if err := validators.ValidateSpiffeTrustBundle(cfg.StaticBundle); err != nil {
+		return fmt.Errorf("invalid static trust bundle: %w", err)
+	}
+
+	if !validators.ValidateTrustDomain(cfg.TrustDomain) {
+		return errors.New("valid TrustDomain is required when StaticBundle is configured")
 	}
 
 	return nil
 }
 
-// validateModeRequirements enforces the top-level structural rules that govern
-// which combination of endpoint-mode and static-bundle-mode fields are valid:
+// validateModeRequirements enforces the top-level structural rules:
 //
-//   - Endpoint and trust anchor must appear together (neither alone is valid).
-//   - At least one source (endpoint mode or static bundle) must be configured.
-//   - Static bundle mode requires trustDomain.
+//   - At least one source must be configured: DiscoveryURL, TrustBundleURI,
+//     or StaticBundle.
+//   - Any network source (DiscoveryURL or TrustBundleURI) requires a trust anchor.
+//   - A trust anchor without a network source is a misconfiguration.
 func validateModeRequirements(cfg TrustBundleGetterConfig) error {
-	hasEndpoint := cfg.MISEndpoint != ""
+	hasNetwork := cfg.DiscoveryURL != "" || cfg.TrustBundleURI != ""
 	hasTrustAnchor := len(cfg.MISRootCA) > 0 || len(cfg.MISTrustPins) > 0
 	hasStaticBundle := len(cfg.StaticBundle) > 0
 
-	// Endpoint and trust anchor must be paired.
-	if hasEndpoint != hasTrustAnchor {
-		return fmt.Errorf(
-			"MISEndpoint and a trust anchor (MISRootCA or MISTrustPins) must be configured together",
+	if !hasNetwork && !hasStaticBundle {
+		return errors.New(
+			"either DiscoveryURL, TrustBundleURI, or StaticBundle must be provided",
 		)
 	}
 
-	// At least one bundle source must be available.
-	if !hasEndpoint && !hasStaticBundle {
-		return fmt.Errorf(
-			"either MISEndpoint with a trust anchor, or a StaticBundle must be provided",
+	if hasNetwork && !hasTrustAnchor {
+		return errors.New(
+			"DiscoveryURL or TrustBundleURI requires a trust anchor (MISRootCA or MISTrustPins)",
 		)
 	}
 
-	// Static bundle mode requires TrustDomain to identify the trust domain.
-	if hasStaticBundle && cfg.TrustDomain == "" {
-		return fmt.Errorf(
-			"TrustDomain is required when a StaticBundle is configured",
+	if hasTrustAnchor && !hasNetwork {
+		return errors.New(
+			"a trust anchor (MISRootCA or MISTrustPins) requires DiscoveryURL or TrustBundleURI",
 		)
 	}
 
 	return nil
 }
 
-// validateEndpointInputs validates the endpoint URL and its associated trust
-// material (root CA and/or trust pins). Called only when MISEndpoint is non-empty.
-func validateEndpointInputs(cfg TrustBundleGetterConfig) error {
-	if err := validateMISEndpoint(cfg.MISEndpoint); err != nil {
-		return fmt.Errorf("invalid MIS endpoint: %w", err)
-	}
-
+// validateTrustAnchors validates the root CA and SPKI pins when provided.
+func validateTrustAnchors(cfg TrustBundleGetterConfig) error {
 	if len(cfg.MISRootCA) > 0 {
-		if err := validateRootCA(cfg.MISRootCA); err != nil {
+		if _, err := validators.ValidateRootCACertificate(cfg.MISRootCA); err != nil {
 			return fmt.Errorf("invalid MIS root CA: %w", err)
 		}
 	}
@@ -389,12 +388,12 @@ func validateEndpointInputs(cfg TrustBundleGetterConfig) error {
 	return nil
 }
 
-// validateMISEndpoint ensures the endpoint is a non-empty, parseable HTTPS URL.
-func validateMISEndpoint(endpoint string) error {
-	if endpoint == "" {
+// validateHTTPSURL ensures the value is a non-empty, absolute HTTPS URL with a host.
+func validateHTTPSURL(rawURL string) error {
+	if rawURL == "" {
 		return errors.New("must not be empty")
 	}
-	parsed, err := url.ParseRequestURI(endpoint)
+	parsed, err := url.ParseRequestURI(rawURL)
 	if err != nil {
 		return fmt.Errorf("not a valid URL: %w", err)
 	}
@@ -404,105 +403,5 @@ func validateMISEndpoint(endpoint string) error {
 	if parsed.Host == "" {
 		return errors.New("URL must include a host")
 	}
-	return nil
-}
-
-// validateRootCA ensures the bytes contain at least one valid PEM-encoded X.509
-// CA certificate that can be parsed by the standard library.
-func validateRootCA(rootCA []byte) error {
-	if len(rootCA) == 0 {
-		return errors.New("must not be empty")
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(rootCA) {
-		return errors.New("no valid PEM-encoded X.509 certificate found")
-	}
-	block, _ := pem.Decode(rootCA)
-	if block == nil {
-		return errors.New("no PEM block found")
-	}
-	if _, err := x509.ParseCertificate(block.Bytes); err != nil {
-		return fmt.Errorf("parsing certificate: %w", err)
-	}
-	return nil
-}
-
-// validateTrustBundleURI ensures the URI is a non-empty path starting with "/".
-func validateTrustBundleURI(uri string) error {
-	if uri == "" {
-		return errors.New("must not be empty when provided")
-	}
-	parsed, err := url.Parse(uri)
-	if err != nil {
-		return fmt.Errorf("not a valid URI: %w", err)
-	}
-	if parsed.Scheme != "" || parsed.Host != "" {
-		return errors.New(
-			"must be a URI path (e.g. \"/.well-known/spiffe/bundle.json\"), not a full URL",
-		)
-	}
-	if len(parsed.Path) == 0 || parsed.Path[0] != '/' {
-		return errors.New("path must start with \"/\"")
-	}
-	return nil
-}
-
-// validateSPIFFEBundle performs structural and cryptographic validation of a
-// SPIFFE trust bundle in JWKS format:
-//  1. Must be valid JSON containing a "keys" array.
-//  2. Must contain at least one X.509 trust anchor (kty="RSA" or "EC", x5c present).
-//  3. Every x5c chain present must contain a parseable, valid DER-encoded X.509 certificate.
-func validateSPIFFEBundle(bundle []byte) error {
-	if len(bundle) == 0 {
-		return errors.New("must not be empty")
-	}
-
-	// ── Check 1: valid JWKS JSON structure ───────────────────────────────────
-	var doc struct {
-		Keys []struct {
-			Kty string   `json:"kty"`
-			Use string   `json:"use"`
-			X5c []string `json:"x5c"`
-		} `json:"keys"`
-	}
-	if err := json.Unmarshal(bundle, &doc); err != nil {
-		return fmt.Errorf("not valid JSON: %w", err)
-	}
-	if doc.Keys == nil {
-		return errors.New("SPIFFE bundle must contain a \"keys\" array")
-	}
-
-	// ── Check 2: at least one X.509 trust anchor ─────────────────────────────
-	// A SPIFFE X.509 trust anchor is a JWK entry with a non-empty x5c field.
-	x509AnchorCount := 0
-	for _, key := range doc.Keys {
-		if len(key.X5c) > 0 {
-			x509AnchorCount++
-		}
-	}
-	if x509AnchorCount == 0 {
-		return errors.New(
-			"SPIFFE bundle contains no X.509 trust anchors (no JWK entry with \"x5c\")",
-		)
-	}
-
-	// ── Check 3: every x5c leaf must be a parseable X.509 certificate ────────
-	for i, key := range doc.Keys {
-		for j, certB64 := range key.X5c {
-			// x5c values are standard base64 (not URL-safe), no PEM headers.
-			derBytes, err := base64.StdEncoding.DecodeString(certB64)
-			if err != nil {
-				return fmt.Errorf(
-					"keys[%d].x5c[%d]: base64 decode failed: %w", i, j, err,
-				)
-			}
-			if _, err := x509.ParseCertificate(derBytes); err != nil {
-				return fmt.Errorf(
-					"keys[%d].x5c[%d]: not a valid X.509 certificate: %w", i, j, err,
-				)
-			}
-		}
-	}
-
 	return nil
 }

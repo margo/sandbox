@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	miafParser "github.com/margo/sandbox/shared-lib/mis/parser"
@@ -21,20 +24,20 @@ type MIAFConfig struct {
 }
 
 type MIAFX509Config struct {
-	CertPath string `yaml:"certPath" validate:"required"`
-	KeyPath  string `yaml:"keyPath"  validate:"required"`
+	SVIDWithIntermediatePath string `yaml:"svidWithIntermediatePath" validate:"required"`
+	KeyPath                  string `yaml:"keyPath"  validate:"required"`
 }
 type TrustBundleConfig struct {
-	URI  string `yaml:"uri"`
-	Path string `yaml:"path"`
+	URI        string `yaml:"uri"`
+	StaticPath string `yaml:"staticPath"`
 }
 
 type MISConfig struct {
-	TrustPins     []string           `yaml:"trustPins"`     // optional if caPath is provided, precedence will be given to caPath
-	Endpoint      string             `yaml:"endpoint"`      // optional if TrustBundle is provided
-	CacheInterval uint32             `yaml:"cacheInterval"` // in seconds
-	CAPath        string             `yaml:"caPath"`        // optional if TrustBundle is provided
-	TrustBundle   *TrustBundleConfig `yaml:"trustBundle"`   // default SPIFFE trust bundle in JWKS format
+	TrustPins            []string           `yaml:"trustPins"`            // required if DiscoveryDocumentURL or TrustBundle.URI uses an IP address
+	DiscoveryDocumentURL string             `yaml:"discoveryDocumentURL"` // optional; if set, must be a valid absolute http(s) URL
+	CacheInterval        uint32             `yaml:"cacheInterval"`        // in seconds; defaults to 60 when 0
+	TrustAnchorPath      string             `yaml:"trustAnchorPath"`      // required if DiscoveryDocumentURL or TrustBundle.URI uses a domain name
+	TrustBundle          *TrustBundleConfig `yaml:"trustBundle"`          // required; StaticPath must always be set, URI is optional but must be a valid absolute http(s) URL if set
 }
 
 type DeviceOnboardState string
@@ -152,41 +155,8 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("logging.level is required in configuration")
 	}
 
-	if config.MIAF.X509.CertPath == "" {
-		return fmt.Errorf("miaf.x509.certPath is required in configuration")
-	}
-
-	if config.MIAF.X509.KeyPath == "" {
-		return fmt.Errorf("miaf.x509.keyPath is required in configuration")
-	}
-
-	hasCAPath := config.MIAF.MIS.CAPath != ""
-	hasTrustPins := len(config.MIAF.MIS.TrustPins) > 0
-	hasTrustAnchor := hasCAPath || hasTrustPins
-	hasEndpoint := config.MIAF.MIS.Endpoint != ""
-
-	// Rule 1: mis.endpoint requires a trust anchor (caPath or trustPins), and vice versa.
-	// caPath takes precedence over trustPins when both are present.
-	if hasEndpoint != hasTrustAnchor {
-		return fmt.Errorf(
-			"miaf.mis.endpoint requires a trust anchor: configure miaf.mis.caPath or miaf.mis.trustPins alongside it",
-		)
-	}
-
-	// Rule 2: if trustBundle.uri is present, mis.endpoint & a trust anchor must be present.
-	if config.MIAF.MIS.TrustBundle != nil && config.MIAF.MIS.TrustBundle.URI != "" {
-		if !hasEndpoint || !hasTrustAnchor {
-			return fmt.Errorf(
-				"miaf.mis.endpoint and a trust anchor (miaf.mis.caPath or miaf.mis.trustPins) are required when miaf.mis.trustBundle.uri is configured",
-			)
-		}
-	}
-
-	// Rule 3: trustBundle.path is always required.
-	if config.MIAF.MIS.TrustBundle == nil || config.MIAF.MIS.TrustBundle.Path == "" {
-		return fmt.Errorf(
-			"miaf.mis.trustBundle.path must always be configured",
-		)
+	if err := validateMIAFConfig(&config.MIAF); err != nil {
+		return err
 	}
 
 	if config.Wfm.SbiURL == "" {
@@ -216,6 +186,57 @@ func validateConfig(config *Config) error {
 	return nil
 }
 
+// validateMIAFConfig validates the MIAF configuration.
+func validateMIAFConfig(m *MIAFConfig) error {
+	// Rule 1: X.509 identity paths must be present and non-empty.
+	if strings.TrimSpace(m.X509.SVIDWithIntermediatePath) == "" {
+		return errors.New("miaf.x509.svidWithIntermediatePath is required in configuration")
+	}
+	if strings.TrimSpace(m.X509.KeyPath) == "" {
+		return errors.New("miaf.x509.keyPath is required in configuration")
+	}
+
+	// Rule 2: optional URLs, but if present they must be complete, valid URLs.
+	type urlField struct {
+		name  string
+		value string
+	}
+	var urlFields []urlField
+	if m.MIS.DiscoveryDocumentURL != "" {
+		urlFields = append(urlFields, urlField{"miaf.mis.discoveryDocumentURL", m.MIS.DiscoveryDocumentURL})
+	}
+	if m.MIS.TrustBundle != nil && m.MIS.TrustBundle.URI != "" {
+		urlFields = append(urlFields, urlField{"miaf.mis.trustBundle.uri", m.MIS.TrustBundle.URI})
+	}
+
+	// Rule 3: if either URL is present, a trust anchor must be configured.
+	// IP-based hosts require trustPins; domain-based hosts require trustAnchorPath.
+	hasTrustPins := len(m.MIS.TrustPins) > 0
+	hasTrustAnchorPath := strings.TrimSpace(m.MIS.TrustAnchorPath) != ""
+
+	for _, f := range urlFields {
+		u, err := url.Parse(f.value)
+		if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+			return fmt.Errorf("%s must be a valid absolute URL, got %q", f.name, f.value)
+		}
+
+		if net.ParseIP(u.Hostname()) != nil {
+			if !hasTrustPins {
+				return fmt.Errorf("%s uses an IP address, so miaf.mis.trustPins must be configured", f.name)
+			}
+		} else if !hasTrustAnchorPath {
+			return fmt.Errorf("%s uses a domain name, so miaf.mis.trustAnchorPath must be configured", f.name)
+		}
+	}
+
+	// Rule 4: trustBundle.staticPath must always be present and non-empty.
+	if m.MIS.TrustBundle == nil || strings.TrimSpace(m.MIS.TrustBundle.StaticPath) == "" {
+		return errors.New("miaf.mis.trustBundle.staticPath must always be configured")
+	}
+
+	return nil
+}
+
 // ToMIAFInput converts a MIAFConfig (from the types package) into a miaf.MIAFInput
 // suitable for use with miaf.ParseMIAFConfig.
 //
@@ -224,20 +245,20 @@ func validateConfig(config *Config) error {
 func (c *MIAFConfig) ToMIAFInput() miafParser.MIAFInput {
 	input := miafParser.MIAFInput{
 		X509: miafParser.MIAFx509Input{
-			CertPath: c.X509.CertPath,
-			KeyPath:  c.X509.KeyPath,
+			SVIDWithIntermediatePath: c.X509.SVIDWithIntermediatePath,
+			KeyPath:                  c.X509.KeyPath,
 		},
 		MIS: miafParser.MISInput{
-			Endpoint:  c.MIS.Endpoint,
-			CAPath:    c.MIS.CAPath,
-			TrustPins: c.MIS.TrustPins,
+			DiscoveryDocumentURL: c.MIS.DiscoveryDocumentURL,
+			TrustAnchorPath:      c.MIS.TrustAnchorPath,
+			TrustPins:            c.MIS.TrustPins,
 		},
 	}
 
 	if c.MIS.TrustBundle != nil {
 		input.MIS.TrustBundle = &miafParser.TrustBundleInput{
-			URI:  c.MIS.TrustBundle.URI,
-			Path: c.MIS.TrustBundle.Path,
+			URI:        c.MIS.TrustBundle.URI,
+			StaticPath: c.MIS.TrustBundle.StaticPath,
 		}
 	}
 

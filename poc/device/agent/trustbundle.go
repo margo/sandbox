@@ -93,8 +93,8 @@ func (tbc *TrustBundleCacher) Start() error {
 	}
 
 	cfg := trustbundle.TrustBundleGetterConfig{
-		MISEndpoint:    miafCfg.MIS.Endpoint,
-		MISRootCA:      miafCfg.MIS.CAPEM,
+		DiscoveryURL:   miafCfg.MIS.DiscoveryDocumentURL,
+		MISRootCA:      miafCfg.MIS.TrustAnchorPEM,
 		MISTrustPins:   miafCfg.MIS.TrustPins,
 		TrustBundleURI: tburi,
 		StaticBundle:   tb,

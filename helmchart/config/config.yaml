@@ -6,20 +6,56 @@ database:
 
 miaf:
   x509:
-    certPath: "./config/identity/payload-cert.pem"  # SVID certificate
-    keyPath: "./config/identity/payload-key.pem"    # Private key
+    # X.509-SVID and intermediate chain used as the principal's client identity.
+    # The file must be PEM-encoded (RFC 7468); the leaf URI SAN identifies the
+    # principal, so no separate principal identity is required.
+    svidWithIntermediatePath: "./config/identity/payload-cert.pem"
+
+    # Private key matching the leaf SVID.
+    # In installed mode, the operator supplies it. In enrolled mode, the platform
+    # supplies the path to the principal's locally generated key.
+    # The key must be unencrypted PKCS#8 PEM (RFC 5958); restrict file access.
+    keyPath: "./config/identity/payload-key.pem"
+
   mis:
-    endpoint: "https://mis.margo.org:9443"          # MIS service URL
-    caPath: "./config/mis/https-ca.crt"             # CA certificate
-    cacheInterval: 60                               # cache interval in seconds set by operator
-    # trustDomain: "margo.org"                        # Operator provided trust domain, uncomment this to provide operator default
-    # trustBundle:
-      # uri: "/.well-known/spiffe/bundle.json"        # URI provided by operator in case discovery is unavailable, uncomment this to provide operator default
-      # path: "./config/mis/trust-bundle.json"        # Default SPIFFE trust bundle in JWKS format (used if mis endpoint is not configured), uncomment this to provide operator default
-  authzPath: "./config/authorized.json"             # Authorized clients
+    # Initial HTTPS trust anchor(s) for MIS-hosted material.
+    # Supply this statically out of band when the MIS certificate chain cannot
+    # be validated using the system trust store. Certificates are PEM-encoded.
+    trustAnchorPath: "./config/mis/https-ca.crt"
+
+    # Alternative initial HTTPS authentication material for the MIS.
+    # Entries are SPKI SHA-256 pins in "sha256/<base64>" form (RFC 7469 §2.4).
+    # Pinning a CA is preferred to pinning a leaf certificate. Endpoint identity
+    # validation should still be performed when a pin matches.
+    trustPins:
+      - "sha256/6DtZYsyT+9vuAwfAKHCLpjQv2pQHCc9n7nnZsltwEU4="
+
+    trustBundle:
+      # Static SPIFFE Trust Bundle, formatted as a JWK Set (RFC 7517).
+      # It supplies the principal's Trust Domain anchors and provides the bundle
+      # floor when a refreshed bundle is unavailable.
+      staticPath: "./config/mis/trust-bundle.json"
+
+      # Direct Trust Bundle retrieval URI. When refresh is enabled, successful
+      # retrievals replace the bundle currently held by the principal.
+      # This is distinct from the discovery document URL below.
+      uri: "https://mis.margo.org:9443/.well-known/spiffe/bundle.json"
+
+    # MIS discovery document URL or the base URL consumed by the discovery client.
+    # The discovered document supplies MIS-hosted locations, including the
+    # Trust Bundle URI. The connection must be authenticated with trustAnchor
+    # or trustPins unless system HTTPS trust is sufficient.
+    discoveryDocumentURL: "https://mis.margo.org:9443/.well-known/margo"
+
+    # Seconds between Trust Bundle refresh attempts.
+    # Refreshing promptly limits the impact of missed trust-anchor rotations.
+    cacheInterval: 60
 
 wfm:
-  sbiUrl: https://symphony.machine:8084/v1alpha2/margo #http://172.19.59.148:8082/v1alpha2/margo/sbi/v1
+  # WFM endpoint for this WFM Client. This is routing information only;
+  # the client's own identity and target wfm-id are read from its SVID.
+  # Supply an absolute HTTPS URL.
+  sbiUrl: https://symphony.machine:8084/v1alpha2/margo
 
 stateSeeking:
   # How frequently the agent attempts to seek for the desired state from wfm

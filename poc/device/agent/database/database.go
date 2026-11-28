@@ -106,7 +106,7 @@ type DatabaseIfc interface {
 	SetTrustDomain(td string, eTag string)
 	GetSpiffeId() (string, error)
 	SetSpiffeId(string)
-	GetSVID() ([]byte, []byte, error)
+	GetSVID() ([]byte, []byte, []byte, error)
 	GetAuthorizedWFMs() []string // returns spiffeIds of authorized WFMs if configured
 
 	GetLastSyncedETag() (string, error)
@@ -193,19 +193,19 @@ func (db *Database) GetLastSyncedBundleDigest() (string, error) {
 	return db.deviceSettings.LastSyncedBundleDigest, nil
 }
 
-// Returns certificate & key; error if any
-func (db *Database) GetSVID() ([]byte, []byte, error) {
+// Returns certificate, chain & key; error if any
+func (db *Database) GetSVID() ([]byte, []byte, []byte, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
 	if len(db.deviceSettings.ParsedMIAF.X509.CertPEM) == 0 {
-		return nil, nil, fmt.Errorf("no previous svid certificate found")
+		return nil, nil, nil, fmt.Errorf("no previous svid certificate found")
 	}
 
 	if len(db.deviceSettings.ParsedMIAF.X509.KeyPEM) == 0 {
-		return nil, nil, fmt.Errorf("no previous svid key found")
+		return nil, nil, nil, fmt.Errorf("no previous svid key found")
 	}
-	return db.deviceSettings.ParsedMIAF.X509.CertPEM, db.deviceSettings.ParsedMIAF.X509.KeyPEM, nil
+	return db.deviceSettings.ParsedMIAF.X509.CertPEM, db.deviceSettings.ParsedMIAF.X509.ChainPEM, db.deviceSettings.ParsedMIAF.X509.KeyPEM, nil
 }
 
 func (db *Database) SetAuthorizedWFMs(wfms []string) {

@@ -94,9 +94,9 @@ DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION:-5.0.0}"
 K3S_VERSION="${K3S_VERSION:-v1.31.4+k3s1}"
 
 if [[ "$DEVICE_TYPE" == "docker" ]]; then
-  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/docker-compose/config/authorized.json"}"
+  WFMCLIENT_TRUST_BUNDLE_DIR="${WFMCLIENT_TRUST_BUNDLE_DIR:-"$HOME/sandbox/docker-compose/config/mis"}"
 else
-  SPIFFE_ALLOWLIST_PATH="${SPIFFE_ALLOWLIST_PATH:-"$HOME/sandbox/helmchart/authorized/authorized.json"}"
+  WFMCLIENT_TRUST_BUNDLE_DIR="${WFMCLIENT_TRUST_BUNDLE_DIR:-"$HOME/sandbox/helmchart/config/mis"}"
 fi
 # ----------------------------
 # GHCR Image References
@@ -149,6 +149,65 @@ validate_start_required_vars() {
 }
 
 # ----------------------------
+# Trust Pin Configuration Function
+# ----------------------------
+apply_trust_pins_if_present() {
+  local trust_pin_file="$1"
+  local config_yaml="$2"
+
+  # If file doesn't exist or is empty — strip any pre-existing trustPins from YAML
+  if [[ ! -f "$trust_pin_file" ]] || [[ ! -s "$trust_pin_file" ]]; then
+    if [[ -f "$config_yaml" ]]; then
+      echo "[INFO] Trust pin file absent or empty. Removing trustPins from '$config_yaml' if present..."
+      yq -i 'del(.miaf.mis.trustPins)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove trustPins from '$config_yaml'"; return 1; }
+      echo "[INFO] trustPins key removed (or was already absent)."
+    fi
+    return 0
+  fi
+
+  echo "[INFO] Trust pin file found: $trust_pin_file"
+
+  # Read non-empty lines into an array
+  local trust_pins=()
+  while IFS= read -r line; do
+    [[ -z "${line// /}" ]] && continue
+    trust_pins+=("$line")
+  done < "$trust_pin_file"
+
+  # Nothing useful after filtering blanks — remove key defensively
+  if [[ ${#trust_pins[@]} -eq 0 ]]; then
+    echo "[INFO] Trust pin file contains only blank lines. Removing trustPins key if present..."
+    if [[ -f "$config_yaml" ]]; then
+      yq -i 'del(.miaf.mis.trustPins)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove trustPins from '$config_yaml'"; return 1; }
+      echo "[INFO] trustPins key removed (or was already absent)."
+    fi
+    return 0
+  fi
+
+  if [[ ! -f "$config_yaml" ]]; then
+    echo "[ERROR] config.yaml not found at: $config_yaml"
+    return 1
+  fi
+
+  echo "[INFO] Applying ${#trust_pins[@]} trust pin(s) to $config_yaml"
+
+  # Wipe existing key (handles both absent and pre-configured cases)
+  yq -i 'del(.miaf.mis.trustPins)' "$config_yaml"
+
+  # Initialise as empty array first
+  yq -i '.miaf.mis.trustPins = []' "$config_yaml"
+
+  # Append each pin safely via env() — handles '/', '=', and other special chars
+  for pin in "${trust_pins[@]}"; do
+    TRUST_PIN="$pin" yq -i '.miaf.mis.trustPins += [env(TRUST_PIN)]' "$config_yaml"
+  done
+
+  echo "[INFO] Trust pins written to miaf.mis.trustPins in $config_yaml ✓"
+}
+
+# ----------------------------
 # Certificate Validation & Copy Function
 # ----------------------------
 validate_and_copy_certs() {
@@ -163,12 +222,26 @@ validate_and_copy_certs() {
     return 1
   fi
 
-  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/https-ca.crt"; do
+  for cert_file in "$certs_dir/harbor.crt" "$certs_dir/trust-bundle.json"; do
     if [[ ! -f "$cert_file" ]]; then
       echo "[ERROR] Required certificate file not found: $cert_file"
       return 1
     fi
   done
+
+  # ── https-ca.crt: optional ───────────────────────────────────────────────
+  local https_ca_crt="$certs_dir/https-ca.crt"
+  if [[ ! -f "$https_ca_crt" ]]; then
+    echo "[INFO] https-ca.crt not found. Removing miaf.x509.certPath from config.yaml if present..."
+    local config_yaml="$agent_config_dir/config.yaml"
+    if [[ -f "$config_yaml" ]]; then
+      yq -i 'del(.miaf.x509.certPath)' "$config_yaml" \
+        || { echo "[ERROR] yq failed to remove miaf.x509.certPath from '$config_yaml'"; return 1; }
+      echo "[INFO] miaf.x509.certPath removed (or was already absent)."
+    else
+      echo "[INFO] config.yaml not found at '$config_yaml', skipping key removal."
+    fi
+  fi
 
   # ── Step 2: Device-type-specific checks ──────────────────────────────────
   local identity_src_dir
@@ -211,7 +284,7 @@ validate_and_copy_certs() {
   cp "$identity_src_dir/payload-key.pem"  "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-key.pem";  return 1; }
   cp "$identity_src_dir/payload-cert.pem" "$identity_dst_dir/" || { echo "[ERROR] Failed to copy payload-cert.pem"; return 1; }
 
-  # ── Step 5: Copy https-ca.crt to mis directory ────────────────────────────
+  # ── Step 5: Copy https-ca.crt (if present) and trust-bundle.json to mis directory ──────
   local mis_dst_dir="$agent_config_dir/mis"
   echo "[INFO] Creating MIS directory: $mis_dst_dir"
   mkdir -p "$mis_dst_dir" || {
@@ -219,17 +292,31 @@ validate_and_copy_certs() {
     return 1
   }
 
-  echo "[INFO] Copying https-ca.crt to $mis_dst_dir"
-  cp "$certs_dir/https-ca.crt" "$mis_dst_dir/" || {
-    echo "[ERROR] Failed to copy https-ca.crt"
+  if [[ -f "$https_ca_crt" ]]; then
+    echo "[INFO] Copying https-ca.crt to $mis_dst_dir"
+    cp "$https_ca_crt" "$mis_dst_dir/" || {
+      echo "[ERROR] Failed to copy https-ca.crt"
+      return 1
+    }
+  else
+    echo "[INFO] Skipping https-ca.crt copy (file not present)."
+  fi
+
+  echo "[INFO] Copying trust-bundle.json to $mis_dst_dir"
+  cp "$certs_dir/trust-bundle.json" "$mis_dst_dir/" || {
+    echo "[ERROR] Failed to copy trust-bundle.json"
     return 1
   }
 
   mkdir -p "$HOME/sandbox/helmchart/authorized"
 
+  # ── Step 6: Apply trust pins if present ───────────────────────────────────
+  local trust_pin_file="$certs_dir/https-ca-trust-pin.txt"
+  local config_yaml="$agent_config_dir/config.yaml"
+  apply_trust_pins_if_present "$trust_pin_file" "$config_yaml" || return 1
+
   echo "[INFO] Certificate validation and copy completed successfully. ✓"
 }
-
 # ----------------------------
 # Go Installation Functions
 # ----------------------------
@@ -279,9 +366,6 @@ install_prerequisites() {
 start_device_agent_docker() {
   echo "Building and starting workload-fleet-management-client ..."
   validate_start_required_vars
-  # ── SPIFFE allowlist validation ──────────────────────────────────────────
-  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
-  # ────────────────────────────────────────────────────────────────────────
   update_agent_sbi_url
   build_device_agent_docker
   start_device_agent_docker_service
@@ -291,9 +375,6 @@ start_device_agent_docker() {
 start_device_agent_kubernetes() {
   echo "Building and starting workload-fleet-management-client with ServiceAccount authentication..."
   validate_start_required_vars
-  # ── SPIFFE allowlist validation ──────────────────────────────────────────
-  validate_spiffe_json "$SPIFFE_ALLOWLIST_PATH" || return 1
-  # ────────────────────────────────────────────────────────────────────────
   build_start_device_agent_k3s_service
   echo '✅ workload-fleet-management-client-pod started with ServiceAccount authentication'
 }
@@ -355,8 +436,126 @@ pause() {
   read -rp "Press Enter to continue..." _
 }
 
-manage_spiffe_ids() {
-  _manage_spiffe_ids_menu "$SPIFFE_ALLOWLIST_PATH" "wfm"
+generate_private_key_and_csr() {
+
+  identity_dir="compose-identity"
+  if [[ "$DEVICE_TYPE" == "k3s" ]]; then
+    identity_dir="helm-identity"
+  fi
+
+  local certs_dir="${HOME}/certs/${identity_dir}"
+  local csr_gen_script="${SCRIPT_DIR}/lib/mis/csr_gen.sh"
+
+  # Verify csr_gen.sh exists and is executable
+  if [[ ! -f "${csr_gen_script}" ]]; then
+    echo "❌ csr_gen.sh not found at: ${csr_gen_script}"
+    return 1
+  fi
+  chmod +x "${csr_gen_script}"
+
+  echo ""
+  echo "======================================================================="
+  echo "🔐 Generate Private Key & CSR for WFM Client"
+  echo "======================================================================="
+  echo ""
+  echo "  The SPIFFE ID is optional at this stage."
+  echo "  Per MIAF2 §3, the SPIFFE ID in the CSR is advisory —"
+  echo "  the MIS (CA) is authoritative and assigns the final identity"
+  echo "  at SVID minting time."
+  echo ""
+  echo "  If provided, the SPIFFE ID must follow this format:"
+  echo "    spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+  echo "  Example:"
+  echo "    spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
+  echo ""
+
+  # ── SPIFFE ID prompt (optional) ───────────────────────────────────────────
+  local spiffe_id=""
+  local spiffe_args=()
+
+  while true; do
+    read -p "  Enter SPIFFE ID (or press Enter to skip): " spiffe_id
+
+    # User skipped — no SPIFFE ID
+    if [[ -z "${spiffe_id// /}" ]]; then
+      echo "  ℹ️  No SPIFFE ID provided. The MIS will prompt for it at the time of identity minting."
+      spiffe_args=()
+      break
+    fi
+
+    # Validate scheme
+    if [[ "${spiffe_id}" != spiffe://* ]]; then
+      echo "  ⚠️  SPIFFE ID must start with 'spiffe://'. Got: '${spiffe_id}'"
+      continue
+    fi
+
+    # Validate expected path structure
+    if [[ ! "${spiffe_id}" =~ ^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+/client/[a-zA-Z0-9._-]+$ ]]; then
+      echo "  ⚠️  SPIFFE ID does not match expected format:"
+      echo "       spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"
+      echo "       Example: spiffe://margo.org/margo/wfm/my-wfm/client/my-client"
+      continue
+    fi
+
+    echo "  ⚠️  Note: This SPIFFE ID is advisory. The MIS prompt may override it at minting."
+    spiffe_args=(--spiffe-id "${spiffe_id}")
+    break
+  done
+
+  # ── Check for existing key (renewal detection) ────────────────────────────
+  local key_path="${certs_dir}/payload-key.pem"
+  if [[ -f "${key_path}" ]]; then
+    echo ""
+    echo "  ℹ️  Existing key found at: ${key_path}"
+    echo "      The existing key will be reused (renewal mode)."
+    echo "      Only a fresh CSR will be generated."
+  fi
+
+  # ── Create output directory if it doesn't exist ───────────────────────────
+  if [[ ! -d "${certs_dir}" ]]; then
+    echo ""
+    echo "🔄 Creating certificates directory: ${certs_dir}"
+    mkdir -p "${certs_dir}" || {
+      echo "❌ Failed to create directory: ${certs_dir}"
+      return 1
+    }
+    echo "✅ Created directory: ${certs_dir}"
+  fi
+
+  echo ""
+  echo "🔄 Generating CSR..."
+  if [[ -n "${spiffe_id}" ]]; then
+    echo "   SPIFFE ID  : ${spiffe_id} (advisory)"
+  else
+    echo "   SPIFFE ID  : not set"
+  fi
+  echo "   Output Dir : ${certs_dir}"
+  echo ""
+
+  # ── Invoke csr_gen.sh ─────────────────────────────────────────────────────
+  "${csr_gen_script}" \
+    "${spiffe_args[@]}" \
+    --key-out "${certs_dir}/payload-key.pem" \
+    --csr-out "${certs_dir}/payload-req.csr"
+
+  local exit_code=$?
+  if [[ ${exit_code} -ne 0 ]]; then
+    echo ""
+    echo "❌ Failed to generate CSR (exit code: ${exit_code})"
+    return 1
+  fi
+
+  echo ""
+  echo "======================================================================="
+  echo "✅ Generation complete!"
+  echo "   🔑 Private Key : ${certs_dir}/payload-key.pem"
+  echo "   📄 CSR         : ${certs_dir}/payload-req.csr"
+  echo ""
+  echo "  Next steps:"
+  echo "    • Submit ${certs_dir}/payload-req.csr to your MIS to mint an SVID"
+  echo "    • The MIS will prompt & assign the final SPIFFE ID at minting time"
+  echo "    • Place the returned SVID at: ${certs_dir}/payload-cert.pem"
+  echo "======================================================================="
 }
 
 
@@ -376,7 +575,7 @@ show_menu() {
   echo "8) OTEL-collector-promtail-installation"
   echo "9) OTEL-collector-promtail-uninstallation"
   echo "10) cleanup-residual"
-  echo "11) Manage SPIFFE ID allowlist"
+  echo "11) Generate Private Key & CSR"
   echo "12) Exit"
   read -rp "Enter choice [1-12]: " choice
   case $choice in
@@ -390,14 +589,13 @@ show_menu() {
     8) install_otel_collector_promtail_wrapper ;;
     9) uninstall_otel_collector_promtail_wrapper ;;
     10) cleanup_residual ;;
-    11) manage_spiffe_ids ;;
+    11) generate_private_key_and_csr ;;
     12) echo "👋 Goodbye!"; exit 0 ;;
     *) echo "Invalid choice" ;;
   esac
 
   pause
 }
-
 # ----------------------------
 # Main Script Execution
 # ----------------------------
@@ -432,7 +630,7 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     echo "[ERROR] Failed to load device agent environment"
     exit 1
   fi
-  validate_mis_host 
+  validate_mis_host
   case "$2" in
     install) install_prerequisites ;;
     uninstall) uninstall_prerequisites ;;
@@ -444,10 +642,10 @@ elif [[ "$1" == "docker" || "$1" == "k3s" ]] && [[ -n "$2" ]]; then
     otel-install) install_otel_collector_promtail_wrapper ;;
     otel-uninstall) uninstall_otel_collector_promtail_wrapper ;;
     cleanup) cleanup_residual ;;
-    manage-spiffe-ids) manage_spiffe_ids ;;
+    generate-csr) generate_private_key_and_csr ;;
     *)
       echo "[ERROR] Unknown command: $2"
-      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, manage-spiffe-ids"
+      echo "Available: install, uninstall, start-docker, stop-docker, start-k3s, stop-k3s, status, otel-install, otel-uninstall, cleanup, generate-csr"
       exit 1
       ;;
   esac

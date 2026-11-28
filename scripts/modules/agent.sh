@@ -259,7 +259,6 @@ start_device_agent_docker_service() {
 
   docker compose up -d
 
-  create_device_agent_systemd_service
 }
 
 stop_device_agent_service_docker() {
@@ -375,6 +374,7 @@ build_start_device_agent_k3s_service() {
         --from-file=payload-cert.pem="$CLIENT_CONFIG/helm-identity/payload-cert.pem" \
         --from-file=payload-key.pem="$CLIENT_CONFIG/helm-identity/payload-key.pem" \
         --from-file=https-ca.crt="$CLIENT_CONFIG/mis/https-ca.crt" \
+        --from-file=trust-bundle.json="$CLIENT_CONFIG/mis/trust-bundle.json" \
         --from-file=harbor.crt="$HOME/certs/harbor.crt" \
         --namespace=default
 

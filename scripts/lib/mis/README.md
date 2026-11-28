@@ -1,5 +1,7 @@
 # Margo Identity Service (MIS) — Scripts Documentation
 
+Here's the updated `confbuilder.sh` section of the README:
+
 ## 1. `confbuilder.sh` — Configuration Builder
 
 ### Purpose
@@ -24,18 +26,19 @@ Generates a `configuration.json` file for the Margo Identity Service. Supports t
 
 ### Configuration Fields & Defaults
 
-| Field             | Default                              | Description                              |
-|-------------------|--------------------------------------|------------------------------------------|
-| `trustDomain`     | `margo.org`                          | SPIFFE trust domain                      |
-| `refreshHint`     | `500`                                | Bundle refresh interval (seconds)        |
-| `trustBundleURI`  | `.well-known/spiffe/bundle.json`     | URI path for the trust bundle            |
+| Field             | Default                              | Description                                      |
+|-------------------|--------------------------------------|--------------------------------------------------|
+| `trustDomain`     | `margo.org`                          | SPIFFE trust domain                              |
+| `refreshHint`     | `500`                                | Bundle refresh interval (seconds)                |
+| `defaultSVIDTTL`  | `604800`                             | Default SVID lifetime (seconds, 7 days)          |
+| `trustBundleURI`  | `.well-known/spiffe/bundle.json`     | URI path for the trust bundle                    |
 | `log.level`       | `info`                               | Log verbosity (`debug`, `info`, `warn`, `error`) |
-| `ca.cert`         | `./ca.crt`                           | Path to the Minter CA certificate        |
-| `ca.key`          | `./ca.key`                           | Path to the Minter CA private key        |
-| `https.addr`      | `:8443`                              | HTTPS listen address                     |
-| `https.ca`        | `./https-ca.crt`                     | Path to the HTTPS CA certificate         |
-| `https.cert`      | `./https-server.crt`                 | Path to the HTTPS server certificate     |
-| `https.key`       | `./https-server.key`                 | Path to the HTTPS server private key     |
+| `ca.cert`         | `./ca.crt`                           | Path to the Minter CA certificate                |
+| `ca.key`          | `./ca.key`                           | Path to the Minter CA private key                |
+| `https.addr`      | `:8443`                              | HTTPS listen address                             |
+| `https.ca`        | `./https-ca.crt`                     | Path to the HTTPS CA certificate                 |
+| `https.cert`      | `./https-server.crt`                 | Path to the HTTPS server certificate             |
+| `https.key`       | `./https-server.key`                 | Path to the HTTPS server private key             |
 
 ### Output
 
@@ -45,6 +48,7 @@ A `configuration.json` file in the current working directory:
 {
   "trustDomain": "margo.org",
   "refreshHint": 500,
+  "defaultSVIDTTL": 604800,
   "trustBundleURI": ".well-known/spiffe/bundle.json",
   "log": {
     "level": "info"
@@ -76,18 +80,18 @@ A `configuration.json` file in the current working directory:
 ```
 
 ---
-
 ## 2. `pki_gen.sh` — PKI Generator
 
 ### Purpose
 
-Generates a complete PKI (Public Key Infrastructure) for the Margo Identity Service, producing three artifacts:
+Generates a complete PKI (Public Key Infrastructure) for the Margo Identity Service, producing four artifacts:
 
-| Artifact                  | Algorithm     | Purpose                                              |
-|---------------------------|---------------|------------------------------------------------------|
-| **HTTPS CA**              | RSA-4096      | Signs the HTTPS server certificate                   |
-| **Minter CA**             | EC prime256v1 | Signs X.509 SVIDs (SPIFFE Verifiable Identity Docs)  |
-| **HTTPS Server Cert**     | RSA-4096      | TLS certificate for the MIS HTTPS endpoint           |
+| Artifact                  | Algorithm     | Purpose                                                        |
+|---------------------------|---------------|----------------------------------------------------------------|
+| **HTTPS CA**              | RSA-4096      | Signs the HTTPS server certificate; trust anchor for MIS TLS  |
+| **Minter CA**             | EC prime256v1 | Signs X.509 SVIDs (SPIFFE Verifiable Identity Docs)            |
+| **HTTPS Server Cert**     | RSA-4096      | TLS certificate for the MIS HTTPS endpoint                     |
+| **HTTPS CA Trust Pin**    | SHA-256/SPKI  | RFC 7469 §2.4 pin of the HTTPS CA public key (base64-encoded) |
 
 All files are written to `./certs/`.
 
@@ -132,15 +136,32 @@ All files are written to `./certs/`.
 
 ```
 ./certs/
-├── https-ca.key          # HTTPS CA private key (RSA-4096, chmod 600)
-├── https-ca.crt          # HTTPS CA self-signed certificate
-├── ca.key                # Minter CA private key (EC prime256v1, chmod 600)
-├── ca.crt                # Minter CA self-signed certificate
-├── https-server.key      # Server private key (RSA-4096, chmod 600)
-└── https-server.crt      # Server certificate signed by HTTPS CA
+├── https-ca.key               # HTTPS CA private key (RSA-4096, chmod 600)
+├── https-ca.crt               # HTTPS CA self-signed certificate (trust anchor)
+├── ca.key                     # Minter CA private key (EC prime256v1, chmod 600)
+├── ca.crt                     # Minter CA self-signed certificate
+├── https-server.key           # Server private key (RSA-4096, chmod 600)
+├── https-server.crt           # Server certificate signed by HTTPS CA
+└── https-ca-trust-pin.txt     # SPKI SHA-256 trust pin of the HTTPS CA (RFC 7469 §2.4)
 ```
 
 > Temporary files (`https-server.csr`, `https-server_ext.cnf`, `https-ca.srl`) are automatically removed after generation.
+
+### Trust Pin
+
+The trust pin (`https-ca-trust-pin.txt`) is a `sha256/<base64>` formatted pin of the HTTPS CA's SubjectPublicKeyInfo (SPKI), as defined in `[RFC 7469 §2.4](https://www.rfc-editor.org/rfc/rfc7469#section-2.4)` and required by `miaf-credential-provisioning-and-acquisition §4/§5`.
+
+**Key properties:**
+- Pins the **CA public key**, not the leaf server certificate — the pin remains valid across server certificate renewals.
+- Works for IP-addressed MIS endpoints (no DNS required).
+- Must be distributed **out-of-band** to principals before the first connection.
+- A successor pin should be pre-distributed before the HTTPS CA expires.
+- Principals **SHOULD** still validate RFC 9525 hostname even when the pin matches.
+
+**Format:**
+```
+sha256/<base64-encoded SHA-256 of DER-encoded SPKI>
+```
 
 ### Examples
 
@@ -168,11 +189,13 @@ All files are written to `./certs/`.
 
 ```
 HTTPS CA (self-signed)
-  └── HTTPS Server Certificate (signed by HTTPS CA)
+  ├── HTTPS Server Certificate (signed by HTTPS CA)
+  └── HTTPS CA Trust Pin (sha256/SPKI — distributed out-of-band to principals)
 
 Minter CA (self-signed)
   └── X.509 SVIDs (minted at runtime by MIS)
 ```
+
 
 ---
 
@@ -180,12 +203,17 @@ Minter CA (self-signed)
 
 ### Purpose
 
-Mints X.509 SPIFFE Verifiable Identity Documents (SVIDs) for Margo principals by invoking `mis-cli` inside a running `margo-identity-service` Docker container. Supports two principal types:
+Mints X.509 SPIFFE Verifiable Identity Documents (SVIDs) for Margo principals by invoking `mis-cli` inside a running `margo-identity-service` Docker container. Supports two principal types and two generation modes:
 
 | Principal    | SPIFFE ID Format                                                        |
 |--------------|-------------------------------------------------------------------------|
 | `wfm`        | `spiffe://<trust-domain>/margo/wfm/<wfm-id>`                           |
 | `wfm-client` | `spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>`    |
+
+| Mode             | Description                                                                                      |
+|------------------|--------------------------------------------------------------------------------------------------|
+| **Installed**    | Provide a SPIFFE ID; both key and certificate are generated inside the container by MIS           |
+| **Enrolled**     | Provide a SPIFFE ID and a pre-generated CSR file; only the certificate is signed (principal retains the key) |
 
 Certificates are copied from the container to the host after minting.
 
@@ -202,31 +230,36 @@ Certificates are copied from the container to the host after minting.
 ./svid-gen.sh [OPTIONS]
 ```
 
-| Flag                        | Description                                                        |
-|-----------------------------|--------------------------------------------------------------------|
-| `--interactive`             | Run in interactive mode (default if no flags given)                |
-| `--automated`               | Run in automated mode                                              |
-| `--principal <wfm\|wfm-client>` | **(Automated)** Principal type to generate SVID for            |
-| `--spiffe-id <spiffeID>`    | **(Automated)** Full SPIFFE ID                                     |
-| `--dns <name>`              | **(Automated)** DNS SAN to include; can be repeated for multiple   |
-| `--help`, `-h`              | Show usage information                                             |
+| Flag                            | Description                                                        |
+|---------------------------------|--------------------------------------------------------------------|
+| `--interactive`                 | Run in interactive mode (default if no flags given)                |
+| `--automated`                   | Run in automated mode                                              |
+| `--principal <wfm\|wfm-client>` | **(Automated)** Principal type to generate SVID for               |
+| `--spiffe-id <spiffeID>`        | **(Automated)** Full SPIFFE ID — required for both modes           |
+| `--csr-path <path>`             | **(Automated)** Path to CSR file on host (Enrolled mode)          |
+| `--dns <name>`                  | **(Automated)** DNS SAN to include; can be repeated for multiple   |
+| `--help`, `-h`                  | Show usage information                                             |
+
+> `--spiffe-id` is always required in automated mode. `--csr-path` is optional; when provided, Enrolled mode is used (certificate only). When omitted, Installed mode is used (key + certificate generated by MIS).
 
 ### Defaults
 
-| Parameter      | Default                  |
-|----------------|--------------------------|
-| Trust Domain   | `margo.org`              |
+| Parameter      | Default                     |
+|----------------|-----------------------------|
+| Trust Domain   | `margo.org`                 |
 | TTL            | `7776000` seconds (90 days) |
-| DNS SANs       | None                     |
+| DNS SANs       | None                        |
 
 ### Output
 
 Certificates are copied from the container to the host in a directory named:
 
-| Principal    | Host Output Directory                    |
-|--------------|------------------------------------------|
-| `wfm`        | `./x509svid-<wfm-id>` (interactive) / `./x509svid-wfm` (automated) |
-| `wfm-client` | `./x509svid-<wfm-id>-<wfm-client-id>` (interactive) / `./x509svid-wfmclient` (automated) |
+| Mode         | Principal    | Host Output Directory                                                                       |
+|--------------|--------------|---------------------------------------------------------------------------------------------|
+| Installed    | `wfm`        | `./x509svid-<wfm-id>` (interactive) / `./x509svid-wfm` (automated)                        |
+| Installed    | `wfm-client` | `./x509svid-<wfm-id>-<wfm-client-id>` (interactive) / `./x509svid-wfmclient` (automated)  |
+| Enrolled     | `wfm`        | `./x509svid-<wfm-id>` (interactive) / `./x509svid-wfm` (automated)                        |
+| Enrolled     | `wfm-client` | `./x509svid-<wfm-id>-<wfm-client-id>` (interactive) / `./x509svid-wfmclient` (automated)  |
 
 ### Examples
 
@@ -235,15 +268,27 @@ Certificates are copied from the container to the host in a directory named:
 ./svid-gen.sh
 ./svid-gen.sh --interactive
 
-# Automated mode — mint SVID for a WFM
+# Automated mode — WFM (Installed mode)
 ./svid-gen.sh --automated \
   --principal wfm \
   --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
 
-# Automated mode — mint SVID for a WFM Client
+# Automated mode — WFM Client (Installed mode)
 ./svid-gen.sh --automated \
   --principal wfm-client \
   --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+
+# Automated mode — WFM (Enrolled mode)
+./svid-gen.sh --automated \
+  --principal wfm \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+  --csr-path /path/to/wfm.csr
+
+# Automated mode — WFM Client (Enrolled mode)
+./svid-gen.sh --automated \
+  --principal wfm-client \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client \
+  --csr-path /path/to/wfm-client.csr
 
 # Automated mode — WFM with DNS SANs
 ./svid-gen.sh --automated \
@@ -260,13 +305,158 @@ Certificates are copied from the container to the host in a directory named:
 
 When run interactively, the script guides you through the following steps:
 
-1. **Trust Domain** — Enter your SPIFFE trust domain (e.g., `margo.org`)
-2. **Principal Selection** — Choose `1` for WFM or `2` for WFM Client
-3. **WFM ID** — Unique identifier for the Workflow Manager instance
-4. **WFM Client ID** — *(WFM Client only)* Unique identifier for the client
-5. **TTL** — Certificate lifetime in seconds
-6. **DNS SANs** — Optional space-separated DNS names
-7. **Confirmation** — Review summary and confirm before minting
+1. **Generation Mode** — Choose `1` for Installed mode or `2` for Enrolled mode
+2. **Trust Domain** — Enter your SPIFFE trust domain (e.g., `margo.org`)
+3. **Principal Selection** — Choose `1` for WFM or `2` for WFM Client
+4. **WFM ID** — Unique identifier for the Workflow Manager instance
+5. **WFM Client ID** — *(WFM Client only)* Unique identifier for the client
+6. *(Enrolled mode only)* **CSR File Path** — Path to the CSR (PKCS#10) file on the host
+7. **TTL** — Certificate lifetime in seconds
+8. **DNS SANs** — Optional space-separated DNS names
+9. **Confirmation** — Review summary and confirm before minting
+
+
+---
+## 4. `csr_gen.sh` — CSR Generator
+
+### Purpose
+
+Generates an ECDSA P-256 private key and a Certificate Signing Request (CSR) suitable for minting X.509 SVIDs for Margo principals. The CSR can be submitted to a Margo Identity Service (MIS) to mint an SVID without the MIS ever handling the private key.
+
+Supports two modes automatically:
+
+| Mode | Trigger | Behaviour |
+|---|---|---|
+| **Fresh Issuance** | No key exists at `--key-out` path | Generates a new ECDSA P-256 key and CSR |
+| **Renewal** | Valid ECDSA key already exists at `--key-out` path | Reuses the existing key; generates only a fresh CSR |
+
+### Prerequisites
+
+- Bash 4+
+- `openssl` installed and available in `PATH`
+
+### Usage
+
+```bash
+./csr_gen.sh [OPTIONS]
+```
+
+| Flag | Description |
+|---|---|
+| `--spiffe-id <id>` | *(Optional)* SPIFFE ID URI — advisory; MIS may override at minting |
+| `--cn <common_name>` | Common Name for the certificate (default: `mis.margo.org`) |
+| `--org <organization>` | Organization name (default: `Margo`) |
+| `--ou <org_unit>` | Organizational Unit (default: `Margo Sandbox`) |
+| `--country <code>` | 2-letter country code (default: `IN`) |
+| `--state <state>` | State or province (default: `Haryana`) |
+| `--locality <city>` | Locality / city (default: `Gurugram`) |
+| `--email <email>` | Email address (default: `operator@margo.org`) |
+| `--key-out <file>` | Output path for private key (default: `payload-key.pem`) |
+| `--csr-out <file>` | Output path for CSR (default: `payload-req.csr`) |
+| `--help` | Show usage information and exit |
+
+### Default Values
+
+| Field | Default |
+|---|---|
+| Common Name | `mis.margo.org` |
+| Country | `IN` |
+| State | `Haryana` |
+| Locality | `Gurugram` |
+| Organization | `Margo` |
+| Org Unit | `Margo Sandbox` |
+| Email | `operator@margo.org` |
+| Key Output | `payload-key.pem` |
+| CSR Output | `payload-req.csr` |
+
+### Generated Files
+
+```
+./
+├── payload-key.pem    # ECDSA P-256 private key (fresh issuance only; reused on renewal)
+└── payload-req.csr    # Certificate Signing Request with optional URI SAN (SPIFFE ID)
+```
+
+### Certificate Properties
+
+The generated CSR includes the following extensions:
+
+| Extension | Value |
+|---|---|
+| Subject Alt Name | `URI:<SPIFFE_ID>` *(only if `--spiffe-id` is provided)* |
+| Basic Constraints | `CA:FALSE` |
+| Key Usage | `critical, digitalSignature` |
+| Extended Key Usage | `clientAuth, serverAuth` |
+| Digest Algorithm | `sha256` |
+| Key Algorithm | `ECDSA P-256 (prime256v1)` |
+
+### SPIFFE ID — Advisory
+
+Per MIAF2 §3, the SPIFFE ID embedded in the CSR is **advisory**. The issuing CA (MIS) is authoritative and may override it at SVID minting time. If omitted, no URI SAN is embedded and the MIS assigns the identity at minting.
+
+### Renewal Behaviour
+
+If a valid ECDSA key already exists at the `--key-out` path, the script automatically enters **renewal mode**:
+- The existing key is **reused** — it is not regenerated.
+- Only a fresh CSR is generated against the existing key.
+- This allows SVID renewal without changing the key pair.
+
+If the file at `--key-out` exists but is not a valid ECDSA key, the script aborts with an error.
+
+### Examples
+
+```bash
+# Fresh issuance — no SPIFFE ID (CA assigns identity at minting)
+./csr_gen.sh
+
+# Fresh issuance — advisory SPIFFE ID (WFM principal)
+./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+# Fresh issuance — advisory SPIFFE ID (WFM Client principal)
+./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+
+# Renewal — reuses existing key, generates fresh CSR (no SPIFFE ID)
+./csr_gen.sh --key-out ./config/identity/payload-key.pem
+
+# Renewal — reuses existing key, WFM principal hint
+./csr_gen.sh \
+    --key-out ./config/identity/payload-key.pem \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+# Renewal — reuses existing key, WFM Client principal hint
+./csr_gen.sh \
+    --key-out ./config/identity/payload-key.pem \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm/client/my-client
+
+# Custom output paths
+./csr_gen.sh \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+    --key-out /tmp/svid.key \
+    --csr-out /tmp/svid.csr
+
+# Custom subject fields
+./csr_gen.sh \
+    --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+    --cn my-wfm.example.com \
+    --org "My Company" \
+    --country US \
+    --state California \
+    --locality "San Francisco"
+
+# Show help
+./csr_gen.sh --help
+```
+
+### Notes
+
+- `--spiffe-id` is optional; if omitted, no URI SAN is embedded and the MIS assigns the SPIFFE ID at minting.
+- If provided, the SPIFFE ID must match one of:
+  - `spiffe://<trust-domain>/margo/wfm/<wfm-id>`
+  - `spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>`
+- The SPIFFE ID in the CSR is advisory — the MIS overrides it at minting.
+- The private key is generated locally and never leaves the host.
+- Renewal does not change the key pair; only the CSR (and resulting SVID) is refreshed.
+- The CSR can be submitted to MIS using `svid-gen.sh --csr-path`.
 
 ---
 
@@ -282,8 +472,31 @@ When run interactively, the script guides you through the following steps:
 # Step 3: Start the margo-identity-service container
 # (using the generated certs and configuration.json)
 
-# Step 4: Mint SVIDs for your principals
+# Step 4a: Mint SVIDs using SPIFFE ID flow (CA assigns identity)
 ./svid-gen.sh --automated \
   --principal wfm \
   --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+# Step 4b: (Alternative) Mint SVIDs using CSR flow
+
+# Generate key and CSR locally — SPIFFE ID is optional (advisory)
+./csr_gen.sh --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+# or without a SPIFFE ID hint:
+./csr_gen.sh
+
+# Submit CSR to MIS for signing
+./svid-gen.sh --automated \
+  --principal wfm \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+  --csr-path ./payload-req.csr
+
+# Step 5 (Renewal): Renew an existing SVID without changing the key pair
+./csr_gen.sh \
+  --key-out ./payload-key.pem \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm
+
+./svid-gen.sh --automated \
+  --principal wfm \
+  --spiffe-id spiffe://margo.org/margo/wfm/my-wfm \
+  --csr-path ./payload-req.csr
 ```

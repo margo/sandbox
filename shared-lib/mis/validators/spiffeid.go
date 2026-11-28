@@ -23,10 +23,12 @@ var (
 	pathSegmentPattern = regexp.MustCompile(`^[a-zA-Z0-9._~!$&'()*+,;=:@%-]+$`)
 
 	// wfmPattern: spiffe://<trust-domain>/margo/wfm/<wfm-id>
-	wfmPattern = regexp.MustCompile(`^spiffe://[^/]+/margo/wfm/[^/]+$`)
+	wfmPattern = regexp.MustCompile(`^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+$`)
 
 	// wfmClientPattern: spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
-	wfmClientPattern = regexp.MustCompile(`^spiffe://[^/]+/margo/wfm/[^/]+/client/[^/]+$`)
+	wfmClientPattern = regexp.MustCompile(
+		`^spiffe://[a-z0-9._-]+/margo/wfm/[a-zA-Z0-9._-]+/client/[a-zA-Z0-9._-]+$`,
+	)
 )
 
 // ValidateSpiffeID validates whether a string is a valid SPIFFE ID for the given principal.

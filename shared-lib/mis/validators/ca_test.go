@@ -19,6 +19,74 @@ import (
 
 // --- Helpers ---
 
+// generateIntermediateCACert creates a PEM-encoded intermediate CA cert signed by a root.
+// The intermediate has a different Subject/Issuer by design.
+func generateIntermediateCACert(
+	t *testing.T,
+	rootCert *x509.Certificate,
+	rootKey *rsa.PrivateKey,
+	opts ...func(*x509.Certificate),
+) []byte {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(10),
+		Subject:               pkix.Name{CommonName: "Test Intermediate CA"},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+	}
+
+	for _, opt := range opts {
+		opt(template)
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, rootCert, &key.PublicKey, rootKey)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+}
+
+// newRootKeyAndCert returns a parsed root CA cert and its private key for signing intermediates.
+func newRootKeyAndCert(t *testing.T) (*rsa.PrivateKey, *x509.Certificate) {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test Root CA"},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	return key, cert
+}
+
+// concatPEM joins multiple PEM byte slices into one.
+func concatPEM(blocks ...[]byte) []byte {
+	var result []byte
+	for _, b := range blocks {
+		result = append(result, b...)
+	}
+	return result
+}
+
 func generateRootCACert(t *testing.T, opts ...func(*x509.Certificate)) ([]byte, *x509.Certificate) {
 	t.Helper()
 
@@ -244,5 +312,194 @@ func TestValidatePublicKeyAlgorithm_Unsupported(t *testing.T) {
 	}
 
 	err := validatePublicKeyAlgorithm(cert)
+	assert.ErrorContains(t, err, "unsupported public key algorithm")
+}
+
+// --- ValidateIntermediateCACertificates Tests ---
+
+func TestValidateIntermediateCACertificates_EmptyData(t *testing.T) {
+	err := ValidateIntermediateCACertificates([]byte{})
+
+	assert.EqualError(t, err, "intermediate chain data is empty")
+}
+
+func TestValidateIntermediateCACertificates_ExceedsMaxBytes(t *testing.T) {
+	oversized := make([]byte, 64*1024+1)
+
+	err := ValidateIntermediateCACertificates(oversized)
+
+	assert.ErrorContains(t, err, "exceeds the maximum allowed")
+}
+
+func TestValidateIntermediateCACertificates_NoPEMBlocks(t *testing.T) {
+	err := ValidateIntermediateCACertificates([]byte("not a pem block"))
+
+	assert.EqualError(t, err, "intermediate chain contains no valid PEM blocks")
+}
+
+func TestValidateIntermediateCACertificates_ValidSingleIntermediate(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey)
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.NoError(t, err)
+}
+
+func TestValidateIntermediateCACertificates_ValidMaxIntermediates(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+
+	var chain [][]byte
+	for i := 0; i < 4; i++ {
+		chain = append(chain, generateIntermediateCACert(t, rootCert, rootKey))
+	}
+
+	err := ValidateIntermediateCACertificates(concatPEM(chain...))
+
+	assert.NoError(t, err)
+}
+
+func TestValidateIntermediateCACertificates_TooManyIntermediates(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+
+	var chain [][]byte
+	for i := 0; i < 5; i++ {
+		chain = append(chain, generateIntermediateCACert(t, rootCert, rootKey))
+	}
+
+	err := ValidateIntermediateCACertificates(concatPEM(chain...))
+
+	assert.ErrorContains(t, err, "exceeding the maximum of 4")
+}
+
+func TestValidateIntermediateCACertificates_ContainsRootCA(t *testing.T) {
+	// A self-signed cert (root CA) must be rejected in the intermediate chain.
+	rootPEM, _ := generateRootCACert(t)
+
+	err := ValidateIntermediateCACertificates(rootPEM)
+
+	assert.ErrorContains(t, err, "Subject and Issuer are identical")
+}
+
+func TestValidateIntermediateCACertificates_ExpiredIntermediate(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.NotBefore = time.Now().Add(-48 * time.Hour)
+		c.NotAfter = time.Now().Add(-1 * time.Hour)
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "expired")
+}
+
+func TestValidateIntermediateCACertificates_NotYetValidIntermediate(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.NotBefore = time.Now().Add(2 * time.Hour)
+		c.NotAfter = time.Now().Add(48 * time.Hour)
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "not yet valid")
+}
+
+func TestValidateIntermediateCACertificates_MissingKeyCertSign(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.KeyUsage = x509.KeyUsageCRLSign
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "missing KeyUsageCertSign")
+}
+
+func TestValidateIntermediateCACertificates_MissingCRLSign(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.KeyUsage = x509.KeyUsageCertSign
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "missing KeyUsageCRLSign")
+}
+
+func TestValidateIntermediateCACertificates_NotCA(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.IsCA = false
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "not a CA")
+}
+
+func TestValidateIntermediateCACertificates_MissingBasicConstraints(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.BasicConstraintsValid = false
+	})
+
+	err := ValidateIntermediateCACertificates(intermPEM)
+
+	assert.ErrorContains(t, err, "missing BasicConstraints extension")
+}
+
+// --- validateIntermediateCAConstraints Tests ---
+
+func TestValidateIntermediateCAConstraints_Valid(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey)
+
+	block, _ := pem.Decode(intermPEM)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	err = validateIntermediateCAConstraints(cert, 1)
+	assert.NoError(t, err)
+}
+
+func TestValidateIntermediateCAConstraints_SelfSigned(t *testing.T) {
+	// A self-signed cert has matching Subject and Issuer — must be rejected.
+	pemBytes, _ := generateRootCACert(t)
+	block, _ := pem.Decode(pemBytes)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	err = validateIntermediateCAConstraints(cert, 1)
+	assert.ErrorContains(t, err, "Subject and Issuer are identical")
+}
+
+func TestValidateIntermediateCAConstraints_ErrorMessageIncludesPosition(t *testing.T) {
+	rootKey, rootCert := newRootKeyAndCert(t)
+	intermPEM := generateIntermediateCACert(t, rootCert, rootKey, func(c *x509.Certificate) {
+		c.KeyUsage = x509.KeyUsageCRLSign
+	})
+
+	block, _ := pem.Decode(intermPEM)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	err = validateIntermediateCAConstraints(cert, 3)
+	assert.ErrorContains(t, err, "intermediate certificate 3")
+}
+
+func TestValidateIntermediateCAConstraints_UnsupportedPublicKeyAlgorithm(t *testing.T) {
+	cert := &x509.Certificate{
+		Subject:               pkix.Name{CommonName: "Intermediate"},
+		Issuer:                pkix.Name{CommonName: "Root"},
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		PublicKeyAlgorithm:    x509.DSA,
+	}
+
+	err := validateIntermediateCAConstraints(cert, 1)
 	assert.ErrorContains(t, err, "unsupported public key algorithm")
 }

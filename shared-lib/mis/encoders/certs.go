@@ -5,13 +5,18 @@ import (
 	"encoding/pem"
 )
 
-// encodeCertToPEM encodes an *x509.Certificate back to PEM format so it can
+// CertsToPEM encodes n number of *x509.Certificate to PEM format so it can
 // be passed to helpers that accept []byte (PEM or DER).
-func CertToPEM(cert *x509.Certificate) []byte {
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
-	})
+func CertsToPEM(certs ...*x509.Certificate) []byte {
+	result := make([]byte, 0)
+	for _, ic := range certs {
+		result = append(result, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: ic.Raw,
+		})...)
+	}
+
+	return result
 }
 
 // CertsToPool creates an *x509.CertPool from a slice of *x509.Certificate.

@@ -14,9 +14,8 @@ const baseConfigYAML = `
 logging: {level: DEBUG}
 database: {dataDir: /tmp/agent}
 miaf:
-  x509: {certPath: c.pem, keyPath: k.pem}
-  mis: {endpoint: "https://mis", caPath: ca.crt}
-  authzPath: authz.json
+  x509: {svidWithIntermediatePath: c.pem, keyPath: k.pem}
+  mis: {trustBundle: {staticPath: dummypath}}
 wfm: {sbiUrl: "https://wfm"}
 stateSeeking: {interval: 15}
 runtimes:

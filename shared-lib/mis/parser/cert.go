@@ -12,15 +12,27 @@ import (
 // bytes. Both PEM (-----BEGIN ...) and DER (raw ASN.1) formats are accepted for
 // each argument independently — e.g. PEM cert with DER key is valid.
 //
-// PEM inputs may contain a full chain: the first block becomes the leaf and any
-// subsequent blocks are appended as intermediates (tls.Certificate.Certificate).
+// chainBytes is optional — pass nil if no intermediate chain is available.
+// When provided, the intermediates are appended after the leaf certificate before
+// being passed to tls.X509KeyPair, which appends them to tls.Certificate.Certificate.
+// chainBytes must contain only intermediate CA certificates (no leaf, no root).
 //
 // Returns an error if either input cannot be decoded/parsed, or if the cert and
 // key do not form a valid pair.
-func CertificateFromBytes(certBytes, keyBytes []byte) (tls.Certificate, error) {
+func CertificateFromBytes(certBytes, keyBytes, chainBytes []byte) (tls.Certificate, error) {
 	certPEM, err := normaliseToPEM(certBytes, "CERTIFICATE")
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("certificate: %w", err)
+	}
+
+	if len(chainBytes) > 0 {
+		chainPEM, err := normaliseToPEM(chainBytes, "CERTIFICATE")
+		if err != nil {
+			return tls.Certificate{}, fmt.Errorf("intermediate chain: %w", err)
+		}
+		// Append intermediates after the leaf; tls.X509KeyPair treats subsequent
+		// blocks as the certificate chain (tls.Certificate.Certificate[1:]).
+		certPEM = append(certPEM, chainPEM...)
 	}
 
 	keyPEM, err := normaliseKeyToPEM(keyBytes)
@@ -128,4 +140,31 @@ func derKeyPEMType(data []byte) (string, error) {
 func isPEM(data []byte) bool {
 	trimmed := bytes.TrimSpace(data)
 	return bytes.HasPrefix(trimmed, []byte("-----"))
+}
+
+// splitLeafAndChain splits a PEM bundle into the first PEM block (leaf) and
+// all remaining blocks (intermediate chain). Either part may be nil.
+func SplitLeafAndChain(pemData []byte) (leaf []byte, chain []byte) {
+	var block *pem.Block
+	var rest []byte
+
+	block, rest = pem.Decode(pemData)
+	if block == nil {
+		return nil, nil
+	}
+
+	leaf = pem.EncodeToMemory(block)
+
+	// Collect remaining blocks as the chain
+	remaining := rest
+	for {
+		var b *pem.Block
+		b, remaining = pem.Decode(remaining)
+		if b == nil {
+			break
+		}
+		chain = append(chain, pem.EncodeToMemory(b)...)
+	}
+
+	return leaf, chain
 }

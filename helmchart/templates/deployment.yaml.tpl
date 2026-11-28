@@ -46,10 +46,6 @@ spec:
               mountPath: /config
               readOnly: true
 
-            - name: authorized-file-dir
-              mountPath: /authorized
-              readOnly: false
-
             # Persistent application data.
             - name: data-volume
               mountPath: /data
@@ -64,15 +60,7 @@ spec:
               subPath: harbor.crt
               readOnly: true
 
-      volumes:
-{{- if .Values.authorizedFileDirectory.hostPath }}
-        # Directory containing Authorization file maintained on the Kubernetes node.
-        - name: authorized-file-dir
-          hostPath:
-            path: {{ .Values.authorizedFileDirectory.hostPath | quote }}
-            type: {{ .Values.authorizedFileDirectory.type | default "Directory" }}
-{{- end }}
- 
+      volumes: 
 
         # Combine the non-sensitive ConfigMap files with the
         # sensitive device-agent configuration Secret.
@@ -84,7 +72,7 @@ spec:
               - configMap:
                   name: {{ include "agentchart.configmapname" . }}
 
-              # Identity, MIS and authorization files
+              # Identity and MIS
               - secret:
                   name: {{ .Values.secrets.existingSecret }}
                   items:
@@ -96,6 +84,9 @@ spec:
 
                     - key: https-ca.crt
                       path: mis/https-ca.crt
+
+                    - key: trust-bundle.json
+                      path: mis/trust-bundle.json
 
         # Persistent storage.
         - name: data-volume

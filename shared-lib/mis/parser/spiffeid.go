@@ -5,6 +5,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -81,4 +83,81 @@ func ParseWFMID(spiffeID string) (string, error) {
 		)
 	}
 	return parts[3], nil
+}
+
+// ParseWFMClientID parses a SPIFFE ID of the format:
+//
+//	spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
+//
+// and returns the <wfm-client-id> segment.
+// Returns an error if the input does not match the expected format.
+func ParseWFMClientID(spiffeID string) (string, error) {
+	u, err := url.Parse(spiffeID)
+	if err != nil {
+		return "", fmt.Errorf("invalid SPIFFE ID %q: %w", spiffeID, err)
+	}
+
+	if u.Scheme != "spiffe" {
+		return "", fmt.Errorf(
+			"invalid SPIFFE ID %q: scheme must be 'spiffe', got %q",
+			spiffeID,
+			u.Scheme,
+		)
+	}
+
+	if u.Host == "" {
+		return "", fmt.Errorf("invalid SPIFFE ID %q: trust domain is missing", spiffeID)
+	}
+
+	// Expected path: /margo/wfm/<wfm-id>/client/<wfm-client-id>
+	// Split strips the leading slash, giving: ["margo", "wfm", <wfm-id>, "client", <wfm-client-id>]
+	segments := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	if len(segments) != 5 ||
+		segments[0] != "margo" ||
+		segments[1] != "wfm" ||
+		segments[2] == "" ||
+		segments[3] != "client" ||
+		segments[4] == "" {
+		return "", fmt.Errorf(
+			"invalid SPIFFE ID %q: path must be /margo/wfm/<wfm-id>/client/<wfm-client-id>",
+			spiffeID,
+		)
+	}
+
+	return segments[4], nil
+}
+
+// extractTrustDomain parses the trust domain out of a fully-qualified SPIFFE ID.
+// e.g. "spiffe://example.org/margo/wfm/abc" → "example.org"
+func ParseTrustDomain(spiffeId string) (string, error) {
+	const prefix = "spiffe://"
+	if !strings.HasPrefix(spiffeId, prefix) {
+		return "", fmt.Errorf("SPIFFE ID %q does not start with %q", spiffeId, prefix)
+	}
+	remainder := strings.TrimPrefix(spiffeId, prefix)
+	slashIdx := strings.Index(remainder, "/")
+	if slashIdx < 0 {
+		return "", fmt.Errorf("SPIFFE ID %q has no path after the trust domain", spiffeId)
+	}
+	td := remainder[:slashIdx]
+	if td == "" {
+		return "", fmt.Errorf("SPIFFE ID %q has an empty trust domain", spiffeId)
+	}
+	return td, nil
+}
+
+// ExtractWFMSpiffeID extracts the WFM SPIFFE ID prefix from a WFM client SPIFFE ID.
+// Input format:  spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>
+// Output format: spiffe://<trust-domain>/margo/wfm/<wfm-id>
+func ExtractWFMSpiffeID(spiffeID string) (string, error) {
+	// wfmClientPattern matches the full WFM client SPIFFE ID format and captures the WFM prefix.
+	wfmClientPattern := regexp.MustCompile(`^(spiffe://[^/]+/margo/wfm/[^/]+)/client/[^/]+$`)
+	matches := wfmClientPattern.FindStringSubmatch(spiffeID)
+	if matches == nil {
+		return "", fmt.Errorf(
+			"invalid SPIFFE ID format: %q, expected spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>",
+			spiffeID,
+		)
+	}
+	return matches[1], nil
 }

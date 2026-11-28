@@ -1,11 +1,14 @@
 package unix
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/margo/sandbox/mis/pkg/types"
+	"github.com/margo/sandbox/shared-lib/mis/validators"
 )
 
 // ValidationError holds a list of field-level validation errors
@@ -26,11 +29,16 @@ func (v *ValidationError) HasErrors() bool {
 }
 
 // ValidateMintSVIDRequest validates the incoming request fields
-func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
+func (m *MintRestAPI) validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 	ve := &ValidationError{Fields: make(map[string]string)}
+	if req.CSR != "" {
+		if err := validateCSR(req.CSR); err != nil {
+			ve.Fields["csr"] = err.Error()
+		}
+	}
 
-	// Validate spiffeID (Required)
-	if err := validateSpiffeID(req.SpiffeID); err != nil {
+	// spiffeID must exist & be validated.
+	if err := validateSpiffeID(req.SpiffeID, m.cnf.TrustDomain); err != nil {
 		ve.Fields["spiffeID"] = err.Error()
 	}
 
@@ -53,38 +61,53 @@ func validateMintSVIDRequest(req *types.MintSVIDRequest) *ValidationError {
 }
 
 // validateSpiffeID ensures the spiffeID follows the "spiffe://<trust-domain>/<path>" format
-func validateSpiffeID(id string) error {
+func validateSpiffeID(id, td string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("spiffeID is required")
 	}
 
-	parsed, err := url.Parse(id)
+	principals := []string{validators.PrincipalWFM, validators.PrincipalWFMClient}
+
+	for _, principal := range principals {
+		if err := validators.ValidateSpiffeIDWithTrustDomain(id, td, principal); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf(
+		"invalid spiffe ID %q: must match either WFM format spiffe://<trust-domain>/margo/wfm/<wfm-id> "+
+			"or WFM-Client format spiffe://<trust-domain>/margo/wfm/<wfm-id>/client/<wfm-client-id>"+
+			"or does not belong to configured trust domain",
+		id,
+	)
+
+}
+
+// validateCSR parses and verifies the signature of a PEM or base64-encoded DER CSR.
+func validateCSR(csr string) error {
+	var derBytes []byte
+
+	block, _ := pem.Decode([]byte(csr))
+	if block != nil {
+		if block.Type != "CERTIFICATE REQUEST" {
+			return fmt.Errorf("PEM block type must be 'CERTIFICATE REQUEST', got '%s'", block.Type)
+		}
+		derBytes = block.Bytes
+	} else {
+		var err error
+		derBytes, err = base64.StdEncoding.DecodeString(csr)
+		if err != nil {
+			return fmt.Errorf("must be a valid PEM or base64-encoded DER CSR")
+		}
+	}
+
+	parsed, err := x509.ParseCertificateRequest(derBytes)
 	if err != nil {
-		return fmt.Errorf("invalid URI: %w", err)
+		return fmt.Errorf("invalid CSR: %w", err)
 	}
 
-	if parsed.Scheme != "spiffe" {
-		return fmt.Errorf("scheme must be 'spiffe', got '%s'", parsed.Scheme)
-	}
-
-	if parsed.Host == "" {
-		return fmt.Errorf("trust domain (host) must not be empty")
-	}
-
-	if strings.Contains(parsed.Host, ":") {
-		return fmt.Errorf("trust domain must not contain a port")
-	}
-
-	if parsed.User != nil {
-		return fmt.Errorf("spiffeID must not contain user info")
-	}
-
-	if parsed.Fragment != "" {
-		return fmt.Errorf("spiffeID must not contain a fragment")
-	}
-
-	if parsed.RawQuery != "" {
-		return fmt.Errorf("spiffeID must not contain a query string")
+	if err := parsed.CheckSignature(); err != nil {
+		return fmt.Errorf("CSR signature verification failed: %w", err)
 	}
 
 	return nil

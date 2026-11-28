@@ -17,6 +17,7 @@ type Config struct {
 	TrustBundleURI string       `json:"trustBundleURI"`
 	CA             *CAConfig    `json:"ca"`
 	HTTPS          *HTTPSConfig `json:"https"`
+	DefaultSVIDTTL int64        `json:"defaultSVIDTTL"`
 }
 
 type LogConfig struct {
@@ -134,6 +135,10 @@ func validateConfig(cfg *Config) error {
 		} else if !fileExists(cfg.HTTPS.Key) {
 			errs = append(errs, fmt.Errorf("https.key file does not exist: %s", cfg.HTTPS.Key))
 		}
+	}
+
+	if cfg.DefaultSVIDTTL <= 0 {
+		cfg.DefaultSVIDTTL = 604800 // 7 Days
 	}
 
 	return errors.Join(errs...)

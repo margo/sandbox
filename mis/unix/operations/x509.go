@@ -17,15 +17,27 @@ import (
 	"github.com/margo/sandbox/mis/pkg/types"
 )
 
-// GenerateX509SVID creates an X.509 SVID certificate signed by the provided CA.
-// caFilePath: path to the PEM-encoded CA certificate on disk.
-// caKeyPath:  path to the PEM-encoded CA private key on disk.
-func (mo *MintOperations) GenerateX509SVID(
-	req *types.MintSVIDRequest,
-	caFilePath string,
-	caKeyPath string,
-) (certPEM []byte, keyPEM []byte, err error) {
-	logger := mo.logger.With("operation", "GenerateX509SVID")
+// SVIDGenerationResult holds the result of an SVID generation operation.
+// GenerationType is either "installed" (key + cert generated) or "enrolled" (cert only, via CSR).
+// Cert is the PEM-encoded X.509 SVID certificate.
+// Key is the PEM-encoded EC private key; populated only when GenerationType is "installed".
+type SVIDGenerationResult struct {
+	GenerationType string
+	Cert           []byte
+	Key            []byte
+}
+
+const (
+	SVIDGenerationTypeInstalled string = "installed"
+	SVIDGenerationTypeEnrolled  string = "enrolled"
+)
+
+// loadCA reads and parses the CA certificate and EC private key from disk.
+// Returns the parsed certificate and private key, or an error.
+func (mo *MintOperations) loadCA(
+	caFilePath, caKeyPath string,
+) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	logger := mo.logger.With("operation", "loadCA")
 
 	// --- Load CA certificate ---
 	logger.Debug("reading CA certificate from disk", "path", caFilePath)
@@ -72,35 +84,16 @@ func (mo *MintOperations) GenerateX509SVID(
 	}
 	logger.Debug("CA private key loaded successfully")
 
-	// --- Generate SVID private key ---
-	logger.Debug("generating ECDSA P-256 private key for SVID")
-	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		logger.Error("failed to generate ECDSA private key", "error", err)
-		return nil, nil, fmt.Errorf("generating ECDSA private key: %w", err)
-	}
-	logger.Debug("ECDSA private key generated successfully")
+	return caCert, caPrivKey, nil
+}
 
-	// --- Parse SPIFFE ID ---
-	spiffeURI, err := url.Parse(req.SpiffeID)
-	if err != nil {
-		logger.Error("failed to parse SPIFFE ID as URI", "spiffe_id", req.SpiffeID, "error", err)
-		return nil, nil, fmt.Errorf("parsing SPIFFE ID: %w", err)
-	}
-	logger.Debug("SPIFFE ID parsed", "spiffe_id", req.SpiffeID, "trust_domain", spiffeURI.Host)
-
+// buildCertTemplate constructs the x509.Certificate template from the request.
+// spiffeURI is the parsed SPIFFE ID URI, always sourced from req.SpiffeID.
+func buildCertTemplate(req *types.MintSVIDRequest, spiffeURI *url.URL) *x509.Certificate {
 	now := time.Now()
 	ttl := req.ResolvedTTL()
 
-	logger.Debug(
-		"building X.509 certificate template",
-		"not_before", now,
-		"not_after", now.Add(ttl),
-		"ttl", ttl,
-		"dns_sans", req.DNS,
-	)
-
-	template := &x509.Certificate{
+	return &x509.Certificate{
 		SerialNumber: helpers.NewSerialNumber(),
 		Subject: pkix.Name{
 			Organization: []string{spiffeURI.Host},
@@ -116,39 +109,197 @@ func (mo *MintOperations) GenerateX509SVID(
 		URIs:                  []*url.URL{spiffeURI},
 		DNSNames:              req.DNS,
 	}
+}
 
-	// --- Sign with CA ---
-	logger.Debug("signing X.509 certificate with provided CA")
+// GenerateSVID generates an X.509 SVID certificate signed by the provided CA.
+//
+// Behaviour is driven by req.CSR:
+//   - Empty CSR  → "installed" mode: a new ECDSA P-256 key-pair is generated internally.
+//     Both the certificate and the private key are returned in the result.
+//   - Non-empty CSR → "enrolled" mode: the CSR is validated and its public key is used
+//     to sign the certificate. No private key is generated or returned.
+//     If the CSR is non-empty but invalid, the call errors out immediately; it does NOT
+//     fall back to "installed" mode.
+//
+// The SPIFFE ID is always taken from req.SpiffeID. When a CSR is provided, its URI SAN
+// is extracted purely for informational comparison; a warning is logged if the two differ.
+//
+// caFilePath: path to the PEM-encoded CA certificate on disk.
+// caKeyPath:  path to the PEM-encoded CA private key on disk.
+func (mo *MintOperations) GenerateSVID(
+	req *types.MintSVIDRequest,
+	caFilePath string,
+	caKeyPath string,
+) (*SVIDGenerationResult, error) {
+	logger := mo.logger.With("operation", "GenerateSVID")
+
+	// --- Load CA (shared for both modes) ---
+	caCert, caPrivKey, err := mo.loadCA(caFilePath, caKeyPath)
+	if err != nil {
+		// loadCA already logs the specific error; wrap for caller context.
+		return nil, fmt.Errorf("loading CA material: %w", err)
+	}
+
+	// --- Parse SPIFFE ID from request (authoritative source, always used) ---
+	spiffeURI, err := url.Parse(req.SpiffeID)
+	if err != nil {
+		logger.Error("failed to parse SPIFFE ID as URI", "spiffe_id", req.SpiffeID, "error", err)
+		return nil, fmt.Errorf("parsing SPIFFE ID: %w", err)
+	}
+	logger.Debug(
+		"SPIFFE ID parsed from request",
+		"spiffe_id",
+		req.SpiffeID,
+		"trust_domain",
+		spiffeURI.Host,
+	)
+
+	// --- Build certificate template (shared for both modes) ---
+	ttl := req.ResolvedTTL()
+	logger.Debug(
+		"building X.509 certificate template",
+		"not_before", time.Now(),
+		"not_after", time.Now().Add(ttl),
+		"ttl", ttl,
+		"dns_sans", req.DNS,
+	)
+	template := buildCertTemplate(req, spiffeURI)
+
+	// --- Mode selection: CSR present → "enrolled", CSR absent → "installed" ---
+	if req.CSR != "" {
+		// =========================================================
+		// ENROLLED MODE — validate CSR, use its public key to sign.
+		// A non-empty but invalid CSR is a hard error; no fallback.
+		// =========================================================
+		logger.Debug("CSR provided, entering enrolled mode")
+
+		csrBlock, _ := pem.Decode([]byte(req.CSR))
+		if csrBlock == nil {
+			// CSR field is non-empty but not valid PEM — hard error.
+			return nil, fmt.Errorf("enrolled mode: failed to decode PEM block from CSR")
+		}
+
+		csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
+		if err != nil {
+			logger.Error("failed to parse CSR", "error", err)
+			return nil, fmt.Errorf("enrolled mode: parsing CSR: %w", err)
+		}
+
+		// Validate CSR signature to ensure the caller holds the private key.
+		if err := csr.CheckSignature(); err != nil {
+			logger.Error("CSR signature validation failed", "error", err)
+			return nil, fmt.Errorf("enrolled mode: CSR signature invalid: %w", err)
+		}
+
+		// Informational: CSR should carry exactly one URI SAN (the SPIFFE ID).
+		if len(csr.URIs) == 1 {
+			// Informational: compare CSR URI SAN with req.SpiffeID; warn if they differ.
+			csrSpiffeID := csr.URIs[0].String()
+			if csrSpiffeID != req.SpiffeID {
+				logger.Warn(
+					"CSR URI SAN differs from req.SpiffeID; using req.SpiffeID as authoritative value",
+					"req_spiffe_id",
+					req.SpiffeID,
+					"csr_spiffe_id",
+					csrSpiffeID,
+				)
+			} else {
+				logger.Debug(
+					"CSR URI SAN matches req.SpiffeID",
+					"spiffe_id", req.SpiffeID,
+					"csr_spiffe_id", csrSpiffeID,
+				)
+			}
+		} else {
+			logger.Warn(
+				"enrolled mode: CSR should contain exactly one URI SAN, will use SPIFFE ID provided in request",
+				"got",
+				len(csr.URIs),
+				"req_spiffe_id",
+				req.SpiffeID,
+			)
+		}
+
+		// --- Sign certificate using CSR's public key ---
+		logger.Debug("signing X.509 certificate with CA using CSR public key")
+		certDER, err := x509.CreateCertificate(
+			rand.Reader,
+			template,
+			caCert,
+			csr.PublicKey, // public key from the caller's CSR
+			caPrivKey,
+		)
+		if err != nil {
+			logger.Error("failed to create X.509 certificate", "error", err)
+			return nil, fmt.Errorf("enrolled mode: creating X.509 certificate: %w", err)
+		}
+
+		certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+		logger.Info(
+			"X.509 SVID generated successfully (enrolled mode)",
+			"spiffe_id", req.SpiffeID,
+			"trust_domain", spiffeURI.Host,
+			"ttl", ttl,
+			"dns_sans", req.DNS,
+		)
+
+		return &SVIDGenerationResult{
+			GenerationType: SVIDGenerationTypeEnrolled,
+			Cert:           certPEM,
+			Key:            nil, // private key never generated or held in enrolled mode
+		}, nil
+	}
+
+	// =========================================================
+	// INSTALLED MODE — generate a new ECDSA P-256 key-pair and
+	// sign the certificate with it.
+	// =========================================================
+	logger.Debug("no CSR provided, entering installed mode")
+
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		logger.Error("failed to generate ECDSA private key", "error", err)
+		return nil, fmt.Errorf("installed mode: generating ECDSA private key: %w", err)
+	}
+	logger.Debug("ECDSA P-256 private key generated successfully")
+
+	// --- Sign certificate using the freshly generated public key ---
+	logger.Debug("signing X.509 certificate with CA using generated public key")
 	certDER, err := x509.CreateCertificate(
 		rand.Reader,
-		template, // certificate to sign
-		caCert,   // CA as parent (not self-signed)
+		template,
+		caCert,
 		&privKey.PublicKey,
-		caPrivKey, // CA private key for signing
+		caPrivKey,
 	)
 	if err != nil {
 		logger.Error("failed to create X.509 certificate", "error", err)
-		return nil, nil, fmt.Errorf("creating X.509 certificate: %w", err)
+		return nil, fmt.Errorf("installed mode: creating X.509 certificate: %w", err)
 	}
-	logger.Debug("X.509 certificate created, encoding to PEM")
 
-	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
+	// Marshal the private key to DER, then PEM-encode it.
 	logger.Debug("marshalling EC private key to DER")
 	privKeyDER, err := x509.MarshalECPrivateKey(privKey)
 	if err != nil {
 		logger.Error("failed to marshal EC private key", "error", err)
-		return nil, nil, fmt.Errorf("marshalling EC private key: %w", err)
+		return nil, fmt.Errorf("installed mode: marshalling EC private key: %w", err)
 	}
-	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyDER})
 
 	logger.Info(
-		"X.509 SVID generated successfully",
+		"X.509 SVID generated successfully (installed mode)",
 		"spiffe_id", req.SpiffeID,
 		"trust_domain", spiffeURI.Host,
 		"ttl", ttl,
 		"dns_sans", req.DNS,
 	)
 
-	return certPEM, keyPEM, nil
+	return &SVIDGenerationResult{
+		GenerationType: SVIDGenerationTypeInstalled,
+		Cert:           certPEM,
+		Key:            keyPEM,
+	}, nil
 }

@@ -1,43 +1,88 @@
-
 # MIS Client Library
 
 ## Purpose
 
-`client` is a Go package that provides a thin, TLS-aware wrapper around the
-auto-generated Margo Identity Service (MIS) HTTP client. It simplifies
-connecting to the MIS endpoint by handling root CA trust configuration and
-exposing clean, context-aware methods for fetching the discovery document and
-SPIFFE trust bundle.
+`client` is a Go package that provides a thin, TLS-aware client for fetching the
+Margo Identity Service (MIS) discovery document and SPIFFE trust bundle. The
+caller supplies full, absolute HTTPS URLs for each request. The trust mode is
+selected per request from the URL host, so the same client can reach servers
+whose addresses change over time.
+
+---
+
+## Types
+
+### `TrustConfig`
+
+Holds the trust material used to authenticate MIS HTTPS servers. At least one
+of `RootCAPEM` or `SPKIPins` must be non-empty. The material required for a
+given request is determined by the URL host:
+
+- **IP address host:** `SPKIPins` is required. At least one certificate in the
+  server's chain must match a pin. Hostname verification is not performed,
+  because the pin establishes identity.
+- **DNS name host:** `RootCAPEM` is required. The chain is validated against
+  these anchors with RFC 5280 path validation and RFC 9525 name checks, handled
+  by the standard TLS stack.
+
+| Field | Type | Description |
+|---|---|---|
+| `RootCAPEM` | `[]byte` | One or more PEM-encoded CA certificates. Used for DNS-named URLs. |
+| `SPKIPins` | `[]string` | Base64-encoded SHA-256 SPKI digests in the form `sha256/<base64>` per RFC 7469 §2.4. Used for IP-addressed URLs. |
 
 ---
 
 ## Functions
 
-### `New(endpoint string, rootCAPEM []byte) (*MISClient, error)`
+### `New(trust TrustConfig) (*MISClient, error)`
 
-Creates a new `MISClient` configured with mutual TLS trust using the provided
-root CA PEM bytes. The endpoint should be a full base URL
-(e.g. `https://mis.margo.org:8443`). Returns an error if the CA certificate
-cannot be parsed or the underlying client fails to initialize.
+Creates a new `MISClient` using the provided `TrustConfig`. The trust material
+is validated up front. The trust mode for each request is selected later, from
+the URL passed to `GetDiscoveryDocument` or `GetTrustBundle`.
+
+Returns an error if neither `RootCAPEM` nor `SPKIPins` is provided, if the root
+CA PEM cannot be parsed, or if any SPKI pin is malformed.
 
 ---
 
-### `GetDiscoveryDocument(ctx context.Context, etag string) (*GetWellKnownMargoResponse, error)`
+### `GetDiscoveryDocument(ctx context.Context, discoveryURL string, etag string) (*GetWellKnownMargoResponse, error)`
 
-Calls `GET /.well-known/margo` to retrieve the MIS discovery document.
-Supports conditional GETs via an `If-None-Match` header — pass a non-empty
-`etag` to enable it. When the server responds with `304 Not Modified`,
-`JSON200` will be `nil`; callers should reuse their cached document.
+Calls the supplied discovery document URL and returns the parsed response.
+
+- `discoveryURL` is a full absolute HTTPS URL, for example
+  `https://192.0.2.10/.well-known/margo`.
+- Pass a non-empty `etag` to send an `If-None-Match` header (conditional GET).
+  Pass `""` to skip it.
+- On `304 Not Modified`, `JSON200` is `nil`. The caller should reuse its cached
+  document.
+- On `404 Not Found`, the problem detail is returned in
+  `ApplicationproblemJSON404`.
 
 ---
 
 ### `GetTrustBundle(ctx context.Context, trustBundleURL string, etag string) (*GetWellKnownSpiffeBundleJsonResponse, error)`
 
-Fetches the SPIFFE trust bundle. Accepts an optional `trustBundleURL` override
-(e.g. sourced from the discovery document's `trustBundleUri` field); when
-empty, it defaults to `/.well-known/spiffe/bundle.json` on the configured
-server. Supports conditional GETs via `etag`. On `304 Not Modified`, `JSON200`
-is `nil` and callers should reuse their cached bundle.
+Calls the supplied SPIFFE bundle URL and returns the parsed response.
+
+- `trustBundleURL` is a full absolute HTTPS URL, typically the `trustBundleUri`
+  value from the discovery document or from operator configuration.
+- Pass a non-empty `etag` to send an `If-None-Match` header (conditional GET).
+  Pass `""` to skip it.
+- On `304 Not Modified`, `JSON200` is `nil`. The caller should reuse its cached
+  bundle.
+- On `404 Not Found`, the problem detail is returned in
+  `ApplicationproblemJSON404`.
+
+---
+
+## Validation Rules
+
+Each request is checked before any network call is made:
+
+- The URL must parse and use the `https` scheme.
+- The URL host must not be empty.
+- An IP-addressed URL requires `SPKIPins`.
+- A DNS-named URL requires `RootCAPEM`.
 
 ---
 
@@ -46,12 +91,12 @@ is `nil` and callers should reuse their cached bundle.
 ### Installation
 
 ```go
-import "github.com/margo/sandbox/mis/shared-lib/mis/client"
+import "github.com/margo/sandbox/shared-lib/mis/client"
 ```
 
 ---
 
-### Example 1 — Create a client
+### Example 1: Create a client with a root CA certificate (DNS-named URLs)
 
 ```go
 rootCA, err := os.ReadFile("./certs/https-ca.crt")
@@ -59,7 +104,9 @@ if err != nil {
     log.Fatal(err)
 }
 
-misClient, err := client.New("https://mis.margo.org:8443", rootCA)
+misClient, err := client.New(client.TrustConfig{
+    RootCAPEM: rootCA,
+})
 if err != nil {
     log.Fatal(err)
 }
@@ -67,19 +114,34 @@ if err != nil {
 
 ---
 
-### Example 2 — Fetch the discovery document (with caching)
+### Example 2: Create a client with SPKI pins (IP-addressed URLs)
+
+```go
+misClient, err := client.New(client.TrustConfig{
+    SPKIPins: []string{
+        "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=",
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+---
+
+### Example 3: Fetch the discovery document (with caching)
 
 ```go
 var cachedETag string
 var cachedDoc *generatedCode.GetWellKnownMargoResponse
 
-rsp, err := misClient.GetDiscoveryDocument(ctx, cachedETag)
+rsp, err := misClient.GetDiscoveryDocument(ctx, "https://192.0.2.10/.well-known/margo", cachedETag)
 if err != nil {
     log.Fatal(err)
 }
 
 if rsp.HTTPResponse.StatusCode == http.StatusNotModified {
-    // Server confirms document unchanged — reuse cachedDoc
+    // Server confirms document unchanged. Reuse cachedDoc.
 } else {
     cachedDoc = rsp
     cachedETag = rsp.HTTPResponse.Header.Get("ETag")
@@ -88,20 +150,35 @@ if rsp.HTTPResponse.StatusCode == http.StatusNotModified {
 
 ---
 
-### Example 3 — Fetch the SPIFFE trust bundle
+### Example 4: Fetch the SPIFFE trust bundle
 
 ```go
-// Using default path
-rsp, err := misClient.GetTrustBundle(ctx, "", "")
+rsp, err := misClient.GetTrustBundle(ctx, "https://192.0.2.10/.well-known/spiffe/bundle.json", "")
 if err != nil {
     log.Fatal(err)
 }
 
 if rsp.HTTPResponse.StatusCode == http.StatusOK {
     bundle := rsp.JSON200
-    fmt.Printf("Trust bundle keys: %+v\n", bundle)
+    fmt.Printf("Trust bundle: %+v\n", bundle)
+}
+```
+
+---
+
+### Example 5: Use the trustBundleUri from the discovery document
+
+```go
+discovery, err := misClient.GetDiscoveryDocument(ctx, "https://mis.factory.example/.well-known/margo", "")
+if err != nil {
+    log.Fatal(err)
 }
 
-// Using a custom URL from the discovery document
-rsp, err = misClient.GetTrustBundle(ctx, "https://mis.margo.org:8443/.well-known/spiffe/bundle.json", "")
+if discovery.JSON200 != nil {
+    rsp, err := misClient.GetTrustBundle(ctx, discovery.JSON200.TrustBundleUri, "")
+    if err != nil {
+        log.Fatal(err)
+    }
+    _ = rsp
+}
 ```

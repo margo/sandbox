@@ -13,16 +13,15 @@ import (
 
 // VerifierConfig holds the configuration required by the SPIFFE peer verifier.
 type VerifierConfig struct {
-	// GetOwnTrustDomain is a function that returns the verifier's own SPIFFE trust domain (e.g. "example.org").
+	// GetOwnTrustDomain returns the verifier's own SPIFFE trust domain (e.g. "example.org").
 	// Only SVIDs belonging to this trust domain are accepted (Rule 1).
 	GetOwnTrustDomain func() string
 
-	// GetTrustBundleBytes is a function that returns the SPIFFE trust bundle in JWK Set (JSON) format
+	// GetTrustBundleBytes returns the SPIFFE trust bundle in JWK Set (JSON) format
 	// used to validate the presented certificate chain (Rule 2).
 	GetTrustBundleBytes func() []byte
 
-	// GetClientAllowList is a function that returns the list of SPIFFE IDs permitted to connect.
-	// The peer's SPIFFE ID must appear in this list for the connection to be accepted.
+	// GetClientAllowList returns the list of SPIFFE IDs permitted to connect.
 	// An empty list means no peer is allowed — all connections will be rejected.
 	GetClientAllowList func() []string
 }
@@ -31,11 +30,12 @@ type VerifierConfig struct {
 // mutual TLS with SPIFFE X.509-SVID peer authentication.
 //
 // It disables Go's default hostname/DNS verification (InsecureSkipVerify = true)
-// and replaces it with a fully SPIFFE-compliant VerifyPeerCertificates hook that
+// and replaces it with a fully SPIFFE-compliant VerifyConnection hook that
 // enforces all four verifier rules from the spec, plus wfm-id cross-validation (Rule 5).
 //
 // The caller is responsible for supplying the client's own certificate/key pair
 // via tls.Certificate so the server can authenticate the client in return.
+// clientCert may contain a full chain (leaf + intermediates) as built by CertificateFromBytes.
 func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.Config, error) {
 	tlsCfg := &tls.Config{
 		MinVersion:       tls.VersionTLS13,
@@ -47,8 +47,6 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 		// Rule 1 explicitly states DNS hostname matching MUST NOT apply.
 		InsecureSkipVerify: true, //nolint:gosec // intentional; replaced by VerifyConnection
 
-		// VerifyConnection is called after the TLS handshake completes,
-		// with access to the full ConnectionState including parsed peer certificates.
 		VerifyConnection: buildVerifyConnection(cfg, clientCert, validators.PrincipalWFM),
 	}
 
@@ -67,7 +65,7 @@ func NewMTLSClientConfig(clientCert tls.Certificate, cfg VerifierConfig) (*tls.C
 //   - Rule 5: The <wfm-id> in the peer's SPIFFE ID must match the <wfm-id>
 //     in the verifier's own SPIFFE ID, regardless of which side is wfm or wfm-client.
 //
-// principal is the expected principal of the peer (PrincipalWFM or PrincipalWFMClient).
+// peerPrincipal is the expected principal of the peer (PrincipalWFM or PrincipalWFMClient).
 func buildVerifyConnection(
 	cfg VerifierConfig,
 	ownCert tls.Certificate,
@@ -83,7 +81,6 @@ func buildVerifyConnection(
 		if cfg.GetClientAllowList == nil {
 			return fmt.Errorf("connections are not allowed")
 		}
-
 		if len(cs.PeerCertificates) == 0 {
 			return fmt.Errorf("peer presented no certificates")
 		}
@@ -92,18 +89,17 @@ func buildVerifyConnection(
 		leaf := cs.PeerCertificates[0]
 
 		// ----------------------------------------------------------------
-		// Rule 1 — Trust Domain check.
+		// Rule 1 — Trust Domain check & Rule 3 — Validity period.
 		// ----------------------------------------------------------------
-		spiffeID, err := parser.ParseSpiffeIdFromX509Svid(leaf.Raw)
+		spiffeID, err := validators.ValidateX509SVID(leaf.Raw, peerPrincipal)
 		if err != nil {
-			return fmt.Errorf("rule 1: failed to extract SPIFFE ID from peer SVID: %w", err)
+			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
 		}
 
-		peerTrustDomain, err := parser.ParseTrustDomainFromSpiffeID(spiffeID)
+		peerTrustDomain, err := parser.ParseTrustDomain(spiffeID)
 		if err != nil {
 			return fmt.Errorf("rule 1: %w", err)
 		}
-
 		if peerTrustDomain != cfg.GetOwnTrustDomain() {
 			return fmt.Errorf(
 				"rule 1: trust domain mismatch — peer trust domain %q does not match verifier's own trust domain %q",
@@ -114,25 +110,18 @@ func buildVerifyConnection(
 
 		// ----------------------------------------------------------------
 		// Rule 2 — Chain validation against the Trust Bundle.
+		// Encode any peer-presented intermediates (PeerCertificates[1:]) into
+		// a flat PEM bundle. nil is safe — ValidateX509SVIDAgainstTrustBundle
+		// handles leaf-only chains when chainPEM is nil.
 		// ----------------------------------------------------------------
-		rawIntermediates := make([][]byte, 0, len(cs.PeerCertificates)-1)
-		for _, cert := range cs.PeerCertificates[1:] {
-			rawIntermediates = append(rawIntermediates, cert.Raw)
-		}
-
-		if err := verifyChainAgainstBundle(
-			leaf,
-			rawIntermediates,
+		chainPEM := encoders.CertsToPEM(cs.PeerCertificates[1:]...)
+		leafPEM := encoders.CertsToPEM(leaf)
+		if _, err := validators.ValidateX509SVIDAgainstTrustBundle(
+			leafPEM,
+			chainPEM,
 			cfg.GetTrustBundleBytes(),
 		); err != nil {
 			return fmt.Errorf("rule 2: %w", err)
-		}
-
-		// ----------------------------------------------------------------
-		// Rule 3 — Validity period.
-		// ----------------------------------------------------------------
-		if ok, err := validators.ValidateX509SVID(leaf.Raw, peerPrincipal); !ok {
-			return fmt.Errorf("rule 3/4: SVID validation failed: %w", err)
 		}
 
 		// ----------------------------------------------------------------
@@ -152,7 +141,6 @@ func buildVerifyConnection(
 				spiffeID,
 			)
 		}
-
 		if !slices.Contains(allowList, spiffeID) {
 			return fmt.Errorf(
 				"allow-list check: peer SPIFFE ID %q is not in the configured allow list",
@@ -162,30 +150,23 @@ func buildVerifyConnection(
 
 		// ----------------------------------------------------------------
 		// Rule 5 — wfm-id cross-validation.
-		// The <wfm-id> segment must match between peer and self SPIFFE IDs,
-		// ensuring a wfm-client only connects to its own wfm, and vice versa.
 		// ----------------------------------------------------------------
-
 		ownX509, err := x509.ParseCertificate(ownCert.Certificate[0])
 		if err != nil {
 			return fmt.Errorf("rule 5: failed to parse own certificate: %w", err)
 		}
-
 		ownSpiffeID, err := parser.ParseSpiffeIdFromX509Svid(ownX509.Raw)
 		if err != nil {
 			return fmt.Errorf("rule 5: failed to extract SPIFFE ID from own SVID: %w", err)
 		}
-
 		peerWFMID, err := parser.ParseWFMID(spiffeID)
 		if err != nil {
 			return fmt.Errorf("rule 5: failed to extract wfm-id from peer SPIFFE ID: %w", err)
 		}
-
 		ownWFMID, err := parser.ParseWFMID(ownSpiffeID)
 		if err != nil {
 			return fmt.Errorf("rule 5: failed to extract wfm-id from own SPIFFE ID: %w", err)
 		}
-
 		if peerWFMID != ownWFMID {
 			return fmt.Errorf(
 				"rule 5: wfm-id mismatch — peer wfm-id %q does not match own wfm-id %q",
@@ -195,61 +176,4 @@ func buildVerifyConnection(
 
 		return nil
 	}
-}
-
-// verifyChainAgainstBundle and verifyWithIntermediates remain unchanged.
-
-func verifyChainAgainstBundle(
-	leaf *x509.Certificate,
-	rawIntermediates [][]byte,
-	trustBundle []byte,
-) error {
-	leafPEM := encoders.CertToPEM(leaf)
-
-	intermediatePool := x509.NewCertPool()
-	for i, raw := range rawIntermediates {
-		intermediate, err := x509.ParseCertificate(raw)
-		if err != nil {
-			return fmt.Errorf("failed to parse intermediate certificate [%d]: %w", i, err)
-		}
-		intermediatePool.AddCert(intermediate)
-	}
-
-	if len(rawIntermediates) == 0 {
-		ok, err := validators.ValidateX509SVIDAgainstTrustBundle(leafPEM, trustBundle)
-		if !ok {
-			return err
-		}
-		return nil
-	}
-
-	return verifyWithIntermediates(leaf, intermediatePool, trustBundle)
-}
-
-func verifyWithIntermediates(
-	leaf *x509.Certificate,
-	intermediates *x509.CertPool,
-	trustBundle []byte,
-) error {
-	leafPEM := encoders.CertToPEM(leaf)
-	if ok, _ := validators.ValidateX509SVIDAgainstTrustBundle(leafPEM, trustBundle); ok {
-		return nil
-	}
-
-	roots, err := validators.GetTrustBundleFromJWK(trustBundle)
-	if err != nil {
-		return fmt.Errorf("failed to build root pool from trust bundle: %w", err)
-	}
-
-	opts := x509.VerifyOptions{
-		Roots:         encoders.CertsToPool(roots),
-		Intermediates: intermediates,
-		CurrentTime:   leaf.NotBefore.Add(1),
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-
-	if _, err := leaf.Verify(opts); err != nil {
-		return fmt.Errorf("certificate does not chain to a trusted SPIFFE bundle: %w", err)
-	}
-	return nil
 }

@@ -8,6 +8,7 @@ type: Opaque
 data:
   harbor.crt: {{ .Files.Get "harbor.crt" | b64enc | quote }} 
   https-ca.crt: {{ .Files.Get "https-ca.crt" | b64enc | quote }}
+  trust-bundle.json: {{ .Files.Get "trust-bundle.json" | b64enc | quote }}
   payload-cert.pem: {{ .Files.Get "payload-cert.pem" | b64enc | quote }}
   payload-key.pem: {{ .Files.Get "payload-key.pem" | b64enc | quote }}
 {{- end }}

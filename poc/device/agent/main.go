@@ -23,6 +23,7 @@ import (
 	"github.com/margo/sandbox/poc/device/agent/types"
 	wfm "github.com/margo/sandbox/poc/wfm/cli"
 	"github.com/margo/sandbox/shared-lib/mis/mtls"
+
 	mp "github.com/margo/sandbox/shared-lib/mis/parser" // miaf config parser
 	"github.com/margo/sandbox/shared-lib/mis/validators"
 	"github.com/margo/sandbox/shared-lib/workloads"
@@ -45,7 +46,6 @@ type Agent struct {
 	monitor        DeploymentMonitorIfc
 	statusReporter StatusReporterIfc
 	tbCacher       TrustBundleCacherIfc
-	afWatcher      AuthFileWatcherIfc
 }
 
 // DeviceId pattern as defined in Margo Spec
@@ -132,21 +132,18 @@ func NewAgent(configPath string) (*Agent, error) {
 		return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
 	}
 
-	// Validate Authorized spiffe Ids here
-	for _, spid := range pmc.AuthorizedSPIFFEIDs {
-		// Authorization list for device-agent will contain SPIFFE IDs of WFMs, hence using principal WFM here.
-		err := validators.ValidateSpiffeID(spid, validators.PrincipalWFM)
-		if err != nil {
-			log.Errorw(
-				"spiffe id is invalid ",
-				"spiffeId",
-				spid,
-				"err",
-				err.Error(),
-			)
-			return nil, fmt.Errorf("failed to parse miaf config, err : %w", err)
-		}
+	// Assign Authorized SpiffeIDs Here:
+	pairedWFMId, err := mp.ExtractWFMSpiffeID(pmc.X509.SpiffeID)
+	if err != nil {
+		log.Errorw(
+			"failed to parse paired wfm spiffeId",
+			"err",
+			err.Error(),
+		)
+		return nil, fmt.Errorf("failed to parse paired wfm spiffeId, err : %w", err)
 	}
+	// No need to validate further, as SVID's own SPIFFE ID is validated
+	pmc.AuthorizedSPIFFEIDs = []string{pairedWFMId}
 
 	// parsed & validated MIAF Configuration (with certificates etc) added to database
 	opts = append(opts, WithParsedMIAFConfig(pmc))
@@ -157,17 +154,22 @@ func NewAgent(configPath string) (*Agent, error) {
 	// Create WFM client using configured URL
 	wfmUrl := cfg.Wfm.SbiURL
 
-	mTlsVerifierOpt := mTLSVerifier(pmc.X509.CertPEM, pmc.X509.KeyPEM, &mtls.VerifierConfig{
-		GetOwnTrustDomain: func() string {
-			v, _ := db.GetTrustDomain()
-			return v
+	mTlsVerifierOpt := mTLSVerifier(
+		pmc.X509.CertPEM,
+		pmc.X509.ChainPEM,
+		pmc.X509.KeyPEM,
+		&mtls.VerifierConfig{
+			GetOwnTrustDomain: func() string {
+				v, _ := db.GetTrustDomain()
+				return v
+			},
+			GetTrustBundleBytes: func() []byte {
+				v, _ := db.GetTrustBundle()
+				return v
+			},
+			GetClientAllowList: db.GetAuthorizedWFMs,
 		},
-		GetTrustBundleBytes: func() []byte {
-			v, _ := db.GetTrustBundle()
-			return v
-		},
-		GetClientAllowList: db.GetAuthorizedWFMs,
-	})
+	)
 
 	clientOptions = append(
 		clientOptions,
@@ -205,7 +207,6 @@ func NewAgent(configPath string) (*Agent, error) {
 	)
 	statusReporter := NewStatusReporter(db, wfmClient, log)
 	tbCacher := NewTrustBundleCacher(db, cfg.MIAF.MIS.CacheInterval, log)
-	afWatcher := NewAuthFileWatcher(cfg.MIAF.AuthzPath, db, log)
 
 	return &Agent{
 		database:       db,
@@ -218,7 +219,6 @@ func NewAgent(configPath string) (*Agent, error) {
 		config:         *cfg,
 		capabilities:   capabilities,
 		tbCacher:       tbCacher,
-		afWatcher:      afWatcher,
 	}, nil
 }
 
@@ -230,17 +230,12 @@ func (a *Agent) Start() error {
 		return err
 	}
 
-	err = a.afWatcher.Start()
-	if err != nil {
-		return err
-	}
-
 	td, err := a.database.GetTrustDomain()
 	if err != nil {
 		return fmt.Errorf("trustdomain not found, cannot proceed. err: %w", err)
 	}
 	// * Extract SPIFFE ID from Certificate & Validate it against trust domain
-	c, _, err := a.database.GetSVID()
+	c, ch, _, err := a.database.GetSVID()
 	if err != nil {
 		return fmt.Errorf("SVID not found, cannot proceed. err: %w", err)
 	}
@@ -264,7 +259,7 @@ func (a *Agent) Start() error {
 	if err != nil {
 		return fmt.Errorf("trustbundle not found, cannot proceed. err: %w", err)
 	}
-	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, tb); !ok {
+	if ok, err := validators.ValidateX509SVIDAgainstTrustBundle(c, ch, tb); !ok {
 		return fmt.Errorf("svid validation failed against trustbundle, err: %w", err)
 	}
 
@@ -324,7 +319,6 @@ func (a *Agent) Stop() error {
 	a.deployer.Stop()
 	a.monitor.Stop()
 	a.statusReporter.Stop()
-	a.afWatcher.Stop()
 	a.database.TriggerDataPersist()
 
 	a.log.Info("Workload Fleet Management Client stopped")
@@ -509,7 +503,12 @@ func PreflightLogger(
 	}
 }
 
-func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTPApiClientOptions {
+func mTLSVerifier(
+	cert []byte,
+	chain []byte,
+	key []byte,
+	config *mtls.VerifierConfig,
+) wfm.HTTPApiClientOptions {
 	return func(client *sbi.Client) error {
 		// Validate client
 		if client == nil {
@@ -517,7 +516,7 @@ func mTLSVerifier(cert []byte, key []byte, config *mtls.VerifierConfig) wfm.HTTP
 		}
 
 		// Get certificates from DB and apply here
-		pc, err := mp.CertificateFromBytes(cert, key)
+		pc, err := mp.CertificateFromBytes(cert, key, chain)
 		if err != nil {
 			return fmt.Errorf("failed to parse certificate from bytes, err: %w", err)
 		}

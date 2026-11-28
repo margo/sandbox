@@ -92,13 +92,16 @@ func (tbc *TrustBundleCacher) Start() error {
 		tb = miafCfg.MIS.TrustBundle.BundleJSON
 	}
 
-	getter, err := trustbundle.New(
-		miafCfg.MIS.Endpoint,    // base HTTPS URL of the MIS server
-		miafCfg.MIS.CAPEM,       // PEM-encoded CA cert for TLS verification
-		tburi,                   // optional well-known URI path (may be empty)
-		tb,                      // optional operator-supplied fallback bundle (may be nil)
-		miafCfg.MIS.TrustDomain, // SPIFFE trust domain (may be empty if not yet known)
-	)
+	cfg := trustbundle.TrustBundleGetterConfig{
+		DiscoveryURL:   miafCfg.MIS.DiscoveryDocumentURL,
+		MISRootCA:      miafCfg.MIS.TrustAnchorPEM,
+		MISTrustPins:   miafCfg.MIS.TrustPins,
+		TrustBundleURI: tburi,
+		StaticBundle:   tb,
+		TrustDomain:    miafCfg.MIS.TrustDomain,
+	}
+
+	getter, err := trustbundle.New(cfg)
 	if err != nil {
 		tbc.log.Errorw("Failed to create trust bundle getter; TrustBundleCacher will not start",
 			"error", err)
@@ -184,9 +187,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 	// the ticker loop via stopChan; we do not want a deadline here.
 	trustDomain, bundle, etag, err := getter.GetTrustBundle(context.Background(), ietag)
 	if err != nil {
-
 		if errors.Is(err, trustbundle.ErrNotModified) {
-
 			tbc.log.Warn("reusing trust bundle cache", "message", err.Error())
 			// This is not an error
 			return tbc.interval, nil
@@ -203,7 +204,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 		"etag", etag,
 		"bundleSizeBytes", len(bundle))
 
-	// Validate trust domain first,
+	// Validate trust domain first.
 	ok := validators.ValidateTrustDomain(trustDomain)
 	if !ok {
 		tbc.log.Errorw("Invalid trust domain; will retry on next tick",
@@ -212,8 +213,8 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 		return tbc.interval, fmt.Errorf("invalid margo trust domain")
 	}
 
-	// Validate trust bundle
-	err = validators.ValidateSpiffeTrustBundle(bundle, trustDomain)
+	// Validate trust bundle.
+	err = validators.ValidateSpiffeTrustBundle(bundle)
 	if err != nil {
 		tbc.log.Errorw("Invalid Margo SPIFFE Trust Bundle; will retry on next tick",
 			"error", err)
@@ -221,7 +222,7 @@ func (tbc *TrustBundleCacher) fetchAndStore(getter trustbundle.Getter) (uint32, 
 		return tbc.interval, fmt.Errorf("invalid margo spiffe trust bundle, err : %w", err)
 	}
 
-	// save in database if everything is fine
+	// Save in database if everything is fine.
 	tbc.database.SetTrustBundle(bundle, etag)
 	tbc.database.SetTrustDomain(trustDomain, "")
 

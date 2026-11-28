@@ -151,8 +151,12 @@ func validSPIFFEBundle(t *testing.T) []byte {
 	jwk := map[string]interface{}{
 		"kty": "EC",
 		"crv": "P-256",
-		"x":   base64.RawURLEncoding.EncodeToString(key.PublicKey.X.FillBytes(make([]byte, 32))),
-		"y":   base64.RawURLEncoding.EncodeToString(key.PublicKey.Y.FillBytes(make([]byte, 32))),
+		"x": base64.RawURLEncoding.EncodeToString(
+			//nolint:staticcheck // ignore QF1008 embedding is by standard package
+			key.PublicKey.X.FillBytes(make([]byte, 32))),
+		"y": base64.RawURLEncoding.EncodeToString(
+			//nolint:staticcheck // ignore QF1008 embedding is by standard package
+			key.PublicKey.Y.FillBytes(make([]byte, 32))),
 		"use": "x509-svid",
 		"x5c": []string{base64.StdEncoding.EncodeToString(der)},
 	}
@@ -206,7 +210,11 @@ func TestNew_EmptyConfig_ReturnsError(t *testing.T) {
 func TestValidateNewInputs_NoSourceNoStatic_ReturnsModeError(t *testing.T) {
 	err := validateNewInputs(TrustBundleGetterConfig{})
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "either DiscoveryURL, TrustBundleURI, or StaticBundle must be provided")
+	assert.ErrorContains(
+		t,
+		err,
+		"either DiscoveryURL, TrustBundleURI, or StaticBundle must be provided",
+	)
 }
 
 func TestValidateNewInputs_NetworkWithoutTrustAnchor_ReturnsError(t *testing.T) {
@@ -346,7 +354,11 @@ func TestValidateNewInputs_AllSourcesConfigured_ReturnsNil(t *testing.T) {
 func TestValidateModeRequirements_Empty_ReturnsError(t *testing.T) {
 	err := validateModeRequirements(TrustBundleGetterConfig{})
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "either DiscoveryURL, TrustBundleURI, or StaticBundle must be provided")
+	assert.ErrorContains(
+		t,
+		err,
+		"either DiscoveryURL, TrustBundleURI, or StaticBundle must be provided",
+	)
 }
 
 func TestValidateModeRequirements_StaticOnly_ReturnsNil(t *testing.T) {

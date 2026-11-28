@@ -298,7 +298,10 @@ func ParseMIAFConfig(input MIAFInput, principal string) (*ParsedMIAFConfig, erro
 			return nil, err
 		}
 		if len(bytes.TrimSpace(ca)) == 0 {
-			return nil, fmt.Errorf("miaf.mis.caPath: file %q must not be empty", input.MIS.TrustAnchorPath)
+			return nil, fmt.Errorf(
+				"miaf.mis.caPath: file %q must not be empty",
+				input.MIS.TrustAnchorPath,
+			)
 		}
 		if _, err = validators.ValidateRootCACertificate(ca); err != nil {
 			return nil, fmt.Errorf(

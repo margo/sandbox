@@ -187,8 +187,14 @@ func (t *trustBundleGetterImpl) GetTrustBundle(
 
 	if err := validators.ValidateSpiffeTrustBundle(bundleBytes); err != nil {
 		return t.fallbackToURIOrStatic(
-			ctx, c, ietag,
-			fmt.Errorf("bundle from discovered URL %q failed validation: %w", discoveredBundleURL, err),
+			ctx,
+			c,
+			ietag,
+			fmt.Errorf(
+				"bundle from discovered URL %q failed validation: %w",
+				discoveredBundleURL,
+				err,
+			),
 		)
 	}
 

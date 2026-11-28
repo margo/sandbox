@@ -233,7 +233,12 @@ func TestParseMIAFConfig_CertFileEmpty_ReturnsError(t *testing.T) {
 func TestParseMIAFConfig_CertFileInvalidPEM_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	input := buildValidInput(t, dir)
-	input.X509.SVIDWithIntermediatePath = writeTempFile(t, dir, "bad_cert.pem", []byte("not-a-cert"))
+	input.X509.SVIDWithIntermediatePath = writeTempFile(
+		t,
+		dir,
+		"bad_cert.pem",
+		[]byte("not-a-cert"),
+	)
 
 	_, err := ParseMIAFConfig(input, "wfm")
 

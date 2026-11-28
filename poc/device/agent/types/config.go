@@ -25,7 +25,7 @@ type MIAFConfig struct {
 
 type MIAFX509Config struct {
 	SVIDWithIntermediatePath string `yaml:"svidWithIntermediatePath" validate:"required"`
-	KeyPath                  string `yaml:"keyPath"  validate:"required"`
+	KeyPath                  string `yaml:"keyPath"                  validate:"required"`
 }
 type TrustBundleConfig struct {
 	URI        string `yaml:"uri"`
@@ -203,7 +203,10 @@ func validateMIAFConfig(m *MIAFConfig) error {
 	}
 	var urlFields []urlField
 	if m.MIS.DiscoveryDocumentURL != "" {
-		urlFields = append(urlFields, urlField{"miaf.mis.discoveryDocumentURL", m.MIS.DiscoveryDocumentURL})
+		urlFields = append(
+			urlFields,
+			urlField{"miaf.mis.discoveryDocumentURL", m.MIS.DiscoveryDocumentURL},
+		)
 	}
 	if m.MIS.TrustBundle != nil && m.MIS.TrustBundle.URI != "" {
 		urlFields = append(urlFields, urlField{"miaf.mis.trustBundle.uri", m.MIS.TrustBundle.URI})
@@ -216,16 +219,23 @@ func validateMIAFConfig(m *MIAFConfig) error {
 
 	for _, f := range urlFields {
 		u, err := url.Parse(f.value)
-		if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") ||
+			u.Hostname() == "" {
 			return fmt.Errorf("%s must be a valid absolute URL, got %q", f.name, f.value)
 		}
 
 		if net.ParseIP(u.Hostname()) != nil {
 			if !hasTrustPins {
-				return fmt.Errorf("%s uses an IP address, so miaf.mis.trustPins must be configured", f.name)
+				return fmt.Errorf(
+					"%s uses an IP address, so miaf.mis.trustPins must be configured",
+					f.name,
+				)
 			}
 		} else if !hasTrustAnchorPath {
-			return fmt.Errorf("%s uses a domain name, so miaf.mis.trustAnchorPath must be configured", f.name)
+			return fmt.Errorf(
+				"%s uses a domain name, so miaf.mis.trustAnchorPath must be configured",
+				f.name,
+			)
 		}
 	}
 

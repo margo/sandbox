@@ -102,7 +102,10 @@ func buildTLSConfig(rawURL string, trust TrustConfig) (*tls.Config, error) {
 	// IP-addressed URL: SPKI pin mode.
 	if net.ParseIP(host) != nil {
 		if len(trust.SPKIPins) == 0 {
-			return nil, fmt.Errorf("URL %q: IP address host requires SPKIPins in TrustConfig", rawURL)
+			return nil, fmt.Errorf(
+				"URL %q: IP address host requires SPKIPins in TrustConfig",
+				rawURL,
+			)
 		}
 
 		pins, err := decodePins(trust.SPKIPins)
@@ -192,7 +195,10 @@ func spkiSHA256(cert *x509.Certificate) ([32]byte, error) {
 // doGet validates the URL and trust material, performs a GET request to the
 // full URL (with optional If-None-Match), and returns the response along with
 // its fully-read body.
-func (c *MISClient) doGet(ctx context.Context, rawURL, etag string) (*http.Response, []byte, error) {
+func (c *MISClient) doGet(
+	ctx context.Context,
+	rawURL, etag string,
+) (*http.Response, []byte, error) {
 	tlsCfg, err := buildTLSConfig(rawURL, c.trust)
 	if err != nil {
 		return nil, nil, err
